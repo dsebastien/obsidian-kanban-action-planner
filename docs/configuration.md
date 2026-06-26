@@ -69,3 +69,24 @@ overridden per view):
 Dragging a card to another lane rewrites the grouping property to the target lane's value (or
 clears it for Ungrouped). Note-type lanes are read-only — a note's type comes from its
 tags/folder — so cross-lane drags there are ignored.
+
+## Relationships
+
+Each relationship role reads a link-property (frontmatter wikilinks), configured per profile in
+**Configure board → Relationships**:
+
+| Role       | Default property | Meaning                          |
+| ---------- | ---------------- | -------------------------------- |
+| Parent     | `parent`         | Notes this note is a child of.   |
+| Sibling    | `siblings`       | Peer notes (mutual).             |
+| Child      | `children`       | Notes that are children of this. |
+| Blocked by | `blocked_by`     | Notes blocking this one.         |
+
+Inverse relations are derived automatically (a declared child gives the target a parent, and so
+on). Setting a role's property to **None** disables link detection for that role. The **Detect
+children by tag** option adds a heuristic: a note carrying one of the listed tags that links to
+a card counts as that card's child.
+
+Relationships are **read-only** — the plugin never writes them. A non-empty **blocked by** flags
+the card (red badge + edge) and powers the **Blocked cards** view filter and badge navigation;
+it never changes status on its own.

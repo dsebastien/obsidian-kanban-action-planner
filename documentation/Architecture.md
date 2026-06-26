@@ -66,18 +66,25 @@ Edit only `src/styles.src.css`; the root `styles.css` is generated.
 
 ## Current state
 
-Through Milestone 3: a working board with columns from a status property, an Unmapped column,
+Through Milestone 4: a working board with columns from a status property, an Unmapped column,
 pointer-event drag/drop and reorder persisted to notes, a right-click menu, note-type
 **profiles** (mirrored from the Obsidian Starter Kit when present), a **color** system applied
 to cards/columns, **config-driven card presentation** (title/fields/cover/wrap), **configurable
 swimlanes** (group by note type or a property, with collapsible lanes and an Ungrouped lane;
-cross-lane drag rewrites the grouping property), per-view options, a Configure-board modal, and
-global settings. Relationships, archiving, and calendar mode are implemented in later
-milestones.
+cross-lane drag rewrites the grouping property), **relationships** (parent/sibling/child/
+blocked_by detection with inverse lookup + a tag+link heuristic, blocked-by flag/navigation, and
+a blocked filter), per-view options, a Configure-board modal, and global settings. Archiving and
+calendar mode are implemented in later milestones.
 
 The board pipeline: `domain/board-model.ts` `buildBoard()` is pure and unit-tested (buckets
 cards into `BoardLane[] → BoardColumn[]`, `isMultiLane` flag); `ui/board/board-renderer.ts`
 renders chrome-free for a single lane or collapsible `.kap-lane` swimlanes otherwise;
 `ui/board/dnd-controller.ts` reports `{ laneId, columnId, index }` drop targets; the view
-(`views/kanban/kanban-view.ts`) resolves grouping + per-file lane values and persists
-status/order/grouping-property writes via `services/frontmatter.service.ts`.
+(`views/kanban/kanban-view.ts`) resolves grouping + per-file lane values, computes relationships,
+applies the blocked filter, and persists status/order/grouping-property writes via
+`services/frontmatter.service.ts`.
+
+Relationships are layered in two pure modules + a bridge: `domain/relationships.ts`
+(`resolveRelationships` — direct + inverse + heuristic) and `domain/filtering.ts` (blocked
+filter) are unit-tested; `services/relationships.service.ts` reads tags/links from the metadata
+cache and feeds the domain. Relationships are read-only (never written back).

@@ -58,6 +58,17 @@ export function getKanbanViewOptions(settings: PluginSettings): BasesAllOptions[
             key: 'laneGroupingProperty',
             displayName: 'Swimlane property',
             placeholder: 'Property to group lanes by'
+        },
+        {
+            type: 'dropdown',
+            key: 'blockedFilter',
+            displayName: 'Blocked cards',
+            default: 'all',
+            options: {
+                all: 'Show all',
+                only: 'Only blocked',
+                hide: 'Hide blocked'
+            }
         }
     ]
 }

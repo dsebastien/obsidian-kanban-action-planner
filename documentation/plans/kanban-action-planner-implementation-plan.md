@@ -869,7 +869,29 @@ flagged (especially cross-lane semantics).
 
 ---
 
-### Milestone 4 — Relationships, blocked_by, relational filtering
+### Milestone 4 — Relationships, blocked_by, relational filtering — ✅ done (2026-06-26)
+
+**Outcome:** Pure `domain/relationships.ts` resolves `parent`/`sibling`/`child`/`blocked_by`
+from per-note records combining **direct** role link-properties, **inverse** reverse lookup
+(`parent`↔`child`, `sibling` symmetric), and a **link-scoped tag heuristic** (a note carrying
+an allowed type tag and linking to a source counts as that role); direct links may leave the
+board set, inverse/heuristic only form between known notes. `domain/filtering.ts` adds the
+blocked filter (`all`/`only`/`hide`). `services/relationships.service.ts` bridges the metadata
+cache (tags via `getAllTags`, role links via `frontmatterLinks` + `getFirstLinkpathDest`,
+outgoing links via `metadataCache.resolvedLinks`), with per-role link-property names from the
+profile's rules (missing → per-role default; explicit empty → disabled). Cards gained a
+relationship badge row (`▲`/`▼`/`↔` + count, red `⛔` blocked badge); a non-empty `blocked_by`
+also gives the card a red left accent. Clicking a badge navigates to the single related note
+or opens a picker menu; the card context menu lists related notes too. The view applies the
+blocked filter before building the board, exposes it as a `blockedFilter` view option, and the
+Configure-board modal gained a **Relationships** section (per-role link-property pickers + a
+"detect children by tag" heuristic input). Default profiles seed the four role rules. Domain
+is unit-tested (relationships 12 cases + filtering, 129 tests total); `tsc`/`lint`/`build`
+green. **Verified live in Obsidian:** with link-properties on the fixtures, A→children C/D, C/D
+inverse-parent A, C↔D siblings, B/F blocked (red accent + badge) all resolved; the blocked
+badge navigated to the blocker; a multi-child badge opened a C/D menu; `blockedFilter: only`
+narrowed the board to B/F; zero console errors. (Tag heuristic covered by unit tests; flag for
+live check with tagged notes.)
 
 **Goal:** Per-profile relationships with detection, inverse lookup, blocked-by handling,
 and relational filters layered on Bases filters.

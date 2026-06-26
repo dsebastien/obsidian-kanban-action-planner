@@ -7,11 +7,19 @@ import {
     UNGROUPED_LANE_ID,
     UNMAPPED_COLUMN_ID
 } from '../../constants'
-import type { ColumnDef, LaneGrouping, Profile } from '../../domain/profile'
+import type { ColumnDef, LaneGrouping, Profile, RelationshipRole } from '../../domain/profile'
 import { buildBoard } from '../../domain/board-model'
 import type { Board, UnmappedPosition } from '../../domain/board-model'
 import { detectStatusProperty, normalizeStatusValue } from '../../domain/status'
+import { passesFilter } from '../../domain/filtering'
+import type { BlockedFilter, RelationalFilter } from '../../domain/filtering'
+import type { RelationshipSet } from '../../domain/relationships'
 import { recognizeNoteType } from '../../services/starter-kit.service'
+import {
+    resolveBoardRelationships,
+    toCardRelationships
+} from '../../services/relationships.service'
+import type { RelatedNote } from '../../services/relationships.service'
 import { planInsertion } from '../../domain/ordering'
 import {
     coerceOrder,
@@ -61,6 +69,7 @@ export class KanbanActionPlannerView extends BasesView {
     private columns: ColumnDef[] = []
     private laneGrouping: LaneGrouping = { kind: 'none' }
     private laneValueByPath = new Map<string, string | null>()
+    private relationshipsByPath = new Map<string, RelationshipSet>()
     private readonly collapsedLanes = new Set<string>()
     private board: Board<KanbanCard> = { lanes: [], isMultiLane: false }
     private cardsByKey = new Map<string, KanbanCard>()
@@ -158,7 +167,12 @@ export class KanbanActionPlannerView extends BasesView {
         this.dueDateProperty =
             this.profile.calendar.dueDateProperty || this.plugin.settings.defaultDueDateProperty
 
-        const cards = files.map((file) => this.toCard(file))
+        this.relationshipsByPath = resolveBoardRelationships(this.app, files, this.profile)
+
+        const filter = this.relationalFilter()
+        const cards = files
+            .map((file) => this.toCard(file))
+            .filter((card) => passesFilter(this.relationshipsByPath.get(card.key), filter))
         this.cardsByKey = new Map(cards.map((c) => [c.key, c]))
 
         const values = this.resolveColumnValues()
@@ -192,10 +206,17 @@ export class KanbanActionPlannerView extends BasesView {
             {
                 onOpen: (card, newTab) => this.openCard(card, newTab),
                 onContextMenu: (card, event) => this.showCardMenu(card, event),
-                onToggleLane: (laneId) => this.toggleLane(laneId)
+                onToggleLane: (laneId) => this.toggleLane(laneId),
+                onRelationship: (card, role, event) => this.showRelatedMenu(card, role, event)
             },
             this.collapsedLanes
         )
+    }
+
+    private relationalFilter(): RelationalFilter {
+        const value = this.config.get('blockedFilter')
+        const blocked: BlockedFilter = value === 'only' || value === 'hide' ? value : 'all'
+        return { blocked }
     }
 
     private toggleLane(laneId: string): void {
@@ -257,6 +278,7 @@ export class KanbanActionPlannerView extends BasesView {
         const display = buildCardDisplay(this.app, file, this.profile.card, this.dueDateProperty)
         const laneValue =
             this.laneGrouping.kind === 'none' ? null : (this.laneValueByPath.get(file.path) ?? null)
+        const relationships = toCardRelationships(this.relationshipsByPath.get(file.path))
         return {
             key: file.path,
             file,
@@ -264,7 +286,8 @@ export class KanbanActionPlannerView extends BasesView {
             statusValue,
             order,
             laneValue,
-            display
+            display,
+            relationships
         }
     }
 
@@ -421,7 +444,54 @@ export class KanbanActionPlannerView extends BasesView {
                     .onClick(() => void this.setCardStatus(card, null, UNMAPPED_COLUMN_ID))
             )
         }
+        this.addRelationshipMenuItems(menu, card)
         menu.showAtMouseEvent(event)
+    }
+
+    /** Add "open related note" items (blockers first) when the card has any. */
+    private addRelationshipMenuItems(menu: Menu, card: KanbanCard): void {
+        let separated = false
+        for (const { role, label, icon } of RELATIONSHIP_MENU) {
+            const related = card.relationships[role]
+            if (related.length === 0) continue
+            if (!separated) {
+                menu.addSeparator()
+                separated = true
+            }
+            for (const note of related) {
+                menu.addItem((item) =>
+                    item
+                        .setTitle(`${label}: ${note.label}`)
+                        .setIcon(icon)
+                        .onClick(() => this.openRelated(note))
+                )
+            }
+        }
+    }
+
+    /** Navigate from a relationship badge: open the single related note, or list them. */
+    private showRelatedMenu(card: KanbanCard, role: RelationshipRole, event: MouseEvent): void {
+        const related = card.relationships[role]
+        if (related.length === 0) return
+        if (related.length === 1 && related[0]) {
+            this.openRelated(related[0])
+            return
+        }
+        const menu = new Menu()
+        for (const note of related) {
+            menu.addItem((item) =>
+                item
+                    .setTitle(note.label)
+                    .setIcon('file')
+                    .onClick(() => this.openRelated(note))
+            )
+        }
+        menu.showAtMouseEvent(event)
+    }
+
+    private openRelated(note: RelatedNote): void {
+        const file = this.app.vault.getFileByPath(note.key)
+        if (file) void this.app.workspace.getLeaf(false).openFile(file)
     }
 
     private async setCardStatus(
@@ -434,6 +504,14 @@ export class KanbanActionPlannerView extends BasesView {
         await this.applyMove(card, statusValue, laneId, columnId, destCards.length)
     }
 }
+
+/** Relationship roles shown in the card context menu (blockers first). */
+const RELATIONSHIP_MENU: Array<{ role: RelationshipRole; label: string; icon: string }> = [
+    { role: 'blocked_by', label: 'Blocked by', icon: 'ban' },
+    { role: 'parent', label: 'Parent', icon: 'corner-left-up' },
+    { role: 'child', label: 'Child', icon: 'corner-right-down' },
+    { role: 'sibling', label: 'Sibling', icon: 'arrow-left-right' }
+]
 
 /** Read a stored multitext option into a clean string array. */
 function readStringArray(value: unknown): string[] {

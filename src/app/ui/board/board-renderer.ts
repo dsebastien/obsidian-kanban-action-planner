@@ -1,4 +1,5 @@
 import type { Board, BoardColumn } from '../../domain/board-model'
+import type { RelationshipRole } from '../../domain/profile'
 import { columnHeaderShade, columnShade, resolveColor } from '../../services/colors.service'
 import type { KanbanCard } from './types'
 import { renderCard } from './card-renderer'
@@ -8,6 +9,8 @@ export interface BoardRenderCallbacks {
     onContextMenu: (card: KanbanCard, event: MouseEvent) => void
     /** Toggle a swimlane's collapsed state (multi-lane boards only). */
     onToggleLane?: (laneId: string) => void
+    /** Activate a card relationship badge. */
+    onRelationship?: (card: KanbanCard, role: RelationshipRole, event: MouseEvent) => void
 }
 
 /**
@@ -85,7 +88,9 @@ function renderColumns(
         listEl.setAttribute('role', 'list')
 
         for (const card of cards) {
-            const cardEl = renderCard(listEl, card, accent)
+            const cardEl = renderCard(listEl, card, accent, {
+                onRelationship: callbacks.onRelationship
+            })
             cardEl.addEventListener('click', (e) => callbacks.onOpen(card, e.ctrlKey || e.metaKey))
             cardEl.addEventListener('keydown', (e) => {
                 if (e.key === 'Enter' || e.key === ' ') {

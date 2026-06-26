@@ -1,5 +1,6 @@
 import type { TFile } from 'obsidian'
 import type { BoardCardBase } from '../../domain/board-model'
+import type { CardRelationships } from '../../services/relationships.service'
 
 /** A single rendered field on a card. */
 export interface CardFieldView {
@@ -21,4 +22,6 @@ export interface KanbanCard extends BoardCardBase {
     file: TFile
     title: string
     display: CardDisplay
+    /** Resolved related notes per role (blocked-by drives the blocked flag). */
+    relationships: CardRelationships
 }

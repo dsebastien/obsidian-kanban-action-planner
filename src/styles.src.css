@@ -254,6 +254,38 @@
         white-space: normal;
     }
 
+    /* Relationship badges (parent / child / sibling / blocked-by).
+       Layout/spacing/typography via Tailwind @apply; Obsidian theme tokens
+       (colors) via var(--…). */
+    .kap-card-rels {
+        @apply flex flex-wrap items-center gap-1 mt-1;
+    }
+
+    .kap-card-rel {
+        @apply inline-flex items-center gap-1 h-5 px-1 border-0 rounded cursor-pointer text-[0.85em];
+        color: var(--text-muted);
+        background: var(--background-modifier-hover);
+    }
+
+    .kap-card-rel:hover {
+        color: var(--text-normal);
+    }
+
+    .kap-card-rel-glyph {
+        @apply leading-none;
+    }
+
+    .kap-card-rel-blocked {
+        @apply font-semibold;
+        color: var(--text-error);
+        background: var(--background-modifier-error, rgb(255 0 0 / 0.1));
+    }
+
+    /* A blocked card gets a red left accent overriding the status accent. */
+    .kap-card-blocked {
+        border-left-color: var(--text-error);
+    }
+
     .kap-card-dragging {
         opacity: 0.4;
     }

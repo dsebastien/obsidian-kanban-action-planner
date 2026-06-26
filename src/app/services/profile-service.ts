@@ -10,10 +10,14 @@ import {
     type SkNoteType
 } from './starter-kit.service'
 import {
+    DEFAULT_BLOCKED_BY_PROPERTY,
+    DEFAULT_CHILD_PROPERTY,
     DEFAULT_DATE_FORMAT,
     DEFAULT_DUE_DATE_PROPERTY,
     DEFAULT_ORDER_PROPERTY,
+    DEFAULT_PARENT_PROPERTY,
     DEFAULT_SCHEDULED_DATE_PROPERTY,
+    DEFAULT_SIBLING_PROPERTY,
     DEFAULT_STATUS_PROPERTY
 } from '../constants'
 import type { KanbanActionPlannerPlugin } from '../plugin'
@@ -79,7 +83,12 @@ export function createDefaultProfile(
             wrapPropertyValues: false
         },
         archive: { archiveFolder: '', triggerStatus: null },
-        relationships: [],
+        relationships: [
+            { role: 'parent', linkProperty: DEFAULT_PARENT_PROPERTY },
+            { role: 'sibling', linkProperty: DEFAULT_SIBLING_PROPERTY },
+            { role: 'child', linkProperty: DEFAULT_CHILD_PROPERTY },
+            { role: 'blocked_by', linkProperty: DEFAULT_BLOCKED_BY_PROPERTY }
+        ],
         calendar: {
             enabled: false,
             scheduledDateProperty: defaults.scheduledDateProperty,
@@ -168,6 +177,22 @@ export async function setAutoAssign(
         plugin,
         produce(profile, (draft) => {
             draft.colors.autoAssign = autoAssign
+        })
+    )
+}
+
+/** Replace a profile's relationship rules. */
+export async function setRelationships(
+    plugin: KanbanActionPlannerPlugin,
+    profileId: string,
+    relationships: Profile['relationships']
+): Promise<void> {
+    const profile = findProfile(plugin, profileId)
+    if (!profile) return
+    await upsertProfile(
+        plugin,
+        produce(profile, (draft) => {
+            draft.relationships = relationships
         })
     )
 }

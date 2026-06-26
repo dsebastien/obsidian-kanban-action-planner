@@ -39,7 +39,14 @@ column rule.
 - **CardPresentation** (issues #3–#6) — `titleSource` (note name or a property), ordered
   `fields` (`CardFieldDisplay`), optional `coverImageProperty`, and `wrapPropertyValues`.
 - **RelationshipRule** — a `role` (`parent`/`sibling`/`child`/`blocked_by`), a primary
-  `linkProperty`, and an optional secondary tag+link `heuristic`.
+  `linkProperty`, and an optional secondary tag+link `heuristic`. Resolved at runtime by
+  `domain/relationships.ts` into a **RelationshipSet** per note (`Record<role, string[]>`):
+  direct link targets, **inverse** reverse lookup (`parent`↔`child`, `sibling` symmetric;
+  `blocked_by` has no inverse), and the link-scoped heuristic (a tagged note linking to a
+  source stands in that role). A missing rule uses the per-role default property; an explicit
+  empty `linkProperty` disables link detection for that role (heuristic still applies).
+  Relationships are read-only (never written back). `domain/filtering.ts` adds the **blocked
+  filter** (`all`/`only`/`hide`) over the resolved sets.
 - **ArchiveConfig** (issue #7) — `archiveFolder` (supports `{{year}}`/`{{week}}`/… placeholders)
   and an optional `triggerStatus` for auto-archiving.
 - **CalendarConfig** — scheduled/due date property names, momentjs `dateFormat`, default

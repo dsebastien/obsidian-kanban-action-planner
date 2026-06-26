@@ -1,7 +1,14 @@
 import { Modal, Setting } from 'obsidian'
 import type { App } from 'obsidian'
 import type { KanbanActionPlannerPlugin } from '../plugin'
-import type { CardPresentation, ColorSpec, LaneGrouping, Profile } from '../domain/profile'
+import type {
+    CardPresentation,
+    ColorSpec,
+    LaneGrouping,
+    Profile,
+    RelationshipRole,
+    RelationshipRule
+} from '../domain/profile'
 import { splitStatusValue } from '../domain/status'
 import { isValidHex, paletteTokens, resolveColor } from '../services/colors.service'
 import {
@@ -10,7 +17,8 @@ import {
     setAutoAssign,
     setCardPresentation,
     setColorOverride,
-    setLaneGrouping
+    setLaneGrouping,
+    setRelationships
 } from '../services/profile-service'
 
 const AUTO = '__auto__'
@@ -76,7 +84,72 @@ export class ConfigureBoardModal extends Modal {
 
         this.renderColors(profile)
         this.renderSwimlanes(profile)
+        this.renderRelationships(profile)
         this.renderCard(profile)
+    }
+
+    // ── Relationships ─────────────────────────────────────────
+
+    private renderRelationships(profile: Profile): void {
+        new Setting(this.contentEl).setName('Relationships').setHeading()
+        this.contentEl.createEl('p', {
+            cls: 'kap-modal-subtitle',
+            text: 'Link-properties whose wikilinks define each relationship. Inverse relations are detected automatically.'
+        })
+
+        for (const { role, label } of RELATIONSHIP_ROLES_UI) {
+            const current = profile.relationships.find((r) => r.role === role)
+            new Setting(this.contentEl).setName(label).addDropdown((dd) => {
+                dd.addOption(NONE, 'None')
+                for (const prop of this.availableProperties) dd.addOption(prop, prop)
+                dd.setValue(
+                    current && current.linkProperty.length > 0 ? current.linkProperty : NONE
+                )
+                dd.onChange((value) => {
+                    void this.mutate(() =>
+                        setRelationships(
+                            this.plugin,
+                            this.profileId,
+                            upsertRule(profile.relationships, role, (rule) => ({
+                                ...rule,
+                                linkProperty: value === NONE ? '' : value
+                            }))
+                        )
+                    )
+                })
+            })
+        }
+
+        const childRule = profile.relationships.find((r) => r.role === 'child')
+        new Setting(this.contentEl)
+            .setName('Detect children by tag')
+            .setDesc(
+                'Comma-separated tags; a tagged note that links to this one counts as a child.'
+            )
+            .addText((input) => {
+                input
+                    .setPlaceholder('#task, #action')
+                    .setValue((childRule?.heuristic?.allowedTypeTags ?? []).join(', '))
+                    .onChange((value) => {
+                        const tags = value
+                            .split(',')
+                            .map((t) => t.trim())
+                            .filter((t) => t.length > 0)
+                        void this.mutate(() =>
+                            setRelationships(
+                                this.plugin,
+                                this.profileId,
+                                upsertRule(profile.relationships, 'child', (rule) => ({
+                                    ...rule,
+                                    heuristic:
+                                        tags.length > 0
+                                            ? { allowedTypeTags: tags, requiresLinkToSource: true }
+                                            : undefined
+                                }))
+                            )
+                        )
+                    })
+            })
     }
 
     // ── Swimlanes ─────────────────────────────────────────────
@@ -337,6 +410,26 @@ export class ConfigureBoardModal extends Modal {
     private async mutateCard(card: CardPresentation): Promise<void> {
         await this.mutate(() => setCardPresentation(this.plugin, this.profileId, card))
     }
+}
+
+/** Relationship roles shown in the modal, in order. */
+const RELATIONSHIP_ROLES_UI: Array<{ role: RelationshipRole; label: string }> = [
+    { role: 'parent', label: 'Parent property' },
+    { role: 'sibling', label: 'Sibling property' },
+    { role: 'child', label: 'Child property' },
+    { role: 'blocked_by', label: 'Blocked-by property' }
+]
+
+/** Replace (or insert) a role's rule via a mutator, returning the new rule list. */
+function upsertRule(
+    rules: ReadonlyArray<RelationshipRule>,
+    role: RelationshipRole,
+    mutator: (rule: RelationshipRule) => RelationshipRule
+): RelationshipRule[] {
+    const existing = rules.find((r) => r.role === role) ?? { role, linkProperty: '' }
+    const next = mutator(existing)
+    const others = rules.filter((r) => r.role !== role)
+    return [...others, next]
 }
 
 function move<T>(arr: ReadonlyArray<T>, from: number, to: number): T[] {
