@@ -26,7 +26,9 @@ See `documentation/plans/kanban-action-planner-implementation-plan.md` for full 
 2. **Status drives columns.** Columns derive from a status property (auto-detected: prefer a
    field literally named `status`, else any field whose name contains `status`;
    configurable). Before configuration, all notes sit in a single **Unmapped** column;
-   notes with missing/invalid status also go there. **Unmapped is hidden when empty.**
+   notes with missing/invalid status also go there. **Unmapped is hidden when empty** and
+   sits **first** (left) by default — left-to-right flow Unmapped → … → Done; a per-view
+   `unmappedPosition` option can move it last.
 3. **No state machine (for now).** All status transitions are allowed (drag or right-click).
    The data model stays open to add an allowed-transitions layer later, but none is built.
 4. **Order persisted to the note, not plugin data.** Manual order is written to a
