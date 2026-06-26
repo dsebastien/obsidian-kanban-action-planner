@@ -45,17 +45,39 @@ Three layers resolved by the (planned) profile service, in precedence order:
 When the Starter Kit plugin is present, its note-type config is the read-only source of
 truth, mirrored into a local snapshot in plugin settings so it survives SK being disabled.
 
-## Styling / isolation
+## Styling / isolation (hard rule)
 
-Tailwind v4 is imported **without preflight** (theme + utilities layers only). All rendered
-DOM lives under `.kap-root` and every class is `kap-`-prefixed (`constants.ts`); colors come
-from Obsidian CSS variables. This keeps the plugin from clashing with core or other plugins.
+Tailwind v4, hardened for Obsidian plugin isolation the same way the sibling
+`../obsidian-journal-base` plugin does. Four mechanisms (see the plan's "Styling: Tailwind +
+isolation" hard rule for the full rationale and canonical header):
+
+1. **No preflight** — the global reset is never imported.
+2. **Plugin-prefixed cascade layers** — `@layer kap-theme, kap-base, kap-components,
+kap-utilities;` (generic layer names are shared between plugins and let one reorder
+   another's rules).
+3. **`theme(reference)`** on `@import 'tailwindcss/theme'` — builds utilities from the design
+   tokens **without** emitting a global `:root { --… }` block (verify: `grep ':root'
+dist/styles.css` finds none).
+4. **`.kap-root` + `kap-` scoping** — every node lives under `.kap-root`, every class is
+   `kap-`-prefixed, every rule sits in `@layer kap-components`, and colors use Obsidian CSS
+   variables via `var(--…)` only.
+
+Edit only `src/styles.src.css`; the root `styles.css` is generated.
 
 ## Current state
 
-Through Milestone 2: a working board with columns from a status property, an Unmapped column,
+Through Milestone 3: a working board with columns from a status property, an Unmapped column,
 pointer-event drag/drop and reorder persisted to notes, a right-click menu, note-type
 **profiles** (mirrored from the Obsidian Starter Kit when present), a **color** system applied
-to cards/columns, per-view options (status/order property pickers, show-empty toggle), a
-Configure-board modal, and global settings. Swimlanes, card presentation, relationships,
-archiving, and calendar mode are implemented in later milestones.
+to cards/columns, **config-driven card presentation** (title/fields/cover/wrap), **configurable
+swimlanes** (group by note type or a property, with collapsible lanes and an Ungrouped lane;
+cross-lane drag rewrites the grouping property), per-view options, a Configure-board modal, and
+global settings. Relationships, archiving, and calendar mode are implemented in later
+milestones.
+
+The board pipeline: `domain/board-model.ts` `buildBoard()` is pure and unit-tested (buckets
+cards into `BoardLane[] → BoardColumn[]`, `isMultiLane` flag); `ui/board/board-renderer.ts`
+renders chrome-free for a single lane or collapsible `.kap-lane` swimlanes otherwise;
+`ui/board/dnd-controller.ts` reports `{ laneId, columnId, index }` drop targets; the view
+(`views/kanban/kanban-view.ts`) resolves grouping + per-file lane values and persists
+status/order/grouping-property writes via `services/frontmatter.service.ts`.

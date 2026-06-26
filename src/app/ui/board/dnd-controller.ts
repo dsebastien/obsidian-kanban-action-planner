@@ -15,6 +15,8 @@
 const DRAG_THRESHOLD_PX = 5
 
 export interface DropTarget {
+    /** Destination swimlane id (`''` for a single-lane board). */
+    laneId: string
     columnId: string
     /** Insertion index within the destination column (0 = top). */
     index: number
@@ -119,6 +121,7 @@ export class BoardDnd {
             return
         }
         const columnId = columnEl.dataset['columnId'] ?? ''
+        const laneId = columnEl.dataset['laneId'] ?? ''
         const listEl = columnEl.querySelector<HTMLElement>('.kap-column-cards')
         if (!listEl) return
 
@@ -136,7 +139,7 @@ export class BoardDnd {
 
         const ref = cardEls[index] ?? null
         listEl.insertBefore(this.placeholderEl, ref)
-        this.currentTarget = { columnId, index }
+        this.currentTarget = { laneId, columnId, index }
     }
 
     private columnElementAt(x: number, y: number): HTMLElement | null {

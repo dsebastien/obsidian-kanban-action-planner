@@ -54,3 +54,18 @@ Colors are saved per profile, so all boards of the same note type share them. Ea
 use an auto-assigned palette color, a chosen palette color, or a custom hex value. Column
 backgrounds are a translucent blend of the card color over your theme background, so they look
 right in both light and dark themes.
+
+## Swimlanes
+
+A board can be split into horizontal **lanes**. The grouping is saved per profile (and can be
+overridden per view):
+
+- **None** — one plain board.
+- **By note type** — one lane per recognized Starter Kit note type.
+- **By property** — one lane per distinct value of a chosen property; lanes order by a numeric
+  prefix the same way columns do. Cards missing the value collect in an **Ungrouped** lane
+  (hidden when empty).
+
+Dragging a card to another lane rewrites the grouping property to the target lane's value (or
+clears it for Ungrouped). Note-type lanes are read-only — a note's type comes from its
+tags/folder — so cross-lane drags there are ignored.

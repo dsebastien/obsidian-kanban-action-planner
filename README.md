@@ -13,6 +13,8 @@ Map note statuses to columns, reorder cards (persisted back into the notes), cus
 - **Manual ordering persisted to notes** — drag to reorder; order is written to a configurable property, not to plugin data.
 - **Drag & drop and right-click** to change status, with smooth, reduced-motion-aware animations.
 - **Note-type profiles** with per-status colors, auto-detected and mirrored from the Obsidian Starter Kit when present.
+- **Configurable cards** — choose the title source, body fields, an optional cover image, and value wrapping; due dates always flagged in red.
+- **Swimlanes** — split the board into collapsible lanes by note type or any property, with an Ungrouped lane; cross-lane drag rewrites the grouping property.
 - **Relationships** — parent / sibling / child and `blocked_by` via link-properties (with an optional tag+link heuristic), used for filtering, blocked-item flagging, and navigation.
 - **Calendar mode** — a toggle that turns the board into a scheduling calendar (week / month / quarter / year) with an Unplanned / No-Deadline panel; drag cards onto days to set `date_scheduled` / `date_due`.
 

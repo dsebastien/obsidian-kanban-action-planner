@@ -76,9 +76,13 @@ See `documentation/plans/kanban-action-planner-implementation-plan.md` for full 
     updates end-user docs in `docs/` and technical docs in `documentation/` (Architecture,
     Domain Model, Configuration, Business Rules) — not as a follow-up.
 14. **Tech baseline.** Vanilla DOM + native Pointer events + CSS grid; **zero UI
-    dependencies**; Tailwind v4 for styling with **all styles scoped** under `.kap-root` and
-    a `kap-` prefix (colors via Obsidian CSS vars only); Immer for state; Zod for validating
-    stored config.
+    dependencies**; Tailwind v4 for styling, **hardened for plugin isolation like
+    `../obsidian-journal-base`**: no preflight, **plugin-prefixed cascade layers**
+    (`kap-theme/base/components/utilities`), `@import 'tailwindcss/theme' … theme(reference)`
+    so **no global `:root` theme block is emitted**, and **all styles scoped** under
+    `.kap-root` with a `kap-` prefix inside `@layer kap-components` (colors via Obsidian CSS
+    vars only). Edit only `src/styles.src.css`. Immer for state; Zod for validating stored
+    config. (Full how-to: plan's "Styling: Tailwind + isolation" hard rule.)
 15. **Big-bang delivery.** No public release between milestones; a single `1.0.0` cut after
     all milestones pass (version stays `0.0.0` until then). UI behavior is never claimed from
     a green build alone — it is flagged for manual verification in Obsidian.

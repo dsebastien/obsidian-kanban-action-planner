@@ -2,9 +2,25 @@
 
 The configuration domain model lives in `src/app/domain/profile.ts` as Zod schemas; the
 TypeScript types are inferred from those schemas (`z.infer`) so schema and type never drift.
-Stored config is validated against these schemas on load. Derived runtime models
-(`CardModel`, `Lane`, `BoardModel` — which reference `BasesEntry`/`TFile`) arrive with the
-board renderer (Milestone 1) in `board-model.ts`.
+Stored config is validated against these schemas on load.
+
+Derived runtime models live in `src/app/domain/board-model.ts` (pure, generic over the card
+type, unit-tested with plain objects). `buildBoard(cards, columns, options)` returns a
+`Board<T>`:
+
+- **`Board<T>`** — `{ lanes: BoardLane<T>[], isMultiLane }`. `isMultiLane` is `false` when
+  grouping is off **or** resolves to a single lane (renderer draws it chrome-free).
+- **`BoardLane<T>`** — `{ lane: LaneDef, columns: BoardColumn<T>[], cardCount }`.
+- **`LaneDef`** — `{ id, label, isUngrouped }`. `id` is the raw grouping value (so cross-lane
+  drag can write it back) or `UNGROUPED_LANE_ID`; `label` strips any numeric sort prefix.
+- **`BoardColumn<T>`** — `{ column: ColumnDef, cards: T[] }`; cards sorted by `order` (unset
+  last), tie-broken by key.
+- **`BoardCardBase`** — the minimal card the model reads: `{ key, statusValue, order,
+laneValue? }`. The view's `KanbanCard` extends it with `file`/`title`/`display`.
+
+Lanes are ordered by their value's numeric/lexical prefix; the `Ungrouped` lane (missing
+grouping value) is hidden when empty and placed last by default — mirroring the Unmapped
+column rule.
 
 ## Core terms
 

@@ -35,5 +35,8 @@ export const DEFAULT_DATE_FORMAT = 'YYYY-MM-DD'
 /** Sentinel column id for cards with a missing/invalid status value. */
 export const UNMAPPED_COLUMN_ID = '__unmapped__'
 
+/** Sentinel swimlane id collecting cards with a missing grouping value. */
+export const UNGROUPED_LANE_ID = '__ungrouped__'
+
 /** Starter Kit plugin id we feature-detect for config auto-population. */
 export const STARTER_KIT_PLUGIN_ID = 'obsidian-starter-kit'

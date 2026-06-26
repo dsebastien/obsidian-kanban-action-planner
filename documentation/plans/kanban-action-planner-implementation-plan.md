@@ -96,6 +96,75 @@ UI dependencies.** Tailwind v4 for styling, all styles scoped under a plugin nam
 Immer for state, Zod for runtime validation of stored config. Performance target:
 ~1–2k cards/board smoothly; virtualize later only if needed.
 
+### Styling: Tailwind + isolation (HARD RULE)
+
+**This project styles with Tailwind v4, hardened for Obsidian plugin isolation exactly like
+the sibling `../obsidian-journal-base` plugin. Future agents MUST follow this — do not
+hand-roll CSS resets, do not import preflight, do not use generic Tailwind layer names.**
+
+All styling lives in `src/styles.src.css` (the only CSS source; the root `styles.css` is
+generated — never edit it). The isolation rests on **four** mechanisms, the first three copied
+from `obsidian-journal-base`:
+
+1. **No preflight.** Preflight is a global reset; in Obsidian it clobbers core + other
+   plugins. We never `@import 'tailwindcss'` (which includes it) — only the theme and
+   utilities sub-imports.
+2. **Plugin-prefixed cascade layers.** Generic layer names (`theme`, `base`, `components`,
+   `utilities`) are _shared_ across every Tailwind-using plugin, so their declared order can
+   reorder ours. We declare `@layer kap-theme, kap-base, kap-components, kap-utilities;` and
+   import into those private layers. (`journal-base` uses `jb-…`; pick the plugin’s own
+   prefix — here `kap-`.)
+3. **`theme(reference)` on the theme import.** `@import 'tailwindcss/theme' layer(kap-theme)
+theme(reference);` makes Tailwind _reference_ its design tokens to build utilities **without
+   emitting** the `:root { --color-…; --spacing-…; }` block — so the plugin never pollutes the
+   global scope or fights the active Obsidian theme. (Verify after a build: `grep ':root'
+dist/styles.css` should find none.)
+4. **`.kap-root` + `kap-` scoping.** Every rendered node lives under `.kap-root` and every
+   class is `kap-`-prefixed (`constants.ts`); every custom rule sits inside
+   `@layer kap-components`; **colors/backgrounds/interactive states use Obsidian CSS variables
+   only via `var(--…)`** — never Tailwind color utilities (they won’t match the theme).
+
+Canonical header for `src/styles.src.css`:
+
+```css
+@layer kap-theme, kap-base, kap-components, kap-utilities;
+@import 'tailwindcss/theme' layer(kap-theme) theme(reference);
+@import 'tailwindcss/utilities' layer(kap-utilities);
+
+@layer kap-components {
+    /* all plugin rules here, scoped under .kap-root with the kap- prefix */
+}
+```
+
+Use Tailwind utilities (via `@apply` or inline classes) for layout/spacing/sizing/typography/
+borders/effects; reach for raw CSS only when an Obsidian `var(--…)` is required.
+
+### Live testing harness (Obsidian CLI) — validate EVERY step
+
+A real Obsidian vault is wired for live validation; **every milestone/step MUST be verified
+here, not just by a green build** (Business Rule #15 — UI is never claimed from a build alone).
+
+- **Deploy:** `bun run dev` (watch) builds and copies `main.js`/`manifest.json`/`styles.css`
+  (+ `.hotreload`) into `$OBSIDIAN_VAULT_LOCATION/.obsidian/plugins/<plugin-id>/` (the vault is
+  taken from the `OBSIDIAN_VAULT_LOCATION` env var — see `scripts/build.ts`). Keep it running
+  while iterating. The same vault is the default target of the `obsidian` CLI.
+- **Vault fixtures:** `KanbanTest/` (Task A–F with `status`/`manual_order`; B/F have `date_due`;
+  a `project` property — A/C = `10 Alpha`, B/D = `20 Beta` — drives swimlane testing) and
+  `KANBANTESTBASE.base` at the vault root.
+- **`obsidian` CLI** (key=value args; not `--flags`). Useful commands: - `obsidian plugin:reload id=kanban-action-planner` — reload plugin code. **Gotcha:** an
+  already-open Bases leaf keeps its old sub-view; after reloading, **detach and reopen the
+  base** to force a fresh render: `obsidian eval code='for(const l of
+app.workspace.getLeavesOfType("bases"))l.detach()'` then `obsidian open
+path="KANBANTESTBASE.base"`. - `obsidian property:set name=<k> value=<v> path="<file>"` / `property:read` /
+  `property:remove` — edit fixture frontmatter. - `obsidian dev:dom selector="<css>" [total|text]` and `obsidian eval code='<js>'` —
+  assert on the rendered DOM (lane/column/card counts, `dataset`, `getComputedStyle`). - `obsidian dev:errors` / `dev:console` — assert **zero** console errors after each action. - `obsidian dev:screenshot path="/tmp/x.png"` — capture for visual review. - `obsidian dev:mobile on` — toggle mobile emulation to check the responsive/accordion
+  posture.
+- **Per-step validation rule:** after implementing a step, (1) reload + reopen the base,
+  (2) assert the expected DOM with `dev:dom`/`eval`, (3) exercise the new interaction (drag,
+  toggle, menu) via dispatched `PointerEvent`s or `.click()` and re-assert the resulting
+  frontmatter + re-render, (4) confirm `dev:errors` is clean, (5) screenshot for the record,
+  (6) restore any mutated fixtures. Record what was checked in the day’s history file.
+
 ---
 
 ## 2. Ground Rules (template conventions — non-negotiable)
@@ -728,7 +797,32 @@ customization page + `documentation/` model) updated; DoD green; manual checklis
 
 ---
 
-### Milestone 3 — Swimlanes (configurable grouping) — tracks [#2]
+### Milestone 3 — Swimlanes (configurable grouping) — ✅ done (2026-06-26) — tracks [#2]
+
+**Outcome:** Multi-lane board model in `domain/board-model.ts`: `buildBoard(cards, columns,
+{ grouped, unmappedPosition, ungroupedPosition })` returns a `Board<T>` with `lanes:
+BoardLane[]` and an `isMultiLane` flag. Cards carry an optional `laneValue`; grouping splits
+them into one lane per distinct value (ordered by numeric/lexical prefix via
+`compareStatusValues`), plus an `Ungrouped` lane (`UNGROUPED_LANE_ID`) for missing values —
+included only when non-empty, placed last by default. Grouping that yields a single lane stays
+chrome-free (`isMultiLane: false`), mirroring the Unmapped-column rule.
+`board-renderer.ts` renders a chrome-free `.kap-board` for single-lane boards and a stack of
+collapsible `.kap-lane` swimlanes (header = ▾/▸ toggle + label + count; each lane owns its
+column row) otherwise; columns carry both `data-column-id` and `data-lane-id`.
+`dnd-controller.ts`’s `DropTarget` gained `laneId`. The view resolves grouping per-view
+(`laneGrouping` / `laneGroupingProperty` view options, with a `__profile__` sentinel deferring
+to the profile) else from `profile.laneGrouping`; computes each file’s lane value
+(note-type name via `recognizeNoteType`, or the chosen property’s scalar) in the async
+`resolveAndRebuild`; and on **cross-lane drag** writes the grouping property to the target
+lane’s value (or clears it for Ungrouped). Note-type lanes can’t be safely reassigned, so a
+cross-lane drop there is ignored and logged (intra-lane drag unchanged). Collapsed-lane state
+is in-memory (per session). The Configure-board modal gained a **Swimlanes** section
+(`setLaneGrouping`). Lane grouping is unit-tested (`buildBoard`, 6 cases; 113 tests total);
+`tsc`/`lint`/`build` green. **Verified live in Obsidian** (see harness below): property
+grouping → Alpha/Beta/Ungrouped lanes with correct counts and per-lane columns; collapse
+toggle hides a lane body; cross-lane drag of Task E set `project: 10 Alpha` + `status: 20
+Doing` and re-rendered; `none` and (SK-less) `note-type` both degrade to a chrome-free single
+board; no console errors.
 
 **Goal:** Lane-capable rendering with a **configurable grouping key**. Grouping by note
 type is one mode; grouping by an **arbitrary property** is the generalized mode. Single

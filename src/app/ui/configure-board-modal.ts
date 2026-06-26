@@ -1,7 +1,7 @@
 import { Modal, Setting } from 'obsidian'
 import type { App } from 'obsidian'
 import type { KanbanActionPlannerPlugin } from '../plugin'
-import type { CardPresentation, ColorSpec, Profile } from '../domain/profile'
+import type { CardPresentation, ColorSpec, LaneGrouping, Profile } from '../domain/profile'
 import { splitStatusValue } from '../domain/status'
 import { isValidHex, paletteTokens, resolveColor } from '../services/colors.service'
 import {
@@ -9,7 +9,8 @@ import {
     findProfile,
     setAutoAssign,
     setCardPresentation,
-    setColorOverride
+    setColorOverride,
+    setLaneGrouping
 } from '../services/profile-service'
 
 const AUTO = '__auto__'
@@ -74,7 +75,59 @@ export class ConfigureBoardModal extends Modal {
         })
 
         this.renderColors(profile)
+        this.renderSwimlanes(profile)
         this.renderCard(profile)
+    }
+
+    // ── Swimlanes ─────────────────────────────────────────────
+
+    private renderSwimlanes(profile: Profile): void {
+        const grouping = profile.laneGrouping
+        new Setting(this.contentEl).setName('Swimlanes').setHeading()
+
+        new Setting(this.contentEl)
+            .setName('Group cards into lanes')
+            .setDesc('Split the board into horizontal lanes by note type or a property value.')
+            .addDropdown((dd) => {
+                dd.addOption('none', 'None')
+                dd.addOption('note-type', 'By note type')
+                dd.addOption('property', 'By property')
+                dd.setValue(grouping.kind)
+                dd.onChange((value) => {
+                    const next: LaneGrouping =
+                        value === 'note-type'
+                            ? { kind: 'note-type' }
+                            : value === 'property'
+                              ? {
+                                    kind: 'property',
+                                    property:
+                                        grouping.kind === 'property'
+                                            ? grouping.property
+                                            : (this.availableProperties[0] ?? '')
+                                }
+                              : { kind: 'none' }
+                    void this.mutate(() => setLaneGrouping(this.plugin, this.profileId, next))
+                })
+            })
+
+        if (grouping.kind !== 'property') return
+
+        new Setting(this.contentEl)
+            .setName('Group by property')
+            .setDesc('Each distinct value of this property becomes a lane.')
+            .addDropdown((dd) => {
+                dd.addOption(NONE, 'Choose a property…')
+                for (const prop of this.availableProperties) dd.addOption(prop, prop)
+                dd.setValue(grouping.property || NONE)
+                dd.onChange((value) => {
+                    void this.mutate(() =>
+                        setLaneGrouping(this.plugin, this.profileId, {
+                            kind: 'property',
+                            property: value === NONE ? '' : value
+                        })
+                    )
+                })
+            })
     }
 
     // ── Colors ────────────────────────────────────────────────

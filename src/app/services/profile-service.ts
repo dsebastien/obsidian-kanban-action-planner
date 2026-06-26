@@ -1,6 +1,6 @@
 import type { App, TFile } from 'obsidian'
 import { produce } from 'immer'
-import type { ColorSpec, ColumnDef, Profile } from '../domain/profile'
+import type { ColorSpec, ColumnDef, LaneGrouping, Profile } from '../domain/profile'
 import { compareStatusValues, splitStatusValue } from '../domain/status'
 import { autoAssignColor } from './colors.service'
 import {
@@ -168,6 +168,22 @@ export async function setAutoAssign(
         plugin,
         produce(profile, (draft) => {
             draft.colors.autoAssign = autoAssign
+        })
+    )
+}
+
+/** Replace a profile's swimlane grouping config. */
+export async function setLaneGrouping(
+    plugin: KanbanActionPlannerPlugin,
+    profileId: string,
+    laneGrouping: LaneGrouping
+): Promise<void> {
+    const profile = findProfile(plugin, profileId)
+    if (!profile) return
+    await upsertProfile(
+        plugin,
+        produce(profile, (draft) => {
+            draft.laneGrouping = laneGrouping
         })
     )
 }

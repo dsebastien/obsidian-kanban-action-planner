@@ -40,6 +40,24 @@ export function getKanbanViewOptions(settings: PluginSettings): BasesAllOptions[
             displayName: 'Unmapped column position',
             default: 'first',
             options: { first: 'First (left)', last: 'Last (right)' }
+        },
+        {
+            type: 'dropdown',
+            key: 'laneGrouping',
+            displayName: 'Swimlanes (grouping)',
+            default: '__profile__',
+            options: {
+                '__profile__': 'Use board default',
+                'none': 'None',
+                'note-type': 'By note type',
+                'property': 'By property'
+            }
+        },
+        {
+            type: 'property',
+            key: 'laneGroupingProperty',
+            displayName: 'Swimlane property',
+            placeholder: 'Property to group lanes by'
         }
     ]
 }

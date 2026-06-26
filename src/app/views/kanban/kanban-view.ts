@@ -1,11 +1,17 @@
 import { BasesView, debounce, Menu, TFile } from 'obsidian'
 import type { Debouncer, QueryController } from 'obsidian'
 import type { KanbanActionPlannerPlugin } from '../../plugin'
-import { CSS_ROOT_CLASS, KANBAN_VIEW_TYPE, UNMAPPED_COLUMN_ID } from '../../constants'
-import type { ColumnDef, Profile } from '../../domain/profile'
-import { buildSingleLaneBoard } from '../../domain/board-model'
-import type { SingleLaneBoard, UnmappedPosition } from '../../domain/board-model'
+import {
+    CSS_ROOT_CLASS,
+    KANBAN_VIEW_TYPE,
+    UNGROUPED_LANE_ID,
+    UNMAPPED_COLUMN_ID
+} from '../../constants'
+import type { ColumnDef, LaneGrouping, Profile } from '../../domain/profile'
+import { buildBoard } from '../../domain/board-model'
+import type { Board, UnmappedPosition } from '../../domain/board-model'
 import { detectStatusProperty, normalizeStatusValue } from '../../domain/status'
+import { recognizeNoteType } from '../../services/starter-kit.service'
 import { planInsertion } from '../../domain/ordering'
 import {
     coerceOrder,
@@ -53,7 +59,10 @@ export class KanbanActionPlannerView extends BasesView {
     private profile: Profile = createDefaultProfile(DEFAULT_PROFILE_ID, 'Default', 'local')
     private profileStatusValues: string[] | null = null
     private columns: ColumnDef[] = []
-    private board: SingleLaneBoard<KanbanCard> = { columns: [] }
+    private laneGrouping: LaneGrouping = { kind: 'none' }
+    private laneValueByPath = new Map<string, string | null>()
+    private readonly collapsedLanes = new Set<string>()
+    private board: Board<KanbanCard> = { lanes: [], isMultiLane: false }
     private cardsByKey = new Map<string, KanbanCard>()
 
     constructor(
@@ -96,13 +105,47 @@ export class KanbanActionPlannerView extends BasesView {
         return entries.map((e) => e.file).filter((f): f is TFile => f instanceof TFile)
     }
 
-    /** Resolve the profile (may hit the async Starter Kit API), then render. */
+    /** Resolve the profile + lane values (may hit the async Starter Kit API), then render. */
     private async resolveAndRebuild(): Promise<void> {
         const files = this.files()
         const resolved = await resolveActiveProfile(this.app, this.plugin, files)
         this.profile = resolved.profile
         this.profileStatusValues = resolved.statusValues
+        this.laneGrouping = this.resolveLaneGrouping()
+        this.laneValueByPath = await this.computeLaneValues(files, this.laneGrouping)
         this.rebuild()
+    }
+
+    /** Per-view grouping override (when set) else the profile's grouping. */
+    private resolveLaneGrouping(): LaneGrouping {
+        return readLaneGroupingOverride(this.config) ?? this.profile.laneGrouping
+    }
+
+    /**
+     * Resolve each file's swimlane value: the recognized note-type name for
+     * `note-type` grouping, or the chosen property's scalar value for `property`
+     * grouping. Empty for `none`.
+     */
+    private async computeLaneValues(
+        files: TFile[],
+        grouping: LaneGrouping
+    ): Promise<Map<string, string | null>> {
+        const map = new Map<string, string | null>()
+        if (grouping.kind === 'none') return map
+        if (grouping.kind === 'property') {
+            for (const file of files) {
+                map.set(
+                    file.path,
+                    normalizeLaneValue(getFrontmatterValue(this.app, file, grouping.property))
+                )
+            }
+            return map
+        }
+        for (const file of files) {
+            const type = await recognizeNoteType(this.app, file)
+            map.set(file.path, type?.name ?? null)
+        }
+        return map
     }
 
     private rebuild(): void {
@@ -121,25 +164,44 @@ export class KanbanActionPlannerView extends BasesView {
         const values = this.resolveColumnValues()
         this.columns = columnsFromValues(values, this.profile, true)
 
-        let board = buildSingleLaneBoard(cards, this.columns, this.unmappedPosition())
+        let board = buildBoard(cards, this.columns, {
+            grouped: this.laneGrouping.kind !== 'none',
+            unmappedPosition: this.unmappedPosition()
+        })
         if (!this.showEmptyColumns()) {
             board = {
-                columns: board.columns.filter(
-                    (c) => c.cards.length > 0 || c.column.id === UNMAPPED_COLUMN_ID
-                )
+                isMultiLane: board.isMultiLane,
+                lanes: board.lanes.map((lane) => ({
+                    ...lane,
+                    columns: lane.columns.filter(
+                        (c) => c.cards.length > 0 || c.column.id === UNMAPPED_COLUMN_ID
+                    )
+                }))
             }
         }
         this.board = board
 
         log(
-            `Kanban rebuild: ${String(cards.length)} cards, ${String(this.columns.length)} columns, profile "${this.profile.name}"`,
+            `Kanban rebuild: ${String(cards.length)} cards, ${String(this.columns.length)} columns, ${String(board.lanes.length)} lane(s), profile "${this.profile.name}"`,
             'debug'
         )
 
-        renderBoard(this.boardEl, this.board, {
-            onOpen: (card, newTab) => this.openCard(card, newTab),
-            onContextMenu: (card, event) => this.showCardMenu(card, event)
-        })
+        renderBoard(
+            this.boardEl,
+            this.board,
+            {
+                onOpen: (card, newTab) => this.openCard(card, newTab),
+                onContextMenu: (card, event) => this.showCardMenu(card, event),
+                onToggleLane: (laneId) => this.toggleLane(laneId)
+            },
+            this.collapsedLanes
+        )
+    }
+
+    private toggleLane(laneId: string): void {
+        if (this.collapsedLanes.has(laneId)) this.collapsedLanes.delete(laneId)
+        else this.collapsedLanes.add(laneId)
+        this.rebuild()
     }
 
     private resolveStatusProperty(_files: TFile[]): string | null {
@@ -193,7 +255,17 @@ export class KanbanActionPlannerView extends BasesView {
                 : normalizeStatusValue(getFrontmatterValue(this.app, file, this.statusProperty))
         const order = coerceOrder(getFrontmatterValue(this.app, file, this.orderProperty))
         const display = buildCardDisplay(this.app, file, this.profile.card, this.dueDateProperty)
-        return { key: file.path, file, title: file.basename, statusValue, order, display }
+        const laneValue =
+            this.laneGrouping.kind === 'none' ? null : (this.laneValueByPath.get(file.path) ?? null)
+        return {
+            key: file.path,
+            file,
+            title: file.basename,
+            statusValue,
+            order,
+            laneValue,
+            display
+        }
     }
 
     private collectPropertyNames(files: TFile[]): string[] {
@@ -219,23 +291,54 @@ export class KanbanActionPlannerView extends BasesView {
             this.profile,
             statusValues,
             this.availableProperties,
-            () => {
-                this.profile =
-                    this.plugin.settings.profiles.find((p) => p.id === this.profile.id) ??
-                    this.profile
-                this.rebuild()
-            }
+            () => void this.resolveAndRebuild()
         ).open()
     }
 
     private async handleDrop(cardKey: string, target: DropTarget): Promise<void> {
         const card = this.cardsByKey.get(cardKey)
         if (!card) return
+
+        // Cross-lane drag: reassign the grouping value to the target lane (for
+        // property grouping) before applying the in-column move. Note-type lanes
+        // cannot be safely reassigned, so a cross-lane drop there is ignored.
+        if (this.board.isMultiLane && target.laneId !== this.laneIdOf(card)) {
+            const reassigned = await this.applyLaneChange(card, target.laneId)
+            if (!reassigned) return
+        }
+
         const newStatus =
             target.columnId === UNMAPPED_COLUMN_ID
                 ? null
                 : (this.columnStatusValue(target.columnId) ?? card.statusValue)
-        await this.applyMove(card, newStatus, target.columnId, target.index)
+        await this.applyMove(card, newStatus, target.laneId, target.columnId, target.index)
+    }
+
+    /**
+     * Reassign a card's swimlane by writing the grouping property to the target
+     * lane's value (or clearing it for the Ungrouped lane). Returns false when
+     * the change can't be applied (note-type grouping), so the caller aborts the
+     * whole move and the card snaps back.
+     */
+    private async applyLaneChange(card: KanbanCard, targetLaneId: string): Promise<boolean> {
+        if (this.laneGrouping.kind !== 'property') {
+            log('Cross-lane drag is only supported for property swimlanes; ignoring.', 'warn')
+            return false
+        }
+        const property = this.laneGrouping.property
+        if (targetLaneId === UNGROUPED_LANE_ID) {
+            await deleteProperty(this.app, card.file, property)
+        } else {
+            await setProperty(this.app, card.file, property, targetLaneId)
+        }
+        return true
+    }
+
+    /** The lane id a card currently sits in (`''` for single-lane boards). */
+    private laneIdOf(card: KanbanCard): string {
+        if (!this.board.isMultiLane) return ''
+        const value = card.laneValue
+        return value === null || value === undefined || value === '' ? UNGROUPED_LANE_ID : value
     }
 
     private columnStatusValue(columnId: string): string | null {
@@ -249,6 +352,7 @@ export class KanbanActionPlannerView extends BasesView {
     private async applyMove(
         card: KanbanCard,
         newStatus: string | null,
+        destLaneId: string,
         destColumnId: string,
         index: number
     ): Promise<void> {
@@ -257,7 +361,9 @@ export class KanbanActionPlannerView extends BasesView {
             else await setProperty(this.app, card.file, this.statusProperty, newStatus)
         }
 
-        const destCards = this.columnCards(destColumnId).filter((c) => c.key !== card.key)
+        const destCards = this.columnCards(destLaneId, destColumnId).filter(
+            (c) => c.key !== card.key
+        )
         const clamped = Math.max(0, Math.min(index, destCards.length))
         const plan = planInsertion(
             destCards.map((c) => c.order),
@@ -279,8 +385,9 @@ export class KanbanActionPlannerView extends BasesView {
         // Frontmatter writes trigger onDataUpdated -> debounced rebuild.
     }
 
-    private columnCards(columnId: string): KanbanCard[] {
-        return this.board.columns.find((c) => c.column.id === columnId)?.cards ?? []
+    private columnCards(laneId: string, columnId: string): KanbanCard[] {
+        const lane = this.board.lanes.find((l) => l.lane.id === laneId) ?? this.board.lanes[0]
+        return lane?.columns.find((c) => c.column.id === columnId)?.cards ?? []
     }
 
     private showCardMenu(card: KanbanCard, event: MouseEvent): void {
@@ -322,8 +429,9 @@ export class KanbanActionPlannerView extends BasesView {
         statusValue: string | null,
         columnId: string
     ): Promise<void> {
-        const destCards = this.columnCards(columnId).filter((c) => c.key !== card.key)
-        await this.applyMove(card, statusValue, columnId, destCards.length)
+        const laneId = this.laneIdOf(card)
+        const destCards = this.columnCards(laneId, columnId).filter((c) => c.key !== card.key)
+        await this.applyMove(card, statusValue, laneId, columnId, destCards.length)
     }
 }
 
@@ -339,6 +447,32 @@ function readStringArray(value: unknown): string[] {
             .filter((s) => s.length > 0)
     }
     return []
+}
+
+/**
+ * Read the per-view swimlane grouping override. `__profile__` (or unset) means
+ * "defer to the profile"; a `property` choice with no property picked also
+ * defers (so the view never silently groups by nothing).
+ */
+function readLaneGroupingOverride(config: { get: (key: string) => unknown }): LaneGrouping | null {
+    const kind = config.get('laneGrouping')
+    if (kind === 'none') return { kind: 'none' }
+    if (kind === 'note-type') return { kind: 'note-type' }
+    if (kind === 'property') {
+        const property = basesPropToName(config.get('laneGroupingProperty'))
+        return property ? { kind: 'property', property } : null
+    }
+    return null
+}
+
+/** Normalize a raw frontmatter value into a swimlane key, or `null` (→ Ungrouped). */
+function normalizeLaneValue(raw: unknown): string | null {
+    if (typeof raw === 'string') {
+        const trimmed = raw.trim()
+        return trimmed.length > 0 ? trimmed : null
+    }
+    if (typeof raw === 'number' || typeof raw === 'boolean') return String(raw)
+    return null
 }
 
 /** Extract a frontmatter property name from a stored Bases property id. */

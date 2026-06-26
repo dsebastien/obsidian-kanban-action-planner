@@ -1,20 +1,32 @@
 /*
- * Tailwind v4, imported WITHOUT preflight.
+ * Tailwind v4 — hardened for Obsidian plugin isolation (mirrors the approach in
+ * the sibling `obsidian-journal-base` plugin). Three isolation mechanisms:
  *
- * Preflight is a global CSS reset; inside Obsidian it would clobber core and
- * other plugins' styles. We pull only the theme (tokens) and utilities layers,
- * and keep all plugin styles scoped under `.kap-root` (see constants.ts).
+ * 1. NO preflight. Preflight is a global CSS reset; inside Obsidian it would
+ *    clobber core and other plugins' styles. We never import it.
+ * 2. PLUGIN-PREFIXED cascade layers (`kap-…`). Generic layer names (`theme`,
+ *    `components`, `utilities`) are shared across every plugin that uses
+ *    Tailwind, so one plugin's layer order can reorder another's rules. Naming
+ *    them `kap-…` gives this plugin its own private cascade.
+ * 3. `theme(reference)` on the theme import. This makes Tailwind *reference*
+ *    its design tokens to build utilities WITHOUT emitting the
+ *    `:root { --color-…; --spacing… }` block — so the plugin never pollutes the
+ *    global scope or fights the active Obsidian theme's variables.
+ *
+ * On top of that, every rule below lives in `@layer kap-components` and is
+ * scoped under `.kap-root` with the `kap-` class prefix (see constants.ts), and
+ * all colors come from Obsidian CSS vars via `var(--…)`.
  */
-@layer theme, base, components, utilities;
-@import 'tailwindcss/theme.css' layer(theme);
-@import 'tailwindcss/utilities.css' layer(utilities);
+@layer kap-theme, kap-base, kap-components, kap-utilities;
+@import 'tailwindcss/theme' layer(kap-theme) theme(reference);
+@import 'tailwindcss/utilities' layer(kap-utilities);
 
 /* ========================================
    KANBAN ACTION PLANNER — scoped styles
    All rules live under .kap-root and use the kap- class prefix.
    Colors/backgrounds use Obsidian CSS vars via var(--...).
    ======================================== */
-@layer components {
+@layer kap-components {
     .kap-root {
         position: relative;
         height: 100%;
@@ -105,6 +117,70 @@
         padding: var(--size-4-2, 0.5rem);
         overflow-y: auto;
         min-height: var(--size-4-8, 2rem);
+    }
+
+    /* Swimlanes: a vertical stack of lanes, each with its own horizontal board. */
+    .kap-lanes {
+        display: flex;
+        flex-direction: column;
+        gap: var(--size-4-3, 0.75rem);
+        height: 100%;
+        width: 100%;
+        padding: var(--size-4-3, 0.75rem);
+        overflow-y: auto;
+    }
+
+    .kap-lane {
+        flex: 0 0 auto;
+        border: 1px solid var(--background-modifier-border);
+        border-radius: var(--radius-m, 8px);
+        background: var(--background-primary-alt);
+    }
+
+    .kap-lane-header {
+        position: sticky;
+        left: 0;
+        display: flex;
+        align-items: center;
+        gap: var(--size-4-2, 0.5rem);
+        padding: var(--size-4-2, 0.5rem) var(--size-4-3, 0.75rem);
+        font-weight: var(--font-semibold, 600);
+    }
+
+    .kap-lane-toggle {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 1.25rem;
+        height: 1.25rem;
+        padding: 0;
+        color: var(--text-muted);
+        background: transparent;
+        border: none;
+        cursor: pointer;
+    }
+
+    .kap-lane-count {
+        color: var(--text-muted);
+        font-weight: var(--font-normal, 400);
+    }
+
+    .kap-lane-body {
+        overflow: hidden;
+    }
+
+    .kap-lane.kap-lane-collapsed .kap-lane-body {
+        display: none;
+    }
+
+    /* A lane's board sizes to its content; the .kap-lanes container scrolls. */
+    .kap-lane .kap-board {
+        height: auto;
+        padding: 0 var(--size-4-3, 0.75rem) var(--size-4-3, 0.75rem);
+    }
+
+    .kap-lane .kap-column {
+        max-height: none;
     }
 
     .kap-card {
@@ -210,7 +286,9 @@
         padding: var(--size-4-2, 0.5rem) 0;
     }
 
-    /* Narrow screens / mobile: snug columns, snap scrolling. */
+    /* Narrow screens / mobile: snug columns, snap scrolling. On mobile the
+       swimlane stack + collapsible lanes already act as an accordion (one lane
+       expanded at a time), which is the documented mobile posture. */
     @media (max-width: 600px) {
         .kap-board {
             scroll-snap-type: x mandatory;
@@ -220,11 +298,11 @@
             scroll-snap-align: start;
         }
     }
-}
 
-/* ========================================
-   SUPPORT & UI SECTIONS (settings tab)
-   ======================================== */
-.support-header-margin {
-    @apply mb-5;
+    /* ========================================
+       SUPPORT & UI SECTIONS (settings tab)
+       ======================================== */
+    .support-header-margin {
+        @apply mb-5;
+    }
 }

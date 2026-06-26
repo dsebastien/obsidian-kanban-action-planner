@@ -43,6 +43,28 @@ until you define your statuses.
 
 Ordering is stored in your notes (not in plugin data), so it travels with the vault.
 
+## Swimlanes (grouping)
+
+Split the board into horizontal **lanes**, each with its own columns. Choose how to group in
+**Configure board → Swimlanes** (or override it per view — see View options):
+
+- **None** — a single plain board (the default).
+- **By note type** — one lane per note type (requires the Obsidian Starter Kit to recognize
+  types; without it, everything stays in one plain board).
+- **By property** — one lane per distinct value of a property you choose (e.g. a `project` or
+  `area`). Lanes order by a numeric prefix just like columns (`10 Alpha`, `20 Beta`).
+
+Cards with no value for the grouping property collect in an **Ungrouped** lane, which is
+hidden when empty. Each lane header has a **▾/▸ toggle** to collapse it, plus its card count.
+
+- **Drag a card to another lane** to reassign it: for property grouping, the grouping property
+  is rewritten to the target lane's value (or cleared when dropping into Ungrouped). You can
+  cross lanes and columns in one drag — both the lane property and the status update.
+- Note-type lanes can't be reassigned by dragging (a note's type comes from its tags/folder),
+  so a cross-lane drop there is ignored; moving within the lane still works.
+
+On small screens lanes stack and collapse, so you can focus on one lane at a time.
+
 ## Other interactions
 
 - **Click** a card to open the note; **Ctrl/Cmd-click** opens it in a new tab.
@@ -62,6 +84,9 @@ notes:
   note type's defined statuses).
 - **Unmapped column position** — show the Unmapped column first (left, the default) or last
   (right). It still only appears when something is unmapped.
+- **Swimlanes (grouping)** — override the board's lane grouping for this view: **Use board
+  default**, **None**, **By note type**, or **By property**.
+- **Swimlane property** — when grouping **By property**, the property whose values become lanes.
 
 ## Colors
 
@@ -86,6 +111,9 @@ The Configure board dialog also controls what each card shows:
 - **Wrap long values** — wrap field values onto multiple lines instead of truncating them.
 
 A note's **due date** is always shown in red when set, even without configuring fields.
+
+The dialog also has a **Swimlanes** section to group the board into lanes (see Swimlanes
+above).
 
 ## Obsidian Starter Kit integration
 
