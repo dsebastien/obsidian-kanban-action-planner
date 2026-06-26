@@ -44,6 +44,9 @@ import {
 } from '../../domain/calendar'
 import type { CalendarRange, DateDimension } from '../../domain/calendar'
 import { renderCalendar } from '../../ui/calendar/calendar-renderer'
+import { CalendarDnd } from '../../ui/calendar/calendar-dnd'
+import type { CalendarDropTarget } from '../../ui/calendar/calendar-dnd'
+import { formatDate } from '../../utils/momentjs'
 import { renderBoard } from '../../ui/board/board-renderer'
 import { BoardDnd } from '../../ui/board/dnd-controller'
 import type { DropTarget } from '../../ui/board/dnd-controller'
@@ -68,6 +71,7 @@ export class KanbanActionPlannerView extends BasesView {
     private rootEl: HTMLElement | null = null
     private boardEl: HTMLElement | null = null
     private dnd: BoardDnd | null = null
+    private calendarDnd: CalendarDnd | null = null
     private readonly debouncedRebuild: Debouncer<[], void>
 
     private statusProperty: string | null = null
@@ -109,12 +113,17 @@ export class KanbanActionPlannerView extends BasesView {
         this.dnd = new BoardDnd(this.boardEl, {
             onDrop: (cardKey, target) => void this.handleDrop(cardKey, target)
         })
+        this.calendarDnd = new CalendarDnd(this.boardEl, {
+            onDrop: (cardKey, target) => void this.handleCalendarDrop(cardKey, target)
+        })
         void this.resolveAndRebuild()
     }
 
     override onunload(): void {
         this.dnd?.destroy()
         this.dnd = null
+        this.calendarDnd?.destroy()
+        this.calendarDnd = null
         this.rootEl?.remove()
         this.rootEl = null
         this.boardEl = null
@@ -637,6 +646,33 @@ export class KanbanActionPlannerView extends BasesView {
                 }
             }
         )
+    }
+
+    /** The frontmatter property for the active scheduling dimension. */
+    private activeDateProperty(): string {
+        return this.calendarTab === 'scheduled' ? this.scheduledDateProperty : this.dueDateProperty
+    }
+
+    /**
+     * Handle a calendar drag drop: dropping on a day writes the active
+     * dimension's date (formatted with the profile's momentjs format); dropping
+     * back on the panel clears it. The frontmatter write triggers a rebuild.
+     */
+    private async handleCalendarDrop(cardKey: string, target: CalendarDropTarget): Promise<void> {
+        const card = this.cardsByKey.get(cardKey)
+        if (!card) return
+        const property = this.activeDateProperty()
+
+        if (target.kind === 'panel') {
+            await deleteProperty(this.app, card.file, property)
+            return
+        }
+
+        const date = parseFrontmatterDate(target.dayKey)
+        if (!date) return
+        const dateFormat =
+            this.profile.calendar.dateFormat || this.plugin.settings.defaultDateFormat
+        await setProperty(this.app, card.file, property, formatDate(date, dateFormat))
     }
 
     private anchorLabel(anchor: Date, range: CalendarRange): string {
