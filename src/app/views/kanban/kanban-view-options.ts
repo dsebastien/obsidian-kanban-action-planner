@@ -69,6 +69,36 @@ export function getKanbanViewOptions(settings: PluginSettings): BasesAllOptions[
                 only: 'Only blocked',
                 hide: 'Hide blocked'
             }
+        },
+        {
+            type: 'toggle',
+            key: 'calendarMode',
+            displayName: 'Calendar mode',
+            default: false
+        },
+        {
+            type: 'property',
+            key: 'scheduledDateProperty',
+            displayName: 'Scheduled date property',
+            placeholder: settings.defaultScheduledDateProperty
+        },
+        {
+            type: 'property',
+            key: 'dueDateProperty',
+            displayName: 'Due date property',
+            placeholder: settings.defaultDueDateProperty
+        },
+        {
+            type: 'dropdown',
+            key: 'calendarRange',
+            displayName: 'Calendar default range',
+            default: 'month',
+            options: {
+                week: 'Week',
+                month: 'Month',
+                quarter: 'Quarter',
+                year: 'Year'
+            }
         }
     ]
 }

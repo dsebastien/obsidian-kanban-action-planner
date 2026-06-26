@@ -307,6 +307,241 @@
         border-radius: 1px;
     }
 
+    /* ========================================
+       CALENDAR / SCHEDULING MODE (Milestone 5)
+       ======================================== */
+    .kap-calendar-root {
+        @apply flex h-full min-h-0;
+    }
+
+    /* Left scheduling panel: Unplanned / No-deadline tabs + card list. */
+    .kap-scheduling-panel {
+        @apply flex flex-col shrink-0 min-h-0;
+        width: 15rem;
+        border-right: 1px solid var(--background-modifier-border);
+    }
+
+    .kap-scheduling-panel-collapsed {
+        width: 2.25rem;
+    }
+
+    .kap-panel-header {
+        @apply flex items-center gap-2 p-2;
+        border-bottom: 1px solid var(--background-modifier-border);
+    }
+
+    .kap-panel-toggle {
+        @apply inline-flex items-center justify-center h-6 w-6 shrink-0 border-0 rounded cursor-pointer bg-transparent;
+        color: var(--text-muted);
+    }
+
+    .kap-panel-toggle:hover {
+        background: var(--background-modifier-hover);
+        color: var(--text-normal);
+    }
+
+    .kap-panel-title {
+        @apply font-medium truncate;
+        color: var(--text-normal);
+    }
+
+    /* Collapsed: stand the title up vertically. */
+    .kap-scheduling-panel-collapsed .kap-panel-header {
+        @apply flex-col gap-2;
+    }
+
+    .kap-scheduling-panel-collapsed .kap-panel-title {
+        writing-mode: vertical-rl;
+    }
+
+    .kap-panel-tabs {
+        @apply flex gap-1 p-1;
+    }
+
+    .kap-panel-tab {
+        @apply flex-1 inline-flex items-center justify-center gap-1 h-7 px-2 border-0 rounded cursor-pointer text-[0.85em];
+        color: var(--text-muted);
+        background: var(--background-modifier-hover);
+    }
+
+    .kap-panel-tab-active {
+        color: var(--text-on-accent);
+        background: var(--interactive-accent);
+    }
+
+    .kap-panel-tab-count {
+        @apply text-[0.8em] opacity-80;
+    }
+
+    .kap-panel-list {
+        @apply flex flex-col gap-1 p-2 overflow-y-auto min-h-0;
+        flex: 1;
+    }
+
+    .kap-panel-empty {
+        @apply text-[0.85em] italic p-1;
+        color: var(--text-muted);
+    }
+
+    /* Right calendar pane. */
+    .kap-calendar {
+        @apply flex flex-col flex-1 min-w-0 min-h-0 overflow-auto;
+    }
+
+    .kap-calendar-toolbar {
+        @apply flex items-center gap-2 flex-wrap p-2;
+        border-bottom: 1px solid var(--background-modifier-border);
+    }
+
+    .kap-calendar-nav {
+        @apply flex items-center gap-1;
+    }
+
+    .kap-calendar-navbtn,
+    .kap-range-btn {
+        @apply inline-flex items-center justify-center h-7 px-2 border-0 rounded cursor-pointer text-[0.85em];
+        color: var(--text-muted);
+        background: var(--background-modifier-hover);
+    }
+
+    .kap-calendar-navbtn:hover,
+    .kap-range-btn:hover {
+        color: var(--text-normal);
+    }
+
+    .kap-range-btn-active {
+        color: var(--text-on-accent);
+        background: var(--interactive-accent);
+    }
+
+    .kap-calendar-anchor {
+        @apply font-medium;
+        color: var(--text-normal);
+    }
+
+    .kap-calendar-ranges {
+        @apply flex items-center gap-1 ml-auto;
+    }
+
+    .kap-calendar-blocks {
+        @apply flex flex-col gap-4 p-2;
+    }
+
+    /* Quarter/year: lay the mini-month grids out side by side. */
+    .kap-calendar-quarter .kap-calendar-blocks {
+        @apply grid gap-3;
+        grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+    }
+
+    .kap-calendar-year .kap-calendar-blocks {
+        @apply grid gap-3;
+        grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+    }
+
+    .kap-cal-block-label {
+        @apply font-medium mb-1;
+        color: var(--text-normal);
+    }
+
+    .kap-cal-grid {
+        @apply grid;
+        grid-template-columns: repeat(7, 1fr);
+        border: 1px solid var(--background-modifier-border);
+        border-radius: var(--radius-s, 6px);
+        overflow: hidden;
+    }
+
+    .kap-cal-weekrow {
+        @apply contents;
+    }
+
+    .kap-cal-weekday {
+        @apply text-[0.75em] font-medium uppercase p-1 text-center;
+        color: var(--text-muted);
+        background: var(--background-secondary);
+    }
+
+    .kap-cal-day {
+        @apply flex flex-col gap-1 p-1;
+        min-height: 4.5rem;
+        border-top: 1px solid var(--background-modifier-border);
+        border-left: 1px solid var(--background-modifier-border);
+    }
+
+    /* Compact day cells for quarter/year (count badge instead of chips). */
+    .kap-calendar-quarter .kap-cal-day,
+    .kap-calendar-year .kap-cal-day {
+        min-height: 2rem;
+    }
+
+    .kap-cal-daynum {
+        @apply text-[0.8em] self-end leading-none;
+        color: var(--text-muted);
+    }
+
+    .kap-cal-day-other {
+        background: var(--background-secondary);
+    }
+
+    .kap-cal-day-other .kap-cal-daynum {
+        opacity: 0.5;
+    }
+
+    .kap-cal-day-today {
+        background: var(--background-modifier-hover);
+    }
+
+    .kap-cal-day-today .kap-cal-daynum {
+        @apply font-semibold;
+        color: var(--interactive-accent);
+    }
+
+    .kap-cal-daycount {
+        @apply inline-flex items-center justify-center h-4 min-w-4 px-1 text-[0.7em] rounded self-start;
+        color: var(--text-on-accent);
+        background: var(--interactive-accent);
+    }
+
+    /* A scheduled/due card chip (on a day, or in the panel list). */
+    .kap-cal-card {
+        @apply px-1 py-0.5 rounded cursor-grab text-[0.8em] truncate;
+        color: var(--text-normal);
+        background: var(--background-modifier-hover);
+        border-left: 2px solid var(--interactive-accent);
+        touch-action: none;
+    }
+
+    .kap-cal-card:hover {
+        background: var(--background-modifier-border);
+    }
+
+    .kap-cal-card:focus-visible {
+        outline: 2px solid var(--interactive-accent);
+        outline-offset: 1px;
+    }
+
+    /* Drop-target highlight for calendar DnD (day cells + panel list). */
+    .kap-cal-drop {
+        outline: 2px dashed var(--interactive-accent);
+        outline-offset: -2px;
+    }
+
+    /* Narrow screens: stack the panel above the calendar. */
+    @media (max-width: 600px) {
+        .kap-calendar-root {
+            @apply flex-col;
+        }
+        .kap-scheduling-panel {
+            width: 100%;
+            max-height: 40%;
+            border-right: 0;
+            border-bottom: 1px solid var(--background-modifier-border);
+        }
+        .kap-scheduling-panel-collapsed {
+            width: 100%;
+        }
+    }
+
     /* Configure-board modal (rendered outside .kap-root, still kap-prefixed). */
     .kap-modal-subtitle {
         margin-top: 0;

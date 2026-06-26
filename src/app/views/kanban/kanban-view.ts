@@ -35,6 +35,15 @@ import {
 } from '../../services/profile-service'
 import { buildCardDisplay } from '../../services/card-display.service'
 import { archiveNote } from '../../services/archive.service'
+import {
+    bucketByDay,
+    buildCalendar,
+    parseFrontmatterDate,
+    shiftAnchor,
+    startOfDay
+} from '../../domain/calendar'
+import type { CalendarRange, DateDimension } from '../../domain/calendar'
+import { renderCalendar } from '../../ui/calendar/calendar-renderer'
 import { renderBoard } from '../../ui/board/board-renderer'
 import { BoardDnd } from '../../ui/board/dnd-controller'
 import type { DropTarget } from '../../ui/board/dnd-controller'
@@ -74,6 +83,13 @@ export class KanbanActionPlannerView extends BasesView {
     private readonly collapsedLanes = new Set<string>()
     private board: Board<KanbanCard> = { lanes: [], isMultiLane: false }
     private cardsByKey = new Map<string, KanbanCard>()
+
+    // Calendar mode (Milestone 5) — in-memory per-session view state.
+    private scheduledDateProperty = 'date_scheduled'
+    private calendarRangeOverride: CalendarRange | null = null
+    private calendarTab: DateDimension = 'scheduled'
+    private calendarAnchor: Date | null = null
+    private calendarPanelCollapsed = false
 
     constructor(
         controller: QueryController,
@@ -165,8 +181,8 @@ export class KanbanActionPlannerView extends BasesView {
         this.availableProperties = this.collectPropertyNames(files)
         this.statusProperty = this.resolveStatusProperty(files)
         this.orderProperty = this.resolveOrderProperty()
-        this.dueDateProperty =
-            this.profile.calendar.dueDateProperty || this.plugin.settings.defaultDueDateProperty
+        this.dueDateProperty = this.resolveDueDateProperty()
+        this.scheduledDateProperty = this.resolveScheduledDateProperty()
 
         this.relationshipsByPath = resolveBoardRelationships(this.app, files, this.profile)
 
@@ -175,6 +191,11 @@ export class KanbanActionPlannerView extends BasesView {
             .map((file) => this.toCard(file))
             .filter((card) => passesFilter(this.relationshipsByPath.get(card.key), filter))
         this.cardsByKey = new Map(cards.map((c) => [c.key, c]))
+
+        if (this.calendarMode()) {
+            this.renderCalendarFrame(cards)
+            return
+        }
 
         const values = this.resolveColumnValues()
         this.columns = columnsFromValues(values, this.profile, true)
@@ -242,6 +263,22 @@ export class KanbanActionPlannerView extends BasesView {
         return (
             basesPropToName(this.config.get('orderProperty')) ??
             this.plugin.settings.defaultOrderProperty
+        )
+    }
+
+    private resolveDueDateProperty(): string {
+        return (
+            basesPropToName(this.config.get('dueDateProperty')) ??
+            this.profile.calendar.dueDateProperty ??
+            this.plugin.settings.defaultDueDateProperty
+        )
+    }
+
+    private resolveScheduledDateProperty(): string {
+        return (
+            basesPropToName(this.config.get('scheduledDateProperty')) ??
+            this.profile.calendar.scheduledDateProperty ??
+            this.plugin.settings.defaultScheduledDateProperty
         )
     }
 
@@ -521,6 +558,95 @@ export class KanbanActionPlannerView extends BasesView {
         const laneId = this.laneIdOf(card)
         const destCards = this.columnCards(laneId, columnId).filter((c) => c.key !== card.key)
         await this.applyMove(card, statusValue, laneId, columnId, destCards.length)
+    }
+
+    // ── Calendar mode ─────────────────────────────────────────
+
+    private calendarMode(): boolean {
+        return this.config.get('calendarMode') === true
+    }
+
+    private effectiveRange(): CalendarRange {
+        if (this.calendarRangeOverride) return this.calendarRangeOverride
+        const configured = this.config.get('calendarRange')
+        return configured === 'week' ||
+            configured === 'month' ||
+            configured === 'quarter' ||
+            configured === 'year'
+            ? configured
+            : 'month'
+    }
+
+    private effectiveAnchor(): Date {
+        return this.calendarAnchor ?? startOfDay(new Date())
+    }
+
+    /** Compute the calendar/scheduling model and render it into the board host. */
+    private renderCalendarFrame(cards: KanbanCard[]): void {
+        if (!this.boardEl) return
+        const range = this.effectiveRange()
+        const anchor = this.effectiveAnchor()
+        const today = startOfDay(new Date())
+        const dimension = this.calendarTab
+
+        const dateFor = (card: KanbanCard, dim: DateDimension): Date | null => {
+            const prop = dim === 'scheduled' ? this.scheduledDateProperty : this.dueDateProperty
+            return parseFrontmatterDate(getFrontmatterValue(this.app, card.file, prop))
+        }
+
+        const unplanned = cards.filter((c) => dateFor(c, 'scheduled') === null)
+        const noDeadline = cards.filter((c) => dateFor(c, 'deadline') === null)
+        const panelCards = dimension === 'scheduled' ? unplanned : noDeadline
+        const placed = cards.filter((c) => dateFor(c, dimension) !== null)
+        const cardsByDay = bucketByDay(placed, (c) => dateFor(c, dimension))
+
+        renderCalendar(
+            this.boardEl,
+            {
+                range,
+                activeTab: dimension,
+                anchorLabel: this.anchorLabel(anchor, range),
+                blocks: buildCalendar(anchor, range, today),
+                panelCards,
+                cardsByDay,
+                panelCollapsed: this.calendarPanelCollapsed,
+                counts: { unplanned: unplanned.length, noDeadline: noDeadline.length }
+            },
+            {
+                onOpen: (card, newTab) => this.openCard(card, newTab),
+                onContextMenu: (card, event) => this.showCardMenu(card, event),
+                onSwitchTab: (dim) => {
+                    this.calendarTab = dim
+                    this.rebuild()
+                },
+                onSetRange: (r) => {
+                    this.calendarRangeOverride = r
+                    this.rebuild()
+                },
+                onShiftAnchor: (direction) => {
+                    this.calendarAnchor = shiftAnchor(this.effectiveAnchor(), range, direction)
+                    this.rebuild()
+                },
+                onToday: () => {
+                    this.calendarAnchor = null
+                    this.rebuild()
+                },
+                onTogglePanel: () => {
+                    this.calendarPanelCollapsed = !this.calendarPanelCollapsed
+                    this.rebuild()
+                }
+            }
+        )
+    }
+
+    private anchorLabel(anchor: Date, range: CalendarRange): string {
+        const year = anchor.getFullYear()
+        if (range === 'quarter') {
+            return `Q${String(Math.floor(anchor.getMonth() / 3) + 1)} ${String(year)}`
+        }
+        if (range === 'year') return String(year)
+        // week / month: the single block's own label is the clearest.
+        return buildCalendar(anchor, range, anchor)[0]?.label ?? ''
     }
 
     // ── Archiving ─────────────────────────────────────────────
