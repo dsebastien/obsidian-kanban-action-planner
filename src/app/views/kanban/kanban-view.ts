@@ -1,4 +1,4 @@
-import { BasesView, debounce, Menu, Notice, TFile } from 'obsidian'
+import { BasesView, debounce, getAllTags, Menu, Notice, TFile } from 'obsidian'
 import type { Debouncer, QueryController } from 'obsidian'
 import type { KanbanActionPlannerPlugin } from '../../plugin'
 import {
@@ -43,6 +43,8 @@ import {
     startOfDay
 } from '../../domain/calendar'
 import type { CalendarRange, DateDimension } from '../../domain/calendar'
+import { compareTabCards, matchesQuery } from '../../domain/calendar-tabs'
+import type { TabSortKey, TabSortMode } from '../../domain/calendar-tabs'
 import { renderCalendar } from '../../ui/calendar/calendar-renderer'
 import { CalendarDnd } from '../../ui/calendar/calendar-dnd'
 import type { CalendarDropTarget } from '../../ui/calendar/calendar-dnd'
@@ -605,7 +607,7 @@ export class KanbanActionPlannerView extends BasesView {
 
         const unplanned = cards.filter((c) => dateFor(c, 'scheduled') === null)
         const noDeadline = cards.filter((c) => dateFor(c, 'deadline') === null)
-        const panelCards = dimension === 'scheduled' ? unplanned : noDeadline
+        const panelCards = this.sortFilterPanel(dimension === 'scheduled' ? unplanned : noDeadline)
         const placed = cards.filter((c) => dateFor(c, dimension) !== null)
         const cardsByDay = bucketByDay(placed, (c) => dateFor(c, dimension))
 
@@ -646,6 +648,37 @@ export class KanbanActionPlannerView extends BasesView {
                 }
             }
         )
+    }
+
+    /** Apply the configured panel filter (name/tag) and sort to the tab cards. */
+    private sortFilterPanel(cards: KanbanCard[]): KanbanCard[] {
+        const query = readText(this.config.get('calendarFilter'))
+        const mode = readSortMode(this.config.get('calendarTabSort'))
+        const sortProperty =
+            mode === 'property' ? basesPropToName(this.config.get('calendarSortProperty')) : null
+        return cards
+            .map((card) => ({ card, key: this.tabSortKey(card, sortProperty) }))
+            .filter((e) => matchesQuery(e.key.searchText, query))
+            .sort((a, b) => compareTabCards(a.key, b.key, mode))
+            .map((e) => e.card)
+    }
+
+    private tabSortKey(card: KanbanCard, sortProperty: string | null): TabSortKey {
+        const tags = this.cardTags(card.file)
+        const sortValue = sortProperty
+            ? coerceSortValue(getFrontmatterValue(this.app, card.file, sortProperty))
+            : null
+        return {
+            title: card.display.title,
+            order: card.order,
+            sortValue,
+            searchText: `${card.display.title} ${tags.join(' ')}`.toLowerCase()
+        }
+    }
+
+    private cardTags(file: TFile): string[] {
+        const cache = this.app.metadataCache.getFileCache(file)
+        return cache ? (getAllTags(cache) ?? []) : []
     }
 
     /** The frontmatter property for the active scheduling dimension. */
@@ -753,6 +786,28 @@ const RELATIONSHIP_MENU: Array<{ role: RelationshipRole; label: string; icon: st
 /** Whether an event asks to open in a new tab (Ctrl/Cmd held). */
 function isNewTabEvent(evt: MouseEvent | KeyboardEvent): boolean {
     return evt.ctrlKey || evt.metaKey
+}
+
+/** Read a stored text option into a trimmed string (`''` when unset). */
+function readText(value: unknown): string {
+    return typeof value === 'string' ? value.trim() : ''
+}
+
+/** Read the scheduling-panel sort mode, defaulting to manual order. */
+function readSortMode(value: unknown): TabSortMode {
+    return value === 'name' || value === 'property' ? value : 'order'
+}
+
+/** Coerce a frontmatter value into a sortable number/string, or null. */
+function coerceSortValue(raw: unknown): number | string | null {
+    if (typeof raw === 'number') return Number.isFinite(raw) ? raw : null
+    if (typeof raw === 'string') {
+        const trimmed = raw.trim()
+        if (trimmed.length === 0) return null
+        const n = Number(trimmed)
+        return Number.isFinite(n) ? n : trimmed
+    }
+    return null
 }
 
 /** Read a stored multitext option into a clean string array. */

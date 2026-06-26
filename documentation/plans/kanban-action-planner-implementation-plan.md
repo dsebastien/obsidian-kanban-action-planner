@@ -986,9 +986,22 @@ flagged (file moves are destructive-ish — verify carefully).
 
 ---
 
-### Milestone 5 — Calendar mode
+### Milestone 5 — Calendar mode — ✅ done (2026-06-27)
 
 **Goal:** The calendar/scheduling experience. Built in independently-verifiable sub-steps.
+
+**Delivered (all five sub-steps, live-verified):** pure `domain/calendar.ts` (ranges, Monday-
+first month/week grids, `parseFrontmatterDate`, `bucketByDay`, `shiftAnchor`) +
+`domain/calendar-tabs.ts` (`matchesQuery`/`compareTabCards`), both unit-tested. `ui/calendar/`
+holds the renderer (collapsible Scheduling panel with Unplanned/No-deadline tabs + CSS-grid
+calendar, Week/Month/Quarter/Year switch, prev/next/Today, compact quarter/year cells) and
+`CalendarDnd` (drag chip→day sets the active dimension's date via `utils/momentjs.ts`;
+drag chip→panel clears it). View options: `calendarMode`, scheduled/due date pickers,
+`calendarRange`, `calendarTabSort` + `calendarSortProperty` + `calendarFilter`. The view
+branches to the calendar frame when the toggle is on; both DnD controllers coexist on the board
+host (board reads `.kap-card`, calendar reads `.kap-cal-card`). Scoped `kap-` calendar styles.
+Verified in Obsidian: tab bucketing, day bucketing, range/nav, panel collapse, drag-schedule +
+drag-clear round trip, and all three panel sorts + the filter. 161 tests green.
 
 **5a — Scheduling panel + tabs**
 

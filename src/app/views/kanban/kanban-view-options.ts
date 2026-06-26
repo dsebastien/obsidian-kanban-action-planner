@@ -99,6 +99,29 @@ export function getKanbanViewOptions(settings: PluginSettings): BasesAllOptions[
                 quarter: 'Quarter',
                 year: 'Year'
             }
+        },
+        {
+            type: 'dropdown',
+            key: 'calendarTabSort',
+            displayName: 'Scheduling panel sort',
+            default: 'order',
+            options: {
+                order: 'Manual order',
+                name: 'Name (A–Z)',
+                property: 'By property'
+            }
+        },
+        {
+            type: 'property',
+            key: 'calendarSortProperty',
+            displayName: 'Scheduling panel sort property',
+            placeholder: 'Used when sort is "By property"'
+        },
+        {
+            type: 'text',
+            key: 'calendarFilter',
+            displayName: 'Scheduling panel filter',
+            placeholder: 'Filter by name or #tag'
         }
     ]
 }

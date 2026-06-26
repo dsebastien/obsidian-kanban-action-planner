@@ -111,6 +111,35 @@ set). If the note still has active children or blockers you get a non-blocking h
 move proceeds and the wikilinks are preserved. Archived notes leave the board because they no
 longer match the Base's filter.
 
+## Calendar mode
+
+Turn the board into a **scheduling calendar**. Enable **Calendar mode** in the view options.
+The view splits into a left **Scheduling** panel and a calendar on the right.
+
+The panel has two tabs, and the active tab decides which date the calendar works with:
+
+- **Unplanned** — cards with no **scheduled date** (`date_scheduled` by default). The calendar
+  then shows cards on their scheduled date.
+- **No deadline** — cards with no **due date** (`date_due` by default). The calendar shows
+  cards on their due date.
+
+Each tab count is the size of that backlog. Collapse the panel with the **«** toggle (the
+"Scheduling" title stays visible, turned vertical).
+
+The calendar toolbar switches range — **Week**, **Month**, **Quarter**, **Year** — and
+navigates with **‹ / › / Today**. Quarter and year show compact month grids with a per-day
+count. Click any card to open its note.
+
+**Schedule by dragging:**
+
+- **Drag a card from the panel onto a day** to set the active tab's date (written in your
+  configured date format, `YYYY-MM-DD` by default). The card moves onto that day.
+- **Drag a card from a day back onto the panel** to clear that date. The card returns to the
+  panel.
+
+**Sort and filter the panel** (view options): order the cards by **Manual order**, **Name**,
+or **a property** (e.g. a priority or estimate), and **filter** the list by name or `#tag`.
+
 ## Other interactions
 
 - **Click** a card to open the note; **Ctrl/Cmd-click** opens it in a new tab.
@@ -134,6 +163,10 @@ notes:
   default**, **None**, **By note type**, or **By property**.
 - **Swimlane property** — when grouping **By property**, the property whose values become lanes.
 - **Blocked cards** — show all cards, only blocked ones, or hide blocked ones.
+- **Calendar mode** — turn the board into a scheduling calendar (see Calendar mode above).
+- **Scheduled / Due date property** — which properties hold the scheduled and due dates.
+- **Calendar default range** — Week, Month, Quarter, or Year.
+- **Scheduling panel sort / sort property / filter** — order and filter the panel's tab cards.
 
 ## Colors
 

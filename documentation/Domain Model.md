@@ -54,7 +54,13 @@ column rule.
   card menu, or auto when a card **transitions into** `triggerStatus` (opt-in, guarded). Blank
   `archiveFolder` disables archiving; name clashes get a numeric suffix.
 - **CalendarConfig** — scheduled/due date property names, momentjs `dateFormat`, default
-  range, and tab sort key.
+  range, and tab sort key. Calendar mode (per-view `calendarMode` toggle) is driven by pure
+  helpers: `domain/calendar.ts` (`CalendarRange`, Monday-first month/week grid building,
+  `parseFrontmatterDate`, `bucketByDay`, `shiftAnchor`) and `domain/calendar-tabs.ts`
+  (`matchesQuery` + `compareTabCards` for the panel's filter/sort). The active tab selects the
+  **date dimension** (`scheduled` vs `deadline`); dragging a card onto a day writes that
+  dimension's property (formatted via `utils/momentjs.ts`), dragging back to the panel clears
+  it (`ui/calendar/*`).
 
 ## Property semantics
 

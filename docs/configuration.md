@@ -117,3 +117,19 @@ board → Archiving**:
 
 Manual archiving is available from a card's right-click menu (**Archive**). Moves go through
 Obsidian's file manager, so wikilinks to the note are updated and stay valid.
+
+## Calendar mode
+
+Calendar mode is a per-view toggle (view options). It reads two date properties and writes them
+when you drag-schedule:
+
+| Property       | Default          | Role                                                  |
+| -------------- | ---------------- | ----------------------------------------------------- |
+| Scheduled date | `date_scheduled` | The **Unplanned** tab + the calendar's scheduled day. |
+| Due date       | `date_due`       | The **No deadline** tab + the calendar's due day.     |
+
+Dates are parsed leniently (a `YYYY-MM-DD` or full date string, or a real date value) and
+written with the profile's momentjs **date format** (default `YYYY-MM-DD`). The calendar's
+default **range** (week/month/quarter/year) and the **panel sort** (manual order / name /
+a property) and **filter** (name or `#tag`) are all view options. Tab counts reflect the full
+backlog size; the filter narrows only the visible list.
