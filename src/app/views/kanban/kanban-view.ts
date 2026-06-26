@@ -19,6 +19,7 @@ import {
     createDefaultProfile,
     resolveActiveProfile
 } from '../../services/profile-service'
+import { buildCardDisplay } from '../../services/card-display.service'
 import { renderBoard } from '../../ui/board/board-renderer'
 import { BoardDnd } from '../../ui/board/dnd-controller'
 import type { DropTarget } from '../../ui/board/dnd-controller'
@@ -47,6 +48,8 @@ export class KanbanActionPlannerView extends BasesView {
 
     private statusProperty: string | null = null
     private orderProperty = 'manual_order'
+    private dueDateProperty = 'date_due'
+    private availableProperties: string[] = []
     private profile: Profile = createDefaultProfile(DEFAULT_PROFILE_ID, 'Default', 'local')
     private profileStatusValues: string[] | null = null
     private preserveColumnOrder = false
@@ -108,8 +111,11 @@ export class KanbanActionPlannerView extends BasesView {
         if (!this.boardEl) return
         const files = this.files()
 
+        this.availableProperties = this.collectPropertyNames(files)
         this.statusProperty = this.resolveStatusProperty(files)
         this.orderProperty = this.resolveOrderProperty()
+        this.dueDateProperty =
+            this.profile.calendar.dueDateProperty || this.plugin.settings.defaultDueDateProperty
 
         const cards = files.map((file) => this.toCard(file))
         this.cardsByKey = new Map(cards.map((c) => [c.key, c]))
@@ -139,14 +145,14 @@ export class KanbanActionPlannerView extends BasesView {
         })
     }
 
-    private resolveStatusProperty(files: TFile[]): string | null {
+    private resolveStatusProperty(_files: TFile[]): string | null {
         const configured = basesPropToName(this.config.get('statusProperty'))
         if (configured) return configured
         if (this.profile.source === 'starter-kit' && this.profile.statusProperty) {
             return this.profile.statusProperty
         }
         return detectStatusProperty(
-            this.collectPropertyNames(files),
+            this.availableProperties,
             this.plugin.settings.defaultStatusProperty
         )
     }
@@ -169,7 +175,8 @@ export class KanbanActionPlannerView extends BasesView {
                 ? null
                 : normalizeStatusValue(getFrontmatterValue(this.app, file, this.statusProperty))
         const order = coerceOrder(getFrontmatterValue(this.app, file, this.orderProperty))
-        return { key: file.path, file, title: file.basename, statusValue, order }
+        const display = buildCardDisplay(this.app, file, this.profile.card, this.dueDateProperty)
+        return { key: file.path, file, title: file.basename, statusValue, order, display }
     }
 
     private collectPropertyNames(files: TFile[]): string[] {
@@ -189,11 +196,19 @@ export class KanbanActionPlannerView extends BasesView {
 
     private openConfigureModal(): void {
         const statusValues = this.columns.map((c) => c.statusValue)
-        new ConfigureBoardModal(this.app, this.plugin, this.profile, statusValues, () => {
-            this.profile =
-                this.plugin.settings.profiles.find((p) => p.id === this.profile.id) ?? this.profile
-            this.rebuild()
-        }).open()
+        new ConfigureBoardModal(
+            this.app,
+            this.plugin,
+            this.profile,
+            statusValues,
+            this.availableProperties,
+            () => {
+                this.profile =
+                    this.plugin.settings.profiles.find((p) => p.id === this.profile.id) ??
+                    this.profile
+                this.rebuild()
+            }
+        ).open()
     }
 
     private async handleDrop(cardKey: string, target: DropTarget): Promise<void> {

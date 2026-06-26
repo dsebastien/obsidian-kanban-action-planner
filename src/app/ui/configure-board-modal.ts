@@ -1,27 +1,31 @@
 import { Modal, Setting } from 'obsidian'
 import type { App } from 'obsidian'
 import type { KanbanActionPlannerPlugin } from '../plugin'
-import type { ColorSpec, Profile } from '../domain/profile'
+import type { CardPresentation, ColorSpec, Profile } from '../domain/profile'
 import { splitStatusValue } from '../domain/status'
 import { isValidHex, paletteTokens, resolveColor } from '../services/colors.service'
 import {
     clearColorOverride,
     findProfile,
     setAutoAssign,
+    setCardPresentation,
     setColorOverride
 } from '../services/profile-service'
 
 const AUTO = '__auto__'
+const NONE = '__none__'
+const NOTE_NAME = '__note_name__'
 
 /**
- * "Configure board" modal. Edits the active profile's colors: an auto-assign
- * toggle and, per status, a palette/auto dropdown plus a custom-color picker.
- * Changes persist to the profile immediately and re-render the board.
+ * "Configure board" modal. Edits the active profile's colors and card
+ * presentation (title source, body fields, cover image, wrapping). Every change
+ * persists to the profile immediately and re-renders the board.
  */
 export class ConfigureBoardModal extends Modal {
     private readonly plugin: KanbanActionPlannerPlugin
-    private profileId: string
+    private readonly profileId: string
     private readonly statusValues: string[]
+    private readonly availableProperties: string[]
     private readonly onChange: () => void
 
     constructor(
@@ -29,12 +33,14 @@ export class ConfigureBoardModal extends Modal {
         plugin: KanbanActionPlannerPlugin,
         profile: Profile,
         statusValues: string[],
+        availableProperties: string[],
         onChange: () => void
     ) {
         super(app)
         this.plugin = plugin
         this.profileId = profile.id
         this.statusValues = statusValues
+        this.availableProperties = availableProperties
         this.onChange = onChange
     }
 
@@ -63,9 +69,18 @@ export class ConfigureBoardModal extends Modal {
             cls: 'kap-modal-subtitle',
             text:
                 profile.source === 'starter-kit'
-                    ? `Note type "${profile.name}" (from the Obsidian Starter Kit). Colors are saved locally.`
-                    : `Profile "${profile.name}". Colors are saved locally.`
+                    ? `Note type "${profile.name}" (from the Obsidian Starter Kit). Board settings are saved locally.`
+                    : `Profile "${profile.name}". Board settings are saved locally.`
         })
+
+        this.renderColors(profile)
+        this.renderCard(profile)
+    }
+
+    // ── Colors ────────────────────────────────────────────────
+
+    private renderColors(profile: Profile): void {
+        new Setting(this.contentEl).setName('Colors').setHeading()
 
         new Setting(this.contentEl)
             .setName('Auto-assign colors')
@@ -79,12 +94,10 @@ export class ConfigureBoardModal extends Modal {
         if (this.statusValues.length === 0) {
             this.contentEl.createDiv({
                 cls: 'kap-modal-empty',
-                text: 'Statuses appear here once notes in this board have status values.'
+                text: 'Status colors appear here once notes in this board have status values.'
             })
             return
         }
-
-        new Setting(this.contentEl).setName('Status colors').setHeading()
 
         for (const statusValue of this.statusValues) {
             this.renderStatusRow(profile, statusValue)
@@ -93,10 +106,8 @@ export class ConfigureBoardModal extends Modal {
 
     private renderStatusRow(profile: Profile, statusValue: string): void {
         const override = profile.colors.overrides[statusValue]
-        const label = splitStatusValue(statusValue).label
-
         new Setting(this.contentEl)
-            .setName(label)
+            .setName(splitStatusValue(statusValue).label)
             .addDropdown((dd) => {
                 dd.addOption(AUTO, 'Auto')
                 for (const token of paletteTokens()) dd.addOption(token, capitalize(token))
@@ -108,9 +119,11 @@ export class ConfigureBoardModal extends Modal {
                             clearColorOverride(this.plugin, this.profileId, statusValue)
                         )
                     } else if (value === 'custom') {
-                        const spec: ColorSpec = { kind: 'hex', value: currentHex(override) }
                         void this.mutate(() =>
-                            setColorOverride(this.plugin, this.profileId, statusValue, spec)
+                            setColorOverride(this.plugin, this.profileId, statusValue, {
+                                kind: 'hex',
+                                value: currentHex(override)
+                            })
                         )
                     } else {
                         void this.mutate(() =>
@@ -136,11 +149,148 @@ export class ConfigureBoardModal extends Modal {
             })
     }
 
+    // ── Card presentation ─────────────────────────────────────
+
+    private renderCard(profile: Profile): void {
+        const card = profile.card
+        new Setting(this.contentEl).setName('Cards').setHeading()
+
+        new Setting(this.contentEl)
+            .setName('Title')
+            .setDesc('Use the note name or a property as the card title.')
+            .addDropdown((dd) => {
+                dd.addOption(NOTE_NAME, 'Note name')
+                for (const prop of this.availableProperties) dd.addOption(prop, prop)
+                dd.setValue(
+                    card.titleSource.kind === 'property' ? card.titleSource.property : NOTE_NAME
+                )
+                dd.onChange((value) => {
+                    const titleSource: CardPresentation['titleSource'] =
+                        value === NOTE_NAME
+                            ? { kind: 'note-name' }
+                            : { kind: 'property', property: value }
+                    void this.mutateCard({ ...card, titleSource })
+                })
+            })
+
+        new Setting(this.contentEl)
+            .setName('Cover image')
+            .setDesc('Property holding an image link, vault path, or URL.')
+            .addDropdown((dd) => {
+                dd.addOption(NONE, 'None')
+                for (const prop of this.availableProperties) dd.addOption(prop, prop)
+                dd.setValue(card.coverImageProperty ?? NONE)
+                dd.onChange((value) => {
+                    void this.mutateCard({
+                        ...card,
+                        coverImageProperty: value === NONE ? null : value
+                    })
+                })
+            })
+
+        new Setting(this.contentEl)
+            .setName('Wrap long values')
+            .setDesc('Wrap field values onto multiple lines instead of truncating.')
+            .addToggle((toggle) =>
+                toggle.setValue(card.wrapPropertyValues).onChange((value) => {
+                    void this.mutateCard({ ...card, wrapPropertyValues: value })
+                })
+            )
+
+        this.renderFieldsEditor(card)
+    }
+
+    private renderFieldsEditor(card: CardPresentation): void {
+        new Setting(this.contentEl).setName('Displayed fields').setHeading()
+
+        card.fields.forEach((field, index) => {
+            new Setting(this.contentEl)
+                .setName(field.property)
+                .addToggle((toggle) =>
+                    toggle
+                        .setTooltip('Show label')
+                        .setValue(field.showLabel)
+                        .onChange((value) => {
+                            const fields = card.fields.slice()
+                            fields[index] = { ...field, showLabel: value }
+                            void this.mutateCard({ ...card, fields })
+                        })
+                )
+                .addExtraButton((b) =>
+                    b
+                        .setIcon('arrow-up')
+                        .setTooltip('Move up')
+                        .setDisabled(index === 0)
+                        .onClick(
+                            () =>
+                                void this.mutateCard({
+                                    ...card,
+                                    fields: move(card.fields, index, index - 1)
+                                })
+                        )
+                )
+                .addExtraButton((b) =>
+                    b
+                        .setIcon('arrow-down')
+                        .setTooltip('Move down')
+                        .setDisabled(index === card.fields.length - 1)
+                        .onClick(
+                            () =>
+                                void this.mutateCard({
+                                    ...card,
+                                    fields: move(card.fields, index, index + 1)
+                                })
+                        )
+                )
+                .addExtraButton((b) =>
+                    b
+                        .setIcon('trash')
+                        .setTooltip('Remove')
+                        .onClick(() => {
+                            const fields = card.fields.filter((_, i) => i !== index)
+                            void this.mutateCard({ ...card, fields })
+                        })
+                )
+        })
+
+        const remaining = this.availableProperties.filter(
+            (p) => !card.fields.some((f) => f.property === p)
+        )
+        if (remaining.length > 0) {
+            new Setting(this.contentEl).setName('Add field').addDropdown((dd) => {
+                dd.addOption(NONE, 'Choose a property…')
+                for (const prop of remaining) dd.addOption(prop, prop)
+                dd.setValue(NONE)
+                dd.onChange((value) => {
+                    if (value === NONE) return
+                    const fields = [
+                        ...card.fields,
+                        { property: value, showLabel: false, emphasis: 'normal' as const }
+                    ]
+                    void this.mutateCard({ ...card, fields })
+                })
+            })
+        }
+    }
+
+    // ── Persistence ───────────────────────────────────────────
+
     private async mutate(action: () => Promise<void>): Promise<void> {
         await action()
         this.onChange()
         this.render()
     }
+
+    private async mutateCard(card: CardPresentation): Promise<void> {
+        await this.mutate(() => setCardPresentation(this.plugin, this.profileId, card))
+    }
+}
+
+function move<T>(arr: ReadonlyArray<T>, from: number, to: number): T[] {
+    const next = arr.slice()
+    const [item] = next.splice(from, 1)
+    if (item !== undefined) next.splice(to, 0, item)
+    return next
 }
 
 function dropdownValueFor(spec: ColorSpec | undefined): string {

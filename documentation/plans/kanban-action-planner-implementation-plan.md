@@ -676,7 +676,16 @@ validation + migration hook in place; DoD green; manual checklist flagged.
 
 ---
 
-### Milestone 2b — Card presentation (title, fields, cover, wrapping) — tracks [#3]–[#6]
+### Milestone 2b — Card presentation (title, fields, cover, wrapping) — ✅ done (2026-06-26) — tracks [#3]–[#6]
+
+**Outcome:** `utils/format.ts` (pure wikilink/scalar formatting — tested). `services/card-display.service.ts`
+builds a `CardDisplay` per card: title (note name or property, [#4]), ordered type-aware body
+fields ([#3]), an optional cover image resolved from a wikilink/path/URL ([#5]), wrap flag
+([#6]), and an automatic red due-date chip when the due-date property is set. `card-renderer.ts`
+renders cover + title + field chips + wrap class. The Configure-board modal gains a Cards
+section (title source, cover property, wrap toggle, and an add/reorder/remove fields editor)
+persisted via `setCardPresentation`. `tsc`/`lint`/`bun test` (108)/`build` green; verified live
+(plugin reloads, board renders, red due dates show for notes with `date_due`). `docs/` updated.
 
 **Goal:** Make the card renderer fully config-driven instead of hardcoded fields, authored
 in the Configure-board modal and persisted per profile (with per-view override).
@@ -964,6 +973,27 @@ release**.
 - Calendar layout, range switching, red due-date styling, click-to-open.
 
 The implementer must never claim UI behavior works based on a green build alone.
+
+### Live testing harness (set up 2026-06-26)
+
+The plugin can be exercised in the real vault at `OBSIDIAN_VAULT_LOCATION`
+(`/home/dsebastien/notesSeb`) via the `obsidian` CLI:
+
+- **Watch/deploy:** `bun run dev` rebuilds on change and copies the plugin into
+  `<vault>/.obsidian/plugins/obsidian-kanban-action-planner/` with a `.hotreload` marker.
+  (Folder is the package name; Obsidian registers the plugin by its manifest `id`,
+  `kanban-action-planner`.)
+- **Enable / reload:** `obsidian plugin:enable id=kanban-action-planner`;
+  `obsidian reload` to reindex; `obsidian plugin:reload id=kanban-action-planner` after a build.
+- **Test fixtures (committed to the vault, not this repo):** `KanbanTest/` holds Task A–F
+  notes (statuses `10 Todo` / `20 Doing` / `30 Done`, one with no status → Unmapped, varied
+  `manual_order`). `KANBANTESTBASE.base` at the vault root filters `file.inFolder("KanbanTest")`
+  and declares a `kanban-action-planner` view named "Kanban".
+- **Inspect:** `obsidian base:query path=KANBANTESTBASE.base`, `obsidian base:views` (with the
+  base active), `obsidian open path=KANBANTESTBASE.base`, `obsidian plugins:enabled`.
+- **Verified 2026-06-26:** plugin loads without throwing; the base opens; `base:views` reports
+  `Kanban → kanban-action-planner`. Visual confirmation of board rendering/drag/colors is done
+  by the user watching Obsidian (still not agent-self-verifiable).
 
 ---
 

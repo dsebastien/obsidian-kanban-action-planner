@@ -132,6 +132,52 @@
         word-break: break-word;
     }
 
+    .kap-card-cover {
+        margin: calc(-1 * var(--size-4-2, 0.5rem)) calc(-1 * var(--size-4-3, 0.75rem))
+            var(--size-4-2, 0.5rem);
+        overflow: hidden;
+        border-top-left-radius: var(--radius-s, 6px);
+        border-top-right-radius: var(--radius-s, 6px);
+    }
+
+    .kap-card-cover img {
+        display: block;
+        width: 100%;
+        height: 7rem;
+        object-fit: cover;
+    }
+
+    .kap-card-fields {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--size-4-1, 0.25rem);
+        margin-top: var(--size-4-1, 0.25rem);
+    }
+
+    .kap-card-field {
+        max-width: 100%;
+        padding: 0 var(--size-4-1, 0.25rem);
+        font-size: var(--font-smaller, 0.85em);
+        color: var(--text-muted);
+        background: var(--background-modifier-hover);
+        border-radius: var(--radius-s, 6px);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .kap-card-field-due {
+        color: var(--text-error);
+        background: transparent;
+        padding: 0;
+        font-weight: var(--font-semibold, 600);
+    }
+
+    /* Wrap mode: let field values span multiple lines. */
+    .kap-card-wrap .kap-card-field {
+        white-space: normal;
+    }
+
     .kap-card-dragging {
         opacity: 0.4;
     }

@@ -172,6 +172,22 @@ export async function setAutoAssign(
     )
 }
 
+/** Replace a profile's card-presentation config. */
+export async function setCardPresentation(
+    plugin: KanbanActionPlannerPlugin,
+    profileId: string,
+    card: Profile['card']
+): Promise<void> {
+    const profile = findProfile(plugin, profileId)
+    if (!profile) return
+    await upsertProfile(
+        plugin,
+        produce(profile, (draft) => {
+            draft.card = card
+        })
+    )
+}
+
 const NEUTRAL_SPEC: ColorSpec = { kind: 'palette', token: 'slate' }
 
 /** Resolve the color for a status value from a profile's overrides / auto rule. */

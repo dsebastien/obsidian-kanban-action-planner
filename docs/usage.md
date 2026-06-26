@@ -59,6 +59,20 @@ Click the **gear** in the top-right of the board to open **Configure board**:
 
 Card accents and column shades follow the status color and adapt to your light/dark theme.
 
+## Card content
+
+The Configure board dialog also controls what each card shows:
+
+- **Title** — use the note name (default) or any property as the card heading. Clicking the
+  card still opens the note.
+- **Displayed fields** — add properties to show on the card, reorder them, and toggle a label
+  for each. Values render by type (dates, numbers, lists, links).
+- **Cover image** — pick a property holding an image link, vault path, or URL to show a cover
+  at the top of the card.
+- **Wrap long values** — wrap field values onto multiple lines instead of truncating them.
+
+A note's **due date** is always shown in red when set, even without configuring fields.
+
 ## Obsidian Starter Kit integration
 
 If the [Obsidian Starter Kit](https://store.dsebastien.net/) plugin is installed, the board
