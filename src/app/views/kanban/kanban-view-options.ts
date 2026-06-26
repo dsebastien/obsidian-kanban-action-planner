@@ -27,6 +27,13 @@ export function getKanbanViewOptions(settings: PluginSettings): BasesAllOptions[
             key: 'showEmptyColumns',
             displayName: 'Show empty columns',
             default: true
+        },
+        {
+            type: 'dropdown',
+            key: 'unmappedPosition',
+            displayName: 'Unmapped column position',
+            default: 'first',
+            options: { first: 'First (left)', last: 'Last (right)' }
         }
     ]
 }

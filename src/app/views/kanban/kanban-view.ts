@@ -4,7 +4,7 @@ import type { KanbanActionPlannerPlugin } from '../../plugin'
 import { CSS_ROOT_CLASS, KANBAN_VIEW_TYPE, UNMAPPED_COLUMN_ID } from '../../constants'
 import type { ColumnDef, Profile } from '../../domain/profile'
 import { buildSingleLaneBoard } from '../../domain/board-model'
-import type { SingleLaneBoard } from '../../domain/board-model'
+import type { SingleLaneBoard, UnmappedPosition } from '../../domain/board-model'
 import { detectStatusProperty, normalizeStatusValue } from '../../domain/status'
 import { planInsertion } from '../../domain/ordering'
 import {
@@ -124,7 +124,7 @@ export class KanbanActionPlannerView extends BasesView {
         const values = this.profileStatusValues ?? observed
         this.columns = columnsFromValues(values, this.profile, this.preserveColumnOrder)
 
-        let board = buildSingleLaneBoard(cards, this.columns)
+        let board = buildSingleLaneBoard(cards, this.columns, this.unmappedPosition())
         if (!this.showEmptyColumns()) {
             board = {
                 columns: board.columns.filter(
@@ -167,6 +167,10 @@ export class KanbanActionPlannerView extends BasesView {
     private showEmptyColumns(): boolean {
         const value = this.config.get('showEmptyColumns')
         return value === undefined ? true : value === true
+    }
+
+    private unmappedPosition(): UnmappedPosition {
+        return this.config.get('unmappedPosition') === 'last' ? 'last' : 'first'
     }
 
     private toCard(file: TFile): KanbanCard {

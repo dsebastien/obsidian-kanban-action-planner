@@ -48,13 +48,18 @@ function compareCards<T extends BoardCardBase>(a: T, b: T): number {
     return a.key < b.key ? -1 : a.key > b.key ? 1 : 0
 }
 
+/** Where the Unmapped column sits relative to the status columns. */
+export type UnmappedPosition = 'first' | 'last'
+
 /**
  * Build a single-lane board: one bucket per known column (in column order),
- * plus an Unmapped bucket appended ONLY when it has cards.
+ * plus an Unmapped bucket included ONLY when it has cards. The Unmapped column
+ * goes first by default (left-to-right flow: Unmapped → Todo → … → Done).
  */
 export function buildSingleLaneBoard<T extends BoardCardBase>(
     cards: ReadonlyArray<T>,
-    columns: ReadonlyArray<ColumnDef>
+    columns: ReadonlyArray<ColumnDef>,
+    unmappedPosition: UnmappedPosition = 'first'
 ): SingleLaneBoard<T> {
     const knownIds = new Set(columns.map((c) => c.id))
     const buckets = new Map<string, T[]>()
@@ -67,14 +72,19 @@ export function buildSingleLaneBoard<T extends BoardCardBase>(
         else (buckets.get(columnId) as T[]).push(card)
     }
 
-    const result: BoardColumn<T>[] = columns.map((column) => ({
+    const mapped: BoardColumn<T>[] = columns.map((column) => ({
         column,
         cards: (buckets.get(column.id) as T[]).slice().sort(compareCards)
     }))
 
-    if (unmapped.length > 0) {
-        result.push({ column: unmappedColumn(), cards: unmapped.slice().sort(compareCards) })
-    }
+    if (unmapped.length === 0) return { columns: mapped }
 
-    return { columns: result }
+    const unmappedBucket: BoardColumn<T> = {
+        column: unmappedColumn(),
+        cards: unmapped.slice().sort(compareCards)
+    }
+    return {
+        columns:
+            unmappedPosition === 'first' ? [unmappedBucket, ...mapped] : [...mapped, unmappedBucket]
+    }
 }

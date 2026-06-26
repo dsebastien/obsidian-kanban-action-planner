@@ -35,14 +35,20 @@ describe('buildSingleLaneBoard', () => {
         expect(board.columns[0]?.cards.map((c) => c.key)).toEqual(['m', 'z', 'a', 'b'])
     })
 
-    it('collects unknown/missing status into Unmapped, appended last', () => {
+    it('collects unknown/missing status into Unmapped, placed first by default', () => {
         const board = buildSingleLaneBoard(
             [card('a', 'Mystery', 1), card('b', null, 2), card('c', '10 Todo', 1)],
             columns
         )
+        const first = board.columns[0]
+        expect(first?.column.id).toBe(UNMAPPED_COLUMN_ID)
+        expect(first?.cards.map((c) => c.key)).toEqual(['a', 'b'])
+    })
+
+    it('can place Unmapped last when requested', () => {
+        const board = buildSingleLaneBoard([card('a', 'Mystery', 1)], columns, 'last')
         const last = board.columns[board.columns.length - 1]
         expect(last?.column.id).toBe(UNMAPPED_COLUMN_ID)
-        expect(last?.cards.map((c) => c.key)).toEqual(['a', 'b'])
     })
 
     it('hides the Unmapped column when empty', () => {

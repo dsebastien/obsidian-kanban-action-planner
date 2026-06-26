@@ -23,7 +23,8 @@ property to your notes and columns appear.
 - Each distinct status value becomes one column.
 - A leading number sets column order and is hidden in the header — e.g. `10 Todo`,
   `20 Doing`, `30 Done`.
-- Missing or unrecognized values go to the **Unmapped** column (hidden when empty).
+- Missing or unrecognized values go to the **Unmapped** column (hidden when empty). It shows
+  first (left) by default; a view option can move it last (right).
 
 ## Manual order
 

@@ -48,6 +48,8 @@ notes:
 - **Manual order property** — choose where card order is stored.
 - **Show empty columns** — keep columns with no cards visible (useful when columns come from a
   note type's defined statuses).
+- **Unmapped column position** — show the Unmapped column first (left, the default) or last
+  (right). It still only appears when something is unmapped.
 
 ## Colors
 
