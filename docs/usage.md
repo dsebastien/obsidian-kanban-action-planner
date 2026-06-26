@@ -39,6 +39,37 @@ Ordering is stored in your notes (not in plugin data), so it travels with the va
 - **Right-click** (or long-press on touch) a card for a menu: open the note, set its status,
   or clear the status.
 
-## Commands
+## View options
 
-No commands yet — the plugin works through the Bases view.
+Open the view's options (the Bases view settings) to tune a board without changing your
+notes:
+
+- **Status property** — choose which property drives the columns (overrides auto-detection).
+- **Manual order property** — choose where card order is stored.
+- **Show empty columns** — keep columns with no cards visible (useful when columns come from a
+  note type's defined statuses).
+
+## Colors
+
+Click the **gear** in the top-right of the board to open **Configure board**:
+
+- Toggle **Auto-assign colors** to give each status a palette color automatically.
+- Per status, pick a palette color, choose **Custom…** and use the color picker, or pick
+  **Auto** to reset.
+
+Card accents and column shades follow the status color and adapt to your light/dark theme.
+
+## Obsidian Starter Kit integration
+
+If the [Obsidian Starter Kit](https://store.dsebastien.net/) plugin is installed, the board
+recognizes a note's type and uses that type's **status property and allowed values** to build
+its columns — including empty columns in the type's defined order. The Starter Kit stays the
+source of truth for that; your color choices are saved locally and survive the Starter Kit
+being disabled. Without the Starter Kit, columns come from the status values found in your
+notes.
+
+## Where it lives
+
+Everything happens inside the Bases Kanban view — there are no separate commands to run. The
+plugin's settings tab holds the global default property names used when a note or board
+doesn't override them.

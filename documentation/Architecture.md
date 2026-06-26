@@ -53,6 +53,9 @@ from Obsidian CSS variables. This keeps the plugin from clashing with core or ot
 
 ## Current state
 
-Milestone 0 (scaffolding): the view registers and mounts a placeholder; settings load/save
-round-trip with Zod validation; domain config model + schemas exist. Board rendering,
-drag/drop, profiles, relationships, and calendar mode are implemented in later milestones.
+Through Milestone 2: a working board with columns from a status property, an Unmapped column,
+pointer-event drag/drop and reorder persisted to notes, a right-click menu, note-type
+**profiles** (mirrored from the Obsidian Starter Kit when present), a **color** system applied
+to cards/columns, per-view options (status/order property pickers, show-empty toggle), a
+Configure-board modal, and global settings. Swimlanes, card presentation, relationships,
+archiving, and calendar mode are implemented in later milestones.

@@ -31,8 +31,19 @@ When you reorder cards, the plugin assigns a numeric `manual_order`. It uses fra
 midpoints so a single move usually rewrites only the card you moved; a column is renumbered
 to whole numbers only when needed (e.g. when some cards have no order yet).
 
-## Coming soon
+## Profiles and the Obsidian Starter Kit
 
-Configurable property names, note-type profiles (with Obsidian Starter Kit auto-detection),
-colors, swimlanes, card customization, relationships, archiving, and calendar mode — see the
-project plan and the GitHub issues.
+Board configuration (currently: colors) is grouped into a **profile**. When the Obsidian
+Starter Kit plugin is installed and recognizes your notes as a note type, the board uses that
+type as its profile — taking the status property and its allowed values from the Starter Kit
+and building columns in the defined order, including empty ones. The Starter Kit remains the
+source of truth for those facts; your color choices are stored locally in this plugin and
+keep working even if the Starter Kit is disabled. When the Starter Kit is not present, a local
+default profile is used and columns come from the status values found in your notes.
+
+## Colors
+
+Colors are saved per profile, so all boards of the same note type share them. Each status can
+use an auto-assigned palette color, a chosen palette color, or a custom hex value. Column
+backgrounds are a translucent blend of the card color over your theme background, so they look
+right in both light and dark themes.

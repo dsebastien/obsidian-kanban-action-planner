@@ -16,16 +16,47 @@
    ======================================== */
 @layer components {
     .kap-root {
+        position: relative;
         height: 100%;
         width: 100%;
         overflow: hidden;
         color: var(--text-normal);
     }
 
+    /* Floating "Configure board" gear. */
+    .kap-root .kap-gear {
+        position: absolute;
+        top: var(--size-4-2, 0.5rem);
+        right: var(--size-4-2, 0.5rem);
+        z-index: 5;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 1.9rem;
+        height: 1.9rem;
+        padding: 0;
+        color: var(--text-muted);
+        background: var(--background-secondary);
+        border: 1px solid var(--background-modifier-border);
+        border-radius: var(--radius-s, 6px);
+        cursor: pointer;
+        box-shadow: var(--shadow-s);
+    }
+
+    .kap-root .kap-gear:hover {
+        color: var(--text-normal);
+        border-color: var(--interactive-accent);
+    }
+
     .kap-root .kap-placeholder,
     .kap-root .kap-empty {
         padding: var(--size-4-4, 1rem);
         color: var(--text-muted);
+    }
+
+    .kap-root .kap-board-host {
+        height: 100%;
+        width: 100%;
     }
 
     /* Board: horizontal row of columns, scrolls horizontally when needed. */
@@ -80,6 +111,7 @@
         padding: var(--size-4-2, 0.5rem) var(--size-4-3, 0.75rem);
         background: var(--background-primary);
         border: 1px solid var(--background-modifier-border);
+        border-left: 3px solid var(--kap-card-accent, var(--background-modifier-border));
         border-radius: var(--radius-s, 6px);
         cursor: grab;
         touch-action: none; /* let the pointer DnD own touch gestures */
@@ -119,6 +151,17 @@
         margin: 2px 0;
         background: var(--interactive-accent);
         border-radius: 1px;
+    }
+
+    /* Configure-board modal (rendered outside .kap-root, still kap-prefixed). */
+    .kap-modal-subtitle {
+        margin-top: 0;
+        color: var(--text-muted);
+    }
+
+    .kap-modal-empty {
+        color: var(--text-muted);
+        padding: var(--size-4-2, 0.5rem) 0;
     }
 
     /* Narrow screens / mobile: snug columns, snap scrolling. */

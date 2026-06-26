@@ -2,10 +2,10 @@ import { BasesView, debounce, Menu, TFile } from 'obsidian'
 import type { Debouncer, QueryController } from 'obsidian'
 import type { KanbanActionPlannerPlugin } from '../../plugin'
 import { CSS_ROOT_CLASS, KANBAN_VIEW_TYPE, UNMAPPED_COLUMN_ID } from '../../constants'
-import type { ColumnDef } from '../../domain/profile'
+import type { ColumnDef, Profile } from '../../domain/profile'
 import { buildSingleLaneBoard } from '../../domain/board-model'
 import type { SingleLaneBoard } from '../../domain/board-model'
-import { deriveColumns, detectStatusProperty, normalizeStatusValue } from '../../domain/status'
+import { detectStatusProperty, normalizeStatusValue } from '../../domain/status'
 import { planInsertion } from '../../domain/ordering'
 import {
     coerceOrder,
@@ -13,19 +13,27 @@ import {
     getFrontmatterValue,
     setProperty
 } from '../../services/frontmatter.service'
+import {
+    DEFAULT_PROFILE_ID,
+    columnsFromValues,
+    createDefaultProfile,
+    resolveActiveProfile
+} from '../../services/profile-service'
 import { renderBoard } from '../../ui/board/board-renderer'
 import { BoardDnd } from '../../ui/board/dnd-controller'
 import type { DropTarget } from '../../ui/board/dnd-controller'
 import type { KanbanCard } from '../../ui/board/types'
+import { renderGearButton } from '../../ui/gear-button'
+import { ConfigureBoardModal } from '../../ui/configure-board-modal'
 import { log } from '../../../utils/log'
 
 /**
- * The Kanban Bases view (Milestone 1: core single-lane board).
+ * The Kanban Bases view.
  *
- * Reads the filtered notes, derives columns from a detected status property,
- * renders a draggable board, and persists status + manual order back to the
- * notes on drop / context-menu actions. `data` is replaced on every update, so
- * it is always re-read in {@link onDataUpdated}.
+ * Reads the filtered notes, resolves the active note-type profile (mirrored from
+ * the Starter Kit when present), derives colored columns, renders a draggable
+ * board, and persists status + manual order back to the notes. `data` is
+ * replaced on every update, so it is always re-read in {@link onDataUpdated}.
  */
 export class KanbanActionPlannerView extends BasesView {
     override readonly type = KANBAN_VIEW_TYPE
@@ -33,11 +41,15 @@ export class KanbanActionPlannerView extends BasesView {
     private readonly containerEl: HTMLElement
     private readonly plugin: KanbanActionPlannerPlugin
     private rootEl: HTMLElement | null = null
+    private boardEl: HTMLElement | null = null
     private dnd: BoardDnd | null = null
     private readonly debouncedRebuild: Debouncer<[], void>
 
     private statusProperty: string | null = null
     private orderProperty = 'manual_order'
+    private profile: Profile = createDefaultProfile(DEFAULT_PROFILE_ID, 'Default', 'local')
+    private profileStatusValues: string[] | null = null
+    private preserveColumnOrder = false
     private columns: ColumnDef[] = []
     private board: SingleLaneBoard<KanbanCard> = { columns: [] }
     private cardsByKey = new Map<string, KanbanCard>()
@@ -50,16 +62,17 @@ export class KanbanActionPlannerView extends BasesView {
         super(controller)
         this.containerEl = containerEl
         this.plugin = plugin
-        // Coalesce indexing storms (and our own frontmatter writes) into one rebuild.
-        this.debouncedRebuild = debounce(() => this.rebuild(), 250)
+        this.debouncedRebuild = debounce(() => void this.resolveAndRebuild(), 250)
     }
 
     override onload(): void {
         this.rootEl = this.containerEl.createDiv({ cls: CSS_ROOT_CLASS })
-        this.dnd = new BoardDnd(this.rootEl, {
+        renderGearButton(this.rootEl, () => this.openConfigureModal())
+        this.boardEl = this.rootEl.createDiv({ cls: 'kap-board-host' })
+        this.dnd = new BoardDnd(this.boardEl, {
             onDrop: (cardKey, target) => void this.handleDrop(cardKey, target)
         })
-        this.rebuild()
+        void this.resolveAndRebuild()
     }
 
     override onunload(): void {
@@ -67,6 +80,7 @@ export class KanbanActionPlannerView extends BasesView {
         this.dnd = null
         this.rootEl?.remove()
         this.rootEl = null
+        this.boardEl = null
     }
 
     override onDataUpdated(): void {
@@ -75,34 +89,78 @@ export class KanbanActionPlannerView extends BasesView {
 
     // ── Build ─────────────────────────────────────────────────
 
-    private rebuild(): void {
-        if (!this.rootEl) return
-
-        const settings = this.plugin.settings
-        this.orderProperty = settings.defaultOrderProperty
-
+    private files(): TFile[] {
         const entries = this.data?.data ?? []
-        const files = entries.map((e) => e.file).filter((f): f is TFile => f instanceof TFile)
+        return entries.map((e) => e.file).filter((f): f is TFile => f instanceof TFile)
+    }
 
-        this.statusProperty = detectStatusProperty(
-            this.collectPropertyNames(files),
-            settings.defaultStatusProperty
-        )
+    /** Resolve the profile (may hit the async Starter Kit API), then render. */
+    private async resolveAndRebuild(): Promise<void> {
+        const files = this.files()
+        const resolved = await resolveActiveProfile(this.app, this.plugin, files)
+        this.profile = resolved.profile
+        this.profileStatusValues = resolved.statusValues
+        this.preserveColumnOrder = resolved.preserveOrder
+        this.rebuild()
+    }
+
+    private rebuild(): void {
+        if (!this.boardEl) return
+        const files = this.files()
+
+        this.statusProperty = this.resolveStatusProperty(files)
+        this.orderProperty = this.resolveOrderProperty()
 
         const cards = files.map((file) => this.toCard(file))
         this.cardsByKey = new Map(cards.map((c) => [c.key, c]))
-        this.columns = deriveColumns(cards.map((c) => c.statusValue))
-        this.board = buildSingleLaneBoard(cards, this.columns)
+
+        const observed = cards.map((c) => c.statusValue).filter((v): v is string => v !== null)
+        const values = this.profileStatusValues ?? observed
+        this.columns = columnsFromValues(values, this.profile, this.preserveColumnOrder)
+
+        let board = buildSingleLaneBoard(cards, this.columns)
+        if (!this.showEmptyColumns()) {
+            board = {
+                columns: board.columns.filter(
+                    (c) => c.cards.length > 0 || c.column.id === UNMAPPED_COLUMN_ID
+                )
+            }
+        }
+        this.board = board
 
         log(
-            `Kanban rebuild: ${String(cards.length)} cards, ${String(this.columns.length)} columns`,
+            `Kanban rebuild: ${String(cards.length)} cards, ${String(this.columns.length)} columns, profile "${this.profile.name}"`,
             'debug'
         )
 
-        renderBoard(this.rootEl, this.board, {
+        renderBoard(this.boardEl, this.board, {
             onOpen: (card) => this.openCard(card),
             onContextMenu: (card, event) => this.showCardMenu(card, event)
         })
+    }
+
+    private resolveStatusProperty(files: TFile[]): string | null {
+        const configured = basesPropToName(this.config.get('statusProperty'))
+        if (configured) return configured
+        if (this.profile.source === 'starter-kit' && this.profile.statusProperty) {
+            return this.profile.statusProperty
+        }
+        return detectStatusProperty(
+            this.collectPropertyNames(files),
+            this.plugin.settings.defaultStatusProperty
+        )
+    }
+
+    private resolveOrderProperty(): string {
+        return (
+            basesPropToName(this.config.get('orderProperty')) ??
+            this.plugin.settings.defaultOrderProperty
+        )
+    }
+
+    private showEmptyColumns(): boolean {
+        const value = this.config.get('showEmptyColumns')
+        return value === undefined ? true : value === true
     }
 
     private toCard(file: TFile): KanbanCard {
@@ -129,15 +187,22 @@ export class KanbanActionPlannerView extends BasesView {
         void this.app.workspace.getLeaf(false).openFile(card.file)
     }
 
+    private openConfigureModal(): void {
+        const statusValues = this.columns.map((c) => c.statusValue)
+        new ConfigureBoardModal(this.app, this.plugin, this.profile, statusValues, () => {
+            this.profile =
+                this.plugin.settings.profiles.find((p) => p.id === this.profile.id) ?? this.profile
+            this.rebuild()
+        }).open()
+    }
+
     private async handleDrop(cardKey: string, target: DropTarget): Promise<void> {
         const card = this.cardsByKey.get(cardKey)
         if (!card) return
-
         const newStatus =
             target.columnId === UNMAPPED_COLUMN_ID
                 ? null
                 : (this.columnStatusValue(target.columnId) ?? card.statusValue)
-
         await this.applyMove(card, newStatus, target.columnId, target.index)
     }
 
@@ -219,8 +284,17 @@ export class KanbanActionPlannerView extends BasesView {
         statusValue: string | null,
         columnId: string
     ): Promise<void> {
-        // Append to the bottom of the destination column.
         const destCards = this.columnCards(columnId).filter((c) => c.key !== card.key)
         await this.applyMove(card, statusValue, columnId, destCards.length)
     }
+}
+
+/** Extract a frontmatter property name from a stored Bases property id. */
+function basesPropToName(value: unknown): string | null {
+    if (typeof value !== 'string' || value.length === 0) return null
+    const dot = value.indexOf('.')
+    if (dot === -1) return value
+    const prefix = value.slice(0, dot)
+    // Only note (frontmatter) properties are read/written by name.
+    return prefix === 'note' ? value.slice(dot + 1) : null
 }

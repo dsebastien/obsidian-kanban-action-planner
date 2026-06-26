@@ -622,10 +622,24 @@ pure logic unit-tested; DoD green; manual checklist flagged.
 
 ---
 
-### Milestone 2 — Profiles, SK auto-detect, Configure-board modal, colors
+### Milestone 2 — Profiles, SK auto-detect, Configure-board modal, colors — ✅ done (2026-06-26)
 
 **Goal:** Introduce reusable note-type profiles, SK mirroring, the Configure-board modal,
 and the full kanban-owned color system.
+
+**Outcome:** `starter-kit.service.ts` (feature-detected, shape-defensive: list/recognize note
+types, derive status property + allowed values, recognition mappings — pure parts tested).
+`profile-service.ts` (complete default profiles, get-or-create + persist via Immer, SK
+mirroring that preserves local color overrides, dominant-note-type recognition, column build
+preserving SK order, color resolution — pure parts tested). `colors.service.ts` (curated
+theme-aware palette, deterministic auto-assign, `color-mix` column shades, hex validation —
+tested). UI: `configure-board-modal.ts` (auto-assign toggle + per-status palette/custom-color
+pickers, persisted live), `gear-button.ts`, colors applied in the board/card renderers. Real
+Bases view options (status/order `BasesPropertyOption`, show-empty toggle); the view reads
+per-view property overrides. Settings tab exposes the global default property names. Per the
+"no stubs" rule, the modal exposes only working controls (no relationship/calendar skeletons).
+`tsc`/`lint`/`bun test` (100)/`build` green; `docs/` + technical docs updated. **Pending manual
+check in Obsidian.**
 
 **Tasks:**
 

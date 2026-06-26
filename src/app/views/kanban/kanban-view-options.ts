@@ -1,12 +1,32 @@
-import type { BasesAllOptions, BasesViewConfig } from 'obsidian'
+import type { BasesAllOptions } from 'obsidian'
+import type { PluginSettings } from '../../types/plugin-settings.intf'
 
 /**
- * Builds the Bases view-options panel for a Kanban view.
+ * Per-view options shown in the Bases view-options panel.
  *
- * Milestone 0 scaffold: no options yet. Later milestones add property pickers
- * (status / order / date properties), the calendar-mode toggle, sort/range
- * dropdowns, and relational filters via the `Bases*Option` union.
+ * Property pickers let a view override the status and order properties; a toggle
+ * controls whether columns with no cards stay visible (useful when columns come
+ * from a Starter Kit note type's allowed values).
  */
-export function getKanbanViewOptions(_config: BasesViewConfig): BasesAllOptions[] {
-    return []
+export function getKanbanViewOptions(settings: PluginSettings): BasesAllOptions[] {
+    return [
+        {
+            type: 'property',
+            key: 'statusProperty',
+            displayName: 'Status property',
+            placeholder: settings.defaultStatusProperty
+        },
+        {
+            type: 'property',
+            key: 'orderProperty',
+            displayName: 'Manual order property',
+            placeholder: settings.defaultOrderProperty
+        },
+        {
+            type: 'toggle',
+            key: 'showEmptyColumns',
+            displayName: 'Show empty columns',
+            default: true
+        }
+    ]
 }

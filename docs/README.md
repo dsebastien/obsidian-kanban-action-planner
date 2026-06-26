@@ -25,6 +25,10 @@ with the changes written straight back into your notes.
 - **Right-click a card** — open the note or set its status from a menu (works on touch via
   long-press).
 - **Click a card** — opens the note.
+- **Colors** — give each status a color (auto-assigned palette or custom); cards and columns
+  follow it and adapt to your theme.
+- **Obsidian Starter Kit aware** — when installed, columns come from your note type's defined
+  statuses automatically; your color choices are saved locally regardless.
 
 ## Quick Start
 
