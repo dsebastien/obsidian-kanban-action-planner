@@ -463,18 +463,22 @@ export class KanbanActionPlannerView extends BasesView {
                     item
                         .setTitle(`${label}: ${note.label}`)
                         .setIcon(icon)
-                        .onClick(() => this.openRelated(note))
+                        .onClick((evt) => this.openRelated(note, isNewTabEvent(evt)))
                 )
             }
         }
     }
 
-    /** Navigate from a relationship badge: open the single related note, or list them. */
+    /**
+     * Navigate from a relationship badge: open the single related note, or list
+     * them. Ctrl/Cmd-click (on the badge, or on a menu item) opens in a new tab.
+     */
     private showRelatedMenu(card: KanbanCard, role: RelationshipRole, event: MouseEvent): void {
         const related = card.relationships[role]
         if (related.length === 0) return
+        const newTab = isNewTabEvent(event)
         if (related.length === 1 && related[0]) {
-            this.openRelated(related[0])
+            this.openRelated(related[0], newTab)
             return
         }
         const menu = new Menu()
@@ -483,15 +487,15 @@ export class KanbanActionPlannerView extends BasesView {
                 item
                     .setTitle(note.label)
                     .setIcon('file')
-                    .onClick(() => this.openRelated(note))
+                    .onClick((evt) => this.openRelated(note, newTab || isNewTabEvent(evt)))
             )
         }
         menu.showAtMouseEvent(event)
     }
 
-    private openRelated(note: RelatedNote): void {
+    private openRelated(note: RelatedNote, newTab: boolean): void {
         const file = this.app.vault.getFileByPath(note.key)
-        if (file) void this.app.workspace.getLeaf(false).openFile(file)
+        if (file) void this.app.workspace.getLeaf(newTab ? 'tab' : false).openFile(file)
     }
 
     private async setCardStatus(
@@ -512,6 +516,11 @@ const RELATIONSHIP_MENU: Array<{ role: RelationshipRole; label: string; icon: st
     { role: 'child', label: 'Child', icon: 'corner-right-down' },
     { role: 'sibling', label: 'Sibling', icon: 'arrow-left-right' }
 ]
+
+/** Whether an event asks to open in a new tab (Ctrl/Cmd held). */
+function isNewTabEvent(evt: MouseEvent | KeyboardEvent): boolean {
+    return evt.ctrlKey || evt.metaKey
+}
 
 /** Read a stored multitext option into a clean string array. */
 function readStringArray(value: unknown): string[] {

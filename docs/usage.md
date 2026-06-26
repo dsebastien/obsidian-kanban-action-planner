@@ -78,8 +78,10 @@ On each card:
 
 - A small badge row shows counts per role (**▲** parents, **▼** children, **↔** siblings).
   **Click a badge** to open the related note, or pick from a menu when there are several.
+  **Ctrl/Cmd-click** opens the related note in a new tab.
 - A note with a non-empty **blocked by** gets a red **⛔** badge and a red edge. Click it to jump
-  to the blocker. Blocking never changes a card's status automatically.
+  to the blocker (Ctrl/Cmd-click for a new tab). Blocking never changes a card's status
+  automatically.
 - The card's right-click menu also lists related notes to open.
 
 Use the **Blocked cards** view option to **show all**, show **only blocked**, or **hide
