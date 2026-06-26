@@ -8,10 +8,16 @@
  *   {{month}}    → 2-digit month (01–12)         e.g. 06
  *   {{day}}      → 2-digit day of month (01–31)  e.g. 26
  *   {{week}}     → 2-digit ISO week (01–53)      e.g. 26
- *   {{quarter}}  → quarter (1–4)                 e.g. 2
+ *   {{quarter}}  → quarter with Q prefix         e.g. Q2
  *   {{date}}     → YYYY-MM-DD                     e.g. 2026-06-26
  *   {{datetime}} → YYYY-MM-DD-HHmmss (FS-safe)    e.g. 2026-06-26-143015
  *   {{uuid}}     → a fresh unique id              (from the context)
+ *
+ * The `year`/`month`/`week`/`quarter`/`date` token semantics match the Obsidian
+ * Starter Kit's `evaluateExpression` (its evaluator is internal and not exposed
+ * on its public API, so we resolve locally but keep the same output so a folder
+ * template behaves identically across both plugins). `day`/`datetime`/`uuid` are
+ * extensions the Starter Kit doesn't define.
  *
  * Unknown tokens are left untouched (so an accidental `{{foo}}` is visible
  * rather than silently dropped).
@@ -46,7 +52,8 @@ function resolveToken(name: string, ctx: ExpressionContext): string | null {
         case 'week':
             return pad2(isoWeek(d))
         case 'quarter':
-            return String(Math.floor(d.getMonth() / 3) + 1)
+            // Q-prefixed to match the Starter Kit's evaluateExpression (e.g. "Q2").
+            return `Q${String(Math.floor(d.getMonth() / 3) + 1)}`
         case 'date':
             return `${String(d.getFullYear())}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`
         case 'datetime':

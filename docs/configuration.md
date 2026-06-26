@@ -104,7 +104,7 @@ board → Archiving**:
     | `{{month}}`    | 2-digit month       | `06`                |
     | `{{day}}`      | 2-digit day         | `26`                |
     | `{{week}}`     | 2-digit ISO week    | `26`                |
-    | `{{quarter}}`  | quarter (1–4)       | `2`                 |
+    | `{{quarter}}`  | quarter (Q-prefix)  | `Q2`                |
     | `{{date}}`     | `YYYY-MM-DD`        | `2026-06-26`        |
     | `{{datetime}}` | `YYYY-MM-DD-HHmmss` | `2026-06-26-143015` |
     | `{{uuid}}`     | a fresh unique id   | `a1b2c3…`           |

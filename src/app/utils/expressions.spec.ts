@@ -16,7 +16,7 @@ describe('resolvePlaceholders', () => {
         expect(resolvePlaceholders('{{month}}', ctx())).toBe('06')
         expect(resolvePlaceholders('{{day}}', ctx())).toBe('26')
         expect(resolvePlaceholders('{{week}}', ctx())).toBe('26')
-        expect(resolvePlaceholders('{{quarter}}', ctx())).toBe('2')
+        expect(resolvePlaceholders('{{quarter}}', ctx())).toBe('Q2') // Q-prefixed, matches Starter Kit
         expect(resolvePlaceholders('{{date}}', ctx())).toBe('2026-06-26')
         expect(resolvePlaceholders('{{datetime}}', ctx())).toBe('2026-06-26-143015')
     })
