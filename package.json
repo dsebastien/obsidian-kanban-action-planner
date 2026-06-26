@@ -1,0 +1,96 @@
+{
+    "name": "obsidian-kanban-action-planner",
+    "version": "0.0.0",
+    "description": "Render your notes as configurable Kanban boards and calendars inside Bases, with statuses, ordering, relationships, and scheduling.",
+    "author": {
+        "name": "Sébastien Dubois",
+        "email": "developassion.sprl@gmail.com",
+        "url": "https://dsebastien.net"
+    },
+    "keywords": [
+        "obsidian",
+        "obsidian-plugin"
+    ],
+    "license": "MIT",
+    "private": true,
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/dsebastien/obsidian-kanban-action-planner.git"
+    },
+    "bugs": {
+        "url": "https://github.com/dsebastien/obsidian-kanban-action-planner/issues"
+    },
+    "homepage": "https://github.com/dsebastien/obsidian-kanban-action-planner",
+    "engines": {
+        "node": ">=20.0.0",
+        "npm": ">=10.1.0"
+    },
+    "main": "main.js",
+    "packageManager": "bun@1.3.14",
+    "config": {
+        "commitizen": {
+            "path": "node_modules/cz-customizable"
+        },
+        "cz-customizable": {
+            "config": ".cz-config.cjs"
+        }
+    },
+    "scripts": {
+        "dev": "bun scripts/build.ts",
+        "build": "bun run tsc && bun scripts/build.ts --prod",
+        "setup": "git config --local --replace-all include.path ../.gitconfig",
+        "tsc": "tsc --noEmit",
+        "tsc:watch": "tsc --noEmit --watch --preserveWatchOutput",
+        "tscw": "bun run tsc:watch",
+        "lint": "eslint . --max-warnings 0",
+        "lint:fix": "eslint . --fix",
+        "format": "prettier --write .",
+        "format:check": "prettier --check .",
+        "test": "bun test",
+        "commit": "cz",
+        "cm": "cz",
+        "commit:lint": "commitlint --edit",
+        "release:update-version": "bun scripts/update-version.ts",
+        "release:version-bump": "bun scripts/version-bump.ts",
+        "release:changelog": "bun scripts/generate-changelog.ts",
+        "release": "./scripts/release.sh",
+        "validate": "bun run --parallel tsc test lint"
+    },
+    "devDependencies": {
+        "@commitlint/cli": "^20.1.0",
+        "@commitlint/config-conventional": "^20.1.0",
+        "@eslint/js": "^9.36.0",
+        "@tailwindcss/cli": "4.1.17",
+        "@types/bun": "latest",
+        "commitizen": "^4.3.1",
+        "conventional-changelog-cli": "5.0.0",
+        "conventional-changelog-conventionalcommits": "9.1.0",
+        "cz-customizable": "^7.5.1",
+        "eslint": "^9.36.0",
+        "eslint-config-prettier": "^10.1.5",
+        "eslint-plugin-obsidianmd": "0.1.9",
+        "globals": "17.0.0",
+        "obsidian": "1.13.0",
+        "prettier": "^3.6.2",
+        "tailwindcss": "4.1.17",
+        "typescript": "^5.9.3",
+        "typescript-eslint": "8.48.1"
+    },
+    "dependencies": {
+        "immer": "11.0.1",
+        "zod": "^4.1.13"
+    },
+    "overrides": {
+        "@conventional-changelog/git-client": "2.7.0",
+        "handlebars": "4.7.9",
+        "lodash": "4.18.1",
+        "fast-uri": "3.1.2",
+        "flatted": "3.4.2",
+        "yaml": "2.9.0",
+        "js-yaml": "4.2.0",
+        "tmp": "0.2.7",
+        "brace-expansion": "2.0.3",
+        "minimatch": "3.1.5",
+        "picomatch": "2.3.2"
+    }
+}

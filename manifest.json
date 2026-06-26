@@ -1,0 +1,11 @@
+{
+    "id": "kanban-action-planner",
+    "name": "Kanban Action Planner",
+    "description": "Render your notes as configurable Kanban boards and calendars inside Bases, with statuses, ordering, relationships, and scheduling.",
+    "version": "0.0.0",
+    "minAppVersion": "1.4.0",
+    "isDesktopOnly": false,
+    "author": "Sébastien Dubois",
+    "authorUrl": "https://dsebastien.net",
+    "fundingUrl": "https://www.buymeacoffee.com/dsebastien"
+}

@@ -1,0 +1,60 @@
+import { App, PluginSettingTab, Setting } from 'obsidian'
+import type KanbanActionPlannerPlugin from '../../main'
+import { BUY_ME_A_COFFEE_BADGE_DATA_URL } from '../assets/buy-me-a-coffee'
+
+export class KanbanActionPlannerSettingTab extends PluginSettingTab {
+    plugin: KanbanActionPlannerPlugin
+
+    constructor(app: App, plugin: KanbanActionPlannerPlugin) {
+        super(app, plugin)
+        this.plugin = plugin
+    }
+
+    override display(): void {
+        const { containerEl } = this
+        containerEl.empty()
+
+        this.renderFollowButton(containerEl)
+        this.renderSupportHeader(containerEl)
+    }
+
+    // TODO: Adapt this or remove
+    renderFollowButton(containerEl: HTMLElement) {
+        new Setting(containerEl)
+            .setName('Follow me on X')
+            .setDesc('Sébastien Dubois (@dSebastien)')
+            .addButton((button) => {
+                button.setCta()
+                button.setButtonText('Follow me on X').onClick(() => {
+                    window.open('https://x.com/dSebastien')
+                })
+            })
+    }
+
+    // TODO: Adapt this or remove
+    renderSupportHeader(containerEl: HTMLElement) {
+        new Setting(containerEl).setName('Support').setHeading()
+
+        const supportDesc = new DocumentFragment()
+        supportDesc.createDiv({
+            text: 'Buy me a coffee to support the development of this plugin ❤️'
+        })
+
+        new Setting(containerEl).setDesc(supportDesc)
+
+        this.renderBuyMeACoffeeBadge(containerEl)
+        const spacing = containerEl.createDiv()
+        spacing.classList.add('support-header-margin')
+    }
+
+    // TODO: Adapt this or remove
+    renderBuyMeACoffeeBadge(contentEl: HTMLElement | DocumentFragment, width = 175) {
+        const linkEl = contentEl.createEl('a', {
+            href: 'https://www.buymeacoffee.com/dsebastien'
+        })
+        const imgEl = linkEl.createEl('img')
+        imgEl.src = BUY_ME_A_COFFEE_BADGE_DATA_URL
+        imgEl.alt = 'Buy me a coffee'
+        imgEl.width = width
+    }
+}
