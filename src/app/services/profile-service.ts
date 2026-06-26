@@ -172,6 +172,22 @@ export async function setAutoAssign(
     )
 }
 
+/** Replace a profile's known columns (the persisted status set for local profiles). */
+export async function setProfileColumns(
+    plugin: KanbanActionPlannerPlugin,
+    profileId: string,
+    columns: ColumnDef[]
+): Promise<void> {
+    const profile = findProfile(plugin, profileId)
+    if (!profile) return
+    await upsertProfile(
+        plugin,
+        produce(profile, (draft) => {
+            draft.columns = columns
+        })
+    )
+}
+
 /** Replace a profile's card-presentation config. */
 export async function setCardPresentation(
     plugin: KanbanActionPlannerPlugin,

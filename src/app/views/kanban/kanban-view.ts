@@ -5,7 +5,11 @@ import { CSS_ROOT_CLASS, KANBAN_VIEW_TYPE, UNMAPPED_COLUMN_ID } from '../../cons
 import type { ColumnDef, Profile } from '../../domain/profile'
 import { buildSingleLaneBoard } from '../../domain/board-model'
 import type { SingleLaneBoard, UnmappedPosition } from '../../domain/board-model'
-import { detectStatusProperty, normalizeStatusValue } from '../../domain/status'
+import {
+    compareStatusValues,
+    detectStatusProperty,
+    normalizeStatusValue
+} from '../../domain/status'
 import { planInsertion } from '../../domain/ordering'
 import {
     coerceOrder,
@@ -17,7 +21,8 @@ import {
     DEFAULT_PROFILE_ID,
     columnsFromValues,
     createDefaultProfile,
-    resolveActiveProfile
+    resolveActiveProfile,
+    setProfileColumns
 } from '../../services/profile-service'
 import { buildCardDisplay } from '../../services/card-display.service'
 import { renderBoard } from '../../ui/board/board-renderer'
@@ -121,7 +126,7 @@ export class KanbanActionPlannerView extends BasesView {
         this.cardsByKey = new Map(cards.map((c) => [c.key, c]))
 
         const observed = cards.map((c) => c.statusValue).filter((v): v is string => v !== null)
-        const values = this.profileStatusValues ?? observed
+        const values = this.resolveColumnValues(observed)
         this.columns = columnsFromValues(values, this.profile, this.preserveColumnOrder)
 
         let board = buildSingleLaneBoard(cards, this.columns, this.unmappedPosition())
@@ -162,6 +167,30 @@ export class KanbanActionPlannerView extends BasesView {
             basesPropToName(this.config.get('orderProperty')) ??
             this.plugin.settings.defaultOrderProperty
         )
+    }
+
+    /**
+     * The column status values. For a Starter Kit profile these are the note
+     * type's allowed values. For a local profile, the discovered status set is
+     * accumulated and persisted so columns stay stable (and can show empty) once
+     * a status has been seen, instead of vanishing when its last card leaves.
+     */
+    private resolveColumnValues(observed: string[]): string[] {
+        if (this.profileStatusValues !== null) return this.profileStatusValues
+
+        const known = this.profile.columns.map((c) => c.statusValue)
+        const merged = Array.from(new Set([...known, ...observed])).sort(compareStatusValues)
+
+        if (merged.length !== known.length) {
+            const newColumns = columnsFromValues(merged, this.profile, false)
+            void setProfileColumns(this.plugin, this.profile.id, newColumns).then(() => {
+                const refreshed = this.plugin.settings.profiles.find(
+                    (p) => p.id === this.profile.id
+                )
+                if (refreshed) this.profile = refreshed
+            })
+        }
+        return merged
     }
 
     private showEmptyColumns(): boolean {

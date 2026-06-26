@@ -22,7 +22,11 @@ feature set delivered at 1.0:
   per-view Bases options. Pre-configuration, all notes sit in a single **Unmapped**
   column (hidden when empty). Notes with invalid/missing status go to Unmapped. The
   Unmapped column leads the left-to-right flow by default (Unmapped → … → Done); a
-  per-view option (`unmappedPosition`) can move it last.
+  per-view option (`unmappedPosition`) can move it last. For a local profile (no Starter
+  Kit), discovered status values are accumulated and persisted in the profile so a column
+  stays put (and can show empty) once seen, instead of vanishing when its last card leaves;
+  the "Show empty columns" option then governs visibility. (Starter Kit profiles get their
+  fixed allowed-value columns directly.)
 - **Column set** derived from the status property's supported values, ordered by a
   numeric/lexical prefix default (e.g. `10 Todo`, `20 Doing`, `30 Done`).
 - **No state machine.** Every transition is allowed (drag or right-click). Architecture
