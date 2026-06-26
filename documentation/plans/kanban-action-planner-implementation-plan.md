@@ -165,6 +165,17 @@ path="KANBANTESTBASE.base"`. - `obsidian property:set name=<k> value=<v> path="<
   frontmatter + re-render, (4) confirm `dev:errors` is clean, (5) screenshot for the record,
   (6) restore any mutated fixtures. Record what was checked in the day’s history file.
 
+### Efficiency notes / learned gotchas
+
+The durable, always-applicable gotchas now live in **`AGENTS.md`** (see "Live testing in a real
+vault" and "Core Coding Rules") — read them before iterating. In short: `tsc:watch` output lags
+(trust a one-off `bun run tsc`); `plugin:reload` doesn't refresh an open Bases view (detach all
+bases leaves + reopen); `obsidian open` reuses the active leaf; the CLI is `key=value` and
+`property:set` is scalar-only (edit files for list/wikilink frontmatter); resolve frontmatter
+links via `frontmatterLinks` + `getFirstLinkpathDest`; schema/profile additions don't backfill
+stored `data.json` (degrade on missing); commitlint `scope-enum` allows only
+`all|build|deps|docs|plugin`.
+
 ---
 
 ## 2. Ground Rules (template conventions — non-negotiable)

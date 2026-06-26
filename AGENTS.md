@@ -57,12 +57,13 @@ A change is only "done" when **all** of the following hold:
 - If a plan in `documentation/plans/` drove the work, it has been updated or closed.
 - Any user-visible change to behavior, commands, or settings is reflected in `README.md` and/or `docs/`.
 
-You **cannot** self-verify UI behavior — Obsidian is a GUI app and agents do not have a live vault. State explicitly in your final message when a change requires manual runtime verification and what to check. Do not claim a UI feature "works" based solely on a passing build.
+**A live vault IS available** — `bun run dev` deploys into it and the `obsidian` CLI drives it (see "Live testing in a real vault" under Testing). Use it: validate every UI change in the running app and confirm `obsidian dev:errors` is clean. Never claim a UI feature "works" from a passing build alone — exercise it live. Only when something genuinely can't be scripted (subjective look-and-feel, a device you can't emulate) do you fall back to flagging it for manual verification, stating exactly what to check.
 
 ### Commit conventions
 
 - Conventional Commits are enforced by commitlint on every commit (`commitlint.config.ts`).
 - Use `bun run cm` (commitizen with `cz-customizable`) to build a valid message interactively. The type and scope list is in `.cz-config.cjs`.
+- `scope-enum` is strict — the **only** allowed scopes are `all`, `build`, `deps`, `docs`, `plugin`. A wrong scope (e.g. `feat(ui)`) fails the commit-msg hook; use `feat(plugin)`, `docs:` (no scope), etc.
 - Never bypass the commit hooks (no `--no-verify`, no `-n`). If a hook fails, fix the underlying problem.
 - Keep commits scoped: one logical change per commit.
 
@@ -111,6 +112,13 @@ These files are optimized for conciseness and clarity to quickly onboard agents 
 ### Core Coding Rules
 
 Consult `node_modules/obsidian/obsidian.d.ts` whenever you need to use or extend an Obsidian API. Do not guess type shapes — signatures and fields change between versions.
+
+Durable patterns (learned; apply across milestones):
+
+- **Resolve frontmatter wikilinks via the metadata cache — never hand-parse `[[ ]]`.** Read `metadataCache.getFileCache(file).frontmatterLinks` (keys are `prop` or `prop.<i>` for arrays; match the property name case-insensitively) and resolve each with `metadataCache.getFirstLinkpathDest(linkpath, file.path)` (strip any `#subpath` first). All outgoing links of a note: `metadataCache.resolvedLinks[file.path]`. Tags: `getAllTags(cache)`.
+- **Adding fields to a settings/profile schema does NOT backfill stored `data.json`.** `createDefaultProfile` / `DEFAULT_SETTINGS` only apply to newly-created records; profiles/settings written before your change keep their old shape. Code must degrade gracefully (default-on-missing) for older shapes, and use `schemaVersion` migrations when a real reshape is needed. Don't assume a new seed/default exists at runtime.
+- **`tsc:watch` output lags during a burst of edits** (it can show a stale compile with old line numbers / already-fixed errors). Treat the watch as a green/red pulse only; when in doubt, trust a one-off `bun run tsc`.
+- **CSS isolation (hard rule):** all rendered DOM is scoped under `.kap-root` with the `kap-` prefix, every rule in `@layer kap-components`. No preflight; plugin-prefixed cascade layers (`kap-theme/base/components/utilities`); `@import 'tailwindcss/theme' … theme(reference)` so no global `:root` theme block is emitted (verify: `grep ':root' dist/styles.css` finds none). Colors via Obsidian `var(--…)` only; layout/spacing/typography use Tailwind `@apply`. Edit only `src/styles.src.css`.
 
 ## Environment & tooling
 
@@ -198,11 +206,18 @@ scripts/
   update-version.spec.ts
 ```
 
-- Manual install for testing: copy `main.js`, `manifest.json`, `styles.css` (if any) to:
-    ```
-    <Vault>/.obsidian/plugins/<plugin-id>/
-    ```
-- Reload Obsidian and enable the plugin in **Settings → Community plugins**.
+### Live testing in a real vault
+
+A real Obsidian vault is wired up — **use it to validate every UI change**, not just the build.
+
+- **Deploy:** `bun run dev` (watch) builds and copies `main.js`/`manifest.json`/`styles.css` (+ `.hotreload`) into `$OBSIDIAN_VAULT_LOCATION/.obsidian/plugins/<plugin-id>/` (vault path comes from the `OBSIDIAN_VAULT_LOCATION` env var — see `scripts/build.ts`; never hard-code it). The `obsidian` CLI drives that same vault.
+- **`obsidian` CLI uses `key=value` args (not `--flags`).** Useful: `plugin:reload id=…`, `property:set/read/remove name=… [value=… type=…] path="…"`, `dev:dom selector="…" [total|text]`, `eval code='…'`, `dev:errors`, `dev:console`, `dev:screenshot path="…"`, `dev:mobile on`.
+- **Reloading does NOT refresh an open Bases view.** After `plugin:reload` (or disable→enable), an already-open Kanban sub-view keeps the old code/DOM. Force fresh code + render: `obsidian eval code='for(const l of app.workspace.getLeavesOfType("bases"))l.detach()'` then `obsidian open path="<base>.base"`.
+- **`obsidian open` reuses the active leaf** — when asserting tab/navigation behavior, detach all markdown + bases leaves first, then measure `getLeavesOfType("markdown").length` deltas.
+- **`property:set` writes scalars only** — it can't create a YAML list / multi-item wikilink property. To seed list/link frontmatter, edit the note file directly (Obsidian reindexes on save).
+- **Exercise interactions by dispatching events via `eval`:** for drag-and-drop, dispatch on the card `pointerdown` (center) → `pointermove` past the 5px threshold → `pointermove` to the target coords (twice) → `pointerup`, then assert the written frontmatter. Use `.click()` / synthetic `MouseEvent` (with `ctrlKey`/`metaKey`) for menus and modifier behavior.
+- After each check: confirm `obsidian dev:errors` is clean, screenshot for the record, and **restore any mutated fixtures**. Record what was verified in the day's history file.
+- Test fixtures live in the vault (a folder of sample notes plus a `.base` file at the vault root). Reuse them; restore any frontmatter you mutate so later runs start clean.
 
 ## File & folder conventions
 
