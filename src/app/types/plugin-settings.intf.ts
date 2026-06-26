@@ -30,6 +30,11 @@ export const pluginSettingsSchema = z.object({
     defaultDueDateProperty: z.string(),
     /** Default momentjs format for scheduling dates written to notes. */
     defaultDateFormat: z.string(),
+    /**
+     * Global default status values (columns) used when neither the view nor a
+     * Starter Kit note type defines them. Order is the column order.
+     */
+    defaultStatuses: z.array(z.string()),
     /** Local profile store (mirror snapshot + local profiles + overrides). */
     profiles: z.array(profileSchema)
 })
@@ -44,5 +49,6 @@ export const DEFAULT_SETTINGS: PluginSettings = {
     defaultScheduledDateProperty: DEFAULT_SCHEDULED_DATE_PROPERTY,
     defaultDueDateProperty: DEFAULT_DUE_DATE_PROPERTY,
     defaultDateFormat: DEFAULT_DATE_FORMAT,
+    defaultStatuses: [],
     profiles: []
 }

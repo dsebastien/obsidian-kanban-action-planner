@@ -15,16 +15,22 @@ used today; per-view and per-profile overrides arrive in later releases.
 | Status       | `status`       | Its value places a card in a column. Auto-detected: a property named `status`, else any property whose name contains `status`. |
 | Manual order | `manual_order` | Stores a card's position within its column (a number). Written when you drag to reorder.                                       |
 
-Status auto-detection means you usually don't need to configure anything: add a `status`
-property to your notes and columns appear.
+The status property is auto-detected, but the **columns are defined explicitly** (see below),
+not inferred from your notes' values.
 
-## How values map to columns
+## Defining columns
 
-- Each distinct status value becomes one column.
-- A leading number sets column order and is hidden in the header — e.g. `10 Todo`,
-  `20 Doing`, `30 Done`.
-- Missing or unrecognized values go to the **Unmapped** column (hidden when empty). It shows
-  first (left) by default; a view option can move it last (right).
+Columns are **defined**, never guessed from the values present in notes (so a typo can't
+create a stray column). A board takes its columns, in order of preference, from:
+
+1. the per-view **Statuses (columns)** list (view settings), then
+2. the **Obsidian Starter Kit** note type's allowed status values (if installed), then
+3. the global **Default statuses** list (plugin settings, one per line).
+
+A leading number sets order and is hidden in the header — e.g. `10 Todo`, `20 Doing`,
+`30 Done`. Notes whose status isn't a defined column go to the **Unmapped** column (shown
+first by default; a view option can move it last; hidden when empty). With no definition at
+all, every card sits in Unmapped.
 
 ## Manual order
 

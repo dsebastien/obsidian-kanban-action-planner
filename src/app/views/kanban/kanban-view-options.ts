@@ -17,6 +17,12 @@ export function getKanbanViewOptions(settings: PluginSettings): BasesAllOptions[
             placeholder: settings.defaultStatusProperty
         },
         {
+            type: 'multitext',
+            key: 'statuses',
+            displayName: 'Statuses (columns)',
+            default: []
+        },
+        {
             type: 'property',
             key: 'orderProperty',
             displayName: 'Manual order property',

@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 import {
     compareStatusValues,
-    deriveColumns,
     detectStatusProperty,
     normalizeStatusValue,
     resolveColumnId,
@@ -68,20 +67,6 @@ describe('normalizeStatusValue', () => {
         expect(normalizeStatusValue(null)).toBeNull()
         expect(normalizeStatusValue(undefined)).toBeNull()
         expect(normalizeStatusValue({})).toBeNull()
-    })
-})
-
-describe('deriveColumns', () => {
-    it('produces sorted, de-duplicated columns with stripped labels', () => {
-        const cols = deriveColumns(['20 Doing', '10 Todo', '20 Doing', null, '30 Done'])
-        expect(cols.map((c) => c.statusValue)).toEqual(['10 Todo', '20 Doing', '30 Done'])
-        expect(cols.map((c) => c.label)).toEqual(['Todo', 'Doing', 'Done'])
-    })
-
-    it('uses the injected color assigner', () => {
-        const cols = deriveColumns(['a', 'b'], (_v, i) => ({ kind: 'hex', value: `#00000${i}` }))
-        expect(cols[0]?.color).toEqual({ kind: 'hex', value: '#000000' })
-        expect(cols[1]?.color).toEqual({ kind: 'hex', value: '#000001' })
     })
 })
 

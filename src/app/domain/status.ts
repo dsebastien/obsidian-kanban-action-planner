@@ -1,4 +1,3 @@
-import type { ColorSpec, ColumnDef } from './profile'
 import { UNMAPPED_COLUMN_ID } from '../constants'
 
 /**
@@ -56,32 +55,6 @@ export function normalizeStatusValue(raw: unknown): string | null {
     }
     if (typeof raw === 'number' || typeof raw === 'boolean') return String(raw)
     return null
-}
-
-const PLACEHOLDER_COLOR: ColorSpec = { kind: 'palette', token: 'default' }
-
-/**
- * Derive ordered columns from the distinct status values observed in the notes.
- * `colorFor` assigns a color per status value (defaults to a placeholder).
- */
-export function deriveColumns(
-    statusValues: ReadonlyArray<string | null>,
-    colorFor: (statusValue: string, index: number) => ColorSpec = () => PLACEHOLDER_COLOR
-): ColumnDef[] {
-    const distinct = Array.from(new Set(statusValues.filter((v): v is string => v !== null))).sort(
-        compareStatusValues
-    )
-
-    return distinct.map((statusValue, index) => {
-        const { sortKey, label } = splitStatusValue(statusValue)
-        return {
-            id: statusValue,
-            statusValue,
-            label,
-            sortKey,
-            color: colorFor(statusValue, index)
-        }
-    })
 }
 
 /**

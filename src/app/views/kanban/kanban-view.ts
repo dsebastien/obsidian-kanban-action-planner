@@ -5,11 +5,7 @@ import { CSS_ROOT_CLASS, KANBAN_VIEW_TYPE, UNMAPPED_COLUMN_ID } from '../../cons
 import type { ColumnDef, Profile } from '../../domain/profile'
 import { buildSingleLaneBoard } from '../../domain/board-model'
 import type { SingleLaneBoard, UnmappedPosition } from '../../domain/board-model'
-import {
-    compareStatusValues,
-    detectStatusProperty,
-    normalizeStatusValue
-} from '../../domain/status'
+import { detectStatusProperty, normalizeStatusValue } from '../../domain/status'
 import { planInsertion } from '../../domain/ordering'
 import {
     coerceOrder,
@@ -21,8 +17,7 @@ import {
     DEFAULT_PROFILE_ID,
     columnsFromValues,
     createDefaultProfile,
-    resolveActiveProfile,
-    setProfileColumns
+    resolveActiveProfile
 } from '../../services/profile-service'
 import { buildCardDisplay } from '../../services/card-display.service'
 import { renderBoard } from '../../ui/board/board-renderer'
@@ -57,7 +52,6 @@ export class KanbanActionPlannerView extends BasesView {
     private availableProperties: string[] = []
     private profile: Profile = createDefaultProfile(DEFAULT_PROFILE_ID, 'Default', 'local')
     private profileStatusValues: string[] | null = null
-    private preserveColumnOrder = false
     private columns: ColumnDef[] = []
     private board: SingleLaneBoard<KanbanCard> = { columns: [] }
     private cardsByKey = new Map<string, KanbanCard>()
@@ -108,7 +102,6 @@ export class KanbanActionPlannerView extends BasesView {
         const resolved = await resolveActiveProfile(this.app, this.plugin, files)
         this.profile = resolved.profile
         this.profileStatusValues = resolved.statusValues
-        this.preserveColumnOrder = resolved.preserveOrder
         this.rebuild()
     }
 
@@ -125,9 +118,8 @@ export class KanbanActionPlannerView extends BasesView {
         const cards = files.map((file) => this.toCard(file))
         this.cardsByKey = new Map(cards.map((c) => [c.key, c]))
 
-        const observed = cards.map((c) => c.statusValue).filter((v): v is string => v !== null)
-        const values = this.resolveColumnValues(observed)
-        this.columns = columnsFromValues(values, this.profile, this.preserveColumnOrder)
+        const values = this.resolveColumnValues()
+        this.columns = columnsFromValues(values, this.profile, true)
 
         let board = buildSingleLaneBoard(cards, this.columns, this.unmappedPosition())
         if (!this.showEmptyColumns()) {
@@ -145,7 +137,7 @@ export class KanbanActionPlannerView extends BasesView {
         )
 
         renderBoard(this.boardEl, this.board, {
-            onOpen: (card) => this.openCard(card),
+            onOpen: (card, newTab) => this.openCard(card, newTab),
             onContextMenu: (card, event) => this.showCardMenu(card, event)
         })
     }
@@ -170,27 +162,19 @@ export class KanbanActionPlannerView extends BasesView {
     }
 
     /**
-     * The column status values. For a Starter Kit profile these are the note
-     * type's allowed values. For a local profile, the discovered status set is
-     * accumulated and persisted so columns stay stable (and can show empty) once
-     * a status has been seen, instead of vanishing when its last card leaves.
+     * The column status values, from a STRONG definition only (never inferred
+     * from observed values, which would create stale columns from typos):
+     * the per-view `statuses` list, else the Starter Kit note type's allowed
+     * values, else the global default statuses. When none are defined the board
+     * has no columns and every card sits in Unmapped.
      */
-    private resolveColumnValues(observed: string[]): string[] {
-        if (this.profileStatusValues !== null) return this.profileStatusValues
-
-        const known = this.profile.columns.map((c) => c.statusValue)
-        const merged = Array.from(new Set([...known, ...observed])).sort(compareStatusValues)
-
-        if (merged.length !== known.length) {
-            const newColumns = columnsFromValues(merged, this.profile, false)
-            void setProfileColumns(this.plugin, this.profile.id, newColumns).then(() => {
-                const refreshed = this.plugin.settings.profiles.find(
-                    (p) => p.id === this.profile.id
-                )
-                if (refreshed) this.profile = refreshed
-            })
+    private resolveColumnValues(): string[] {
+        const viewStatuses = readStringArray(this.config.get('statuses'))
+        if (viewStatuses.length > 0) return viewStatuses
+        if (this.profileStatusValues && this.profileStatusValues.length > 0) {
+            return this.profileStatusValues
         }
-        return merged
+        return this.plugin.settings.defaultStatuses
     }
 
     private showEmptyColumns(): boolean {
@@ -223,8 +207,8 @@ export class KanbanActionPlannerView extends BasesView {
 
     // ── Actions ───────────────────────────────────────────────
 
-    private openCard(card: KanbanCard): void {
-        void this.app.workspace.getLeaf(false).openFile(card.file)
+    private openCard(card: KanbanCard, newTab: boolean): void {
+        void this.app.workspace.getLeaf(newTab ? 'tab' : false).openFile(card.file)
     }
 
     private openConfigureModal(): void {
@@ -305,7 +289,13 @@ export class KanbanActionPlannerView extends BasesView {
             item
                 .setTitle('Open note')
                 .setIcon('file')
-                .onClick(() => this.openCard(card))
+                .onClick(() => this.openCard(card, false))
+        )
+        menu.addItem((item) =>
+            item
+                .setTitle('Open in new tab')
+                .setIcon('lucide-external-link')
+                .onClick(() => this.openCard(card, true))
         )
         menu.addSeparator()
         for (const col of this.columns) {
@@ -335,6 +325,20 @@ export class KanbanActionPlannerView extends BasesView {
         const destCards = this.columnCards(columnId).filter((c) => c.key !== card.key)
         await this.applyMove(card, statusValue, columnId, destCards.length)
     }
+}
+
+/** Read a stored multitext option into a clean string array. */
+function readStringArray(value: unknown): string[] {
+    if (Array.isArray(value)) {
+        return value.filter((v): v is string => typeof v === 'string' && v.trim().length > 0)
+    }
+    if (typeof value === 'string' && value.trim().length > 0) {
+        return value
+            .split(/[\n,]/)
+            .map((s) => s.trim())
+            .filter((s) => s.length > 0)
+    }
+    return []
 }
 
 /** Extract a frontmatter property name from a stored Bases property id. */

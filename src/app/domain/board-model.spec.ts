@@ -1,10 +1,22 @@
 import { describe, expect, it } from 'bun:test'
 import { buildSingleLaneBoard } from './board-model'
 import type { BoardCardBase } from './board-model'
-import { deriveColumns } from './status'
+import type { ColumnDef } from './profile'
+import { splitStatusValue } from './status'
 import { UNMAPPED_COLUMN_ID } from '../constants'
 
-const columns = deriveColumns(['10 Todo', '20 Doing', '30 Done'])
+function column(statusValue: string): ColumnDef {
+    const { sortKey, label } = splitStatusValue(statusValue)
+    return {
+        id: statusValue,
+        statusValue,
+        label,
+        sortKey,
+        color: { kind: 'palette', token: 'slate' }
+    }
+}
+
+const columns: ColumnDef[] = ['10 Todo', '20 Doing', '30 Done'].map(column)
 
 function card(key: string, statusValue: string | null, order: number | null): BoardCardBase {
     return { key, statusValue, order }

@@ -17,16 +17,16 @@ feature set delivered at 1.0:
 
 - Register a custom Bases view via `registerBasesView`. A Base may host `0..n` Kanban
   views; each view renders `this.data.data` (the filtered note set).
-- **Columns from a status property.** Auto-detected (a field literally named `status`,
-  else any field whose name contains `status`), configurable via plugin settings and
-  per-view Bases options. Pre-configuration, all notes sit in a single **Unmapped**
-  column (hidden when empty). Notes with invalid/missing status go to Unmapped. The
-  Unmapped column leads the left-to-right flow by default (Unmapped → … → Done); a
-  per-view option (`unmappedPosition`) can move it last. For a local profile (no Starter
-  Kit), discovered status values are accumulated and persisted in the profile so a column
-  stays put (and can show empty) once seen, instead of vanishing when its last card leaves;
-  the "Show empty columns" option then governs visibility. (Starter Kit profiles get their
-  fixed allowed-value columns directly.)
+- **Columns from a status property; column set from a STRONG definition only.** The status
+  property is auto-detected (a field literally named `status`, else any field whose name
+  contains `status`) and overridable per view. The column **values** are never inferred from
+  observed note values (which would create stale columns from typos); they come, in
+  precedence order, from: the per-view `statuses` list → the Starter Kit note type's allowed
+  values → the global `defaultStatuses` setting. With no definition, the board has no columns
+  and **all notes sit in Unmapped** (the pre-configuration state). Notes whose status isn't a
+  defined column also go to Unmapped. The Unmapped column leads the left-to-right flow by
+  default (Unmapped → … → Done); a per-view option (`unmappedPosition`) can move it last.
+  "Show empty columns" governs whether defined-but-empty columns are visible.
 - **Column set** derived from the status property's supported values, ordered by a
   numeric/lexical prefix default (e.g. `10 Todo`, `20 Doing`, `30 Done`).
 - **No state machine.** Every transition is allowed (drag or right-click). Architecture

@@ -80,6 +80,32 @@ export class KanbanActionPlannerSettingTab extends PluginSettingTab {
             'defaultDateFormat',
             'YYYY-MM-DD'
         )
+
+        new Setting(containerEl)
+            .setName('Default statuses (columns)')
+            .setDesc(
+                'One status value per line, in column order. Used when a board does not define ' +
+                    'its own statuses and no Starter Kit note type applies. Number prefixes ' +
+                    '(e.g. "10 Todo") set order and are hidden on the column header.'
+            )
+            .addTextArea((area) => {
+                area.setPlaceholder('10 Todo\n20 In progress\n30 Done')
+                    .setValue(this.plugin.settings.defaultStatuses.join('\n'))
+                    .onChange((value) => {
+                        const statuses = value
+                            .split('\n')
+                            .map((s) => s.trim())
+                            .filter((s) => s.length > 0)
+                        void this.updateStatuses(statuses)
+                    })
+            })
+    }
+
+    private async updateStatuses(statuses: string[]): Promise<void> {
+        this.plugin.settings = produce(this.plugin.settings, (draft) => {
+            draft.defaultStatuses = statuses
+        })
+        await this.plugin.saveSettings()
     }
 
     private async updateSetting(key: StringSettingKey, value: string): Promise<void> {

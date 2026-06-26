@@ -18,7 +18,8 @@ with the changes written straight back into your notes.
 
 - **Kanban view inside Bases** — add a "Kanban" view to any Base; the Base's filters choose
   the notes.
-- **Status → columns** — columns are built from a status property; notes with no/unknown
+- **Status → columns** — columns are defined explicitly (per view, from the Starter Kit, or
+  in plugin settings); cards are placed by their status property, and notes with no/unknown
   status collect in an **Unmapped** column that disappears when empty.
 - **Drag & drop** — move a card to another column to change its status, or reorder within a
   column; the order is saved to your note.

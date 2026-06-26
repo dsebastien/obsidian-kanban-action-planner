@@ -15,14 +15,24 @@ You can add several Kanban views to the same Base — each is independent.
 
 ## Columns from status
 
-Columns come from a **status property** on your notes. The plugin looks for a property named
-`status` first, then any property whose name contains `status`. Each distinct value becomes a
-column.
+Cards are placed by a **status property** (the plugin looks for a property named `status`
+first, then any property whose name contains `status`; you can override it per view).
 
-- Values can carry a numeric prefix to control column order: `10 Todo`, `20 Doing`,
-  `30 Done` sort in that order, and the number is hidden on the column header.
-- Notes with no status, or a value that isn't one of the columns, gather in an **Unmapped**
-  column. It only shows when something is actually unmapped.
+The **columns themselves are defined explicitly** — they are not guessed from the values in
+your notes (so a typo never creates a stray column). A board takes its columns, in order of
+preference, from:
+
+1. the **Statuses (columns)** list in the view settings, or
+2. the note type's allowed status values from the **Obsidian Starter Kit** (if installed), or
+3. the **Default statuses** list in the plugin settings.
+
+If none are defined, every card sits in the **Unmapped** column — that's the starting point
+until you define your statuses.
+
+- Values can carry a numeric prefix to control order: `10 Todo`, `20 Doing`, `30 Done` show
+  in that order, and the number is hidden on the column header.
+- Notes whose status isn't one of the defined columns gather in **Unmapped** (shown first by
+  default; hidden when empty).
 
 ## Moving and reordering cards
 
@@ -35,9 +45,9 @@ Ordering is stored in your notes (not in plugin data), so it travels with the va
 
 ## Other interactions
 
-- **Click** a card to open the note.
-- **Right-click** (or long-press on touch) a card for a menu: open the note, set its status,
-  or clear the status.
+- **Click** a card to open the note; **Ctrl/Cmd-click** opens it in a new tab.
+- **Right-click** (or long-press on touch) a card for a menu: open the note (or in a new
+  tab), set its status, or clear the status.
 
 ## View options
 
@@ -45,6 +55,8 @@ Open the view's options (the Bases view settings) to tune a board without changi
 notes:
 
 - **Status property** — choose which property drives the columns (overrides auto-detection).
+- **Statuses (columns)** — the list of status values to show as columns, in order (one per
+  entry). This is the per-view column definition.
 - **Manual order property** — choose where card order is stored.
 - **Show empty columns** — keep columns with no cards visible (useful when columns come from a
   note type's defined statuses).

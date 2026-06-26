@@ -23,12 +23,16 @@ See `documentation/plans/kanban-action-planner-implementation-plan.md` for full 
    `registerBasesView`; a Base may host `0..n` Kanban views, and the Base's own filters
    select the notes. Notes are read from `this.data.data`; per-view state lives in
    `this.config`; frontmatter is written via `app.fileManager.processFrontMatter`.
-2. **Status drives columns.** Columns derive from a status property (auto-detected: prefer a
-   field literally named `status`, else any field whose name contains `status`;
-   configurable). Before configuration, all notes sit in a single **Unmapped** column;
-   notes with missing/invalid status also go there. **Unmapped is hidden when empty** and
-   sits **first** (left) by default — left-to-right flow Unmapped → … → Done; a per-view
-   `unmappedPosition` option can move it last.
+2. **Status drives columns; columns come from a strong definition, never observed values.**
+   The status property is auto-detected (prefer a field literally named `status`, else any
+   field whose name contains `status`; configurable). The column **set** is defined
+   explicitly — precedence: per-view `statuses` list → Starter Kit note type allowed values →
+   global `defaultStatuses`. Columns are NEVER created from values observed in notes (avoids
+   stale columns from typos/invalid data). With no definition, all notes sit in a single
+   **Unmapped** column; notes with missing/undefined status also go there. **Unmapped is
+   hidden when empty** and sits **first** (left) by default — flow Unmapped → … → Done; a
+   per-view `unmappedPosition` option can move it last. "Show empty columns" controls
+   visibility of defined-but-empty columns.
 3. **No state machine (for now).** All status transitions are allowed (drag or right-click).
    The data model stays open to add an allowed-transitions layer later, but none is built.
 4. **Order persisted to the note, not plugin data.** Manual order is written to a

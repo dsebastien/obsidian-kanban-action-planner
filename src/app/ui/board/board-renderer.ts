@@ -4,7 +4,7 @@ import type { KanbanCard } from './types'
 import { renderCard } from './card-renderer'
 
 export interface BoardRenderCallbacks {
-    onOpen: (card: KanbanCard) => void
+    onOpen: (card: KanbanCard, newTab: boolean) => void
     onContextMenu: (card: KanbanCard, event: MouseEvent) => void
 }
 
@@ -44,11 +44,11 @@ export function renderBoard(
 
         for (const card of cards) {
             const cardEl = renderCard(listEl, card, accent)
-            cardEl.addEventListener('click', () => callbacks.onOpen(card))
+            cardEl.addEventListener('click', (e) => callbacks.onOpen(card, e.ctrlKey || e.metaKey))
             cardEl.addEventListener('keydown', (e) => {
                 if (e.key === 'Enter' || e.key === ' ') {
                     e.preventDefault()
-                    callbacks.onOpen(card)
+                    callbacks.onOpen(card, e.ctrlKey || e.metaKey)
                 }
             })
             cardEl.addEventListener('contextmenu', (e) => {
