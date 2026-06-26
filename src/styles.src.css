@@ -1,10 +1,36 @@
-@import 'tailwindcss';
+/*
+ * Tailwind v4, imported WITHOUT preflight.
+ *
+ * Preflight is a global CSS reset; inside Obsidian it would clobber core and
+ * other plugins' styles. We pull only the theme (tokens) and utilities layers,
+ * and keep all plugin styles scoped under `.kap-root` (see constants.ts).
+ */
+@layer theme, base, components, utilities;
+@import 'tailwindcss/theme.css' layer(theme);
+@import 'tailwindcss/utilities.css' layer(utilities);
 
 /* ========================================
-   SUPPORT & UI SECTIONS
+   KANBAN ACTION PLANNER — scoped styles
+   All rules live under .kap-root and use the kap- class prefix.
+   Colors/backgrounds use Obsidian CSS vars via var(--...).
    ======================================== */
+@layer components {
+    .kap-root {
+        height: 100%;
+        width: 100%;
+        overflow: auto;
+        color: var(--text-normal);
+    }
 
-/* Support section */
+    .kap-root .kap-placeholder {
+        padding: var(--size-4-4, 1rem);
+        color: var(--text-muted);
+    }
+}
+
+/* ========================================
+   SUPPORT & UI SECTIONS (settings tab)
+   ======================================== */
 .support-header-margin {
     @apply mb-5;
 }

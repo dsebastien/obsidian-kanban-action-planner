@@ -1,10 +1,12 @@
 import { Plugin } from 'obsidian'
-import { DEFAULT_SETTINGS } from './types/plugin-settings.intf'
+import { DEFAULT_SETTINGS, pluginSettingsSchema } from './types/plugin-settings.intf'
 import type { PluginSettings } from './types/plugin-settings.intf'
 import { KanbanActionPlannerSettingTab } from './settings/settings-tab'
+import { KanbanActionPlannerView } from './views/kanban/kanban-view'
+import { getKanbanViewOptions } from './views/kanban/kanban-view-options'
+import { KANBAN_VIEW_ICON, KANBAN_VIEW_NAME, KANBAN_VIEW_TYPE } from './constants'
 import { log } from '../utils/log'
 import { produce } from 'immer'
-import type { Draft } from 'immer'
 
 export class KanbanActionPlannerPlugin extends Plugin {
     /**
@@ -19,7 +21,7 @@ export class KanbanActionPlannerPlugin extends Plugin {
         log('Initializing', 'debug')
         await this.loadSettings()
 
-        // TODO
+        this.registerKanbanView()
 
         // Add a settings screen for the plugin
         this.addSettingTab(new KanbanActionPlannerSettingTab(this.app, this))
@@ -28,33 +30,51 @@ export class KanbanActionPlannerPlugin extends Plugin {
     override onunload() {}
 
     /**
-     * Load the plugin settings
+     * Register the custom Kanban view type with Bases.
+     */
+    private registerKanbanView(): void {
+        const registered = this.registerBasesView(KANBAN_VIEW_TYPE, {
+            name: KANBAN_VIEW_NAME,
+            icon: KANBAN_VIEW_ICON,
+            factory: (controller, containerEl) =>
+                new KanbanActionPlannerView(controller, containerEl, this),
+            options: (config) => getKanbanViewOptions(config)
+        })
+
+        if (registered) {
+            log('Kanban view registered', 'debug')
+        } else {
+            log('Failed to register Kanban view', 'warn')
+        }
+    }
+
+    /**
+     * Load the plugin settings.
+     *
+     * Loaded data is shallow-merged onto the defaults (so newly-added keys get
+     * sensible values) and validated with Zod. Invalid data falls back to
+     * defaults rather than throwing, so a corrupt `data.json` never breaks the
+     * plugin. Full per-field migrations land alongside the profile store.
      */
     async loadSettings() {
         log('Loading settings', 'debug')
-        let loadedSettings = (await this.loadData()) as PluginSettings
+        const loadedData: unknown = await this.loadData()
 
-        if (!loadedSettings) {
+        if (!loadedData || typeof loadedData !== 'object') {
             log('Using default settings', 'debug')
-            loadedSettings = produce(DEFAULT_SETTINGS, () => DEFAULT_SETTINGS)
+            this.settings = produce(DEFAULT_SETTINGS, () => {})
             return
         }
 
-        let needToSaveSettings = false
+        const merged = { ...DEFAULT_SETTINGS, ...(loadedData as Partial<PluginSettings>) }
+        const parsed = pluginSettingsSchema.safeParse(merged)
 
-        this.settings = produce(this.settings, (draft: Draft<PluginSettings>) => {
-            if (loadedSettings.enabled) {
-                draft.enabled = loadedSettings.enabled
-            } else {
-                log('The loaded settings miss the [enabled] property', 'debug')
-                needToSaveSettings = true
-            }
-        })
-
-        log(`Settings loaded`, 'debug', loadedSettings)
-
-        if (needToSaveSettings) {
-            void this.saveSettings()
+        if (parsed.success) {
+            this.settings = produce(parsed.data, () => {})
+            log('Settings loaded', 'debug', parsed.data)
+        } else {
+            log('Invalid settings; using defaults', 'warn', parsed.error)
+            this.settings = produce(DEFAULT_SETTINGS, () => {})
         }
     }
 

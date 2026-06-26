@@ -520,10 +520,17 @@ must satisfy the Definition of Done. Where a milestone touches UI, the implement
 **flag the manual-verification checklist** and must not claim UI behavior works from a
 green build alone.
 
-### Milestone 0 — Remaining scaffolding / adaptation follow-ups
+### Milestone 0 — Remaining scaffolding / adaptation follow-ups — ✅ done (2026-06-26)
 
 **Goal:** Finish project setup so feature work has a clean foundation. (Scaffold identity,
 class renames, template-init removal, and green tsc/lint/test/build are already done.)
+
+**Outcome:** Business Rules + Architecture/Domain Model/Configuration docs written; settings
+model (Zod schema + defaults + profile store) and the `domain/profile.ts` config schemas in
+place; `constants.ts`, the `KanbanActionPlannerView` placeholder + empty options builder, and
+`registerBasesView` wiring done; Tailwind imported without preflight with scoped `.kap-root`
+styles. `tsc`/`lint`/`bun test`/`build` green. Pending manual check in Obsidian: the "Kanban"
+view appears in a Base's view picker and mounts the placeholder without errors.
 
 **Tasks:**
 
