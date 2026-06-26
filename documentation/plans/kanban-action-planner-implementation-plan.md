@@ -563,11 +563,24 @@ docs updated.
 
 ---
 
-### Milestone 1 — Core board: columns, Unmapped, drag/drop, order persistence
+### Milestone 1 — Core board: columns, Unmapped, drag/drop, order persistence — ✅ done (2026-06-26)
 
 **Goal:** A working single-lane Kanban board driven by an auto-detected status property,
 with manual ordering persisted to notes. No profiles/SK/colors-config yet (auto colors
 only).
+
+**Outcome:** Pure, unit-tested domain modules — `status.ts` (detection + column derivation +
+prefix ordering + Unmapped resolution), `ordering.ts` (midpoint math + `planInsertion`
+single-write-vs-renumber + precision-exhaustion guard), `board-model.ts` (single-lane
+bucketing, sort, hide-empty-Unmapped) — plus `frontmatter.service.ts` (cached reads,
+`processFrontMatter` writes/deletes, case-insensitive keys). UI: `board-renderer.ts`,
+`card-renderer.ts`, and a pointer-event `dnd-controller.ts` (mouse/touch, threshold,
+placeholder, post-drag click suppression, reduced-motion). `kanban-view.ts` assembles it,
+writes status + order on drop, and offers a right-click `Menu` (open / set status / clear).
+Reads raw frontmatter rather than Bases `Value` (lossless, testable) — noted as a deliberate
+deviation from the plan's `value-extract` module; a Bases-`Value` adapter will be added when
+formula/computed properties are needed. `docs/` (Overview/Usage/Configuration) updated.
+`tsc`/`lint`/`bun test` (79)/`build` green. **Pending manual check in Obsidian.**
 
 **Tasks:**
 

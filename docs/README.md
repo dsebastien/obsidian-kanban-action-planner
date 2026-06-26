@@ -4,28 +4,35 @@ nav_order: 1
 permalink: /
 ---
 
-# Plugin Name
+# Kanban Action Planner
 
-TODO: Add a brief description of what your plugin does.
+Kanban Action Planner adds a **Kanban board view to [Obsidian Bases](https://help.obsidian.md/bases)**.
+Any set of notes selected by a Base can be planned and tracked visually: notes become cards,
+a status property becomes columns, and you can drag cards between columns or reorder them —
+with the changes written straight back into your notes.
+
+> In development. Features are delivered milestone by milestone; this page reflects what
+> currently works.
 
 ## Key Features
 
-TODO: List 3-5 key features of your plugin.
-
-- Feature 1
-- Feature 2
-- Feature 3
+- **Kanban view inside Bases** — add a "Kanban" view to any Base; the Base's filters choose
+  the notes.
+- **Status → columns** — columns are built from a status property; notes with no/unknown
+  status collect in an **Unmapped** column that disappears when empty.
+- **Drag & drop** — move a card to another column to change its status, or reorder within a
+  column; the order is saved to your note.
+- **Right-click a card** — open the note or set its status from a menu (works on touch via
+  long-press).
+- **Click a card** — opens the note.
 
 ## Quick Start
 
-TODO: Add quick start instructions.
-
-1. Install the plugin
-2. Configure settings
-3. Start using
+1. Install and enable the plugin.
+2. Open or create a **Base**, then add a view and pick **Kanban**.
+3. Give your notes a `status` property (any value). Each distinct value becomes a column.
+4. Drag cards between columns to change status, or reorder them within a column.
 
 ## About
 
-Created by [Your Name](https://your-website.com).
-
-TODO: Update author information and support links.
+Created by [Sébastien Dubois](https://dsebastien.net).

@@ -18,13 +18,118 @@
     .kap-root {
         height: 100%;
         width: 100%;
-        overflow: auto;
+        overflow: hidden;
         color: var(--text-normal);
     }
 
-    .kap-root .kap-placeholder {
+    .kap-root .kap-placeholder,
+    .kap-root .kap-empty {
         padding: var(--size-4-4, 1rem);
         color: var(--text-muted);
+    }
+
+    /* Board: horizontal row of columns, scrolls horizontally when needed. */
+    .kap-board {
+        display: flex;
+        flex-direction: row;
+        gap: var(--size-4-3, 0.75rem);
+        align-items: flex-start;
+        height: 100%;
+        padding: var(--size-4-3, 0.75rem);
+        overflow-x: auto;
+        overflow-y: hidden;
+    }
+
+    .kap-column {
+        display: flex;
+        flex-direction: column;
+        flex: 0 0 auto;
+        width: 17rem;
+        max-width: 85vw;
+        max-height: 100%;
+        background: var(--background-secondary);
+        border: 1px solid var(--background-modifier-border);
+        border-radius: var(--radius-m, 8px);
+    }
+
+    .kap-column-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: var(--size-4-2, 0.5rem);
+        padding: var(--size-4-2, 0.5rem) var(--size-4-3, 0.75rem);
+        font-weight: var(--font-semibold, 600);
+        border-bottom: 1px solid var(--background-modifier-border);
+    }
+
+    .kap-column-count {
+        color: var(--text-muted);
+        font-weight: var(--font-normal, 400);
+    }
+
+    .kap-column-cards {
+        display: flex;
+        flex-direction: column;
+        gap: var(--size-4-2, 0.5rem);
+        padding: var(--size-4-2, 0.5rem);
+        overflow-y: auto;
+        min-height: var(--size-4-8, 2rem);
+    }
+
+    .kap-card {
+        padding: var(--size-4-2, 0.5rem) var(--size-4-3, 0.75rem);
+        background: var(--background-primary);
+        border: 1px solid var(--background-modifier-border);
+        border-radius: var(--radius-s, 6px);
+        cursor: grab;
+        touch-action: none; /* let the pointer DnD own touch gestures */
+        box-shadow: var(--shadow-s);
+    }
+
+    .kap-card:hover {
+        border-color: var(--interactive-accent);
+    }
+
+    .kap-card:focus-visible {
+        outline: 2px solid var(--interactive-accent);
+        outline-offset: 1px;
+    }
+
+    .kap-card-title {
+        color: var(--text-normal);
+        word-break: break-word;
+    }
+
+    .kap-card-dragging {
+        opacity: 0.4;
+    }
+
+    .kap-card-ghost {
+        position: fixed;
+        top: 0;
+        left: 0;
+        z-index: var(--layer-dragged, 1000);
+        pointer-events: none;
+        opacity: 0.9;
+        box-shadow: var(--shadow-l);
+    }
+
+    .kap-card-placeholder {
+        height: 2px;
+        margin: 2px 0;
+        background: var(--interactive-accent);
+        border-radius: 1px;
+    }
+
+    /* Narrow screens / mobile: snug columns, snap scrolling. */
+    @media (max-width: 600px) {
+        .kap-board {
+            scroll-snap-type: x mandatory;
+        }
+        .kap-column {
+            width: 80vw;
+            scroll-snap-align: start;
+        }
     }
 }
 
