@@ -213,6 +213,22 @@ export async function setLaneGrouping(
     )
 }
 
+/** Replace a profile's archiving config. */
+export async function setArchiveConfig(
+    plugin: KanbanActionPlannerPlugin,
+    profileId: string,
+    archive: Profile['archive']
+): Promise<void> {
+    const profile = findProfile(plugin, profileId)
+    if (!profile) return
+    await upsertProfile(
+        plugin,
+        produce(profile, (draft) => {
+            draft.archive = archive
+        })
+    )
+}
+
 /** Replace a profile's card-presentation config. */
 export async function setCardPresentation(
     plugin: KanbanActionPlannerPlugin,

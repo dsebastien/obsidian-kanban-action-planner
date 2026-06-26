@@ -936,10 +936,22 @@ green; manual checklist flagged.
 
 ---
 
-### Milestone 4b — Archiving — tracks [#7]
+### Milestone 4b — Archiving — ✅ done (2026-06-26) — tracks [#7]
 
 **Goal:** Move a card's note to a configurable, placeholder-driven archive folder, manually
 or via an optional status trigger.
+
+**Delivered:** `utils/expressions.ts` (pure placeholder resolution: `{{year}}` `{{month}}`
+`{{week}}` `{{quarter}}` `{{day}}` `{{date}}` `{{datetime}}` `{{uuid}}`, case-insensitive,
+unit-tested) + `services/archive.service.ts` (resolve folder, create intermediate folders,
+collision-safe `uniqueDestPath`, move via `fileManager.renameFile`; guarded + logged + tested
+pure parts). View wires a context-menu **Archive** action (shown only when configured; warns
+non-blockingly about active children/blockers, then moves) and opt-in **status-triggered**
+auto-archive in `applyMove` (fires only on a _transition into_ `triggerStatus`, never on a
+reorder within it; skips the order write since the note leaves the board). Configure-board
+**Archiving** section (folder template + trigger-status dropdown; folder edits persist without
+re-rendering to keep input focus, both edits read freshest config to avoid clobbering).
+`setArchiveConfig` service. Live-verified in Obsidian (see history 2026-06-26). 147 tests green.
 
 **Tasks:**
 

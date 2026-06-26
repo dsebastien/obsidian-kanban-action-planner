@@ -14,6 +14,7 @@ import { isValidHex, paletteTokens, resolveColor } from '../services/colors.serv
 import {
     clearColorOverride,
     findProfile,
+    setArchiveConfig,
     setAutoAssign,
     setCardPresentation,
     setColorOverride,
@@ -86,6 +87,62 @@ export class ConfigureBoardModal extends Modal {
         this.renderSwimlanes(profile)
         this.renderRelationships(profile)
         this.renderCard(profile)
+        this.renderArchiving(profile)
+    }
+
+    // ── Archiving ─────────────────────────────────────────────
+
+    private renderArchiving(profile: Profile): void {
+        const archive = profile.archive
+        new Setting(this.contentEl).setName('Archiving').setHeading()
+        this.contentEl.createEl('p', {
+            cls: 'kap-modal-subtitle',
+            text: 'Archived notes move into this folder and leave the board. Placeholders: {{year}}, {{month}}, {{week}}, {{quarter}}, {{day}}, {{date}}, {{datetime}}, {{uuid}}.'
+        })
+
+        new Setting(this.contentEl)
+            .setName('Archive folder')
+            .setDesc('Destination folder for archived notes. Leave blank to disable archiving.')
+            .addText((input) => {
+                input
+                    .setPlaceholder('Archive/{{year}}')
+                    .setValue(archive.archiveFolder)
+                    // Persist without re-rendering so typing keeps focus.
+                    .onChange((value) => {
+                        void this.patchArchive({ archiveFolder: value.trim() }, false)
+                    })
+            })
+
+        new Setting(this.contentEl)
+            .setName('Auto-archive on status')
+            .setDesc('Automatically archive a card when it enters this status. Opt-in.')
+            .addDropdown((dd) => {
+                dd.addOption(NONE, 'Off')
+                for (const statusValue of this.statusValues) {
+                    dd.addOption(statusValue, splitStatusValue(statusValue).label)
+                }
+                dd.setValue(archive.triggerStatus ?? NONE)
+                dd.onChange((value) => {
+                    void this.patchArchive({ triggerStatus: value === NONE ? null : value }, true)
+                })
+            })
+    }
+
+    /**
+     * Apply a partial change to the archive config, reading the freshest stored
+     * config so a folder-text edit and a trigger-status edit never clobber each
+     * other. `rerender` re-renders the modal afterwards (skip it for the text
+     * field so the input keeps focus while typing).
+     */
+    private async patchArchive(
+        patch: Partial<Profile['archive']>,
+        rerender: boolean
+    ): Promise<void> {
+        const current = this.profile()?.archive
+        if (!current) return
+        await setArchiveConfig(this.plugin, this.profileId, { ...current, ...patch })
+        this.onChange()
+        if (rerender) this.render()
     }
 
     // ── Relationships ─────────────────────────────────────────

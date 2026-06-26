@@ -1,4 +1,4 @@
-import { BasesView, debounce, Menu, TFile } from 'obsidian'
+import { BasesView, debounce, Menu, Notice, TFile } from 'obsidian'
 import type { Debouncer, QueryController } from 'obsidian'
 import type { KanbanActionPlannerPlugin } from '../../plugin'
 import {
@@ -34,6 +34,7 @@ import {
     resolveActiveProfile
 } from '../../services/profile-service'
 import { buildCardDisplay } from '../../services/card-display.service'
+import { archiveNote } from '../../services/archive.service'
 import { renderBoard } from '../../ui/board/board-renderer'
 import { BoardDnd } from '../../ui/board/dnd-controller'
 import type { DropTarget } from '../../ui/board/dnd-controller'
@@ -384,6 +385,11 @@ export class KanbanActionPlannerView extends BasesView {
             else await setProperty(this.app, card.file, this.statusProperty, newStatus)
         }
 
+        // Status-triggered archiving: once the status is written, if this is a
+        // transition INTO the configured trigger status, archive and stop (the
+        // note leaves the board, so there's no order to persist).
+        if (await this.maybeAutoArchive(card, newStatus)) return
+
         const destCards = this.columnCards(destLaneId, destColumnId).filter(
             (c) => c.key !== card.key
         )
@@ -442,6 +448,15 @@ export class KanbanActionPlannerView extends BasesView {
                     .setTitle('Clear status')
                     .setIcon('x')
                     .onClick(() => void this.setCardStatus(card, null, UNMAPPED_COLUMN_ID))
+            )
+        }
+        if (this.archivingConfigured()) {
+            menu.addSeparator()
+            menu.addItem((item) =>
+                item
+                    .setTitle('Archive')
+                    .setIcon('archive')
+                    .onClick(() => void this.archiveCard(card))
             )
         }
         this.addRelationshipMenuItems(menu, card)
@@ -506,6 +521,62 @@ export class KanbanActionPlannerView extends BasesView {
         const laneId = this.laneIdOf(card)
         const destCards = this.columnCards(laneId, columnId).filter((c) => c.key !== card.key)
         await this.applyMove(card, statusValue, laneId, columnId, destCards.length)
+    }
+
+    // ── Archiving ─────────────────────────────────────────────
+
+    /** Whether the active profile has a (non-blank) archive folder configured. */
+    private archivingConfigured(): boolean {
+        return this.profile.archive.archiveFolder.trim().length > 0
+    }
+
+    /**
+     * Auto-archive when a card transitions INTO the configured trigger status.
+     * Returns true when the note was archived (caller then skips order writes).
+     * Opt-in: no trigger status, no archive folder, or a non-transition is a no-op.
+     */
+    private async maybeAutoArchive(card: KanbanCard, newStatus: string | null): Promise<boolean> {
+        const trigger = this.profile.archive.triggerStatus
+        if (!trigger || newStatus !== trigger) return false
+        if (card.statusValue === newStatus) return false // already there — not a transition
+        if (!this.archivingConfigured()) return false
+        const result = await archiveNote(this.app, card.file, this.profile.archive)
+        if (result.ok) {
+            new Notice(`Archived "${card.title}" to ${result.destPath}`)
+            return true
+        }
+        if (result.reason === 'error') {
+            new Notice(`Archive failed: ${result.message ?? 'unknown error'}`)
+        }
+        return false
+    }
+
+    /** Manual archive (context menu). Warns about active relationships, then moves. */
+    private async archiveCard(card: KanbanCard): Promise<void> {
+        if (!this.archivingConfigured()) {
+            new Notice('No archive folder configured. Set one in Configure board → Archiving.')
+            return
+        }
+        this.warnActiveRelationships(card)
+        const result = await archiveNote(this.app, card.file, this.profile.archive)
+        if (result.ok) new Notice(`Archived "${card.title}" to ${result.destPath}`)
+        else if (result.reason === 'error') {
+            new Notice(`Archive failed: ${result.message ?? 'unknown error'}`)
+        }
+        // The moved note no longer matches the Base filter → onDataUpdated rebuilds.
+    }
+
+    /** Non-blocking heads-up when archiving a note with active children/blockers. */
+    private warnActiveRelationships(card: KanbanCard): void {
+        const children = card.relationships.child.length
+        const blockers = card.relationships.blocked_by.length
+        if (children === 0 && blockers === 0) return
+        const parts: string[] = []
+        if (children > 0) parts.push(`${String(children)} child note(s)`)
+        if (blockers > 0) parts.push(`${String(blockers)} blocker(s)`)
+        new Notice(
+            `Archiving "${card.title}" — it still has ${parts.join(' and ')}. Links are kept.`
+        )
     }
 }
 

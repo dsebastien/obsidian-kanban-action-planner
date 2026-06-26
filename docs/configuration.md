@@ -90,3 +90,30 @@ a card counts as that card's child.
 Relationships are **read-only** — the plugin never writes them. A non-empty **blocked by** flags
 the card (red badge + edge) and powers the **Blocked cards** view filter and badge navigation;
 it never changes status on its own.
+
+## Archiving
+
+Archiving **moves** a note out of the board into a folder, saved per profile in **Configure
+board → Archiving**:
+
+- **Archive folder** — destination path. Supports placeholders resolved at archive time:
+
+    | Placeholder    | Resolves to         | Example             |
+    | -------------- | ------------------- | ------------------- |
+    | `{{year}}`     | 4-digit year        | `2026`              |
+    | `{{month}}`    | 2-digit month       | `06`                |
+    | `{{day}}`      | 2-digit day         | `26`                |
+    | `{{week}}`     | 2-digit ISO week    | `26`                |
+    | `{{quarter}}`  | quarter (1–4)       | `2`                 |
+    | `{{date}}`     | `YYYY-MM-DD`        | `2026-06-26`        |
+    | `{{datetime}}` | `YYYY-MM-DD-HHmmss` | `2026-06-26-143015` |
+    | `{{uuid}}`     | a fresh unique id   | `a1b2c3…`           |
+
+    Placeholders are case-insensitive. Leaving the folder blank disables archiving. Missing
+    folders are created; a name clash gets a numeric suffix so nothing is overwritten.
+
+- **Auto-archive on status** — optional (off by default). When set, a card is archived the
+  moment it **transitions into** that status; reordering within it does nothing.
+
+Manual archiving is available from a card's right-click menu (**Archive**). Moves go through
+Obsidian's file manager, so wikilinks to the note are updated and stay valid.

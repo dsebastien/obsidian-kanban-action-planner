@@ -16,6 +16,7 @@ Map note statuses to columns, reorder cards (persisted back into the notes), cus
 - **Configurable cards** — choose the title source, body fields, an optional cover image, and value wrapping; due dates always flagged in red.
 - **Swimlanes** — split the board into collapsible lanes by note type or any property, with an Ungrouped lane; cross-lane drag rewrites the grouping property.
 - **Relationships** — parent / sibling / child and `blocked_by` via link-properties (with an optional tag+link heuristic), used for filtering, blocked-item flagging, and navigation.
+- **Archiving** — move finished cards into a placeholder-driven folder (`Archive/{{year}}` and more), manually or auto-triggered by a status; links are preserved.
 - **Calendar mode** — a toggle that turns the board into a scheduling calendar (week / month / quarter / year) with an Unplanned / No-Deadline panel; drag cards onto days to set `date_scheduled` / `date_due`.
 
 ## Development

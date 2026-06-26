@@ -28,10 +28,10 @@ The core is a custom Obsidian **Bases view** (Obsidian ≥ 1.13.0 API):
 ```
 views/kanban/      Bases view + its options panel (thin; delegates to ui + domain)
 ui/                vanilla-DOM renderers: board, calendar, context menu, modal (no UI deps)
-services/          side-effectful adapters: frontmatter R/W, Starter Kit API, profiles, colors
+services/          side-effectful adapters: frontmatter R/W, Starter Kit API, profiles, colors, archive
 domain/            pure, unit-tested logic: status, ordering, relationships, filtering, calendar, board model
 settings/ + types/ plugin settings (Zod schema + defaults) and the settings tab
-utils/             logging, date formatting, small DOM helpers
+utils/             logging, date formatting, placeholder expressions, small DOM helpers
 constants.ts       view type id, CSS scoping tokens, default property names
 ```
 

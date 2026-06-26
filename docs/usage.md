@@ -89,11 +89,33 @@ On each card:
 Use the **Blocked cards** view option to **show all**, show **only blocked**, or **hide
 blocked** cards.
 
+## Archiving
+
+When you're done with a card, you can **archive** its note — move it out of the board into a
+dedicated folder while keeping all links intact.
+
+Set this up in **Configure board → Archiving**:
+
+- **Archive folder** — where archived notes go. The path supports placeholders that resolve at
+  archive time: `{{year}}`, `{{month}}`, `{{week}}`, `{{quarter}}`, `{{day}}`, `{{date}}`,
+  `{{datetime}}`, `{{uuid}}` — e.g. `Archive/{{year}}` files into `Archive/2026`. Leave it
+  blank to disable archiving. Intermediate folders are created automatically, and a name clash
+  is resolved with a numeric suffix (`Task 1.md`) so nothing is ever overwritten.
+- **Auto-archive on status** — optional and off by default. Pick a status and a card is
+  archived automatically the moment it **transitions into** that status (by drag or menu).
+  Reordering a card that's already in that status does nothing — only the transition triggers
+  it.
+
+To archive manually, **right-click a card → Archive** (only shown when an archive folder is
+set). If the note still has active children or blockers you get a non-blocking heads-up — the
+move proceeds and the wikilinks are preserved. Archived notes leave the board because they no
+longer match the Base's filter.
+
 ## Other interactions
 
 - **Click** a card to open the note; **Ctrl/Cmd-click** opens it in a new tab.
 - **Right-click** (or long-press on touch) a card for a menu: open the note (or in a new
-  tab), set its status, clear the status, or open a related note.
+  tab), set its status, clear the status, **archive** the note, or open a related note.
 
 ## View options
 
@@ -137,8 +159,8 @@ The Configure board dialog also controls what each card shows:
 
 A note's **due date** is always shown in red when set, even without configuring fields.
 
-The dialog also has a **Swimlanes** section to group the board into lanes (see Swimlanes
-above).
+The dialog also has **Swimlanes** (group the board into lanes) and **Archiving** (move
+finished cards into a folder) sections — see Swimlanes and Archiving above.
 
 ## Obsidian Starter Kit integration
 

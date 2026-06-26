@@ -47,8 +47,12 @@ column rule.
   empty `linkProperty` disables link detection for that role (heuristic still applies).
   Relationships are read-only (never written back). `domain/filtering.ts` adds the **blocked
   filter** (`all`/`only`/`hide`) over the resolved sets.
-- **ArchiveConfig** (issue #7) — `archiveFolder` (supports `{{year}}`/`{{week}}`/… placeholders)
-  and an optional `triggerStatus` for auto-archiving.
+- **ArchiveConfig** (issue #7) — `archiveFolder` (supports `{{year}}`/`{{month}}`/`{{week}}`/
+  `{{quarter}}`/`{{day}}`/`{{date}}`/`{{datetime}}`/`{{uuid}}` placeholders, resolved by the
+  pure `utils/expressions.ts`) and an optional `triggerStatus`. Archiving **moves** the note
+  via `services/archive.service.ts` (`fileManager.renameFile`, links preserved); manual via the
+  card menu, or auto when a card **transitions into** `triggerStatus` (opt-in, guarded). Blank
+  `archiveFolder` disables archiving; name clashes get a numeric suffix.
 - **CalendarConfig** — scheduled/due date property names, momentjs `dateFormat`, default
   range, and tab sort key.
 
