@@ -996,9 +996,115 @@ unit-tested; DoD green; manual checklist flagged.
 
 ---
 
+### Milestone 6 — Visual stability & consistency (polish pass)
+
+**Goal:** The board should feel solid and predictable — uniform card/column sizing and
+**stable, minimal, smooth** updates when the underlying note set changes. No layout jumps,
+no full-board flicker on every edit.
+
+**Tasks:**
+
+- **Uniform card size within a lane.** Cards in the same lane (and ideally the whole board)
+  share a consistent size regardless of how much content they hold: a card with more fields
+  must not become taller/wider than its neighbours in a disruptive way. Approaches to weigh
+  (pick per the responsiveness invariant, document the choice): a fixed/min card height per
+  lane with internal overflow handling (clamp/ellipsis, consistent with the existing
+  wrap/truncate option), or a measured max-height applied uniformly. Cover images, field
+  chips, and titles must all fit the chosen envelope without breaking the grid. Must respect
+  the per-card **wrap** option (M2b) — reconcile "wrap = grow" with "uniform size" (e.g. wrap
+  grows up to the shared cap, then scrolls/clamps).
+- **Equal column widths.** All columns render at the same width (already fixed-width today;
+  make it an explicit invariant and verify it holds across lanes, with show-empty columns,
+  and on narrow/mobile). Lane column rows should align so columns line up visually across
+  lanes where layout allows.
+- **Stable, incremental refresh.** Today `onDataUpdated` triggers a debounced **full**
+  `rebuild()` + `renderBoard()` that calls `rootEl.empty()` and recreates every node. Replace
+  this with a **diffing/reconciliation** pass that touches only what changed: add/remove/move
+  only the affected cards, update only changed fields, and leave untouched columns/lanes (and
+  scroll position, collapsed-lane state, focus, in-flight drag) intact. When a note is
+  created/updated/removed the board must update in place — no scroll reset, no flash, no
+  re-layout of unaffected cards. Keep it dependency-free (no UI framework); a small keyed
+  reconciler over `data-card-key` / `data-column-id` / `data-lane-id` is enough.
+- Preserve **scroll position** (board horizontal scroll + each column's vertical scroll +
+  the `.kap-lanes` vertical scroll) and **collapsed-lane state** across updates.
+- Respect `prefers-reduced-motion`: transitions for card moves are opt-in and disabled under
+  reduced motion (consistent with the existing DnD policy).
+
+**Files:** likely a new `ui/board/reconcile.ts` (pure-ish keyed diff) + changes to
+`board-renderer.ts` (render vs patch paths), `kanban-view.ts` (call patch instead of full
+re-render on `onDataUpdated`), and CSS for the uniform-size envelope. Co-located `.spec.ts`
+for the diff logic.
+**Data persisted:** none (pure presentation/rendering concern).
+**Mobile posture:** uniform sizing must not overflow on narrow screens; the accordion/lane
+collapse still applies. Document any mobile-specific card-size envelope.
+**Validation (live harness — mandatory):** with the board open, create/edit/delete a note in
+`KanbanTest/` via the `obsidian` CLI and assert (via `eval`/`dev:dom`) that only the affected
+card node changed (others keep identity/scroll), the board didn't scroll-reset, and
+`dev:errors` stays clean; screenshot before/after to confirm no layout shift. Verify all cards
+in a lane report equal heights and all columns equal widths with `getBoundingClientRect`.
+**Exit criteria:** uniform card/column sizing verified; incremental refresh leaves unaffected
+DOM untouched (proven in the harness); scroll/collapse/focus/drag preserved across updates;
+diff logic unit-tested; docs updated; DoD green; manual checklist flagged.
+
+---
+
+### Milestone 7 — Settings harmonization & simplification
+
+**Goal:** Collapse the current **three** configuration surfaces into a clear, non-overlapping
+model. Today there are: (1) **global plugin settings** (settings tab), (2) **Bases "Configure
+view"** options (`kanban-view-options.ts`), and (3) the **top-right cog → Configure board**
+modal. (2) and (3) overlap and confuse which layer owns a setting.
+
+**Target model:**
+
+- **(1) Global plugin settings** — only true vault-wide defaults (default property names,
+  default statuses, default date format). Unchanged in spirit; audited for scope creep.
+- **(2) Per-view / board settings** — a **single** surface. **"Configure view" is the standard
+  for Obsidian Bases views**, so prefer consolidating everything board/profile-level there;
+  the top-right cog should either be **removed** in favour of "Configure view", or become a
+  thin shortcut that opens the _same_ settings (no second, divergent UI). Decide one of:
+    - **a.** Fold the Configure-board modal's controls (colors, cards, swimlanes) into the
+      Bases "Configure view" options panel and drop the cog; or
+    - **b.** Keep the cog/modal as the rich editor but make "Configure view" options a strict
+      subset that delegates to it, so there's a single source of truth and no duplicated
+      controls.
+      (Recommendation to validate with the user: **a** — one Obsidian-native surface — unless the
+      Bases options panel can't host the richer controls, then **b**.)
+- Make the **per-view vs profile** resolution legible in the UI (the §4.3 precedence): show
+  which layer a value comes from and whether it's an override (addresses the §8 "per-view vs
+  profile config overlap" risk).
+
+**Tasks:**
+
+- Inventory every setting across the three surfaces; mark each as global / per-view / profile,
+  and flag duplicates and orphans.
+- Pick model (a) or (b) **with the user**, then unify: remove the duplicate surface, route all
+  board/profile edits through one place, keep global settings minimal.
+- Update `settings-tab.ts`, `kanban-view-options.ts`, `configure-board-modal.ts` (+
+  `gear-button.ts`) accordingly; preserve stored data (no settings migration that drops
+  profiles/overrides).
+- Update `docs/` (usage/configuration) and `documentation/` to describe the final two-surface
+  model.
+
+**Files:** `settings/settings-tab.ts`, `views/kanban/kanban-view-options.ts`,
+`ui/configure-board-modal.ts`, `ui/gear-button.ts`, `views/kanban/kanban-view.ts`.
+**Data persisted:** unchanged shapes; only _where the UI lives_ changes. Any consolidation
+must be backward-compatible with existing `this.config` / profile data.
+**Validation (live harness — mandatory):** confirm every previously-working control still
+works from its new home (status/order/statuses, colors, cards, swimlanes), per-view overrides
+still take effect, and existing boards/profiles load unchanged; `dev:errors` clean.
+**Exit criteria:** exactly two configuration surfaces (global settings + one per-view/board
+surface, "Configure view"-first); no duplicated controls; layer provenance legible; docs
+updated; DoD green; manual checklist flagged.
+
+> **Note:** this is a UX-direction milestone — **confirm the (a)/(b) decision with the user
+> before implementing**, since it removes a currently-shipping surface.
+
+---
+
 ### 1.0 cut
 
-After Milestone 5 exits green and all manual checklists are confirmed in Obsidian, bump the
+After all milestones exit green and all manual checklists are confirmed in Obsidian, bump the
 version from `0.0.0` to `1.0.0`, finalize README/docs, and cut the **single big-bang
 release**.
 
