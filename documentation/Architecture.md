@@ -87,4 +87,7 @@ applies the blocked filter, and persists status/order/grouping-property writes v
 Relationships are layered in two pure modules + a bridge: `domain/relationships.ts`
 (`resolveRelationships` — direct + inverse + heuristic) and `domain/filtering.ts` (blocked
 filter) are unit-tested; `services/relationships.service.ts` reads tags/links from the metadata
-cache and feeds the domain. Relationships are read-only (never written back).
+cache and feeds the domain. Relationships are read-only (never written back). On the card,
+`ui/board/card-renderer.ts` draws one counted badge per non-empty role (`onRelationship`
+callback); the view resolves the badge to a single-note open or a picker `Menu`, honouring
+Ctrl/Cmd for a new tab (`isNewTabEvent`).

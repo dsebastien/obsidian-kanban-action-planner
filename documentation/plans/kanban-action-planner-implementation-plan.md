@@ -881,8 +881,10 @@ cache (tags via `getAllTags`, role links via `frontmatterLinks` + `getFirstLinkp
 outgoing links via `metadataCache.resolvedLinks`), with per-role link-property names from the
 profile's rules (missing → per-role default; explicit empty → disabled). Cards gained a
 relationship badge row (`▲`/`▼`/`↔` + count, red `⛔` blocked badge); a non-empty `blocked_by`
-also gives the card a red left accent. Clicking a badge navigates to the single related note
-or opens a picker menu; the card context menu lists related notes too. The view applies the
+also gives the card a red left accent. **Each role collapses into one counted badge** — a card
+blocked by N notes shows `⛔ N` (tooltip lists them). Clicking a badge opens the single related
+note, or a picker menu when there are several; **Ctrl/Cmd-click opens in a new tab** (badge and
+menu items). The card context menu lists related notes too. The view applies the
 blocked filter before building the board, exposes it as a `blockedFilter` view option, and the
 Configure-board modal gained a **Relationships** section (per-role link-property pickers + a
 "detect children by tag" heuristic input). Default profiles seed the four role rules. Domain
