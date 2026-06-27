@@ -1,78 +1,26 @@
 # Release Notes
 
-## 2.6.3 (2026-06-17)
-
-### Bug Fixes
-
-- **deps:** override vulnerable transitive dev dependencies
-
-## 2.6.2 (2026-06-03)
-
-### Bug Fixes
-
-- **all:** added warning and fix for latest Obsidian release search changes
-
-## 2.6.1 (2026-05-14)
-
-## 2.6.0 (2026-05-13)
-
-## 2.4.0 (2026-04-07)
+## 0.0.1 (2026-06-27)
 
 ### Features
 
-- **all:** updated
-- **all:** updated workflows
-
-## 2.3.0 (2026-02-11)
-
-### Features
-
-- **all:** added docs template
-- **all:** added Obsidian skills (including obsidian cli)
-- **all:** updated scripts
-
-## 2.2.0 (2026-01-30)
-
-### Features
-
-- **all:** updated scripts
-
-## 2.0.4 (2026-01-04)
+- **plugin:** archiving — move notes to a placeholder folder (M4b, [#7](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/7))
+- **plugin:** calendar drag-to-schedule and drag-to-clear (M5c/M5d)
+- **plugin:** calendar mode — scheduling panel + grid (M5a/M5b)
+- **plugin:** configurable card presentation (title, fields, cover, wrapping), closes [3-#6](https://github.com/dsebastien/3-/issues/6)
+- **plugin:** configurable swimlanes (M3, [#2](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/2))
+- **plugin:** core Kanban board with drag/drop and order persistence
+- **plugin:** definition-driven columns + ctrl/cmd-click opens new tab
+- **plugin:** incremental board refresh + uniform sizing (M6)
+- **plugin:** note-type profiles, Starter Kit mirroring, and colors
+- **plugin:** open related notes in a new tab on ctrl/cmd-click
+- **plugin:** place Unmapped column first by default, configurable per view
+- **plugin:** register Kanban Bases view scaffold and config model
+- **plugin:** relationships, blocked-by & relational filtering (M4)
+- **plugin:** scheduling-panel sort + filter; M5 docs (M5e), closes [#tag](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/tag)
+- scaffold Kanban Action Planner plugin and add implementation plan
 
 ### Bug Fixes
 
-- **all:** use console.debug instead of console.log
-
-## 2.0.3 (2025-12-16)
-
-### Bug Fixes
-
-- **all:** adapt the build.ts to be generic
-
-## 2.0.2 (2025-12-12)
-
-### Bug Fixes
-
-- **all:** fix image url
-
-## 2.0.1 (2025-12-12)
-
-### Bug Fixes
-
-- **all:** fied the release workflow to name the tags correctly
-
-## 2.0.0 (2025-12-11)
-
-## 1.6.0 (2024-10-27)
-
-## 1.5.0 (2024-05-14)
-
-## 1.4.0 (2024-05-14)
-
-## 1.3.0 (2024-05-14)
-
-## 1.2.0 (2024-05-14)
-
-## 1.1.0 (2024-05-13)
-
-## 1.0.0 (2024-04-26)
+- **plugin:** match Starter Kit's {{quarter}} placeholder format (Q2, not 2)
+- **plugin:** persist discovered statuses so Show empty columns works
