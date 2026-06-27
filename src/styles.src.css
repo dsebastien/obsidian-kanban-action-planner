@@ -803,6 +803,72 @@
         padding: var(--size-4-2, 0.5rem) 0;
     }
 
+    /* Configure-board modal: a two-pane layout — section nav (left) + content. */
+    .kap-config-modal .kap-settings {
+        @apply flex gap-4 mt-3;
+        min-height: 22rem;
+    }
+
+    .kap-config-modal .kap-settings-nav {
+        @apply flex flex-col gap-1 flex-none;
+        width: 11rem;
+    }
+
+    .kap-config-modal .kap-settings-tab {
+        @apply flex items-center gap-2 px-3 py-2 rounded cursor-pointer;
+        color: var(--text-muted);
+        transition:
+            color var(--kap-transition, 150ms) ease,
+            background-color var(--kap-transition, 150ms) ease;
+    }
+
+    .kap-config-modal .kap-settings-tab:hover {
+        color: var(--text-normal);
+        background: var(--background-modifier-hover);
+    }
+
+    .kap-config-modal .kap-settings-tab-active,
+    .kap-config-modal .kap-settings-tab-active:hover {
+        color: var(--text-normal);
+        background: var(--background-modifier-hover);
+        box-shadow: inset 2px 0 0 var(--interactive-accent);
+        font-weight: var(--font-medium, 500);
+    }
+
+    .kap-config-modal .kap-settings-tab-icon {
+        @apply inline-flex items-center;
+        color: var(--text-muted);
+    }
+
+    .kap-config-modal .kap-settings-tab-active .kap-settings-tab-icon {
+        color: var(--interactive-accent);
+    }
+
+    .kap-config-modal .kap-settings-content {
+        @apply flex-1 overflow-y-auto pl-4;
+        min-width: 24rem;
+        max-height: 60vh;
+        border-left: 1px solid var(--background-modifier-border);
+    }
+
+    /* The first heading in a pane shouldn't add a big top gap. */
+    .kap-config-modal .kap-settings-content > .setting-item:first-child {
+        padding-top: 0;
+    }
+
+    @media (max-width: 600px) {
+        .kap-config-modal .kap-settings {
+            @apply flex-col;
+        }
+        .kap-config-modal .kap-settings-nav {
+            @apply flex-row flex-wrap w-full;
+        }
+        .kap-config-modal .kap-settings-content {
+            @apply pl-0 border-l-0;
+            min-width: 0;
+        }
+    }
+
     /* Narrow screens / mobile: snug columns, snap scrolling. On mobile the
        swimlane stack + collapsible lanes already act as an accordion (one lane
        expanded at a time), which is the documented mobile posture. */

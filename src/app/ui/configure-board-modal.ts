@@ -1,4 +1,4 @@
-import { Modal, Setting } from 'obsidian'
+import { Modal, Setting, setIcon } from 'obsidian'
 import type { App } from 'obsidian'
 import type { KanbanActionPlannerPlugin } from '../plugin'
 import type {
@@ -9,6 +9,7 @@ import type {
     RelationshipRole,
     RelationshipRule
 } from '../domain/profile'
+import { FolderSuggest } from './folder-suggest'
 import { splitStatusValue } from '../domain/status'
 import { isValidHex, paletteTokens, resolveColor } from '../services/colors.service'
 import {
@@ -26,6 +27,16 @@ const AUTO = '__auto__'
 const NONE = '__none__'
 const NOTE_NAME = '__note_name__'
 
+type SectionId = 'cards' | 'colors' | 'swimlanes' | 'relationships' | 'archiving'
+
+const SECTIONS: ReadonlyArray<{ id: SectionId; label: string; icon: string }> = [
+    { id: 'cards', label: 'Cards', icon: 'gallery-horizontal-end' },
+    { id: 'colors', label: 'Colors', icon: 'palette' },
+    { id: 'swimlanes', label: 'Swimlanes', icon: 'rows-3' },
+    { id: 'relationships', label: 'Relationships', icon: 'git-fork' },
+    { id: 'archiving', label: 'Archiving', icon: 'archive' }
+]
+
 /**
  * "Configure board" modal. Edits the active profile's colors and card
  * presentation (title source, body fields, cover image, wrapping). Every change
@@ -37,6 +48,8 @@ export class ConfigureBoardModal extends Modal {
     private readonly statusValues: string[]
     private readonly availableProperties: string[]
     private readonly onChange: () => void
+    private activeSection: SectionId = 'cards'
+    private body!: HTMLElement
 
     constructor(
         app: App,
@@ -60,6 +73,7 @@ export class ConfigureBoardModal extends Modal {
 
     override onOpen(): void {
         this.titleEl.setText('Configure board — shared settings')
+        this.modalEl.addClass('kap-config-modal')
         this.render()
     }
 
@@ -79,28 +93,68 @@ export class ConfigureBoardModal extends Modal {
             cls: 'kap-modal-subtitle',
             text:
                 profile.source === 'starter-kit'
-                    ? `Shared settings for note type "${profile.name}" (recognized via the Obsidian Starter Kit). These apply to every board of this type. Per-board options (columns, filters, calendar) live in the Bases "Configure view" panel.`
-                    : `Shared settings for the "${profile.name}" profile. These apply to every board using it. Per-board options (columns, filters, calendar) live in the Bases "Configure view" panel.`
+                    ? `Note type "${profile.name}" (recognized via the Obsidian Starter Kit). These shared settings apply to every board of this type. Per-board options (columns, filters, calendar) live in Bases "Configure view".`
+                    : `Profile "${profile.name}". These shared settings apply to every board using it. Per-board options (columns, filters, calendar) live in Bases "Configure view".`
         })
 
-        this.renderColors(profile)
-        this.renderSwimlanes(profile)
-        this.renderRelationships(profile)
-        this.renderCard(profile)
-        this.renderArchiving(profile)
+        const layout = this.contentEl.createDiv({ cls: 'kap-settings' })
+        const nav = layout.createDiv({ cls: 'kap-settings-nav', attr: { role: 'tablist' } })
+        for (const section of SECTIONS) {
+            const active = section.id === this.activeSection
+            const tab = nav.createDiv({
+                cls: active ? 'kap-settings-tab kap-settings-tab-active' : 'kap-settings-tab',
+                attr: { 'role': 'tab', 'tabindex': '0', 'aria-selected': String(active) }
+            })
+            setIcon(tab.createSpan({ cls: 'kap-settings-tab-icon' }), section.icon)
+            tab.createSpan({ cls: 'kap-settings-tab-label', text: section.label })
+            const select = (): void => {
+                this.activeSection = section.id
+                this.render()
+            }
+            tab.addEventListener('click', select)
+            tab.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault()
+                    select()
+                }
+            })
+        }
+
+        this.body = layout.createDiv({ cls: 'kap-settings-content' })
+        this.renderActiveSection(profile)
+    }
+
+    private renderActiveSection(profile: Profile): void {
+        switch (this.activeSection) {
+            case 'cards':
+                this.renderCard(profile)
+                return
+            case 'colors':
+                this.renderColors(profile)
+                return
+            case 'swimlanes':
+                this.renderSwimlanes(profile)
+                return
+            case 'relationships':
+                this.renderRelationships(profile)
+                return
+            case 'archiving':
+                this.renderArchiving(profile)
+                return
+        }
     }
 
     // ── Archiving ─────────────────────────────────────────────
 
     private renderArchiving(profile: Profile): void {
         const archive = profile.archive
-        new Setting(this.contentEl).setName('Archiving').setHeading()
-        this.contentEl.createEl('p', {
+        new Setting(this.body).setName('Archiving').setHeading()
+        this.body.createEl('p', {
             cls: 'kap-modal-subtitle',
             text: 'Archived notes move into this folder and leave the board. Placeholders: {{year}}, {{month}}, {{week}}, {{quarter}}, {{day}}, {{date}}, {{datetime}}, {{uuid}}.'
         })
 
-        new Setting(this.contentEl)
+        new Setting(this.body)
             .setName('Archive folder')
             .setDesc('Destination folder for archived notes. Leave blank to disable archiving.')
             .addText((input) => {
@@ -111,9 +165,12 @@ export class ConfigureBoardModal extends Modal {
                     .onChange((value) => {
                         void this.patchArchive({ archiveFolder: value.trim() }, false)
                     })
+                new FolderSuggest(this.app, input.inputEl, (path) => {
+                    void this.patchArchive({ archiveFolder: path.trim() }, false)
+                })
             })
 
-        new Setting(this.contentEl)
+        new Setting(this.body)
             .setName('Auto-archive on status')
             .setDesc('Automatically archive a card when it enters this status. Opt-in.')
             .addDropdown((dd) => {
@@ -148,15 +205,15 @@ export class ConfigureBoardModal extends Modal {
     // ── Relationships ─────────────────────────────────────────
 
     private renderRelationships(profile: Profile): void {
-        new Setting(this.contentEl).setName('Relationships').setHeading()
-        this.contentEl.createEl('p', {
+        new Setting(this.body).setName('Relationships').setHeading()
+        this.body.createEl('p', {
             cls: 'kap-modal-subtitle',
             text: 'Link-properties whose wikilinks define each relationship. Inverse relations are detected automatically.'
         })
 
         for (const { role, label } of RELATIONSHIP_ROLES_UI) {
             const current = profile.relationships.find((r) => r.role === role)
-            new Setting(this.contentEl).setName(label).addDropdown((dd) => {
+            new Setting(this.body).setName(label).addDropdown((dd) => {
                 dd.addOption(NONE, 'None')
                 for (const prop of this.availableProperties) dd.addOption(prop, prop)
                 dd.setValue(
@@ -178,7 +235,7 @@ export class ConfigureBoardModal extends Modal {
         }
 
         const childRule = profile.relationships.find((r) => r.role === 'child')
-        new Setting(this.contentEl)
+        new Setting(this.body)
             .setName('Detect children by tag')
             .setDesc(
                 'Comma-separated tags; a tagged note that links to this one counts as a child.'
@@ -213,9 +270,9 @@ export class ConfigureBoardModal extends Modal {
 
     private renderSwimlanes(profile: Profile): void {
         const grouping = profile.laneGrouping
-        new Setting(this.contentEl).setName('Swimlanes').setHeading()
+        new Setting(this.body).setName('Swimlanes').setHeading()
 
-        new Setting(this.contentEl)
+        new Setting(this.body)
             .setName('Group cards into lanes')
             .setDesc(
                 'Default grouping for boards of this type (note type or a property value). A single board can override this in Configure view → Swimlanes.'
@@ -244,7 +301,7 @@ export class ConfigureBoardModal extends Modal {
 
         if (grouping.kind !== 'property') return
 
-        new Setting(this.contentEl)
+        new Setting(this.body)
             .setName('Group by property')
             .setDesc('Each distinct value of this property becomes a lane.')
             .addDropdown((dd) => {
@@ -265,9 +322,9 @@ export class ConfigureBoardModal extends Modal {
     // ── Colors ────────────────────────────────────────────────
 
     private renderColors(profile: Profile): void {
-        new Setting(this.contentEl).setName('Colors').setHeading()
+        new Setting(this.body).setName('Colors').setHeading()
 
-        new Setting(this.contentEl)
+        new Setting(this.body)
             .setName('Auto-assign colors')
             .setDesc('Give each status a palette color automatically when not set explicitly.')
             .addToggle((toggle) =>
@@ -277,7 +334,7 @@ export class ConfigureBoardModal extends Modal {
             )
 
         if (this.statusValues.length === 0) {
-            this.contentEl.createDiv({
+            this.body.createDiv({
                 cls: 'kap-modal-empty',
                 text: 'Status colors appear here once notes in this board have status values.'
             })
@@ -291,7 +348,7 @@ export class ConfigureBoardModal extends Modal {
 
     private renderStatusRow(profile: Profile, statusValue: string): void {
         const override = profile.colors.overrides[statusValue]
-        new Setting(this.contentEl)
+        new Setting(this.body)
             .setName(splitStatusValue(statusValue).label)
             .addDropdown((dd) => {
                 dd.addOption(AUTO, 'Auto')
@@ -338,9 +395,9 @@ export class ConfigureBoardModal extends Modal {
 
     private renderCard(profile: Profile): void {
         const card = profile.card
-        new Setting(this.contentEl).setName('Cards').setHeading()
+        new Setting(this.body).setName('Cards').setHeading()
 
-        new Setting(this.contentEl)
+        new Setting(this.body)
             .setName('Title')
             .setDesc('Use the note name or a property as the card title.')
             .addDropdown((dd) => {
@@ -358,7 +415,7 @@ export class ConfigureBoardModal extends Modal {
                 })
             })
 
-        new Setting(this.contentEl)
+        new Setting(this.body)
             .setName('Cover image')
             .setDesc('Property holding an image link, vault path, or URL.')
             .addDropdown((dd) => {
@@ -373,7 +430,7 @@ export class ConfigureBoardModal extends Modal {
                 })
             })
 
-        new Setting(this.contentEl)
+        new Setting(this.body)
             .setName('Wrap long values')
             .setDesc('Wrap field values onto multiple lines instead of truncating.')
             .addToggle((toggle) =>
@@ -386,10 +443,10 @@ export class ConfigureBoardModal extends Modal {
     }
 
     private renderFieldsEditor(card: CardPresentation): void {
-        new Setting(this.contentEl).setName('Displayed fields').setHeading()
+        new Setting(this.body).setName('Displayed fields').setHeading()
 
         card.fields.forEach((field, index) => {
-            new Setting(this.contentEl)
+            new Setting(this.body)
                 .setName(field.property)
                 .addToggle((toggle) =>
                     toggle
@@ -442,7 +499,7 @@ export class ConfigureBoardModal extends Modal {
             (p) => !card.fields.some((f) => f.property === p)
         )
         if (remaining.length > 0) {
-            new Setting(this.contentEl).setName('Add field').addDropdown((dd) => {
+            new Setting(this.body).setName('Add field').addDropdown((dd) => {
                 dd.addOption(NONE, 'Choose a property…')
                 for (const prop of remaining) dd.addOption(prop, prop)
                 dd.setValue(NONE)

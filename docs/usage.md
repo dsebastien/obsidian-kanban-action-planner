@@ -104,11 +104,12 @@ dedicated folder while keeping all links intact.
 
 Set this up in **Configure board → Archiving**:
 
-- **Archive folder** — where archived notes go. The path supports placeholders that resolve at
-  archive time: `{{year}}`, `{{month}}`, `{{week}}`, `{{quarter}}`, `{{day}}`, `{{date}}`,
-  `{{datetime}}`, `{{uuid}}` — e.g. `Archive/{{year}}` files into `Archive/2026`. Leave it
-  blank to disable archiving. Intermediate folders are created automatically, and a name clash
-  is resolved with a numeric suffix (`Task 1.md`) so nothing is ever overwritten.
+- **Archive folder** — where archived notes go. Start typing and **existing folders
+  autocomplete**; any `{{…}}` placeholder you've added is kept. The path supports placeholders
+  that resolve at archive time: `{{year}}`, `{{month}}`, `{{week}}`, `{{quarter}}`, `{{day}}`,
+  `{{date}}`, `{{datetime}}`, `{{uuid}}` — e.g. `Archive/{{year}}` files into `Archive/2026`.
+  Leave it blank to disable archiving. Intermediate folders are created automatically, and a name
+  clash is resolved with a numeric suffix (`Task 1.md`) so nothing is ever overwritten.
 - **Auto-archive on status** — optional and off by default. Pick a status and a card is
   archived automatically the moment it **transitions into** that status (by drag or menu).
   Reordering a card that's already in that status does nothing — only the transition triggers
@@ -200,8 +201,9 @@ changing your notes. They're grouped:
 ## Colors
 
 Click the **gear** in the top-right of the board to open **Configure board** — these are
-**shared** settings that apply to every board of the same note type (colors, cards,
-relationships, archiving, and the default swimlane grouping):
+**shared** settings that apply to every board of the same note type. The dialog is organized
+into sections you pick from the left: **Cards**, **Colors**, **Swimlanes**, **Relationships**,
+and **Archiving**. In the **Colors** section:
 
 - Toggle **Auto-assign colors** to give each status a palette color automatically.
 - Per status, pick a palette color, choose **Custom…** and use the color picker, or pick
