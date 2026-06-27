@@ -1,5 +1,12 @@
 # Release Notes
 
+## 0.0.2 (2026-06-27)
+
+### Features
+
+- **plugin:** configurable first day of the week
+- **plugin:** zoom into a single day on the calendar
+
 ## 0.0.1 (2026-06-27)
 
 ### Features
