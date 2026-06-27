@@ -33,6 +33,9 @@ until you define your statuses.
   in that order, and the number is hidden on the column header.
 - Notes whose status isn't one of the defined columns gather in **Unmapped** (shown first by
   default; hidden when empty).
+- **Collapse a column** with the chevron in its header: it shrinks to a slim labelled bar so you
+  can focus on the rest. Collapsing applies to that status across **every** swimlane; click the
+  chevron again to expand.
 
 ## Moving and reordering cards
 
@@ -55,7 +58,12 @@ Split the board into horizontal **lanes**, each with its own columns. Choose how
   `area`). Lanes order by a numeric prefix just like columns (`10 Alpha`, `20 Beta`).
 
 Cards with no value for the grouping property collect in an **Ungrouped** lane, which is
-hidden when empty. Each lane header has a **▾/▸ toggle** to collapse it, plus its card count.
+hidden when empty. Each lane header has a **chevron toggle** to collapse it, plus its card count.
+
+Each lane is **as tall as it needs to be, up to one screen**: a lane with a few cards stays
+short, while a full lane stops at the screen height and its columns scroll inside it (so the
+lanes don't push each other off-screen). When there's more than one lane, **up/down buttons**
+appear next to the gear to jump to the previous/next lane.
 
 - **Drag a card to another lane** to reassign it: for property grouping, the grouping property
   is rewritten to the target lane's value (or cleared when dropping into Ungrouped). You can

@@ -92,6 +92,7 @@ export class KanbanActionPlannerView extends BasesView {
     private laneValueByPath = new Map<string, string | null>()
     private relationshipsByPath = new Map<string, RelationshipSet>()
     private readonly collapsedLanes = new Set<string>()
+    private readonly collapsedColumns = new Set<string>()
     private board: Board<KanbanCard> = { lanes: [], isMultiLane: false }
     private cardsByKey = new Map<string, KanbanCard>()
 
@@ -251,9 +252,11 @@ export class KanbanActionPlannerView extends BasesView {
                 onOpen: (card, newTab) => this.openCard(card, newTab),
                 onContextMenu: (card, event) => this.showCardMenu(card, event),
                 onToggleLane: (laneId) => this.toggleLane(laneId),
+                onToggleColumn: (columnId) => this.toggleColumn(columnId),
                 onRelationship: (card, role, event) => this.showRelatedMenu(card, role, event)
             },
-            this.collapsedLanes
+            this.collapsedLanes,
+            this.collapsedColumns
         )
     }
 
@@ -266,6 +269,12 @@ export class KanbanActionPlannerView extends BasesView {
     private toggleLane(laneId: string): void {
         if (this.collapsedLanes.has(laneId)) this.collapsedLanes.delete(laneId)
         else this.collapsedLanes.add(laneId)
+        this.rebuild()
+    }
+
+    private toggleColumn(columnId: string): void {
+        if (this.collapsedColumns.has(columnId)) this.collapsedColumns.delete(columnId)
+        else this.collapsedColumns.add(columnId)
         this.rebuild()
     }
 

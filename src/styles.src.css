@@ -164,18 +164,56 @@
     }
 
     .kap-column-header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: var(--size-4-2, 0.5rem);
-        padding: var(--size-4-2, 0.5rem) var(--size-4-3, 0.75rem);
+        @apply flex items-center gap-2 px-3 py-2;
         font-weight: var(--font-semibold, 600);
         border-bottom: 1px solid var(--background-modifier-border);
     }
 
+    .kap-column-title {
+        @apply flex-1 min-w-0 truncate;
+    }
+
+    /* Per-column collapse/expand toggle (works in single- and multi-lane). */
+    .kap-column-toggle {
+        @apply inline-flex flex-none items-center justify-center w-5 h-5 p-0 border-0 rounded cursor-pointer bg-transparent;
+        color: var(--text-muted);
+        transition:
+            color var(--kap-transition) var(--kap-ease),
+            background-color var(--kap-transition) var(--kap-ease);
+    }
+
+    .kap-column-toggle svg {
+        @apply w-4 h-4;
+    }
+
+    .kap-column-toggle:hover {
+        color: var(--text-normal);
+        background: var(--background-modifier-hover);
+    }
+
     .kap-column-count {
+        @apply flex-none;
         color: var(--text-muted);
         font-weight: var(--font-normal, 400);
+    }
+
+    /* A collapsed column shrinks to a full-height vertical bar (cards hidden). */
+    .kap-column-collapsed {
+        @apply flex-none self-stretch w-11 max-w-none;
+    }
+
+    .kap-column-collapsed .kap-column-cards {
+        @apply hidden;
+    }
+
+    .kap-column-collapsed .kap-column-header {
+        @apply flex-col h-full gap-2 py-2;
+        border-bottom: none;
+    }
+
+    .kap-column-collapsed .kap-column-title {
+        @apply flex-none;
+        writing-mode: vertical-rl;
     }
 
     .kap-column-cards {
@@ -198,20 +236,14 @@
         overflow-y: auto;
     }
 
-    /* Each expanded lane gets an equal share of the height (a single lane fills
-       it, matching the no-swimlane board), with a min-height floor so many lanes
-       stay usable and the .kap-lanes container scrolls between them. Columns
-       scroll internally rather than the lane growing to its tallest column. */
+    /* A lane is sized to its content but capped at one screen (max-h-full): a
+       sparse lane stays short, a full one stops at the viewport and scrolls its
+       columns internally. The .kap-lanes container scrolls between lanes. */
     .kap-lane {
-        @apply flex flex-col flex-1 min-h-[18rem] border;
+        @apply flex flex-col flex-none max-h-full border;
         border-color: var(--background-modifier-border);
         border-radius: var(--radius-m, 8px);
         background: var(--background-primary-alt);
-    }
-
-    /* Collapsed lanes shrink to just their header. */
-    .kap-lane.kap-lane-collapsed {
-        @apply flex-none min-h-0;
     }
 
     .kap-lane-header {

@@ -11,6 +11,8 @@ export interface BoardRenderCallbacks {
     onContextMenu: (card: KanbanCard, event: MouseEvent) => void
     /** Toggle a swimlane's collapsed state (multi-lane boards only). */
     onToggleLane?: (laneId: string) => void
+    /** Toggle a status column's collapsed state (applies across all lanes). */
+    onToggleColumn?: (columnId: string) => void
     /** Activate a card relationship badge. */
     onRelationship?: (card: KanbanCard, role: RelationshipRole, event: MouseEvent) => void
 }
@@ -30,7 +32,8 @@ export function renderBoard(
     rootEl: HTMLElement,
     board: Board<KanbanCard>,
     callbacks: BoardRenderCallbacks,
-    collapsedLanes: ReadonlySet<string> = new Set()
+    collapsedLanes: ReadonlySet<string> = new Set(),
+    collapsedColumns: ReadonlySet<string> = new Set()
 ): void {
     rootEl.empty()
     delete rootEl.dataset[STRUCT_ATTR]
@@ -44,10 +47,11 @@ export function renderBoard(
     if (!board.isMultiLane) {
         const lane = board.lanes[0]
         const boardEl = rootEl.createDiv({ cls: 'kap-board' })
-        if (lane) renderColumns(boardEl, lane.columns, callbacks, lane.lane.id)
+        if (lane) renderColumns(boardEl, lane.columns, callbacks, lane.lane.id, collapsedColumns)
     } else {
         const lanesEl = rootEl.createDiv({ cls: 'kap-lanes' })
-        for (const lane of board.lanes) renderLane(lanesEl, lane, callbacks, collapsedLanes)
+        for (const lane of board.lanes)
+            renderLane(lanesEl, lane, callbacks, collapsedLanes, collapsedColumns)
     }
 
     rootEl.dataset[STRUCT_ATTR] = structureSignature(board)
@@ -64,19 +68,20 @@ export function patchBoard(
     rootEl: HTMLElement,
     board: Board<KanbanCard>,
     callbacks: BoardRenderCallbacks,
-    collapsedLanes: ReadonlySet<string> = new Set()
+    collapsedLanes: ReadonlySet<string> = new Set(),
+    collapsedColumns: ReadonlySet<string> = new Set()
 ): void {
     const hasBoardDom = rootEl.querySelector(':scope > .kap-board, :scope > .kap-lanes') !== null
     const hasColumns = board.lanes.some((l) => l.columns.length > 0)
     if (!hasBoardDom || !hasColumns || rootEl.dataset[STRUCT_ATTR] !== structureSignature(board)) {
-        renderBoard(rootEl, board, callbacks, collapsedLanes)
+        renderBoard(rootEl, board, callbacks, collapsedLanes, collapsedColumns)
         return
     }
 
     if (!board.isMultiLane) {
         const boardEl = rootEl.querySelector<HTMLElement>(':scope > .kap-board')
         const lane = board.lanes[0]
-        if (boardEl && lane) patchColumns(boardEl, lane.columns, callbacks)
+        if (boardEl && lane) patchColumns(boardEl, lane.columns, callbacks, collapsedColumns)
         return
     }
 
@@ -87,7 +92,7 @@ export function patchBoard(
         if (!laneEl) continue
         syncLaneChrome(laneEl, lane, collapsedLanes)
         const boardEl = laneEl.querySelector<HTMLElement>('.kap-board')
-        if (boardEl) patchColumns(boardEl, lane.columns, callbacks)
+        if (boardEl) patchColumns(boardEl, lane.columns, callbacks, collapsedColumns)
     }
 }
 
@@ -103,7 +108,8 @@ function renderLane(
     lanesEl: HTMLElement,
     lane: BoardLane<KanbanCard>,
     callbacks: BoardRenderCallbacks,
-    collapsedLanes: ReadonlySet<string>
+    collapsedLanes: ReadonlySet<string>,
+    collapsedColumns: ReadonlySet<string>
 ): void {
     const collapsed = collapsedLanes.has(lane.lane.id)
     const laneEl = lanesEl.createDiv({ cls: 'kap-lane' })
@@ -122,7 +128,7 @@ function renderLane(
 
     const body = laneEl.createDiv({ cls: 'kap-lane-body' })
     const boardEl = body.createDiv({ cls: 'kap-board' })
-    renderColumns(boardEl, lane.columns, callbacks, lane.lane.id)
+    renderColumns(boardEl, lane.columns, callbacks, lane.lane.id, collapsedColumns)
 }
 
 /** Update a lane's collapse state, toggle glyph, and card count in place. */
@@ -146,17 +152,29 @@ function renderColumns(
     boardEl: HTMLElement,
     columns: ReadonlyArray<BoardColumn<KanbanCard>>,
     callbacks: BoardRenderCallbacks,
-    laneId: string
+    laneId: string,
+    collapsedColumns: ReadonlySet<string>
 ): void {
     for (const { column, cards } of columns) {
         const accent = resolveColor(column.color)
+        const collapsed = collapsedColumns.has(column.id)
         const colEl = boardEl.createDiv({ cls: 'kap-column' })
         colEl.dataset['columnId'] = column.id
         colEl.dataset['laneId'] = laneId
         colEl.style.background = columnShade(accent)
+        if (collapsed) colEl.addClass('kap-column-collapsed')
 
         const header = colEl.createDiv({ cls: 'kap-column-header' })
         header.style.background = columnHeaderShade(accent)
+        const toggle = header.createEl('button', {
+            cls: 'kap-column-toggle',
+            attr: { 'aria-label': collapsed ? 'Expand column' : 'Collapse column' }
+        })
+        setIcon(toggle, collapsed ? 'chevron-right' : 'chevron-down')
+        toggle.addEventListener('click', (e) => {
+            e.stopPropagation()
+            callbacks.onToggleColumn?.(column.id)
+        })
         header.createSpan({ cls: 'kap-column-title', text: column.label })
         header.createSpan({ cls: 'kap-column-count', text: String(cards.length) })
 
@@ -170,7 +188,8 @@ function renderColumns(
 function patchColumns(
     boardEl: HTMLElement,
     columns: ReadonlyArray<BoardColumn<KanbanCard>>,
-    callbacks: BoardRenderCallbacks
+    callbacks: BoardRenderCallbacks,
+    collapsedColumns: ReadonlySet<string>
 ): void {
     for (const { column, cards } of columns) {
         const colEl = boardEl.querySelector<HTMLElement>(
@@ -181,6 +200,14 @@ function patchColumns(
         const accent = resolveColor(column.color)
         patchColumnCards(listEl, cards, accent, callbacks)
         colEl.querySelector('.kap-column-count')?.setText(String(cards.length))
+
+        const collapsed = collapsedColumns.has(column.id)
+        colEl.toggleClass('kap-column-collapsed', collapsed)
+        const toggle = colEl.querySelector<HTMLElement>('.kap-column-toggle')
+        if (toggle) {
+            setIcon(toggle, collapsed ? 'chevron-right' : 'chevron-down')
+            toggle.setAttribute('aria-label', collapsed ? 'Expand column' : 'Collapse column')
+        }
     }
 }
 
