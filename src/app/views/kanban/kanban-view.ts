@@ -40,7 +40,8 @@ import {
     buildCalendar,
     parseFrontmatterDate,
     shiftAnchor,
-    startOfDay
+    startOfDay,
+    weekdayLabels
 } from '../../domain/calendar'
 import type { CalendarRange, DateDimension } from '../../domain/calendar'
 import { compareTabCards, matchesQuery } from '../../domain/calendar-tabs'
@@ -610,6 +611,7 @@ export class KanbanActionPlannerView extends BasesView {
         const panelCards = this.sortFilterPanel(dimension === 'scheduled' ? unplanned : noDeadline)
         const placed = cards.filter((c) => dateFor(c, dimension) !== null)
         const cardsByDay = bucketByDay(placed, (c) => dateFor(c, dimension))
+        const firstDay = this.plugin.settings.firstDayOfWeek
 
         renderCalendar(
             this.boardEl,
@@ -617,11 +619,12 @@ export class KanbanActionPlannerView extends BasesView {
                 range,
                 activeTab: dimension,
                 anchorLabel: this.anchorLabel(anchor, range),
-                blocks: buildCalendar(anchor, range, today),
+                blocks: buildCalendar(anchor, range, today, firstDay),
                 panelCards,
                 cardsByDay,
                 panelCollapsed: this.calendarPanelCollapsed,
-                counts: { unplanned: unplanned.length, noDeadline: noDeadline.length }
+                counts: { unplanned: unplanned.length, noDeadline: noDeadline.length },
+                weekdays: weekdayLabels(firstDay)
             },
             {
                 onOpen: (card, newTab) => this.openCard(card, newTab),

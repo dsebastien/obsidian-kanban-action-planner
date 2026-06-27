@@ -7,7 +7,8 @@ import {
     shiftAnchor,
     startOfWeek,
     toDateKey,
-    weekBlock
+    weekBlock,
+    weekdayLabels
 } from './calendar'
 
 const TODAY = new Date(2026, 5, 26) // Fri 2026-06-26
@@ -20,10 +21,26 @@ describe('toDateKey', () => {
 })
 
 describe('startOfWeek', () => {
-    test('returns the Monday on/before the date', () => {
+    test('defaults to the Monday on/before the date', () => {
         expect(toDateKey(startOfWeek(new Date(2026, 5, 26)))).toBe('2026-06-22') // Fri → Mon
         expect(toDateKey(startOfWeek(new Date(2026, 5, 22)))).toBe('2026-06-22') // Mon → itself
         expect(toDateKey(startOfWeek(new Date(2026, 5, 28)))).toBe('2026-06-22') // Sun → prev Mon
+    })
+    test('honours a configurable first day (Sunday = 0)', () => {
+        expect(toDateKey(startOfWeek(new Date(2026, 5, 26), 0))).toBe('2026-06-21') // Fri → Sun
+        expect(toDateKey(startOfWeek(new Date(2026, 5, 21), 0))).toBe('2026-06-21') // Sun → itself
+        expect(toDateKey(startOfWeek(new Date(2026, 5, 27), 0))).toBe('2026-06-21') // Sat → prev Sun
+    })
+    test('honours Saturday (6) as first day', () => {
+        expect(toDateKey(startOfWeek(new Date(2026, 5, 26), 6))).toBe('2026-06-20') // Fri → Sat
+    })
+})
+
+describe('weekdayLabels', () => {
+    test('orders weekday headers from the first day', () => {
+        expect(weekdayLabels(1)).toEqual(['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'])
+        expect(weekdayLabels(0)).toEqual(['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'])
+        expect(weekdayLabels(6)).toEqual(['Sat', 'Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri'])
     })
 })
 
@@ -71,12 +88,17 @@ describe('monthBlock', () => {
 })
 
 describe('weekBlock', () => {
-    test('one Monday→Sunday week containing the anchor', () => {
+    test('one Monday→Sunday week containing the anchor (default)', () => {
         const block = weekBlock(TODAY, TODAY)
         expect(block.weeks).toHaveLength(1)
         const days = block.weeks[0] ?? []
         expect(days[0]?.key).toBe('2026-06-22')
         expect(days[6]?.key).toBe('2026-06-28')
+    })
+    test('Sunday-first week shifts the bounds', () => {
+        const days = weekBlock(TODAY, TODAY, 0).weeks[0] ?? []
+        expect(days[0]?.key).toBe('2026-06-21') // Sunday
+        expect(days[6]?.key).toBe('2026-06-27') // Saturday
     })
 })
 

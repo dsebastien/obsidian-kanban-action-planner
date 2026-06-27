@@ -9,6 +9,9 @@ type StringSettingKey = {
     [K in keyof PluginSettings]: PluginSettings[K] extends string ? K : never
 }[keyof PluginSettings]
 
+/** Full weekday names indexed by `Date.getDay()` (0 = Sunday). */
+const WEEKDAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+
 export class KanbanActionPlannerSettingTab extends PluginSettingTab {
     plugin: KanbanActionPlannerPlugin
 
@@ -91,6 +94,22 @@ export class KanbanActionPlannerSettingTab extends PluginSettingTab {
         )
 
         new Setting(containerEl)
+            .setName('First day of the week')
+            .setDesc('Which day calendar weeks start on.')
+            .addDropdown((dd) => {
+                for (let day = 0; day < WEEKDAY_NAMES.length; day++) {
+                    dd.addOption(String(day), WEEKDAY_NAMES[day] ?? '')
+                }
+                dd.setValue(String(this.plugin.settings.firstDayOfWeek))
+                dd.onChange((value) => {
+                    const day = Number(value)
+                    if (Number.isInteger(day) && day >= 0 && day <= 6) {
+                        void this.updateFirstDayOfWeek(day)
+                    }
+                })
+            })
+
+        new Setting(containerEl)
             .setName('Default statuses (columns)')
             .setDesc(
                 'One status value per line, in column order. Used when a board does not define ' +
@@ -120,6 +139,13 @@ export class KanbanActionPlannerSettingTab extends PluginSettingTab {
     private async updateSetting(key: StringSettingKey, value: string): Promise<void> {
         this.plugin.settings = produce(this.plugin.settings, (draft) => {
             draft[key] = value
+        })
+        await this.plugin.saveSettings()
+    }
+
+    private async updateFirstDayOfWeek(day: number): Promise<void> {
+        this.plugin.settings = produce(this.plugin.settings, (draft) => {
+            draft.firstDayOfWeek = day
         })
         await this.plugin.saveSettings()
     }

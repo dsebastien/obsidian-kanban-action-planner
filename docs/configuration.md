@@ -152,3 +152,7 @@ written with the profile's momentjs **date format** (default `YYYY-MM-DD`). The 
 default **range** (week/month/quarter/year) and the **panel sort** (manual order / name /
 a property) and **filter** (name or `#tag`) are all view options. Tab counts reflect the full
 backlog size; the filter narrows only the visible list.
+
+The week the calendar grid starts on is set by **First day of the week** in the plugin settings
+(default **Monday**). This only affects the calendar display; the `{{week}}` archive placeholder
+stays ISO week numbering.

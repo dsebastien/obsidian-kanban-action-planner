@@ -37,6 +37,9 @@ export const DEFAULT_SIBLING_PROPERTY = 'siblings'
 /** Default momentjs date format used when writing scheduling dates to notes. */
 export const DEFAULT_DATE_FORMAT = 'YYYY-MM-DD'
 
+/** Default first day of the calendar week (0 = Sunday … 6 = Saturday). Monday. */
+export const DEFAULT_FIRST_DAY_OF_WEEK = 1
+
 /** Sentinel column id for cards with a missing/invalid status value. */
 export const UNMAPPED_COLUMN_ID = '__unmapped__'
 

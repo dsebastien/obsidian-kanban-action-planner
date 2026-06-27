@@ -128,7 +128,8 @@ Each tab count is the size of that backlog. Collapse the panel with the **«** t
 
 The calendar toolbar switches range — **Week**, **Month**, **Quarter**, **Year** — and
 navigates with **‹ / › / Today**. Quarter and year show compact month grids with a per-day
-count. Click any card to open its note.
+count. Click any card to open its note. Weeks start on the day set by **First day of the week**
+in the plugin settings (default Monday).
 
 **Schedule by dragging:**
 

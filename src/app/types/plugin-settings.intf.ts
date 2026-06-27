@@ -4,6 +4,7 @@ import {
     DEFAULT_BLOCKED_BY_PROPERTY,
     DEFAULT_DATE_FORMAT,
     DEFAULT_DUE_DATE_PROPERTY,
+    DEFAULT_FIRST_DAY_OF_WEEK,
     DEFAULT_ORDER_PROPERTY,
     DEFAULT_SCHEDULED_DATE_PROPERTY,
     DEFAULT_STATUS_PROPERTY
@@ -30,6 +31,8 @@ export const pluginSettingsSchema = z.object({
     defaultDueDateProperty: z.string(),
     /** Default momentjs format for scheduling dates written to notes. */
     defaultDateFormat: z.string(),
+    /** First day of the calendar week (0 = Sunday … 6 = Saturday). */
+    firstDayOfWeek: z.number().int().min(0).max(6),
     /**
      * Global default status values (columns) used when neither the view nor a
      * Starter Kit note type defines them. Order is the column order.
@@ -49,6 +52,7 @@ export const DEFAULT_SETTINGS: PluginSettings = {
     defaultScheduledDateProperty: DEFAULT_SCHEDULED_DATE_PROPERTY,
     defaultDueDateProperty: DEFAULT_DUE_DATE_PROPERTY,
     defaultDateFormat: DEFAULT_DATE_FORMAT,
+    firstDayOfWeek: DEFAULT_FIRST_DAY_OF_WEEK,
     defaultStatuses: [],
     profiles: []
 }

@@ -13,6 +13,8 @@ export interface CalendarViewModel {
     cardsByDay: Map<string, KanbanCard[]>
     panelCollapsed: boolean
     counts: { unplanned: number; noDeadline: number }
+    /** Weekday header labels, ordered for the configured first day of week. */
+    weekdays: string[]
 }
 
 export interface CalendarCallbacks {
@@ -25,7 +27,6 @@ export interface CalendarCallbacks {
     onTogglePanel: () => void
 }
 
-const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 const RANGES: Array<{ key: CalendarRange; label: string }> = [
     { key: 'week', label: 'Week' },
     { key: 'month', label: 'Month' },
@@ -145,7 +146,7 @@ function renderBlock(
 
     const grid = blockEl.createDiv({ cls: 'kap-cal-grid' })
     const head = grid.createDiv({ cls: 'kap-cal-weekrow kap-cal-weekhead' })
-    for (const wd of WEEKDAYS) head.createSpan({ cls: 'kap-cal-weekday', text: wd })
+    for (const wd of model.weekdays) head.createSpan({ cls: 'kap-cal-weekday', text: wd })
 
     const compact = model.range === 'quarter' || model.range === 'year'
     for (const week of block.weeks) {

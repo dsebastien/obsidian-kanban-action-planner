@@ -48,6 +48,17 @@ const MONTH_NAMES = [
     'December'
 ]
 
+/** Short weekday names indexed by `Date.getDay()` (0 = Sunday). */
+const WEEKDAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+
+/** Default first day of the week (Monday) when none is supplied. */
+const DEFAULT_FIRST_DAY = 1
+
+/** Weekday header labels starting at `firstDay` (0 = Sunday … 6 = Saturday). */
+export function weekdayLabels(firstDay: number = DEFAULT_FIRST_DAY): string[] {
+    return Array.from({ length: 7 }, (_, i) => WEEKDAY_NAMES[(firstDay + i) % 7] ?? '')
+}
+
 /** Local `YYYY-MM-DD` key for a date (timezone-stable, no UTC shift). */
 export function toDateKey(date: Date): string {
     const y = String(date.getFullYear()).padStart(4, '0')
@@ -61,12 +72,14 @@ export function startOfDay(date: Date): Date {
     return new Date(date.getFullYear(), date.getMonth(), date.getDate())
 }
 
-/** The Monday on or before `date` (ISO weeks start Monday). */
-export function startOfWeek(date: Date): Date {
+/**
+ * The start of the week containing `date`, for a configurable `firstDay`
+ * (0 = Sunday … 6 = Saturday; default Monday). Returns local midnight.
+ */
+export function startOfWeek(date: Date, firstDay: number = DEFAULT_FIRST_DAY): Date {
     const d = startOfDay(date)
-    const dow = d.getDay() // 0 = Sunday
-    const delta = dow === 0 ? -6 : 1 - dow
-    d.setDate(d.getDate() + delta)
+    const delta = (d.getDay() - firstDay + 7) % 7
+    d.setDate(d.getDate() - delta)
     return d
 }
 
@@ -91,10 +104,15 @@ export function parseFrontmatterDate(raw: unknown): Date | null {
     return null
 }
 
-/** Build a 6×7 month grid (Monday-first), marking spill days and today. */
-export function monthBlock(year: number, month0: number, today: Date): CalendarBlock {
+/** Build a 6×7 month grid (starting on `firstDay`), marking spill days and today. */
+export function monthBlock(
+    year: number,
+    month0: number,
+    today: Date,
+    firstDay: number = DEFAULT_FIRST_DAY
+): CalendarBlock {
     const first = new Date(year, month0, 1)
-    const gridStart = startOfWeek(first)
+    const gridStart = startOfWeek(first, firstDay)
     const todayKey = toDateKey(today)
     const weeks: CalendarDay[][] = []
     const cursor = new Date(gridStart)
@@ -115,9 +133,13 @@ export function monthBlock(year: number, month0: number, today: Date): CalendarB
     return { label: `${MONTH_NAMES[month0] ?? ''} ${String(year)}`, weeks }
 }
 
-/** Build a single Monday–Sunday week block around `anchor`. */
-export function weekBlock(anchor: Date, today: Date): CalendarBlock {
-    const start = startOfWeek(anchor)
+/** Build a single 7-day week block around `anchor`, starting on `firstDay`. */
+export function weekBlock(
+    anchor: Date,
+    today: Date,
+    firstDay: number = DEFAULT_FIRST_DAY
+): CalendarBlock {
+    const start = startOfWeek(anchor, firstDay)
     const todayKey = toDateKey(today)
     const week: CalendarDay[] = []
     const cursor = new Date(start)
@@ -145,20 +167,25 @@ export function weekBlock(anchor: Date, today: Date): CalendarBlock {
  * - `quarter` → the three month grids of the anchor's quarter
  * - `year` → all twelve month grids of the anchor's year
  */
-export function buildCalendar(anchor: Date, range: CalendarRange, today: Date): CalendarBlock[] {
+export function buildCalendar(
+    anchor: Date,
+    range: CalendarRange,
+    today: Date,
+    firstDay: number = DEFAULT_FIRST_DAY
+): CalendarBlock[] {
     const year = anchor.getFullYear()
     const month0 = anchor.getMonth()
     switch (range) {
         case 'week':
-            return [weekBlock(anchor, today)]
+            return [weekBlock(anchor, today, firstDay)]
         case 'month':
-            return [monthBlock(year, month0, today)]
+            return [monthBlock(year, month0, today, firstDay)]
         case 'quarter': {
             const qStart = Math.floor(month0 / 3) * 3
-            return [0, 1, 2].map((i) => monthBlock(year, qStart + i, today))
+            return [0, 1, 2].map((i) => monthBlock(year, qStart + i, today, firstDay))
         }
         case 'year':
-            return Array.from({ length: 12 }, (_, m) => monthBlock(year, m, today))
+            return Array.from({ length: 12 }, (_, m) => monthBlock(year, m, today, firstDay))
     }
 }
 
