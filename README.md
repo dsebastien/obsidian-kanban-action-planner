@@ -4,9 +4,17 @@ An Obsidian plugin that adds a **Kanban board view type to [Obsidian Bases](http
 
 Map note statuses to columns, reorder cards (persisted back into the notes), customize colors, model relationships between note types, surface blocked items, filter relationally, and flip the same board into a calendar to schedule work — all driven by your existing note properties, with optional auto-configuration from the [Obsidian Starter Kit](https://store.dsebastien.net/) plugin when it is installed.
 
-> Status: in development. See [`documentation/plans/`](./documentation/plans/) for the build plan.
+> Requires Obsidian 1.13+ (the Bases view API). Works on desktop and mobile.
 
-## Highlights (planned for 1.0)
+## Install
+
+**From Community plugins** (once listed): **Settings → Community plugins → Browse**, search for **Kanban Action Planner**, install, and enable.
+
+**Manually:** download `main.js`, `manifest.json`, and `styles.css` from the [latest release](https://github.com/dsebastien/obsidian-kanban-action-planner/releases) into `<vault>/.obsidian/plugins/kanban-action-planner/`, then enable the plugin in **Settings → Community plugins**.
+
+Then add a **Kanban** view to any [Base](https://help.obsidian.md/bases) — see the [usage guide](./docs/usage.md).
+
+## Highlights
 
 - **Kanban view in Bases** — add one or more Kanban views to any Base; the Base's own filters select the notes.
 - **Status → columns** — columns are derived from a configurable status property; unmapped notes collect in an "Unmapped" column that hides itself when empty.
