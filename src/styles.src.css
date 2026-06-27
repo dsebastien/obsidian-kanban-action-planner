@@ -175,15 +175,17 @@
 
     /* Per-column collapse/expand toggle (works in single- and multi-lane). */
     .kap-column-toggle {
-        @apply inline-flex flex-none items-center justify-center w-5 h-5 p-0 border-0 rounded cursor-pointer bg-transparent;
+        @apply inline-flex flex-none items-center justify-center w-6 h-6 p-0 border-0 rounded cursor-pointer bg-transparent;
         color: var(--text-muted);
         transition:
             color var(--kap-transition) var(--kap-ease),
             background-color var(--kap-transition) var(--kap-ease);
     }
 
+    /* Match the swimlane chevron size; shrink-0 stops the flex button from
+       crushing the chevron's width (Obsidian's `.svg-icon` sets the size). */
     .kap-column-toggle svg {
-        @apply w-4 h-4;
+        @apply shrink-0;
     }
 
     .kap-column-toggle:hover {
@@ -264,9 +266,9 @@
             background-color var(--kap-transition) var(--kap-ease);
     }
 
-    /* setIcon's default glyph is tiny in a lane header — size it up. */
+    /* shrink-0 keeps the chevron at its natural icon size (matches columns). */
     .kap-lane-toggle svg {
-        @apply w-[1.15rem] h-[1.15rem];
+        @apply shrink-0;
     }
 
     .kap-lane-toggle:hover {
