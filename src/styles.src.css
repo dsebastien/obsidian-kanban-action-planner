@@ -46,8 +46,14 @@
         --kap-ease: cubic-bezier(0.2, 0, 0, 1);
     }
 
-    /* "Configure board" gear (right side of the top toolbar). */
-    .kap-root .kap-gear {
+    /* Right-side toolbar actions: swimlane up/down nav + configure gear. */
+    .kap-root .kap-toolbar-actions {
+        @apply inline-flex items-center gap-1;
+    }
+
+    /* The configure gear and the swimlane nav buttons share one icon-button box. */
+    .kap-root .kap-gear,
+    .kap-root .kap-nav-btn {
         @apply inline-flex flex-none items-center justify-center w-[1.9rem] h-[1.9rem] p-0 border cursor-pointer;
         border-radius: var(--radius-s, 6px);
         color: var(--text-muted);
@@ -61,25 +67,25 @@
             transform var(--kap-transition) var(--kap-ease);
     }
 
-    /* Rotate only the icon, not the button container. */
-    .kap-root .kap-gear svg {
+    .kap-root .kap-gear svg,
+    .kap-root .kap-nav-btn svg {
         transition: transform var(--kap-transition) var(--kap-ease);
     }
 
-    .kap-root .kap-gear:hover {
+    .kap-root .kap-gear:hover,
+    .kap-root .kap-nav-btn:hover {
         color: var(--text-normal);
         border-color: var(--interactive-accent);
         box-shadow: var(--shadow-m);
     }
 
-    .kap-root .kap-gear:hover svg {
-        transform: rotate(30deg);
-    }
-
-    .kap-root .kap-gear:active {
+    .kap-root .kap-gear:active,
+    .kap-root .kap-nav-btn:active {
         transform: scale(0.92);
     }
 
+    /* Rotate only the gear icon (not the nav chevrons), and not its container. */
+    .kap-root .kap-gear:hover svg,
     .kap-root .kap-gear:active svg {
         transform: rotate(30deg);
     }
@@ -192,11 +198,20 @@
         overflow-y: auto;
     }
 
+    /* Each expanded lane gets an equal share of the height (a single lane fills
+       it, matching the no-swimlane board), with a min-height floor so many lanes
+       stay usable and the .kap-lanes container scrolls between them. Columns
+       scroll internally rather than the lane growing to its tallest column. */
     .kap-lane {
-        flex: 0 0 auto;
-        border: 1px solid var(--background-modifier-border);
+        @apply flex flex-col flex-1 min-h-[18rem] border;
+        border-color: var(--background-modifier-border);
         border-radius: var(--radius-m, 8px);
         background: var(--background-primary-alt);
+    }
+
+    /* Collapsed lanes shrink to just their header. */
+    .kap-lane.kap-lane-collapsed {
+        @apply flex-none min-h-0;
     }
 
     .kap-lane-header {
@@ -210,20 +225,16 @@
     }
 
     .kap-lane-toggle {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        width: 1.25rem;
-        height: 1.25rem;
-        padding: 0;
+        @apply inline-flex items-center justify-center w-7 h-7 p-0 border-0 rounded cursor-pointer bg-transparent;
         color: var(--text-muted);
-        background: transparent;
-        border: none;
-        border-radius: var(--radius-s, 6px);
-        cursor: pointer;
         transition:
             color var(--kap-transition) var(--kap-ease),
             background-color var(--kap-transition) var(--kap-ease);
+    }
+
+    /* setIcon's default glyph is tiny in a lane header — size it up. */
+    .kap-lane-toggle svg {
+        @apply w-[1.15rem] h-[1.15rem];
     }
 
     .kap-lane-toggle:hover {
@@ -237,21 +248,20 @@
     }
 
     .kap-lane-body {
-        overflow: hidden;
+        @apply flex-1 min-h-0 overflow-hidden;
     }
 
     .kap-lane.kap-lane-collapsed .kap-lane-body {
-        display: none;
+        @apply hidden;
     }
 
-    /* A lane's board sizes to its content; the .kap-lanes container scrolls. */
+    /* The lane's board fills the lane; its columns scroll internally. */
     .kap-lane .kap-board {
-        height: auto;
-        padding: 0 var(--size-4-3, 0.75rem) var(--size-4-3, 0.75rem);
+        @apply h-full px-3 pt-0 pb-3;
     }
 
     .kap-lane .kap-column {
-        max-height: none;
+        @apply max-h-full;
     }
 
     /* Uniform card envelope: a shared min-height floor gives a consistent look

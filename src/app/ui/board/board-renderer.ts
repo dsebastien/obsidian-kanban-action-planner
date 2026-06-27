@@ -1,3 +1,4 @@
+import { setIcon } from 'obsidian'
 import type { Board, BoardColumn, BoardLane } from '../../domain/board-model'
 import type { RelationshipRole } from '../../domain/profile'
 import { columnHeaderShade, columnShade, resolveColor } from '../../services/colors.service'
@@ -112,9 +113,9 @@ function renderLane(
     const header = laneEl.createDiv({ cls: 'kap-lane-header' })
     const toggle = header.createEl('button', {
         cls: 'kap-lane-toggle',
-        text: collapsed ? '▸' : '▾',
         attr: { 'aria-label': collapsed ? 'Expand lane' : 'Collapse lane' }
     })
+    setIcon(toggle, collapsed ? 'chevron-right' : 'chevron-down')
     toggle.addEventListener('click', () => callbacks.onToggleLane?.(lane.lane.id))
     header.createSpan({ cls: 'kap-lane-title', text: lane.lane.label })
     header.createSpan({ cls: 'kap-lane-count', text: String(lane.cardCount) })
@@ -134,7 +135,7 @@ function syncLaneChrome(
     laneEl.toggleClass('kap-lane-collapsed', collapsed)
     const toggle = laneEl.querySelector<HTMLElement>('.kap-lane-toggle')
     if (toggle) {
-        toggle.setText(collapsed ? '▸' : '▾')
+        setIcon(toggle, collapsed ? 'chevron-right' : 'chevron-down')
         toggle.setAttribute('aria-label', collapsed ? 'Expand lane' : 'Collapse lane')
     }
     laneEl.querySelector('.kap-lane-count')?.setText(String(lane.cardCount))

@@ -196,7 +196,6 @@ export class KanbanActionPlannerView extends BasesView {
 
     private rebuild(): void {
         if (!this.boardEl) return
-        this.renderToolbar()
         const files = this.files()
 
         this.availableProperties = this.collectPropertyNames(files)
@@ -214,6 +213,7 @@ export class KanbanActionPlannerView extends BasesView {
         this.cardsByKey = new Map(cards.map((c) => [c.key, c]))
 
         if (this.calendarMode()) {
+            this.renderToolbar(false)
             this.renderCalendarFrame(cards)
             return
         }
@@ -237,6 +237,7 @@ export class KanbanActionPlannerView extends BasesView {
             }
         }
         this.board = board
+        this.renderToolbar(this.board.lanes.length > 1)
 
         log(
             `Kanban rebuild: ${String(cards.length)} cards, ${String(this.columns.length)} columns, ${String(board.lanes.length)} lane(s), profile "${this.profile.name}"`,
@@ -587,13 +588,38 @@ export class KanbanActionPlannerView extends BasesView {
         return this.config.get('calendarMode') === true
     }
 
-    /** (Re)render the top toolbar so its mode switch reflects the current mode. */
-    private renderToolbar(): void {
+    /** (Re)render the top toolbar so its controls reflect the current mode + lanes. */
+    private renderToolbar(showLaneNav: boolean): void {
         if (!this.toolbarEl) return
-        renderViewToolbar(this.toolbarEl, this.calendarMode(), {
-            onSetCalendarMode: (calendar) => this.setCalendarMode(calendar),
-            onConfigure: () => this.openConfigureModal()
-        })
+        renderViewToolbar(
+            this.toolbarEl,
+            { calendarMode: this.calendarMode(), showLaneNav },
+            {
+                onSetCalendarMode: (calendar) => this.setCalendarMode(calendar),
+                onConfigure: () => this.openConfigureModal(),
+                onLanePrev: () => this.scrollLane(-1),
+                onLaneNext: () => this.scrollLane(1)
+            }
+        )
+    }
+
+    /** Smooth-scroll the swimlane container to the previous/next lane. */
+    private scrollLane(direction: number): void {
+        const lanesEl = this.boardEl?.querySelector<HTMLElement>(':scope > .kap-lanes')
+        if (!lanesEl) return
+        const lanes = Array.from(lanesEl.querySelectorAll<HTMLElement>(':scope > .kap-lane'))
+        if (lanes.length === 0) return
+        const containerTop = lanesEl.getBoundingClientRect().top
+        const tops = lanes.map(
+            (l) => l.getBoundingClientRect().top - containerTop + lanesEl.scrollTop
+        )
+        const current = tops.reduce((acc, top, i) => (top <= lanesEl.scrollTop + 4 ? i : acc), 0)
+        const target = Math.max(0, Math.min(lanes.length - 1, current + direction))
+        const targetTop = tops[target]
+        if (targetTop === undefined) return
+        // Obsidian's Electron build doesn't honor smooth scrollTo on overflow
+        // containers, so jump instantly.
+        lanesEl.scrollTo({ top: targetTop, behavior: 'auto' })
     }
 
     /** Persist the board/calendar mode and re-render in place (rebuild() re-renders the toolbar). */
