@@ -57,7 +57,7 @@ import { patchBoard } from '../../ui/board/board-renderer'
 import { BoardDnd } from '../../ui/board/dnd-controller'
 import type { DropTarget } from '../../ui/board/dnd-controller'
 import type { KanbanCard } from '../../ui/board/types'
-import { renderGearButton } from '../../ui/gear-button'
+import { renderViewToolbar } from '../../ui/view-toolbar'
 import { ConfigureBoardModal } from '../../ui/configure-board-modal'
 import { log } from '../../../utils/log'
 
@@ -75,6 +75,7 @@ export class KanbanActionPlannerView extends BasesView {
     private readonly containerEl: HTMLElement
     private readonly plugin: KanbanActionPlannerPlugin
     private rootEl: HTMLElement | null = null
+    private toolbarEl: HTMLElement | null = null
     private boardEl: HTMLElement | null = null
     private dnd: BoardDnd | null = null
     private calendarDnd: CalendarDnd | null = null
@@ -115,7 +116,9 @@ export class KanbanActionPlannerView extends BasesView {
 
     override onload(): void {
         this.rootEl = this.containerEl.createDiv({ cls: CSS_ROOT_CLASS })
-        renderGearButton(this.rootEl, () => this.openConfigureModal())
+        // Toolbar contents are rendered in rebuild(), once `this.config` is
+        // populated — reading it here (onload) would throw.
+        this.toolbarEl = this.rootEl.createDiv({ cls: 'kap-toolbar' })
         this.boardEl = this.rootEl.createDiv({ cls: 'kap-board-host' })
         this.dnd = new BoardDnd(this.boardEl, {
             onDrop: (cardKey, target) => void this.handleDrop(cardKey, target)
@@ -133,6 +136,7 @@ export class KanbanActionPlannerView extends BasesView {
         this.calendarDnd = null
         this.rootEl?.remove()
         this.rootEl = null
+        this.toolbarEl = null
         this.boardEl = null
     }
 
@@ -192,6 +196,7 @@ export class KanbanActionPlannerView extends BasesView {
 
     private rebuild(): void {
         if (!this.boardEl) return
+        this.renderToolbar()
         const files = this.files()
 
         this.availableProperties = this.collectPropertyNames(files)
@@ -580,6 +585,22 @@ export class KanbanActionPlannerView extends BasesView {
 
     private calendarMode(): boolean {
         return this.config.get('calendarMode') === true
+    }
+
+    /** (Re)render the top toolbar so its mode switch reflects the current mode. */
+    private renderToolbar(): void {
+        if (!this.toolbarEl) return
+        renderViewToolbar(this.toolbarEl, this.calendarMode(), {
+            onSetCalendarMode: (calendar) => this.setCalendarMode(calendar),
+            onConfigure: () => this.openConfigureModal()
+        })
+    }
+
+    /** Persist the board/calendar mode and re-render in place (rebuild() re-renders the toolbar). */
+    private setCalendarMode(calendar: boolean): void {
+        if (this.calendarMode() === calendar) return
+        this.config.set('calendarMode', calendar)
+        this.rebuild()
     }
 
     private effectiveRange(): CalendarRange {

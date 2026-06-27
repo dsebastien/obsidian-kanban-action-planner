@@ -257,6 +257,8 @@ function renderChip(parent: HTMLElement, card: KanbanCard, callbacks: CalendarCa
     chip.dataset['cardKey'] = card.key
     chip.setAttribute('role', 'listitem')
     chip.setAttribute('tabindex', '0')
+    // Full title on hover — chips can clamp/truncate, so keep the text reachable.
+    chip.setAttribute('title', card.display.title)
     chip.createSpan({ cls: 'kap-cal-card-title', text: card.display.title })
     chip.addEventListener('click', (e) => callbacks.onOpen(card, e.ctrlKey || e.metaKey))
     chip.addEventListener('keydown', (e) => {

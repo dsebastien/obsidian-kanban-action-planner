@@ -28,6 +28,7 @@
    ======================================== */
 @layer kap-components {
     .kap-root {
+        @apply flex flex-col;
         position: relative;
         height: 100%;
         width: 100%;
@@ -45,23 +46,13 @@
         --kap-ease: cubic-bezier(0.2, 0, 0, 1);
     }
 
-    /* Floating "Configure board" gear. */
+    /* "Configure board" gear (right side of the top toolbar). */
     .kap-root .kap-gear {
-        position: absolute;
-        top: var(--size-4-2, 0.5rem);
-        right: var(--size-4-2, 0.5rem);
-        z-index: 5;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        width: 1.9rem;
-        height: 1.9rem;
-        padding: 0;
+        @apply inline-flex flex-none items-center justify-center w-[1.9rem] h-[1.9rem] p-0 border cursor-pointer;
+        border-radius: var(--radius-s, 6px);
         color: var(--text-muted);
         background: var(--background-secondary);
-        border: 1px solid var(--background-modifier-border);
-        border-radius: var(--radius-s, 6px);
-        cursor: pointer;
+        border-color: var(--background-modifier-border);
         box-shadow: var(--shadow-s);
         transition:
             color var(--kap-transition) var(--kap-ease),
@@ -100,9 +91,42 @@
     }
 
     .kap-root .kap-board-host {
-        height: 100%;
-        width: 100%;
+        @apply flex-1 min-h-0 w-full;
     }
+
+    /* Top toolbar: Board/Calendar mode switch (left) + configure gear (right). */
+    .kap-root .kap-toolbar {
+        @apply flex items-center justify-between gap-2 flex-none px-3 py-2;
+        border-bottom: 1px solid var(--background-modifier-border);
+    }
+
+    .kap-root .kap-mode-switch {
+        @apply inline-flex items-center gap-1;
+    }
+
+    .kap-root .kap-mode-btn {
+        @apply inline-flex items-center justify-center h-7 px-3 border-0 rounded cursor-pointer text-[0.85em];
+        color: var(--text-muted);
+        background: var(--background-modifier-hover);
+        transition:
+            color var(--kap-transition) var(--kap-ease),
+            background-color var(--kap-transition) var(--kap-ease);
+    }
+
+    .kap-root .kap-mode-btn:hover {
+        color: var(--text-normal);
+        background: var(--background-modifier-border);
+    }
+
+    /* stylelint-disable declaration-no-important -- the active indicator must beat
+       Obsidian's unlayered default <button> styles; unlayered declarations outrank
+       any layered rule regardless of specificity, so !important is the only lever. */
+    .kap-root .kap-mode-btn-active,
+    .kap-root .kap-mode-btn-active:hover {
+        color: var(--text-on-accent) !important;
+        background: var(--interactive-accent) !important;
+    }
+    /* stylelint-enable declaration-no-important */
 
     /* Board: horizontal row of columns, scrolls horizontally when needed. */
     .kap-board {
@@ -454,11 +478,14 @@
         background: var(--background-modifier-border);
     }
 
+    /* stylelint-disable declaration-no-important -- beats Obsidian's unlayered
+       default <button> styles (see .kap-mode-btn-active for the rationale). */
     .kap-panel-tab-active,
     .kap-panel-tab-active:hover {
-        color: var(--text-on-accent);
-        background: var(--interactive-accent);
+        color: var(--text-on-accent) !important;
+        background: var(--interactive-accent) !important;
     }
+    /* stylelint-enable declaration-no-important */
 
     .kap-panel-tab-count {
         @apply text-[0.8em] opacity-80;
@@ -472,6 +499,19 @@
     .kap-panel-empty {
         @apply text-[0.85em] italic p-1;
         color: var(--text-muted);
+    }
+
+    /* Panel chips: a uniform two-line block so the Unplanned / No-deadline lists
+       stay visually consistent and scroll. The title clamps to two lines (the
+       reserved min-height keeps one- and two-line titles the same size); anything
+       longer is readable in full via the chip's hover tooltip (title attribute).
+       Larger size + accent than the compact day-cell chip. */
+    .kap-panel-list .kap-cal-card {
+        @apply px-2 py-1.5 text-[0.85em] border-l-[3px];
+    }
+
+    .kap-panel-list .kap-cal-card-title {
+        @apply line-clamp-2 whitespace-normal leading-snug min-h-[2.75em];
     }
 
     /* Right calendar pane. */
@@ -510,11 +550,14 @@
         transform: scale(0.94);
     }
 
+    /* stylelint-disable declaration-no-important -- beats Obsidian's unlayered
+       default <button> styles (see .kap-mode-btn-active for the rationale). */
     .kap-range-btn-active,
     .kap-range-btn-active:hover {
-        color: var(--text-on-accent);
-        background: var(--interactive-accent);
+        color: var(--text-on-accent) !important;
+        background: var(--interactive-accent) !important;
     }
+    /* stylelint-enable declaration-no-important */
 
     .kap-calendar-anchor {
         @apply font-medium;
@@ -622,9 +665,12 @@
         background: var(--interactive-accent);
     }
 
-    /* A scheduled/due card chip (on a day, or in the panel list). */
+    /* A scheduled/due card chip (on a day, or in the panel list). `shrink-0` is
+       load-bearing: as a flex item in a scrolling flex column (the panel can hold
+       hundreds), the default flex-shrink would crush each chip below its line
+       height and clip the text — it must keep its natural height and scroll. */
     .kap-cal-card {
-        @apply px-1 py-0.5 rounded cursor-grab text-[0.8em] truncate;
+        @apply shrink-0 px-1 py-0.5 rounded cursor-grab text-[0.8em] truncate;
         color: var(--text-normal);
         background: var(--background-modifier-hover);
         border-left: 2px solid var(--interactive-accent);

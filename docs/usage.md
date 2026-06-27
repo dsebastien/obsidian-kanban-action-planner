@@ -113,8 +113,10 @@ longer match the Base's filter.
 
 ## Calendar mode
 
-Turn the board into a **scheduling calendar**. Enable **Calendar mode** in the view options.
-The view splits into a left **Scheduling** panel and a calendar on the right.
+Turn the board into a **scheduling calendar**. Use the **Board / Calendar** switch at the
+top-left of the view to flip between the two modes (it persists per view; you can also toggle
+**Calendar mode** in the view options). The view splits into a left **Scheduling** panel and a
+calendar on the right.
 
 The panel has two tabs, and the active tab decides which date the calendar works with:
 
