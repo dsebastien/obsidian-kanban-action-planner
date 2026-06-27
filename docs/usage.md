@@ -126,16 +126,17 @@ The panel has two tabs, and the active tab decides which date the calendar works
 Each tab count is the size of that backlog. Collapse the panel with the **«** toggle (the
 "Scheduling" title stays visible, turned vertical).
 
-The calendar toolbar switches range — **Week**, **Month**, **Quarter**, **Year** — and
+The calendar toolbar switches range — **Day**, **Week**, **Month**, **Quarter**, **Year** — and
 navigates with **‹ / › / Today**. Quarter and year show compact month grids with a per-day
 count. Click any card to open its note. Weeks start on the day set by **First day of the week**
 in the plugin settings (default Monday).
 
-**Zoom into a day:** click a **day number** (or the empty space in a day cell) to zoom into that
-single day — a focused view listing all its cards. Use **‹ / ›** to step to the previous/next
-day, or **‹ Back** to return to the grid. This is especially handy in Quarter/Year view, where
-days only show a count: click one to see what's on it. You can still drag a card from the panel
-onto the focused day to schedule it, or drag one out to the panel to clear its date.
+**Day view / zoom into a day:** click **Day** in the range switcher to open today as a focused
+single-day view, or click any **day number** (or empty cell space) to zoom into that specific
+day. The day view lists all of that day's cards and has its own **‹ / Today / ›** day navigation
+(plus **‹ Back** to return to the previous range). This is especially handy from Quarter/Year,
+where days only show a count: click one to see what's on it. You can still drag a card from the
+panel onto the focused day to schedule it, or drag one out to the panel to clear its date.
 
 **Schedule by dragging:**
 

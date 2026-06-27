@@ -62,9 +62,11 @@ column rule.
   filter/sort). The active tab selects the **date dimension** (`scheduled` vs `deadline`);
   dragging a card onto a day writes that dimension's property (formatted via
   `utils/momentjs.ts`), dragging back to the panel clears it (`ui/calendar/*`).
-  **Zoom into a day:** clicking a day number focuses a single-day view (`focusedDay` in the
-  renderer model) listing that day's cards with ‹ Back + ‹/› day nav; the focus list keeps the
-  `.kap-cal-day`/`data-day` contract so the same `CalendarDnd` schedules/clears dates there.
+  **Day view / zoom:** the range switcher has a first-class **Day** entry (focuses today); a day
+  number click zooms into that specific day. Both set `focusedDay` in the renderer model →
+  a single-day list with ‹ Back + ‹/Today/› day nav and the range switcher (Day active). The
+  focus list keeps the `.kap-cal-day`/`data-day` contract so the same `CalendarDnd`
+  schedules/clears dates there.
   Calendar/lane UI state (range override, anchor, focused day, active tab, panel/lane collapse)
   is currently in-memory per session.
 

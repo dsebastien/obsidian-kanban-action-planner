@@ -668,6 +668,10 @@ export class KanbanActionPlannerView extends BasesView {
                     const current = parseFrontmatterDate(this.calendarFocusedDay)
                     if (current) this.calendarFocusedDay = toDateKey(addDays(current, direction))
                     this.rebuild()
+                },
+                onFocusToday: () => {
+                    this.calendarFocusedDay = toDateKey(startOfDay(new Date()))
+                    this.rebuild()
                 }
             }
         )

@@ -35,6 +35,8 @@ export interface CalendarCallbacks {
     onClearFocus: () => void
     /** Move the focused day by ±1. */
     onFocusShift: (direction: number) => void
+    /** Enter the single-day view on today (the "Day" range button / day "Today"). */
+    onFocusToday: () => void
 }
 
 const RANGES: Array<{ key: CalendarRange; label: string }> = [
@@ -137,17 +139,32 @@ function renderCalendarGrid(
     navButton(nav, 'Today', 'Jump to today', () => callbacks.onToday())
     navButton(nav, '›', 'Next', () => callbacks.onShiftAnchor(1))
     toolbar.createSpan({ cls: 'kap-calendar-anchor', text: model.anchorLabel })
-
-    const ranges = toolbar.createDiv({ cls: 'kap-calendar-ranges' })
-    for (const { key, label } of RANGES) {
-        const btn = ranges.createEl('button', { cls: 'kap-range-btn', text: label })
-        if (key === model.range) btn.addClass('kap-range-btn-active')
-        btn.addEventListener('click', () => callbacks.onSetRange(key))
-    }
+    renderRanges(toolbar, model, callbacks)
 
     const blocksEl = cal.createDiv({ cls: 'kap-calendar-blocks' })
     blocksEl.addClass(`kap-calendar-${model.range}`)
     for (const block of model.blocks) renderBlock(blocksEl, block, model, callbacks)
+}
+
+/**
+ * The range switcher: a first-class **Day** entry (enters the single-day view on
+ * today) followed by Week · Month · Quarter · Year. "Day" is active while a day
+ * is focused; the grid ranges are active otherwise.
+ */
+function renderRanges(
+    parent: HTMLElement,
+    model: CalendarViewModel,
+    callbacks: CalendarCallbacks
+): void {
+    const ranges = parent.createDiv({ cls: 'kap-calendar-ranges' })
+    const dayBtn = ranges.createEl('button', { cls: 'kap-range-btn', text: 'Day' })
+    if (model.focusedDay !== null) dayBtn.addClass('kap-range-btn-active')
+    dayBtn.addEventListener('click', () => callbacks.onFocusToday())
+    for (const { key, label } of RANGES) {
+        const btn = ranges.createEl('button', { cls: 'kap-range-btn', text: label })
+        if (model.focusedDay === null && key === model.range) btn.addClass('kap-range-btn-active')
+        btn.addEventListener('click', () => callbacks.onSetRange(key))
+    }
 }
 
 function renderBlock(
@@ -220,8 +237,10 @@ function renderFocusedDay(
     back.addEventListener('click', () => callbacks.onClearFocus())
     const nav = header.createDiv({ cls: 'kap-calendar-nav' })
     navButton(nav, '‹', 'Previous day', () => callbacks.onFocusShift(-1))
+    navButton(nav, 'Today', 'Jump to today', () => callbacks.onFocusToday())
     navButton(nav, '›', 'Next day', () => callbacks.onFocusShift(1))
     header.createSpan({ cls: 'kap-calendar-anchor', text: model.focusedDayLabel })
+    renderRanges(header, model, callbacks)
 
     const dayEl = focus.createDiv({ cls: 'kap-cal-day kap-cal-focus-day' })
     dayEl.dataset['day'] = model.focusedDay ?? ''
