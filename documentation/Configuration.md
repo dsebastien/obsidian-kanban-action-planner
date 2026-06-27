@@ -18,6 +18,26 @@ Effective value for any setting resolves in this order (first match wins):
    is the read-only source of truth, mirrored into the local snapshot.
 4. **Built-in defaults** — `DEFAULT_SETTINGS` and the constants below.
 
+## Configuration surfaces (where you edit each layer)
+
+Two places, by scope (M7 settings model):
+
+1. **Plugin settings tab** — vault-wide **defaults** only: property names, default statuses,
+   date format (`settings/settings-tab.ts`). Used when nothing more specific applies.
+2. **Per-board configuration**, which legitimately spans two scopes because Bases option types
+   can't render rich controls (no color picker, no dynamic list editor):
+    - **Bases "Configure view"** (`views/kanban/kanban-view-options.ts`) — **per-view**
+      (`this.config`) settings, grouped for legibility into **Columns / Swimlanes / Filters /
+      Calendar**. Affects only that one view.
+    - **Gear → "Configure board"** (`ui/configure-board-modal.ts`) — **shared** note-type/profile
+      settings: colors, card presentation, relationships, archiving, and the **default**
+      swimlane grouping. Applies to every board of that type.
+
+The grouping in "Configure view" is display-only — option `key`s are unchanged, so stored
+config round-trips. **Swimlanes** is intentionally settable in both: the modal sets the shared
+default, a view overrides it (the per-view dropdown defaults to "Use board default"); this is
+the precedence below made visible, not a duplicated control.
+
 ## Global defaults (plugin settings)
 
 Defined in `src/app/types/plugin-settings.intf.ts`, seeded from `src/app/constants.ts`:
@@ -43,6 +63,7 @@ mirror is always re-derived rather than trusted blindly.
 
 ## Current state
 
-Milestone 0: the settings schema, defaults, and constants exist and round-trip. The
-Configure-board modal, per-view options, and Starter Kit mirroring are wired up in later
-milestones.
+All configuration surfaces are implemented and harmonized (M7): the global settings tab
+(defaults), the grouped Bases "Configure view" per-view options, and the gear "Configure board"
+shared-profile modal. Starter Kit mirroring, colors, cards, swimlanes, relationships, archiving,
+and calendar are all wired and persist through these surfaces.

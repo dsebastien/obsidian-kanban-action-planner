@@ -5,6 +5,25 @@ nav_order: 3
 
 # Configuration
 
+## Where settings live
+
+Settings live in two places, by scope:
+
+- **Plugin settings** (**Settings → Community plugins → Kanban Action Planner**) — vault-wide
+  **defaults**: property names, default statuses, and the date format. Used when a board or
+  note type doesn't specify its own.
+- **Per-board configuration**, in two complementary spots on a board:
+    - **Configure view** (the Bases view options for the Kanban view) — settings for **this
+      board only**, grouped into **Columns**, **Swimlanes**, **Filters**, and **Calendar**.
+    - **Configure board** (the **gear** in the board's top-right) — **shared** settings for the
+      note type / profile: colors, card content, relationships, archiving, and the default
+      swimlane grouping. These apply to **every** board of that type.
+
+Precedence (most specific wins): a **view's** Configure-view setting → the **board/profile**
+default (gear, or a Starter Kit note type) → the **global** default. For example, swimlane
+grouping has a shared default in **Configure board**, and any single view can override it in
+**Configure view → Swimlanes** (which defaults to "Use board default").
+
 ## Property names
 
 The plugin reads and writes ordinary note properties (frontmatter). The defaults below are

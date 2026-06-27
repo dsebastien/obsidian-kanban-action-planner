@@ -59,7 +59,7 @@ export class ConfigureBoardModal extends Modal {
     }
 
     override onOpen(): void {
-        this.titleEl.setText('Configure board')
+        this.titleEl.setText('Configure board — shared settings')
         this.render()
     }
 
@@ -79,8 +79,8 @@ export class ConfigureBoardModal extends Modal {
             cls: 'kap-modal-subtitle',
             text:
                 profile.source === 'starter-kit'
-                    ? `Note type "${profile.name}" (from the Obsidian Starter Kit). Board settings are saved locally.`
-                    : `Profile "${profile.name}". Board settings are saved locally.`
+                    ? `Shared settings for note type "${profile.name}" (recognized via the Obsidian Starter Kit). These apply to every board of this type. Per-board options (columns, filters, calendar) live in the Bases "Configure view" panel.`
+                    : `Shared settings for the "${profile.name}" profile. These apply to every board using it. Per-board options (columns, filters, calendar) live in the Bases "Configure view" panel.`
         })
 
         this.renderColors(profile)
@@ -217,7 +217,9 @@ export class ConfigureBoardModal extends Modal {
 
         new Setting(this.contentEl)
             .setName('Group cards into lanes')
-            .setDesc('Split the board into horizontal lanes by note type or a property value.')
+            .setDesc(
+                'Default grouping for boards of this type (note type or a property value). A single board can override this in Configure view → Swimlanes.'
+            )
             .addDropdown((dd) => {
                 dd.addOption('none', 'None')
                 dd.addOption('note-type', 'By note type')

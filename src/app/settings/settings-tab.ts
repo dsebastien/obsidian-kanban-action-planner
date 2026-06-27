@@ -27,6 +27,15 @@ export class KanbanActionPlannerSettingTab extends PluginSettingTab {
     }
 
     private renderPropertySettings(containerEl: HTMLElement): void {
+        containerEl.createEl('p', {
+            cls: 'setting-item-description',
+            text:
+                'Vault-wide defaults, used when a board or note type does not specify its own. ' +
+                'Per-board options live in each board’s Bases "Configure view" panel; shared ' +
+                'colors, cards, relationships, and archiving live in the board’s gear → ' +
+                '"Configure board".'
+        })
+
         new Setting(containerEl).setName('Default property names').setHeading()
 
         const text = (
@@ -115,21 +124,19 @@ export class KanbanActionPlannerSettingTab extends PluginSettingTab {
         await this.plugin.saveSettings()
     }
 
-    // TODO: Adapt this or remove
-    renderFollowButton(containerEl: HTMLElement) {
+    private renderFollowButton(containerEl: HTMLElement): void {
         new Setting(containerEl)
-            .setName('Follow me on X')
+            .setName('Follow the author')
             .setDesc('Sébastien Dubois (@dSebastien)')
             .addButton((button) => {
                 button.setCta()
-                button.setButtonText('Follow me on X').onClick(() => {
+                button.setButtonText('Follow on X').onClick(() => {
                     window.open('https://x.com/dSebastien')
                 })
             })
     }
 
-    // TODO: Adapt this or remove
-    renderSupportHeader(containerEl: HTMLElement) {
+    private renderSupportHeader(containerEl: HTMLElement): void {
         new Setting(containerEl).setName('Support').setHeading()
 
         const supportDesc = new DocumentFragment()
@@ -144,8 +151,7 @@ export class KanbanActionPlannerSettingTab extends PluginSettingTab {
         spacing.classList.add('support-header-margin')
     }
 
-    // TODO: Adapt this or remove
-    renderBuyMeACoffeeBadge(contentEl: HTMLElement | DocumentFragment, width = 175) {
+    private renderBuyMeACoffeeBadge(contentEl: HTMLElement | DocumentFragment, width = 175): void {
         const linkEl = contentEl.createEl('a', {
             href: 'https://www.buymeacoffee.com/dsebastien'
         })

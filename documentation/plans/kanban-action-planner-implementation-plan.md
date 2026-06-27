@@ -1120,10 +1120,30 @@ diff logic unit-tested; docs updated; DoD green; manual checklist flagged.
 
 ---
 
-### Milestone 7 — Settings harmonization & simplification
+### Milestone 7 — Settings harmonization & simplification — ✅ done (2026-06-27)
 
-**Goal:** Collapse the current **three** configuration surfaces into a clear, non-overlapping
-model. Today there are: (1) **global plugin settings** (settings tab), (2) **Bases "Configure
+**Decision (with user):** Bases "Configure view" cannot host the rich controls (no color-picker
+option type, no dynamic list editor), so the plan's option (a) was infeasible. Chose **(b+)**:
+the gear → "Configure board" modal stays the single rich editor for **shared** profile config;
+Bases "Configure view" owns **per-view** settings. Swimlanes stays in both as \*\*profile default
+
+- per-view override\*\*, made legible (not a duplicate control). Audited orphans.
+
+**Delivered:** `kanban-view-options.ts` reorganized into `BasesOptionGroup`s — **Columns /
+Swimlanes / Filters / Calendar** (display-only; option `key`s unchanged so stored `config`
+round-trips). Modal subtitle now states scope ("shared across every board of this type;
+per-board options live in Configure view"); Swimlanes section notes the per-view override; modal
+title "Configure board — shared settings"; gear tooltip "Configure board (shared settings)".
+`settings-tab.ts`: removed the `// TODO` template orphans, added a vault-wide-defaults framing
+line, tidied the support/funding section (typed, `private`). Docs (`docs/configuration.md` +
+`usage.md`, `documentation/Configuration.md`) describe the two-surface model + precedence.
+**Live-verified:** board loads clean; `blockedFilter:only` (a grouped key) resolves end-to-end;
+gear tooltip live; no console errors; existing `.base`/profile data loads unchanged. 169 tests
+green. **Manual check flagged:** the grouped Configure-view panel's visual rendering (group
+headers) can't be opened via the CLI harness — confirm by eye in Obsidian.
+
+**Original goal:** Collapse the current **three** configuration surfaces into a clear,
+non-overlapping model. Today there are: (1) **global plugin settings** (settings tab), (2) **Bases "Configure
 view"** options (`kanban-view-options.ts`), and (3) the **top-right cog → Configure board**
 modal. (2) and (3) overlap and confuse which layer owns a setting.
 

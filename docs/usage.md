@@ -146,10 +146,12 @@ or **a property** (e.g. a priority or estimate), and **filter** the list by name
 - **Right-click** (or long-press on touch) a card for a menu: open the note (or in a new
   tab), set its status, clear the status, **archive** the note, or open a related note.
 
-## View options
+## View options (Configure view)
 
-Open the view's options (the Bases view settings) to tune a board without changing your
-notes:
+Open the view's options (the Bases **Configure view** panel) to tune **this board** without
+changing your notes. They're grouped:
+
+**Columns**
 
 - **Status property** — choose which property drives the columns (overrides auto-detection).
 - **Statuses (columns)** — the list of status values to show as columns, in order (one per
@@ -159,18 +161,29 @@ notes:
   note type's defined statuses).
 - **Unmapped column position** — show the Unmapped column first (left, the default) or last
   (right). It still only appears when something is unmapped.
-- **Swimlanes (grouping)** — override the board's lane grouping for this view: **Use board
-  default**, **None**, **By note type**, or **By property**.
-- **Swimlane property** — when grouping **By property**, the property whose values become lanes.
+
+**Swimlanes**
+
+- **Grouping** — override the board's lane grouping for this view: **Use board default**,
+  **None**, **By note type**, or **By property**. (The default is set in Configure board.)
+- **Grouping property** — when grouping **By property**, the property whose values become lanes.
+
+**Filters**
+
 - **Blocked cards** — show all cards, only blocked ones, or hide blocked ones.
+
+**Calendar**
+
 - **Calendar mode** — turn the board into a scheduling calendar (see Calendar mode above).
 - **Scheduled / Due date property** — which properties hold the scheduled and due dates.
-- **Calendar default range** — Week, Month, Quarter, or Year.
+- **Default range** — Week, Month, Quarter, or Year.
 - **Scheduling panel sort / sort property / filter** — order and filter the panel's tab cards.
 
 ## Colors
 
-Click the **gear** in the top-right of the board to open **Configure board**:
+Click the **gear** in the top-right of the board to open **Configure board** — these are
+**shared** settings that apply to every board of the same note type (colors, cards,
+relationships, archiving, and the default swimlane grouping):
 
 - Toggle **Auto-assign colors** to give each status a palette color automatically.
 - Per status, pick a palette color, choose **Custom…** and use the color picker, or pick
