@@ -49,7 +49,7 @@ import { renderCalendar } from '../../ui/calendar/calendar-renderer'
 import { CalendarDnd } from '../../ui/calendar/calendar-dnd'
 import type { CalendarDropTarget } from '../../ui/calendar/calendar-dnd'
 import { formatDate } from '../../utils/momentjs'
-import { renderBoard } from '../../ui/board/board-renderer'
+import { patchBoard } from '../../ui/board/board-renderer'
 import { BoardDnd } from '../../ui/board/dnd-controller'
 import type { DropTarget } from '../../ui/board/dnd-controller'
 import type { KanbanCard } from '../../ui/board/types'
@@ -233,7 +233,7 @@ export class KanbanActionPlannerView extends BasesView {
             'debug'
         )
 
-        renderBoard(
+        patchBoard(
             this.boardEl,
             this.board,
             {

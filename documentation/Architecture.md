@@ -84,6 +84,18 @@ renders chrome-free for a single lane or collapsible `.kap-lane` swimlanes other
 applies the blocked filter, and persists status/order/grouping-property writes via
 `services/frontmatter.service.ts`.
 
+**Incremental refresh (M6).** The view calls `patchBoard()` (not a full re-render) on every
+update. When the lane/column **shape** is unchanged (a `data-board-struct` signature on the
+host matches), each column's card list is reconciled by the pure, unit-tested
+`ui/board/reconcile.ts` `planReconcile()` over `data-card-key` + a content `data-card-sig`:
+unchanged cards keep their exact DOM node (so scroll, focus, and an in-flight drag survive),
+only changed/new cards are rebuilt, gone cards removed, and order is fixed with a React-style
+cursor. Shape changes (config edits, a new status column, calendar↔board switch, the empty
+state) fall back to a full `renderBoard()`. Lane collapse/counts are synced in place. **Sizing
+invariants:** every column is a fixed equal width; cards share a `min-height` floor with growth
+bounded by field truncation (or a 4-line clamp in wrap mode) — uniform width + capped height
+rather than a single forced height (which would hide content).
+
 Relationships are layered in two pure modules + a bridge: `domain/relationships.ts`
 (`resolveRelationships` — direct + inverse + heuristic) and `domain/filtering.ts` (blocked
 filter) are unit-tested; `services/relationships.service.ts` reads tags/links from the metadata

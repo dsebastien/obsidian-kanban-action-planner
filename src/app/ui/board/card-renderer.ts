@@ -17,7 +17,8 @@ const RELATIONSHIP_BADGES: Array<{ role: RelationshipRole; glyph: string; label:
 ]
 
 /**
- * Render a single card into a column's list element.
+ * Build a single card as a **detached** element (the caller appends/positions
+ * it, so the incremental reconciler can reuse and move nodes).
  *
  * Driven by the card's resolved {@link KanbanCard.display}: optional cover image,
  * title (note name or a property), and configurable body fields (with the due
@@ -26,12 +27,11 @@ const RELATIONSHIP_BADGES: Array<{ role: RelationshipRole; glyph: string; label:
  * status color for the left accent.
  */
 export function renderCard(
-    listEl: HTMLElement,
     card: KanbanCard,
     accentColor: string,
     callbacks: CardRenderCallbacks = {}
 ): HTMLElement {
-    const el = listEl.createDiv({ cls: 'kap-card' })
+    const el = createDiv({ cls: 'kap-card' })
     el.dataset['cardKey'] = card.key
     el.setAttribute('role', 'listitem')
     el.setAttribute('tabindex', '0')

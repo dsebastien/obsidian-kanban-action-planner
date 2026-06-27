@@ -83,10 +83,13 @@
         overflow-y: hidden;
     }
 
+    /* Equal column widths (hard invariant): every column is the same fixed
+       width, in every lane, with show-empty on, and on mobile (capped to 85vw).
+       Never make width depend on content. */
     .kap-column {
         display: flex;
         flex-direction: column;
-        flex: 0 0 auto;
+        flex: 0 0 17rem;
         width: 17rem;
         max-width: 85vw;
         max-height: 100%;
@@ -183,7 +186,14 @@
         max-height: none;
     }
 
+    /* Uniform card envelope: a shared min-height floor gives a consistent look
+       regardless of how much a card holds; growth is bounded by field
+       truncation (default) or a line-clamp in wrap mode (see below). Width is
+       always the column width. Documented trade-off: heights are not forced to
+       a single value (that would hide content) — instead growth is capped. */
     .kap-card {
+        box-sizing: border-box;
+        min-height: 2.75rem;
         padding: var(--size-4-2, 0.5rem) var(--size-4-3, 0.75rem);
         background: var(--background-primary);
         border: 1px solid var(--background-modifier-border);
@@ -249,9 +259,18 @@
         font-weight: var(--font-semibold, 600);
     }
 
-    /* Wrap mode: let field values span multiple lines. */
+    /* Wrap mode: let field values span multiple lines, but cap growth at a few
+       lines (clamp) so "wrap = grow" still respects the uniform-size envelope. */
     .kap-card-wrap .kap-card-field {
         white-space: normal;
+    }
+
+    .kap-card-wrap .kap-card-field-value {
+        display: -webkit-box;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 4;
+        line-clamp: 4;
+        overflow: hidden;
     }
 
     /* Relationship badges (parent / child / sibling / blocked-by).

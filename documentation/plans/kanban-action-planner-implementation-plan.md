@@ -1056,11 +1056,23 @@ unit-tested; DoD green; manual checklist flagged.
 
 ---
 
-### Milestone 6 — Visual stability & consistency (polish pass)
+### Milestone 6 — Visual stability & consistency (polish pass) — ✅ done (2026-06-27)
 
 **Goal:** The board should feel solid and predictable — uniform card/column sizing and
 **stable, minimal, smooth** updates when the underlying note set changes. No layout jumps,
 no full-board flicker on every edit.
+
+**Delivered:** pure `ui/board/reconcile.ts` `planReconcile()` (keyed diff over key+signature →
+remove/create/update/reuse, unit-tested). `board-renderer.ts` gains `patchBoard()`: when the
+`data-board-struct` shape matches it reconciles each column's card list in place (untouched
+cards keep their DOM node → scroll/focus/drag preserved; only changed/new rebuilt; React-style
+cursor reorders), else falls back to full `renderBoard()`; lane collapse/counts synced in place;
+cards stamped with `data-card-sig`. The view calls `patchBoard` on every update. CSS: equal
+fixed column width (hard invariant), card `min-height` floor + 4-line clamp in wrap mode
+(documented: uniform width + capped growth, not a single forced height). **Live-verified:**
+editing one note's status moved only that card (its DOM node rebuilt in the new column) while
+untouched cards A/E/F kept identity markers — proving patch, not full re-render; columns all
+391px; min-height floor holds; no console errors. 169 tests green.
 
 **Tasks:**
 
