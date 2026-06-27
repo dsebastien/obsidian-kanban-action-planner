@@ -15,6 +15,10 @@ export interface CalendarViewModel {
     counts: { unplanned: number; noDeadline: number }
     /** Weekday header labels, ordered for the configured first day of week. */
     weekdays: string[]
+    /** When set (`YYYY-MM-DD`), the grid is replaced by a focused single-day view. */
+    focusedDay: string | null
+    /** Long label for the focused day, e.g. "Thursday, June 18, 2026". */
+    focusedDayLabel: string
 }
 
 export interface CalendarCallbacks {
@@ -25,6 +29,12 @@ export interface CalendarCallbacks {
     onShiftAnchor: (direction: number) => void
     onToday: () => void
     onTogglePanel: () => void
+    /** Zoom into a single day (`YYYY-MM-DD`). */
+    onFocusDay: (dayKey: string) => void
+    /** Leave the focused day, back to the grid. */
+    onClearFocus: () => void
+    /** Move the focused day by ±1. */
+    onFocusShift: (direction: number) => void
 }
 
 const RANGES: Array<{ key: CalendarRange; label: string }> = [
@@ -116,6 +126,11 @@ function renderCalendarGrid(
 ): void {
     const cal = root.createDiv({ cls: 'kap-calendar' })
 
+    if (model.focusedDay !== null) {
+        renderFocusedDay(cal, model, callbacks)
+        return
+    }
+
     const toolbar = cal.createDiv({ cls: 'kap-calendar-toolbar' })
     const nav = toolbar.createDiv({ cls: 'kap-calendar-nav' })
     navButton(nav, '‹', 'Previous', () => callbacks.onShiftAnchor(-1))
@@ -156,7 +171,21 @@ function renderBlock(
             cell.dataset['day'] = day.key
             if (!day.inCurrentMonth) cell.addClass('kap-cal-day-other')
             if (day.isToday) cell.addClass('kap-cal-day-today')
-            cell.createSpan({ cls: 'kap-cal-daynum', text: String(day.date.getDate()) })
+            const num = cell.createSpan({
+                cls: 'kap-cal-daynum',
+                text: String(day.date.getDate()),
+                attr: { 'aria-label': 'Zoom into day', 'title': 'Zoom into day' }
+            })
+            num.addEventListener('click', (e) => {
+                e.stopPropagation()
+                callbacks.onFocusDay(day.key)
+            })
+            // Clicking empty cell space (not a card chip) also zooms into the day.
+            cell.addEventListener('click', (e) => {
+                if (!(e.target as HTMLElement).closest('.kap-cal-card')) {
+                    callbacks.onFocusDay(day.key)
+                }
+            })
             const cards = model.cardsByDay.get(day.key) ?? []
             if (compact) {
                 if (cards.length > 0) {
@@ -167,6 +196,41 @@ function renderBlock(
             }
         }
     }
+}
+
+/**
+ * The zoomed-in single-day view: a header (back + day nav) and a full-width list
+ * of the focused day's cards. The list keeps the `.kap-cal-day` + `data-day`
+ * contract so the calendar DnD still works — drag a card from the panel here to
+ * schedule it for this day, or drag one out to the panel to clear it.
+ */
+function renderFocusedDay(
+    cal: HTMLElement,
+    model: CalendarViewModel,
+    callbacks: CalendarCallbacks
+): void {
+    const focus = cal.createDiv({ cls: 'kap-cal-focus' })
+
+    const header = focus.createDiv({ cls: 'kap-cal-focus-header' })
+    const back = header.createEl('button', {
+        cls: 'kap-calendar-navbtn kap-cal-focus-back',
+        text: '‹ Back',
+        attr: { 'aria-label': 'Back to calendar' }
+    })
+    back.addEventListener('click', () => callbacks.onClearFocus())
+    const nav = header.createDiv({ cls: 'kap-calendar-nav' })
+    navButton(nav, '‹', 'Previous day', () => callbacks.onFocusShift(-1))
+    navButton(nav, '›', 'Next day', () => callbacks.onFocusShift(1))
+    header.createSpan({ cls: 'kap-calendar-anchor', text: model.focusedDayLabel })
+
+    const dayEl = focus.createDiv({ cls: 'kap-cal-day kap-cal-focus-day' })
+    dayEl.dataset['day'] = model.focusedDay ?? ''
+    dayEl.setAttribute('role', 'list')
+    const cards = model.cardsByDay.get(model.focusedDay ?? '') ?? []
+    if (cards.length === 0) {
+        dayEl.createDiv({ cls: 'kap-panel-empty', text: 'Nothing scheduled for this day.' })
+    }
+    for (const card of cards) renderChip(dayEl, card, callbacks)
 }
 
 function renderChip(parent: HTMLElement, card: KanbanCard, callbacks: CalendarCallbacks): void {

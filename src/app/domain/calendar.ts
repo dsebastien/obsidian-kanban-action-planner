@@ -51,6 +51,21 @@ const MONTH_NAMES = [
 /** Short weekday names indexed by `Date.getDay()` (0 = Sunday). */
 const WEEKDAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
+/** Full weekday names indexed by `Date.getDay()` (0 = Sunday). */
+const WEEKDAY_FULL = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+
+/** Human-readable long date, e.g. `Thursday, June 18, 2026` (for the focused day). */
+export function formatLongDate(date: Date): string {
+    return `${WEEKDAY_FULL[date.getDay()] ?? ''}, ${MONTH_NAMES[date.getMonth()] ?? ''} ${String(date.getDate())}, ${String(date.getFullYear())}`
+}
+
+/** A new date `n` days after `date` (negative for earlier); local midnight. */
+export function addDays(date: Date, n: number): Date {
+    const d = startOfDay(date)
+    d.setDate(d.getDate() + n)
+    return d
+}
+
 /** Default first day of the week (Monday) when none is supplied. */
 const DEFAULT_FIRST_DAY = 1
 

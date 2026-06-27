@@ -36,11 +36,14 @@ import {
 import { buildCardDisplay } from '../../services/card-display.service'
 import { archiveNote } from '../../services/archive.service'
 import {
+    addDays,
     bucketByDay,
     buildCalendar,
+    formatLongDate,
     parseFrontmatterDate,
     shiftAnchor,
     startOfDay,
+    toDateKey,
     weekdayLabels
 } from '../../domain/calendar'
 import type { CalendarRange, DateDimension } from '../../domain/calendar'
@@ -97,6 +100,7 @@ export class KanbanActionPlannerView extends BasesView {
     private calendarTab: DateDimension = 'scheduled'
     private calendarAnchor: Date | null = null
     private calendarPanelCollapsed = false
+    private calendarFocusedDay: string | null = null
 
     constructor(
         controller: QueryController,
@@ -624,7 +628,9 @@ export class KanbanActionPlannerView extends BasesView {
                 cardsByDay,
                 panelCollapsed: this.calendarPanelCollapsed,
                 counts: { unplanned: unplanned.length, noDeadline: noDeadline.length },
-                weekdays: weekdayLabels(firstDay)
+                weekdays: weekdayLabels(firstDay),
+                focusedDay: this.calendarFocusedDay,
+                focusedDayLabel: this.focusedDayLabel()
             },
             {
                 onOpen: (card, newTab) => this.openCard(card, newTab),
@@ -635,6 +641,7 @@ export class KanbanActionPlannerView extends BasesView {
                 },
                 onSetRange: (r) => {
                     this.calendarRangeOverride = r
+                    this.calendarFocusedDay = null // leaving the focused day on a range change
                     this.rebuild()
                 },
                 onShiftAnchor: (direction) => {
@@ -648,9 +655,28 @@ export class KanbanActionPlannerView extends BasesView {
                 onTogglePanel: () => {
                     this.calendarPanelCollapsed = !this.calendarPanelCollapsed
                     this.rebuild()
+                },
+                onFocusDay: (dayKey) => {
+                    this.calendarFocusedDay = dayKey
+                    this.rebuild()
+                },
+                onClearFocus: () => {
+                    this.calendarFocusedDay = null
+                    this.rebuild()
+                },
+                onFocusShift: (direction) => {
+                    const current = parseFrontmatterDate(this.calendarFocusedDay)
+                    if (current) this.calendarFocusedDay = toDateKey(addDays(current, direction))
+                    this.rebuild()
                 }
             }
         )
+    }
+
+    /** Long label for the focused day (empty when no day is focused). */
+    private focusedDayLabel(): string {
+        const date = parseFrontmatterDate(this.calendarFocusedDay)
+        return date ? formatLongDate(date) : ''
     }
 
     /** Apply the configured panel filter (name/tag) and sort to the tab cards. */

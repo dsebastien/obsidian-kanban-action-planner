@@ -1,7 +1,9 @@
 import { describe, expect, test } from 'bun:test'
 import {
+    addDays,
     bucketByDay,
     buildCalendar,
+    formatLongDate,
     monthBlock,
     parseFrontmatterDate,
     shiftAnchor,
@@ -122,6 +124,20 @@ describe('shiftAnchor', () => {
         expect(toDateKey(shiftAnchor(TODAY, 'month', 1))).toBe('2026-07-26')
         expect(toDateKey(shiftAnchor(TODAY, 'quarter', 1))).toBe('2026-09-26')
         expect(toDateKey(shiftAnchor(TODAY, 'year', -1))).toBe('2025-06-26')
+    })
+})
+
+describe('formatLongDate', () => {
+    test('weekday, month day, year', () => {
+        expect(formatLongDate(new Date(2026, 5, 18))).toBe('Thursday, June 18, 2026')
+        expect(formatLongDate(new Date(2026, 0, 1))).toBe('Thursday, January 1, 2026')
+    })
+})
+
+describe('addDays', () => {
+    test('shifts by n days and strips time', () => {
+        expect(toDateKey(addDays(new Date(2026, 5, 18, 9, 30), 1))).toBe('2026-06-19')
+        expect(toDateKey(addDays(new Date(2026, 5, 1), -1))).toBe('2026-05-31')
     })
 })
 

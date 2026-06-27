@@ -493,9 +493,15 @@
         min-height: 2rem;
     }
 
+    /* The day number zooms into a focused day view, so flag it clickable. */
     .kap-cal-daynum {
-        @apply text-[0.8em] self-end leading-none;
+        @apply text-[0.8em] self-end leading-none cursor-pointer rounded px-1;
         color: var(--text-muted);
+    }
+
+    .kap-cal-daynum:hover {
+        color: var(--text-normal);
+        background: var(--background-modifier-hover);
     }
 
     .kap-cal-day-other {
@@ -543,6 +549,33 @@
     .kap-cal-drop {
         outline: 2px dashed var(--interactive-accent);
         outline-offset: -2px;
+    }
+
+    /* Zoomed-in single-day view. */
+    .kap-cal-focus {
+        @apply flex flex-col flex-1 min-h-0 p-2 gap-2;
+    }
+
+    .kap-cal-focus-header {
+        @apply flex items-center gap-2 flex-wrap pb-2;
+        border-bottom: 1px solid var(--background-modifier-border);
+    }
+
+    .kap-cal-focus-back {
+        @apply font-medium;
+    }
+
+    /* The focused day reuses .kap-cal-day for DnD, but renders as a full-width
+       card list rather than a grid cell — override the cell chrome. */
+    .kap-cal-focus-day {
+        @apply flex-1 min-h-0 overflow-y-auto gap-2 p-1;
+        min-height: 0;
+        border: 0;
+    }
+
+    .kap-cal-focus-day .kap-cal-card {
+        @apply px-2 py-1.5 text-[0.95em] whitespace-normal;
+        border-left-width: 3px;
     }
 
     /* Narrow screens: stack the panel above the calendar. */

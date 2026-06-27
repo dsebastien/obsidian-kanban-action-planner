@@ -131,6 +131,12 @@ navigates with **‹ / › / Today**. Quarter and year show compact month grids 
 count. Click any card to open its note. Weeks start on the day set by **First day of the week**
 in the plugin settings (default Monday).
 
+**Zoom into a day:** click a **day number** (or the empty space in a day cell) to zoom into that
+single day — a focused view listing all its cards. Use **‹ / ›** to step to the previous/next
+day, or **‹ Back** to return to the grid. This is especially handy in Quarter/Year view, where
+days only show a count: click one to see what's on it. You can still drag a card from the panel
+onto the focused day to schedule it, or drag one out to the panel to clear its date.
+
 **Schedule by dragging:**
 
 - **Drag a card from the panel onto a day** to set the active tab's date (written in your
