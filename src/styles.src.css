@@ -803,9 +803,18 @@
         padding: var(--size-4-2, 0.5rem) 0;
     }
 
-    /* Configure-board modal: a two-pane layout — section nav (left) + content. */
+    /* Configure-board modal: a two-pane layout — section nav (left) + content.
+       Widen the dialog so both panes are comfortable. !important beats
+       Obsidian's unlayered `.modal` width (unlayered outranks any layered rule). */
+    /* stylelint-disable declaration-no-important -- see comment above */
+    .kap-config-modal {
+        width: min(48rem, 92vw) !important;
+        max-width: min(48rem, 92vw) !important;
+    }
+    /* stylelint-enable declaration-no-important */
+
     .kap-config-modal .kap-settings {
-        @apply flex gap-4 mt-3;
+        @apply flex gap-4 mt-3 min-w-0;
         min-height: 22rem;
     }
 
@@ -845,8 +854,7 @@
     }
 
     .kap-config-modal .kap-settings-content {
-        @apply flex-1 overflow-y-auto pl-4;
-        min-width: 24rem;
+        @apply flex-1 min-w-0 overflow-y-auto overflow-x-hidden pl-4;
         max-height: 60vh;
         border-left: 1px solid var(--background-modifier-border);
     }
