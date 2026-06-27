@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.0.3](https://github.com/dsebastien/obsidian-kanban-action-planner/compare/0.0.2...0.0.3) (2026-06-27)
+
+### Features
+
+* **plugin:** make Day a first-class calendar range + add Today to the day view ([9582025](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/95820256fdbeeabe47fb17b076867f496cd5d567))
+
 ## [0.0.2](https://github.com/dsebastien/obsidian-kanban-action-planner/compare/0.0.1...0.0.2) (2026-06-27)
 
 ### Features
@@ -33,4 +39,5 @@ All notable changes to this project will be documented in this file.
 
 * **plugin:** match Starter Kit's {{quarter}} placeholder format (Q2, not 2) ([4fde618](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/4fde6185c5956e3f6fd2ca3a9b03e70cf5e16840))
 * **plugin:** persist discovered statuses so Show empty columns works ([cf91b81](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/cf91b81a1b0786e35c73f4885882e2dc33564c62))
+
 

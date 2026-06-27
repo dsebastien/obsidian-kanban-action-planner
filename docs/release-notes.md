@@ -1,5 +1,11 @@
 # Release Notes
 
+## 0.0.3 (2026-06-27)
+
+### Features
+
+- **plugin:** make Day a first-class calendar range + add Today to the day view
+
 ## 0.0.2 (2026-06-27)
 
 ### Features
