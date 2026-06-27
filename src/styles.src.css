@@ -70,15 +70,27 @@
             transform var(--kap-transition) var(--kap-ease);
     }
 
+    /* Rotate only the icon, not the button container. */
+    .kap-root .kap-gear svg {
+        transition: transform var(--kap-transition) var(--kap-ease);
+    }
+
     .kap-root .kap-gear:hover {
         color: var(--text-normal);
         border-color: var(--interactive-accent);
         box-shadow: var(--shadow-m);
+    }
+
+    .kap-root .kap-gear:hover svg {
         transform: rotate(30deg);
     }
 
     .kap-root .kap-gear:active {
-        transform: rotate(30deg) scale(0.92);
+        transform: scale(0.92);
+    }
+
+    .kap-root .kap-gear:active svg {
+        transform: rotate(30deg);
     }
 
     .kap-root .kap-placeholder,
