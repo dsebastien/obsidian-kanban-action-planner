@@ -1,5 +1,18 @@
 # Release Notes
 
+## 0.0.4 (2026-06-27)
+
+### Features
+
+- **plugin:** calendar toolbar (Board/Calendar switch + gear) and readable panel chips
+- **plugin:** cap swimlane height at one screen and add collapsible columns
+- **plugin:** consistent swimlane heights, lane nav buttons, bigger toggle
+
+### Bug Fixes
+
+- **plugin:** render lane and column collapse chevrons at a consistent size
+- **plugin:** rotate only the gear icon on hover, not its button
+
 ## 0.0.3 (2026-06-27)
 
 ### Features

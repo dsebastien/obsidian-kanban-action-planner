@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.0.4](https://github.com/dsebastien/obsidian-kanban-action-planner/compare/0.0.3...0.0.4) (2026-06-27)
+
+### Features
+
+* **plugin:** calendar toolbar (Board/Calendar switch + gear) and readable panel chips ([becceb4](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/becceb46c02c33db3963562917c2f77a180c38c0))
+* **plugin:** cap swimlane height at one screen and add collapsible columns ([314f5a8](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/314f5a8b52259ec173d377b12bc18ac1db96515e))
+* **plugin:** consistent swimlane heights, lane nav buttons, bigger toggle ([41a37ac](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/41a37ac6cffdb5a7cb619fbcc2cf15f5c4455e2f))
+
+### Bug Fixes
+
+* **plugin:** render lane and column collapse chevrons at a consistent size ([b57d374](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/b57d3742e8d89c9e76a14e159b2defaef15b7313))
+* **plugin:** rotate only the gear icon on hover, not its button ([4f93e10](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/4f93e1023d405661bd19cf4c45151fdde922641b))
+
 ## [0.0.3](https://github.com/dsebastien/obsidian-kanban-action-planner/compare/0.0.2...0.0.3) (2026-06-27)
 
 ### Features
@@ -39,5 +52,6 @@ All notable changes to this project will be documented in this file.
 
 * **plugin:** match Starter Kit's {{quarter}} placeholder format (Q2, not 2) ([4fde618](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/4fde6185c5956e3f6fd2ca3a9b03e70cf5e16840))
 * **plugin:** persist discovered statuses so Show empty columns works ([cf91b81](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/cf91b81a1b0786e35c73f4885882e2dc33564c62))
+
 
 
