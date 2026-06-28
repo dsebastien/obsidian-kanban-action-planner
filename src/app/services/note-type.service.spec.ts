@@ -2,34 +2,34 @@ import { describe, expect, it } from 'bun:test'
 import {
     colorForStatus,
     columnsFromValues,
-    createDefaultProfile,
-    DEFAULT_PROFILE_ID
-} from './profile-service'
-import { profileSchema } from '../domain/profile'
+    createDefaultNoteType,
+    DEFAULT_NOTE_TYPE_ID
+} from './note-type.service'
+import { noteTypeSchema } from '../domain/note-type'
 import { autoAssignColor } from './colors.service'
 
-describe('createDefaultProfile', () => {
-    it('produces a fully-populated, schema-valid profile', () => {
-        const profile = createDefaultProfile(DEFAULT_PROFILE_ID, 'Default', 'local')
-        expect(() => profileSchema.parse(profile)).not.toThrow()
-        expect(profile.colors.autoAssign).toBe(true)
-        expect(profile.laneGrouping).toEqual({ kind: 'none' })
-        expect(profile.card.titleSource).toEqual({ kind: 'note-name' })
+describe('createDefaultNoteType', () => {
+    it('produces a fully-populated, schema-valid noteType', () => {
+        const noteType = createDefaultNoteType(DEFAULT_NOTE_TYPE_ID, 'Default', 'local')
+        expect(() => noteTypeSchema.parse(noteType)).not.toThrow()
+        expect(noteType.colors.autoAssign).toBe(true)
+        expect(noteType.laneGrouping).toEqual({ kind: 'none' })
+        expect(noteType.card.titleSource).toEqual({ kind: 'note-name' })
     })
 })
 
 describe('colorForStatus', () => {
-    const base = createDefaultProfile('p', 'P', 'local')
+    const base = createDefaultNoteType('p', 'P', 'local')
 
     it('uses an explicit override when present', () => {
-        const profile = {
+        const noteType = {
             ...base,
             colors: {
                 autoAssign: true,
                 overrides: { Done: { kind: 'hex', value: '#123456' } as const }
             }
         }
-        expect(colorForStatus(profile, 'Done')).toEqual({ kind: 'hex', value: '#123456' })
+        expect(colorForStatus(noteType, 'Done')).toEqual({ kind: 'hex', value: '#123456' })
     })
 
     it('auto-assigns when enabled and no override', () => {
@@ -37,32 +37,32 @@ describe('colorForStatus', () => {
     })
 
     it('uses a neutral when auto-assign is off', () => {
-        const profile = { ...base, colors: { autoAssign: false, overrides: {} } }
-        expect(colorForStatus(profile, 'Doing')).toEqual({ kind: 'palette', token: 'slate' })
+        const noteType = { ...base, colors: { autoAssign: false, overrides: {} } }
+        expect(colorForStatus(noteType, 'Doing')).toEqual({ kind: 'palette', token: 'slate' })
     })
 })
 
 describe('columnsFromValues', () => {
-    const profile = createDefaultProfile('p', 'P', 'local')
+    const noteType = createDefaultNoteType('p', 'P', 'local')
 
     it('preserves order when asked (e.g. Starter Kit allowed values)', () => {
-        const cols = columnsFromValues(['30 Done', '10 Todo', '20 Doing'], profile, true)
+        const cols = columnsFromValues(['30 Done', '10 Todo', '20 Doing'], noteType, true)
         expect(cols.map((c) => c.statusValue)).toEqual(['30 Done', '10 Todo', '20 Doing'])
     })
 
     it('sorts by numeric/lexical prefix when not preserving order', () => {
-        const cols = columnsFromValues(['30 Done', '10 Todo', '20 Doing'], profile, false)
+        const cols = columnsFromValues(['30 Done', '10 Todo', '20 Doing'], noteType, false)
         expect(cols.map((c) => c.statusValue)).toEqual(['10 Todo', '20 Doing', '30 Done'])
         expect(cols.map((c) => c.label)).toEqual(['Todo', 'Doing', 'Done'])
     })
 
     it('de-duplicates values', () => {
-        const cols = columnsFromValues(['a', 'a', 'b'], profile, true)
+        const cols = columnsFromValues(['a', 'a', 'b'], noteType, true)
         expect(cols.map((c) => c.statusValue)).toEqual(['a', 'b'])
     })
 
-    it('attaches WIP limits from the profile, omitting unset/zero ones (issue #16)', () => {
-        const withLimits = { ...profile, wipLimits: { '10 Todo': 3, '20 Doing': 0 } }
+    it('attaches WIP limits from the note type, omitting unset/zero ones (issue #16)', () => {
+        const withLimits = { ...noteType, wipLimits: { '10 Todo': 3, '20 Doing': 0 } }
         const cols = columnsFromValues(['10 Todo', '20 Doing', '30 Done'], withLimits, true)
         expect(cols.find((c) => c.statusValue === '10 Todo')?.wipLimit).toBe(3)
         expect(cols.find((c) => c.statusValue === '20 Doing')?.wipLimit).toBeUndefined()

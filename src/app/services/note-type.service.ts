@@ -1,7 +1,7 @@
 import { getAllTags } from 'obsidian'
 import type { App, TFile } from 'obsidian'
 import { produce } from 'immer'
-import type { ColorSpec, ColumnDef, LaneGrouping, Profile } from '../domain/profile'
+import type { ColorSpec, ColumnDef, LaneGrouping, NoteType } from '../domain/note-type'
 import { compareStatusValues, splitStatusValue } from '../domain/status'
 import { matchesAnyMapping } from '../domain/note-type-recognition'
 import type { RecognitionFile } from '../domain/note-type-recognition'
@@ -27,18 +27,18 @@ import {
 import type { KanbanActionPlannerPlugin } from '../plugin'
 
 /**
- * Resolves and persists note-type profiles.
+ * Resolves and persists note types.
  *
- * A profile is keyed by an id: the Starter Kit note-type id when recognized,
- * else the shared `__default__` profile. Profiles carry the kanban-owned config
+ * A note type is keyed by an id: the Starter Kit note-type id when recognized,
+ * else the shared `__default__` noteType. Note types carry the kanban-owned config
  * (colors today; presentation/relationships/etc. as those features land). When
  * the Starter Kit is present, the status property + allowed column values are
  * mirrored from it; local color overrides are preserved across re-mirroring.
  */
 
-export const DEFAULT_PROFILE_ID = '__default__'
+export const DEFAULT_NOTE_TYPE_ID = '__default__'
 
-export interface ProfileDefaults {
+export interface NoteTypeDefaults {
     statusProperty: string
     orderProperty: string
     scheduledDateProperty: string
@@ -46,7 +46,7 @@ export interface ProfileDefaults {
     dateFormat: string
 }
 
-export function defaultsFromPlugin(plugin: KanbanActionPlannerPlugin): ProfileDefaults {
+export function defaultsFromPlugin(plugin: KanbanActionPlannerPlugin): NoteTypeDefaults {
     const s = plugin.settings
     return {
         statusProperty: s.defaultStatusProperty,
@@ -57,19 +57,19 @@ export function defaultsFromPlugin(plugin: KanbanActionPlannerPlugin): ProfileDe
     }
 }
 
-/** A complete default profile — every field populated, valid against the schema. */
-export function createDefaultProfile(
+/** A complete default note type — every field populated, valid against the schema. */
+export function createDefaultNoteType(
     id: string,
     name: string,
-    source: Profile['source'],
-    defaults: ProfileDefaults = {
+    source: NoteType['source'],
+    defaults: NoteTypeDefaults = {
         statusProperty: DEFAULT_STATUS_PROPERTY,
         orderProperty: DEFAULT_ORDER_PROPERTY,
         scheduledDateProperty: DEFAULT_SCHEDULED_DATE_PROPERTY,
         dueDateProperty: DEFAULT_DUE_DATE_PROPERTY,
         dateFormat: DEFAULT_DATE_FORMAT
     }
-): Profile {
+): NoteType {
     return {
         id,
         name,
@@ -105,50 +105,50 @@ export function createDefaultProfile(
     }
 }
 
-/** Find a stored profile by id. */
-export function findProfile(plugin: KanbanActionPlannerPlugin, id: string): Profile | undefined {
-    return plugin.settings.profiles.find((p) => p.id === id)
+/** Find a stored note type by id. */
+export function findNoteType(plugin: KanbanActionPlannerPlugin, id: string): NoteType | undefined {
+    return plugin.settings.noteTypes.find((p) => p.id === id)
 }
 
-/** Insert or replace a profile, persisting settings. */
-export async function upsertProfile(
+/** Insert or replace a note type, persisting settings. */
+export async function upsertNoteType(
     plugin: KanbanActionPlannerPlugin,
-    profile: Profile
+    noteType: NoteType
 ): Promise<void> {
     plugin.settings = produce(plugin.settings, (draft) => {
-        const idx = draft.profiles.findIndex((p) => p.id === profile.id)
-        if (idx >= 0) draft.profiles[idx] = profile
-        else draft.profiles.push(profile)
+        const idx = draft.noteTypes.findIndex((p) => p.id === noteType.id)
+        if (idx >= 0) draft.noteTypes[idx] = noteType
+        else draft.noteTypes.push(noteType)
     })
     await plugin.saveSettings()
 }
 
-/** Get an existing profile or create, persist, and return a default one. */
-export async function getOrCreateProfile(
+/** Get an existing noteType or create, persist, and return a default one. */
+export async function getOrCreateNoteType(
     plugin: KanbanActionPlannerPlugin,
     id: string,
     name: string,
-    source: Profile['source']
-): Promise<Profile> {
-    const existing = findProfile(plugin, id)
+    source: NoteType['source']
+): Promise<NoteType> {
+    const existing = findNoteType(plugin, id)
     if (existing) return existing
-    const created = createDefaultProfile(id, name, source, defaultsFromPlugin(plugin))
-    await upsertProfile(plugin, created)
+    const created = createDefaultNoteType(id, name, source, defaultsFromPlugin(plugin))
+    await upsertNoteType(plugin, created)
     return created
 }
 
-/** Set a per-status color override on a profile. */
+/** Set a per-status color override on a note type. */
 export async function setColorOverride(
     plugin: KanbanActionPlannerPlugin,
-    profileId: string,
+    noteTypeId: string,
     statusValue: string,
     spec: ColorSpec
 ): Promise<void> {
-    const profile = findProfile(plugin, profileId)
-    if (!profile) return
-    await upsertProfile(
+    const noteType = findNoteType(plugin, noteTypeId)
+    if (!noteType) return
+    await upsertNoteType(
         plugin,
-        produce(profile, (draft) => {
+        produce(noteType, (draft) => {
             draft.colors.overrides[statusValue] = spec
         })
     )
@@ -157,14 +157,14 @@ export async function setColorOverride(
 /** Remove a per-status color override (revert to auto). */
 export async function clearColorOverride(
     plugin: KanbanActionPlannerPlugin,
-    profileId: string,
+    noteTypeId: string,
     statusValue: string
 ): Promise<void> {
-    const profile = findProfile(plugin, profileId)
-    if (!profile) return
-    await upsertProfile(
+    const noteType = findNoteType(plugin, noteTypeId)
+    if (!noteType) return
+    await upsertNoteType(
         plugin,
-        produce(profile, (draft) => {
+        produce(noteType, (draft) => {
             delete draft.colors.overrides[statusValue]
         })
     )
@@ -173,62 +173,62 @@ export async function clearColorOverride(
 /** Toggle whether un-overridden columns get palette colors. */
 export async function setAutoAssign(
     plugin: KanbanActionPlannerPlugin,
-    profileId: string,
+    noteTypeId: string,
     autoAssign: boolean
 ): Promise<void> {
-    const profile = findProfile(plugin, profileId)
-    if (!profile) return
-    await upsertProfile(
+    const noteType = findNoteType(plugin, noteTypeId)
+    if (!noteType) return
+    await upsertNoteType(
         plugin,
-        produce(profile, (draft) => {
+        produce(noteType, (draft) => {
             draft.colors.autoAssign = autoAssign
         })
     )
 }
 
-/** Replace a profile's relationship rules. */
+/** Replace a note type's relationship rules. */
 export async function setRelationships(
     plugin: KanbanActionPlannerPlugin,
-    profileId: string,
-    relationships: Profile['relationships']
+    noteTypeId: string,
+    relationships: NoteType['relationships']
 ): Promise<void> {
-    const profile = findProfile(plugin, profileId)
-    if (!profile) return
-    await upsertProfile(
+    const noteType = findNoteType(plugin, noteTypeId)
+    if (!noteType) return
+    await upsertNoteType(
         plugin,
-        produce(profile, (draft) => {
+        produce(noteType, (draft) => {
             draft.relationships = relationships
         })
     )
 }
 
-/** Replace a profile's swimlane grouping config. */
+/** Replace a note type's swimlane grouping config. */
 export async function setLaneGrouping(
     plugin: KanbanActionPlannerPlugin,
-    profileId: string,
+    noteTypeId: string,
     laneGrouping: LaneGrouping
 ): Promise<void> {
-    const profile = findProfile(plugin, profileId)
-    if (!profile) return
-    await upsertProfile(
+    const noteType = findNoteType(plugin, noteTypeId)
+    if (!noteType) return
+    await upsertNoteType(
         plugin,
-        produce(profile, (draft) => {
+        produce(noteType, (draft) => {
             draft.laneGrouping = laneGrouping
         })
     )
 }
 
-/** Replace a profile's archiving config. */
+/** Replace a note type's archiving config. */
 export async function setArchiveConfig(
     plugin: KanbanActionPlannerPlugin,
-    profileId: string,
-    archive: Profile['archive']
+    noteTypeId: string,
+    archive: NoteType['archive']
 ): Promise<void> {
-    const profile = findProfile(plugin, profileId)
-    if (!profile) return
-    await upsertProfile(
+    const noteType = findNoteType(plugin, noteTypeId)
+    if (!noteType) return
+    await upsertNoteType(
         plugin,
-        produce(profile, (draft) => {
+        produce(noteType, (draft) => {
             draft.archive = archive
         })
     )
@@ -238,29 +238,29 @@ export async function setArchiveConfig(
 export async function createLocalNoteType(
     plugin: KanbanActionPlannerPlugin,
     name: string
-): Promise<Profile> {
+): Promise<NoteType> {
     const id = `local-${Date.now().toString(36)}-${Math.floor(Math.random() * 1e6).toString(36)}`
-    const profile = createDefaultProfile(
+    const noteType = createDefaultNoteType(
         id,
         name.trim() || 'New type',
         'local',
         defaultsFromPlugin(plugin)
     )
-    await upsertProfile(plugin, profile)
-    return profile
+    await upsertNoteType(plugin, noteType)
+    return noteType
 }
 
-/** Rename a profile (issue #31). */
-export async function setProfileName(
+/** Rename a note type (issue #31). */
+export async function setNoteTypeName(
     plugin: KanbanActionPlannerPlugin,
-    profileId: string,
+    noteTypeId: string,
     name: string
 ): Promise<void> {
-    const profile = findProfile(plugin, profileId)
-    if (!profile) return
-    await upsertProfile(
+    const noteType = findNoteType(plugin, noteTypeId)
+    if (!noteType) return
+    await upsertNoteType(
         plugin,
-        produce(profile, (draft) => {
+        produce(noteType, (draft) => {
             draft.name = name.trim() || draft.name
         })
     )
@@ -269,27 +269,27 @@ export async function setProfileName(
 /** Replace a local note type's recognition mappings (issue #31). */
 export async function setRecognitionMappings(
     plugin: KanbanActionPlannerPlugin,
-    profileId: string,
-    mappings: Profile['typeRecognition']['mappings']
+    noteTypeId: string,
+    mappings: NoteType['typeRecognition']['mappings']
 ): Promise<void> {
-    const profile = findProfile(plugin, profileId)
-    if (!profile) return
-    await upsertProfile(
+    const noteType = findNoteType(plugin, noteTypeId)
+    if (!noteType) return
+    await upsertNoteType(
         plugin,
-        produce(profile, (draft) => {
+        produce(noteType, (draft) => {
             draft.typeRecognition.mappings = mappings
         })
     )
 }
 
-/** Delete a stored profile (issue #31). The Default profile cannot be deleted. */
-export async function deleteProfile(
+/** Delete a stored note type (issue #31). The Default note type cannot be deleted. */
+export async function deleteNoteType(
     plugin: KanbanActionPlannerPlugin,
-    profileId: string
+    noteTypeId: string
 ): Promise<void> {
-    if (profileId === DEFAULT_PROFILE_ID) return
+    if (noteTypeId === DEFAULT_NOTE_TYPE_ID) return
     plugin.settings = produce(plugin.settings, (draft) => {
-        draft.profiles = draft.profiles.filter((p) => p.id !== profileId)
+        draft.noteTypes = draft.noteTypes.filter((p) => p.id !== noteTypeId)
     })
     await plugin.saveSettings()
 }
@@ -297,32 +297,32 @@ export async function deleteProfile(
 /** Set or clear a status's soft WIP limit (issue #16); `null`/≤0 removes it. */
 export async function setWipLimit(
     plugin: KanbanActionPlannerPlugin,
-    profileId: string,
+    noteTypeId: string,
     statusValue: string,
     limit: number | null
 ): Promise<void> {
-    const profile = findProfile(plugin, profileId)
-    if (!profile) return
-    await upsertProfile(
+    const noteType = findNoteType(plugin, noteTypeId)
+    if (!noteType) return
+    await upsertNoteType(
         plugin,
-        produce(profile, (draft) => {
+        produce(noteType, (draft) => {
             if (limit && limit > 0) draft.wipLimits[statusValue] = Math.floor(limit)
             else delete draft.wipLimits[statusValue]
         })
     )
 }
 
-/** Replace a profile's card-presentation config. */
+/** Replace a note type's card-presentation config. */
 export async function setCardPresentation(
     plugin: KanbanActionPlannerPlugin,
-    profileId: string,
-    card: Profile['card']
+    noteTypeId: string,
+    card: NoteType['card']
 ): Promise<void> {
-    const profile = findProfile(plugin, profileId)
-    if (!profile) return
-    await upsertProfile(
+    const noteType = findNoteType(plugin, noteTypeId)
+    if (!noteType) return
+    await upsertNoteType(
         plugin,
-        produce(profile, (draft) => {
+        produce(noteType, (draft) => {
             draft.card = card
         })
     )
@@ -330,83 +330,83 @@ export async function setCardPresentation(
 
 const NEUTRAL_SPEC: ColorSpec = { kind: 'palette', token: 'slate' }
 
-/** Resolve the color for a status value from a profile's overrides / auto rule. */
-export function colorForStatus(profile: Profile, statusValue: string): ColorSpec {
-    const override = profile.colors.overrides[statusValue]
+/** Resolve the color for a status value from a note type's overrides / auto rule. */
+export function colorForStatus(noteType: NoteType, statusValue: string): ColorSpec {
+    const override = noteType.colors.overrides[statusValue]
     if (override) return override
-    return profile.colors.autoAssign ? autoAssignColor(statusValue) : NEUTRAL_SPEC
+    return noteType.colors.autoAssign ? autoAssignColor(statusValue) : NEUTRAL_SPEC
 }
 
 /**
- * Build columns for a set of status values using a profile's colors.
+ * Build columns for a set of status values using a note type's colors.
  * `preserveOrder` keeps the given order (e.g. Starter Kit allowed values);
  * otherwise values are ordered by numeric/lexical prefix.
  */
 export function columnsFromValues(
     values: ReadonlyArray<string>,
-    profile: Profile,
+    noteType: NoteType,
     preserveOrder: boolean
 ): ColumnDef[] {
     const unique = Array.from(new Set(values))
     const ordered = preserveOrder ? unique : unique.sort(compareStatusValues)
     return ordered.map((statusValue) => {
         const { sortKey, label } = splitStatusValue(statusValue)
-        const wipLimit = profile.wipLimits[statusValue]
+        const wipLimit = noteType.wipLimits[statusValue]
         return {
             id: statusValue,
             statusValue,
             label,
             sortKey,
-            color: colorForStatus(profile, statusValue),
+            color: colorForStatus(noteType, statusValue),
             ...(wipLimit && wipLimit > 0 ? { wipLimit } : {})
         }
     })
 }
 
-export interface ResolvedProfile {
-    profile: Profile
+export interface ResolvedNoteType {
+    noteType: NoteType
     /** Explicit status values from the source of truth, or null to use observed. */
     statusValues: string[] | null
     preserveOrder: boolean
 }
 
 /**
- * Resolve the active profile for the given files: when the Starter Kit
+ * Resolve the active note type for the given files: when the Starter Kit
  * recognizes them as a note type, mirror its status property + allowed values
- * (preserving local color overrides); otherwise use the shared default profile
+ * (preserving local color overrides); otherwise use the shared default note type
  * and observed status values.
  */
-export async function resolveActiveProfile(
+export async function resolveActiveNoteType(
     app: App,
     plugin: KanbanActionPlannerPlugin,
     files: TFile[]
-): Promise<ResolvedProfile> {
-    const noteType = await recognizeDominantNoteType(app, files)
+): Promise<ResolvedNoteType> {
+    const skType = await recognizeDominantNoteType(app, files)
 
-    if (noteType) {
+    if (skType) {
         const defaults = defaultsFromPlugin(plugin)
-        const status = findStatusProperty(noteType, defaults.statusProperty)
+        const status = findStatusProperty(skType, defaults.statusProperty)
         const base =
-            (await getOrCreateProfile(plugin, noteType.id, noteType.name, 'starter-kit')) ?? null
-        const merged = mirrorNoteType(base, noteType, status, defaults)
-        if (!profilesEqual(base, merged)) await upsertProfile(plugin, merged)
+            (await getOrCreateNoteType(plugin, skType.id, skType.name, 'starter-kit')) ?? null
+        const merged = mirrorNoteType(base, skType, status, defaults)
+        if (!noteTypesEqual(base, merged)) await upsertNoteType(plugin, merged)
         return {
-            profile: merged,
+            noteType: merged,
             statusValues: status?.allowedValues ?? null,
             preserveOrder: true
         }
     }
 
-    // Local fallback (issue #31): recognize via stored profiles' mapping rules,
+    // Local fallback (issue #31): recognize via stored note types' mapping rules,
     // so note types work without the Starter Kit (and survive it being removed).
     const localId = recognizeDominantLocalType(app, plugin, files)
     if (localId) {
-        const local = findProfile(plugin, localId)
-        if (local) return { profile: local, statusValues: null, preserveOrder: true }
+        const local = findNoteType(plugin, localId)
+        if (local) return { noteType: local, statusValues: null, preserveOrder: true }
     }
 
-    const profile = await getOrCreateProfile(plugin, DEFAULT_PROFILE_ID, 'Default', 'local')
-    return { profile, statusValues: null, preserveOrder: false }
+    const noteType = await getOrCreateNoteType(plugin, DEFAULT_NOTE_TYPE_ID, 'Default', 'local')
+    return { noteType, statusValues: null, preserveOrder: false }
 }
 
 /** Build the pure recognition view of a file (path + normalized tags). */
@@ -418,10 +418,10 @@ function toRecognitionFile(app: App, file: TFile): RecognitionFile {
     return { path: file.path, tags }
 }
 
-/** Profiles eligible for local recognition: non-Default with at least one mapping. */
-function recognitionProfiles(plugin: KanbanActionPlannerPlugin): Profile[] {
-    return plugin.settings.profiles.filter(
-        (p) => p.id !== DEFAULT_PROFILE_ID && p.typeRecognition.mappings.length > 0
+/** Note types eligible for local recognition: non-Default with at least one mapping. */
+function recognitionNoteTypes(plugin: KanbanActionPlannerPlugin): NoteType[] {
+    return plugin.settings.noteTypes.filter(
+        (p) => p.id !== DEFAULT_NOTE_TYPE_ID && p.typeRecognition.mappings.length > 0
     )
 }
 
@@ -432,9 +432,9 @@ export function recognizeLocalNoteType(
     file: TFile
 ): { id: string; name: string } | null {
     const record = toRecognitionFile(app, file)
-    for (const profile of recognitionProfiles(plugin)) {
-        if (matchesAnyMapping(record, profile.typeRecognition.mappings)) {
-            return { id: profile.id, name: profile.name }
+    for (const noteType of recognitionNoteTypes(plugin)) {
+        if (matchesAnyMapping(record, noteType.typeRecognition.mappings)) {
+            return { id: noteType.id, name: noteType.name }
         }
     }
     return null
@@ -463,7 +463,7 @@ function recognizeDominantLocalType(
     plugin: KanbanActionPlannerPlugin,
     files: TFile[]
 ): string | null {
-    const candidates = recognitionProfiles(plugin)
+    const candidates = recognitionNoteTypes(plugin)
     if (candidates.length === 0) return null
     const counts = new Map<string, number>()
     for (const file of files.slice(0, 20)) {
@@ -496,13 +496,13 @@ async function recognizeDominantNoteType(app: App, files: TFile[]): Promise<SkNo
     return best?.type ?? null
 }
 
-/** Merge Starter Kit facts onto a profile, keeping local color overrides. */
+/** Merge Starter Kit facts onto a note type, keeping local color overrides. */
 function mirrorNoteType(
-    base: Profile,
+    base: NoteType,
     noteType: SkNoteType,
     status: { name: string; allowedValues: string[] } | null,
-    defaults: ProfileDefaults
-): Profile {
+    defaults: NoteTypeDefaults
+): NoteType {
     return produce(base, (draft) => {
         draft.name = noteType.name
         draft.source = 'starter-kit'
@@ -515,6 +515,6 @@ function mirrorNoteType(
     })
 }
 
-function profilesEqual(a: Profile, b: Profile): boolean {
+function noteTypesEqual(a: NoteType, b: NoteType): boolean {
     return JSON.stringify(a) === JSON.stringify(b)
 }

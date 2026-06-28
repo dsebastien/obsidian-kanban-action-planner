@@ -1,6 +1,6 @@
 import { TFile, moment } from 'obsidian'
 import type { App } from 'obsidian'
-import type { CardPresentation } from '../domain/profile'
+import type { CardPresentation } from '../domain/note-type'
 import { getFrontmatterValue } from './frontmatter.service'
 import { formatScalar, stripWikiLink } from '../utils/format'
 import { parseFrontmatterDate, startOfDay } from '../domain/calendar'
@@ -26,7 +26,7 @@ interface MomentLike {
 const parseMoment = moment as unknown as (input?: unknown) => MomentLike
 
 /**
- * Build the presentation data for a card from a profile's card config:
+ * Build the presentation data for a card from a note type's card config:
  * the title (note name or a property), the configured body fields (type-aware),
  * an optional cover image, and the wrap setting. The due-date property is shown
  * in red by default when set and not already among the configured fields.

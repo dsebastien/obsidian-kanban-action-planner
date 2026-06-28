@@ -1,4 +1,4 @@
-import type { RelationshipRole } from '../../domain/profile'
+import type { RelationshipRole } from '../../domain/note-type'
 import type { CardRelationships } from '../../services/relationships.service'
 import { hasAnyRelationship } from '../../services/relationships.service'
 import type { KanbanCard } from './types'

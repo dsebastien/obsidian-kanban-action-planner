@@ -39,11 +39,11 @@ See `documentation/plans/kanban-action-planner-implementation-plan.md` for full 
    configurable property (default `manual_order`) using **fractional float midpoints**
    (one note write per move; silent per-column renumber only on float-precision exhaustion).
    Ordering scope is per-column.
-5. **Profiles + Starter Kit.** Config uses reusable note-type profiles. When the Obsidian
+5. **Note types + Starter Kit.** Config uses reusable note types. When the Obsidian
    Starter Kit plugin (`obsidian-starter-kit`) is present, its note-type config is the
-   **read-only source of truth**, but always **mirrored into a local snapshot** so profiles
+   **read-only source of truth**, but always **mirrored into a local snapshot** so note types
    survive SK being disabled/removed and support local overrides. When SK is absent,
-   profiles are fully local read/write. SK is feature-detected (no API versioning).
+   note types are fully local read/write. SK is feature-detected (no API versioning).
 6. **Kanban-owned presentation.** Colors (theme-aware palette + custom hex; column bg =
    translucent shade of card color), relationships, calendar mappings, swimlane grouping,
    and card presentation are owned by this plugin (SK does not define them).
@@ -54,11 +54,11 @@ See `documentation/plans/kanban-action-planner-implementation-plan.md` for full 
    cover image, and property text-wrapping are all configurable; note name + red due-date are
    defaults. Clicking a card opens the note.
    8b. **Per-note-type card display, live.** A card's displayed fields come from its **note
-   type's** profile (a mixed board shows each type's own config; untyped cards fall back to the
-   board's active profile). Display fields are toggled either in settings or by **right-clicking
+   type** (a mixed board shows each type's own config; untyped cards fall back to the
+   board's active note type). Display fields are toggled either in settings or by **right-clicking
    a card → "Show fields"** (a checked list of candidate properties for that note type). Any
-   change to a profile's card config — from the menu or the settings tab — **immediately
-   re-renders every open board** (all profile/settings writes flow through `saveSettings`, which
+   change to a note type's card config — from the menu or the settings tab — **immediately
+   re-renders every open board** (all note type/settings writes flow through `saveSettings`, which
    notifies live views). New display fields default to no label.
    8a. **Uniform card size.** All cards are the same height board-wide, sized to the
    content-tallest card's natural height (recomputed on every rebuild and on container
@@ -79,7 +79,7 @@ See `documentation/plans/kanban-action-planner-implementation-plan.md` for full 
 11. **Archiving (issue #7).** A card's note can be archived by **moving** it to a
     configurable archive folder that supports Starter-Kit-style placeholders (`{{year}}`,
     `{{month}}`, `{{week}}`, `{{quarter}}`, `{{day}}`, `{{date}}`, `{{datetime}}`,
-    `{{uuid}}`). Archiving is manual (context menu) plus an **optional, opt-in** per-profile
+    `{{uuid}}`). Archiving is manual (context menu) plus an **optional, opt-in** per-note type
     status trigger (auto-archive when a card transitions into **any of one or more** chosen
     statuses — issue #32; stored as `triggerStatuses`, migrated from the legacy single
     `triggerStatus`). File moves preserve links; auto-archiving is guarded against accidental
@@ -116,7 +116,7 @@ See `documentation/plans/kanban-action-planner-implementation-plan.md` for full 
     existing column/lane visibility rules. Parsing is best-effort (never throws). This subsumes
     and replaces the old per-view `calendarFilter` option.
 17. **WIP limits (issue #16).** Soft per-status work-in-progress limits live on the note-type
-    profile (`wipLimits`: status value → positive integer), edited in Configure board → **WIP
+    note type (`wipLimits`: status value → positive integer), edited in Configure board → **WIP
     limits**. A column with a limit shows `count / limit` in its header and turns the count red
     when over; the limit is **advisory only** and never blocks a drop. `columnsFromValues`
     attaches the limit to each `ColumnDef`. Per-view overrides are out of scope (Bases flat
@@ -150,12 +150,12 @@ See `documentation/plans/kanban-action-planner-implementation-plan.md` for full 
     set-status does **not** auto-archive (guards against accidental mass-archiving). Selections
     drop automatically when a card leaves the board (archived/filtered).
 23. **Local note types (issue #31).** Note types can be **created without the Starter Kit**:
-    Settings → Note types → **Add note type** makes a local profile; its **Note type** section
+    Settings → Note types → **Add note type** makes a local note type; its **Note type** section
     edits the name + **recognition rules** (`typeRecognition.mappings`: tag [nested-aware],
     folder [incl. subfolders], or path regex — any match wins). Recognition is pure
     (`domain/note-type-recognition.ts`); the service prefers Starter Kit recognition (when
     present) then falls back to local rules (`recognizeNoteTypeFor` / `recognizeLocalNoteType`),
-    so per-file type resolution (swimlanes, archive, card display) and the dominant-type profile
+    so per-file type resolution (swimlanes, archive, card display) and the dominant-type note type
     work with or without the Starter Kit — and orphaned SK types keep recognizing from their
     mirrored mappings. Deleting a type removes only its config (notes untouched), via a themed
-    confirm modal. Default profile is never a recognition candidate.
+    confirm modal. Default note type is never a recognition candidate.

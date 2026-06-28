@@ -1,9 +1,9 @@
 import { z } from 'zod'
 
 /**
- * Profile configuration model + Zod schemas.
+ * NoteType configuration model + Zod schemas.
  *
- * Profiles are the reusable note-type configuration unit. When the Starter Kit
+ * Note types are the reusable configuration unit. When the Starter Kit
  * plugin is present its note-type config is mirrored in (read-only source of
  * truth); the kanban-owned parts (colors, card presentation, swimlane grouping,
  * relationships, archiving, calendar) always live here. All stored config is
@@ -117,8 +117,24 @@ export const calendarConfigSchema = z.object({
 })
 export type CalendarConfig = z.infer<typeof calendarConfigSchema>
 
-/** The set of profile fields a local override may replace. */
-export const profileOverridableSchema = z.object({
+/**
+ * A note type: the reusable config the plugin applies to every board showing
+ * notes of that type (recognized via the Starter Kit or local rules). The
+ * `__default__` note type is the fallback for notes that match no type.
+ */
+export const noteTypeSchema = z.object({
+    id: z.string(),
+    name: z.string(),
+    source: z.enum(['starter-kit', 'local']),
+    typeRecognition: z.object({
+        mappings: z.array(
+            z.object({
+                type: z.enum(['tag', 'folder', 'regex']),
+                value: z.string(),
+                enabled: z.boolean()
+            })
+        )
+    }),
     statusProperty: z.string(),
     orderProperty: z.string(),
     columns: z.array(columnDefSchema),
@@ -134,21 +150,4 @@ export const profileOverridableSchema = z.object({
     /** Soft per-status WIP limits (issue #16): status value → positive limit. */
     wipLimits: z.record(z.string(), z.number().int().positive()).default({})
 })
-
-/** A reusable note-type profile. */
-export const profileSchema = profileOverridableSchema.extend({
-    id: z.string(),
-    name: z.string(),
-    source: z.enum(['starter-kit', 'local']),
-    typeRecognition: z.object({
-        mappings: z.array(
-            z.object({
-                type: z.enum(['tag', 'folder', 'regex']),
-                value: z.string(),
-                enabled: z.boolean()
-            })
-        )
-    }),
-    overrides: profileOverridableSchema.partial().optional()
-})
-export type Profile = z.infer<typeof profileSchema>
+export type NoteType = z.infer<typeof noteTypeSchema>

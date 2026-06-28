@@ -10,7 +10,7 @@ Effective value for any setting resolves in this order (first match wins):
 1. **Per-view** — `BasesViewConfig` (`this.config`) on the individual Kanban view in a
    `.base` file: selected status/order/date properties, calendar toggle, range, sort,
    relational filters, panel state.
-2. **Local profile / overrides** — the `profiles` store in plugin settings, edited via the
+2. **Local note types** — the `noteTypes` store in plugin settings, edited via the
    Configure-board modal: colors, card presentation, swimlane grouping, relationships,
    archiving, calendar mappings, plus local overrides of mirrored fields.
 3. **Starter Kit mirror** — when `obsidian-starter-kit` is installed and enabled, its
@@ -25,11 +25,11 @@ Three places, by scope:
 1. **Plugin settings tab** (`settings/settings-tab.ts`) — vault-wide **defaults** (property
    names, default statuses, date format) **plus a central "Note types" list** (issue #30): every
    note type's shared config (statuses, colors, cards, relationships, archiving) lives in
-   `plugin.settings.profiles`, keyed by note-type id, and is editable here once — boards apply it
+   `plugin.settings.noteTypes`, keyed by note-type id, and is editable here once — boards apply it
    by recognition (no per-board duplication). The tab merges Starter Kit types (`listNoteTypes`)
-   with stored local profiles and a Default; **Configure** opens `ui/configure-board-modal.ts` for
-   that type's profile (status values from the type, property names from the SK type +
-   profile-referenced props, a single archive section). Starter Kit types stay synced via
+   with stored local note types and a Default; **Configure** opens `ui/configure-board-modal.ts` for
+   that type's note type (status values from the type, property names from the SK type +
+   note-type-referenced props, a single archive section). Starter Kit types stay synced via
    `resolveActiveProfile`/`mirrorNoteType`.
 2. **Bases "Configure view"** (`views/kanban/kanban-view-options.ts`) — **per-view**
    (`this.config`) board-only settings (Bases option types can't render rich controls), grouped
@@ -75,5 +75,5 @@ mirror is always re-derived rather than trusted blindly.
 
 All configuration surfaces are implemented and harmonized (M7): the global settings tab
 (defaults), the grouped Bases "Configure view" per-view options, and the gear "Configure board"
-shared-profile modal. Starter Kit mirroring, colors, cards, swimlanes, relationships, archiving,
+shared note-type modal. Starter Kit mirroring, colors, cards, swimlanes, relationships, archiving,
 and calendar are all wired and persist through these surfaces.

@@ -1,4 +1,4 @@
-import type { RelationshipRole } from './profile'
+import type { RelationshipRole } from './note-type'
 import { parseFrontmatterDate, startOfDay, toDateKey } from './calendar'
 
 /**

@@ -1,6 +1,6 @@
 import { getAllTags } from 'obsidian'
 import type { App, TFile } from 'obsidian'
-import type { Profile, RelationshipRole } from '../domain/profile'
+import type { NoteType, RelationshipRole } from '../domain/note-type'
 import {
     RELATIONSHIP_ROLES,
     emptyRelationshipSet,
@@ -21,7 +21,7 @@ import {
  * For each board file it reads tags (`getAllTags`), the resolved targets of each
  * role's link-property (`frontmatterLinks` + `getFirstLinkpathDest`), and all
  * outgoing links (`metadataCache.resolvedLinks`), then runs
- * {@link resolveRelationships}. Role link-property names come from the profile's
+ * {@link resolveRelationships}. Role link-property names come from the note type's
  * relationship rules, falling back to per-role defaults so it works out of the
  * box. Nothing here is written — relationships are read-only this milestone.
  */
@@ -38,25 +38,25 @@ const DEFAULT_ROLE_PROPERTY: Record<RelationshipRole, string> = {
  * default; a present rule uses its value verbatim — so an explicit empty value
  * disables link-based detection for that role (heuristics still apply).
  */
-export function roleProperties(profile: Profile): Record<RelationshipRole, string> {
+export function roleProperties(noteType: NoteType): Record<RelationshipRole, string> {
     const map = { ...DEFAULT_ROLE_PROPERTY }
-    for (const rule of profile.relationships) {
+    for (const rule of noteType.relationships) {
         map[rule.role] = rule.linkProperty.trim()
     }
     return map
 }
 
 /**
- * The roles that are turned on for a profile. A role is active when it has a
+ * The roles that are turned on for a note type. A role is active when it has a
  * non-empty link-property or a configured heuristic; a role with neither is
  * "None" and is fully suppressed (no direct, inverse, or heuristic relations).
  */
 export function activeRoles(
-    profile: Profile,
+    noteType: NoteType,
     props: Record<RelationshipRole, string>
 ): Set<RelationshipRole> {
     const withHeuristic = new Set(
-        profile.relationships.filter((r) => r.heuristic).map((r) => r.role)
+        noteType.relationships.filter((r) => r.heuristic).map((r) => r.role)
     )
     const active = new Set<RelationshipRole>()
     for (const role of RELATIONSHIP_ROLES) {
@@ -65,10 +65,10 @@ export function activeRoles(
     return active
 }
 
-/** Heuristic rules declared on the profile, normalized for the domain. */
-function heuristicRules(profile: Profile): HeuristicRule[] {
+/** Heuristic rules declared on the note type, normalized for the domain. */
+function heuristicRules(noteType: NoteType): HeuristicRule[] {
     const rules: HeuristicRule[] = []
-    for (const rule of profile.relationships) {
+    for (const rule of noteType.relationships) {
         if (!rule.heuristic) continue
         rules.push({
             role: rule.role,
@@ -111,17 +111,17 @@ function toRecord(app: App, file: TFile, props: Record<RelationshipRole, string>
 }
 
 /**
- * Resolve relationships for every board file under the active profile. Returns a
+ * Resolve relationships for every board file under the active note type. Returns a
  * map keyed by file path; missing files default to an empty set.
  */
 export function resolveBoardRelationships(
     app: App,
     files: ReadonlyArray<TFile>,
-    profile: Profile
+    noteType: NoteType
 ): Map<string, RelationshipSet> {
-    const props = roleProperties(profile)
+    const props = roleProperties(noteType)
     const records = files.map((file) => toRecord(app, file, props))
-    return resolveRelationships(records, heuristicRules(profile), activeRoles(profile, props))
+    return resolveRelationships(records, heuristicRules(noteType), activeRoles(noteType, props))
 }
 
 /** A related note resolved for display/navigation. */

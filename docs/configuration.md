@@ -34,7 +34,7 @@ Swimlanes** (which defaults to "Use note type default").
 ## Property names
 
 The plugin reads and writes ordinary note properties (frontmatter). The defaults below are
-used today; per-view and per-profile overrides arrive in later releases.
+used today; per-view overrides may arrive in later releases.
 
 | Property     | Default        | What it does                                                                                                                   |
 | ------------ | -------------- | ------------------------------------------------------------------------------------------------------------------------------ |
@@ -64,11 +64,11 @@ When you reorder cards, the plugin assigns a numeric `manual_order`. It uses fra
 midpoints so a single move usually rewrites only the card you moved; a column is renumbered
 to whole numbers only when needed (e.g. when some cards have no order yet).
 
-## Profiles and the Obsidian Starter Kit
+## Note types and the Obsidian Starter Kit
 
-Board configuration (currently: colors) is grouped into a **profile**. When the Obsidian
+Board configuration (currently: colors) is grouped into a **note type**. When the Obsidian
 Starter Kit plugin is installed and recognizes your notes as a note type, the board uses that
-type as its profile — taking the status property and its allowed values from the Starter Kit
+type as its note type — taking the status property and its allowed values from the Starter Kit
 and building columns in the defined order, including empty ones. The Starter Kit remains the
 source of truth for those facts; your color choices are stored locally in this plugin and
 keep working even if the Starter Kit is disabled.
@@ -77,18 +77,18 @@ You can also **define your own note types** without the Starter Kit (**Settings 
 Add note type**): give the type a name and **recognition rules** (by tag, folder, or path regex).
 The plugin recognizes notes from those rules — Starter Kit recognition is tried first when it's
 installed, then your local rules. A note that matches no type (and notes when nothing is defined)
-uses the **Default** profile.
+uses the **Default** note type.
 
 ## Colors
 
-Colors are saved per profile, so all boards of the same note type share them. Each status can
+Colors are saved per note type, so all boards of the same note type share them. Each status can
 use an auto-assigned palette color, a chosen palette color, or a custom hex value. Column
 backgrounds are a translucent blend of the card color over your theme background, so they look
 right in both light and dark themes.
 
 ## Swimlanes
 
-A board can be split into horizontal **lanes**. The grouping is saved per profile (and can be
+A board can be split into horizontal **lanes**. The grouping is saved per note type (and can be
 overridden per view):
 
 - **None** — one plain board.
@@ -103,7 +103,7 @@ tags/folder — so cross-lane drags there are ignored.
 
 ## Relationships
 
-Each relationship role reads a link-property (frontmatter wikilinks), configured per profile in
+Each relationship role reads a link-property (frontmatter wikilinks), configured per note type in
 **Configure board → Relationships**:
 
 | Role       | Default property | Meaning                          |
@@ -125,7 +125,7 @@ it never changes status on its own.
 
 ## Archiving
 
-Archiving **moves** a note out of the board into a folder, saved per profile in **Configure
+Archiving **moves** a note out of the board into a folder, saved per note type in **Configure
 board → Archiving**:
 
 - **Archive folder** — destination path. Supports placeholders resolved at archive time:
@@ -162,7 +162,7 @@ properties (their names are set in plugin settings) and writes them when you dra
 | Due date       | `date_due`       | The **No deadline** tab + the calendar's due day.     |
 
 Dates are parsed leniently (a `YYYY-MM-DD` or full date string, or a real date value) and
-written with the profile's momentjs **date format** (default `YYYY-MM-DD`). The calendar's
+written with the note type's momentjs **date format** (default `YYYY-MM-DD`). The calendar's
 default **range** (week/month/quarter/year) and the **panel sort** (manual order / name /
 a property) are view options. To narrow the calendar (grid and panel together), use the
 toolbar **filter box** — see the usage guide's "Filtering" section.

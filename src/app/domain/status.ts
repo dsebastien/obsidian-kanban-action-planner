@@ -4,7 +4,7 @@ import { UNMAPPED_COLUMN_ID } from '../constants'
  * Status-property detection and column derivation (pure).
  *
  * Columns come from the distinct status values observed in the notes (until a
- * profile defines an explicit set). Values may carry a numeric/lexical sort
+ * noteType defines an explicit set). Values may carry a numeric/lexical sort
  * prefix (e.g. `10 Todo`) which orders the columns and is stripped for display.
  */
 

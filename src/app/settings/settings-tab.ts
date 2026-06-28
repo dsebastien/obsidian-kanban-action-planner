@@ -2,24 +2,24 @@ import { App, PluginSettingTab, Setting } from 'obsidian'
 import { produce } from 'immer'
 import type KanbanActionPlannerPlugin from '../../main'
 import type { PluginSettings } from '../types/plugin-settings.intf'
-import type { Profile } from '../domain/profile'
+import type { NoteType } from '../domain/note-type'
 import { findStatusProperty, listNoteTypes } from '../services/starter-kit.service'
 import {
-    DEFAULT_PROFILE_ID,
+    DEFAULT_NOTE_TYPE_ID,
     createLocalNoteType,
-    deleteProfile,
-    findProfile,
-    getOrCreateProfile
-} from '../services/profile-service'
+    deleteNoteType,
+    findNoteType,
+    getOrCreateNoteType
+} from '../services/note-type.service'
 import { ConfigureBoardModal } from '../ui/configure-board-modal'
 import { ConfirmModal } from '../ui/confirm-modal'
 import { BUY_ME_A_COFFEE_BADGE_DATA_URL } from '../assets/buy-me-a-coffee'
 
-/** A note type known to the plugin (Starter Kit or a stored local profile). */
+/** A note type known to the plugin (Starter Kit or a stored local note type). */
 interface NoteTypeRow {
     id: string
     name: string
-    source: Profile['source']
+    source: NoteType['source']
     statusValues: string[]
 }
 
@@ -110,7 +110,7 @@ export class KanbanActionPlannerSettingTab extends PluginSettingTab {
                 button.setButtonText('Configure').onClick(
                     () =>
                         void this.openTypeConfig({
-                            id: DEFAULT_PROFILE_ID,
+                            id: DEFAULT_NOTE_TYPE_ID,
                             name: 'Default',
                             source: 'local',
                             statusValues: this.plugin.settings.defaultStatuses
@@ -119,7 +119,7 @@ export class KanbanActionPlannerSettingTab extends PluginSettingTab {
             )
     }
 
-    /** Merge Starter Kit note types with any stored local profiles (deduped). */
+    /** Merge Starter Kit note types with any stored local note types (deduped). */
     private knownNoteTypes(): NoteTypeRow[] {
         const map = new Map<string, NoteTypeRow>()
         for (const sk of listNoteTypes(this.app)) {
@@ -131,13 +131,13 @@ export class KanbanActionPlannerSettingTab extends PluginSettingTab {
                 statusValues: status?.allowedValues ?? []
             })
         }
-        for (const profile of this.plugin.settings.profiles) {
-            if (profile.id === DEFAULT_PROFILE_ID || map.has(profile.id)) continue
-            map.set(profile.id, {
-                id: profile.id,
-                name: profile.name,
-                source: profile.source,
-                statusValues: profile.columns.map((c) => c.statusValue)
+        for (const noteType of this.plugin.settings.noteTypes) {
+            if (noteType.id === DEFAULT_NOTE_TYPE_ID || map.has(noteType.id)) continue
+            map.set(noteType.id, {
+                id: noteType.id,
+                name: noteType.name,
+                source: noteType.source,
+                statusValues: noteType.columns.map((c) => c.statusValue)
             })
         }
         return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name))
@@ -145,11 +145,11 @@ export class KanbanActionPlannerSettingTab extends PluginSettingTab {
 
     /** Open the shared note-type config (reuses the Configure-board editor). */
     private async openTypeConfig(type: NoteTypeRow): Promise<void> {
-        const profile = await getOrCreateProfile(this.plugin, type.id, type.name, type.source)
+        const noteType = await getOrCreateNoteType(this.plugin, type.id, type.name, type.source)
         new ConfigureBoardModal(
             this.app,
             this.plugin,
-            profile,
+            noteType,
             type.statusValues,
             this.propertiesForType(type.id),
             () => this.display()
@@ -158,14 +158,14 @@ export class KanbanActionPlannerSettingTab extends PluginSettingTab {
 
     /** Create a local note type and open its config (recognition first). */
     private async addLocalNoteType(): Promise<void> {
-        const profile = await createLocalNoteType(this.plugin, 'New type')
+        const noteType = await createLocalNoteType(this.plugin, 'New type')
         this.display()
         new ConfigureBoardModal(
             this.app,
             this.plugin,
-            profile,
+            noteType,
             this.plugin.settings.defaultStatuses,
-            this.propertiesForType(profile.id),
+            this.propertiesForType(noteType.id),
             () => this.display(),
             'recognition'
         ).open()
@@ -180,7 +180,7 @@ export class KanbanActionPlannerSettingTab extends PluginSettingTab {
                 'archiving, recognition rules). Your notes are not changed.',
             confirmText: 'Delete',
             onConfirm: () => {
-                void deleteProfile(this.plugin, type.id).then(() => this.display())
+                void deleteNoteType(this.plugin, type.id).then(() => this.display())
             }
         }).open()
     }
@@ -190,19 +190,19 @@ export class KanbanActionPlannerSettingTab extends PluginSettingTab {
         const names = new Set<string>()
         const sk = listNoteTypes(this.app).find((t) => t.id === id)
         for (const prop of sk?.properties ?? []) names.add(prop.name)
-        const profile = findProfile(this.plugin, id)
-        if (profile) {
-            for (const rule of profile.relationships) {
+        const noteType = findNoteType(this.plugin, id)
+        if (noteType) {
+            for (const rule of noteType.relationships) {
                 if (rule.linkProperty) names.add(rule.linkProperty)
             }
-            for (const field of profile.card.fields) names.add(field.property)
-            if (profile.card.coverImageProperty) names.add(profile.card.coverImageProperty)
-            if (profile.card.titleSource.kind === 'property') {
-                names.add(profile.card.titleSource.property)
+            for (const field of noteType.card.fields) names.add(field.property)
+            if (noteType.card.coverImageProperty) names.add(noteType.card.coverImageProperty)
+            if (noteType.card.titleSource.kind === 'property') {
+                names.add(noteType.card.titleSource.property)
             }
-            if (profile.laneGrouping.kind === 'property') names.add(profile.laneGrouping.property)
-            names.add(profile.statusProperty)
-            names.add(profile.orderProperty)
+            if (noteType.laneGrouping.kind === 'property') names.add(noteType.laneGrouping.property)
+            names.add(noteType.statusProperty)
+            names.add(noteType.orderProperty)
         }
         names.add(this.plugin.settings.defaultBlockedByProperty)
         return Array.from(names)

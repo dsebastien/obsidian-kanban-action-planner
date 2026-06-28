@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 import { buildBoard, buildSingleLaneBoard } from './board-model'
 import type { BoardCardBase } from './board-model'
-import type { ColumnDef } from './profile'
+import type { ColumnDef } from './note-type'
 import { splitStatusValue } from './status'
 import { UNGROUPED_LANE_ID, UNMAPPED_COLUMN_ID } from '../constants'
 

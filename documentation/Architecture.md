@@ -35,10 +35,10 @@ The core is a custom Obsidian **Bases view** (Obsidian ≥ 1.13.0 API):
   it applies in both board and calendar mode and replaced the old `calendarFilter` option.
 - **Live config propagation.** The plugin tracks open views in a `Set` (`trackKanbanView` /
   `untrackKanbanView`, wired in the view's load/unload). `saveSettings()` — the single sink for
-  every profile/settings write — calls `view.onSettingsChanged()` (debounced rebuild) on each,
+  every note-type/settings write — calls `view.onSettingsChanged()` (debounced rebuild) on each,
   so a card-field edit from the right-click "Show fields" menu **or** the settings tab refreshes
   every open board immediately. Card display is resolved **per note type** (`cardPresentationFor`
-  → the file's note-type profile, else the active profile), so a mixed board shows each type's
+  → the file's note-type config, else the active note type), so a mixed board shows each type's
   own fields.
 
 ## Layering (target)
@@ -46,7 +46,7 @@ The core is a custom Obsidian **Bases view** (Obsidian ≥ 1.13.0 API):
 ```
 views/kanban/      Bases view + its options panel (thin; delegates to ui + domain)
 ui/                vanilla-DOM renderers: board, calendar, view toolbar, gear, folder suggest, modal (no UI deps)
-services/          side-effectful adapters: frontmatter R/W, Starter Kit API, profiles, colors, archive
+services/          side-effectful adapters: frontmatter R/W, Starter Kit API, note types, colors, archive
 domain/            pure, unit-tested logic: status, ordering, relationships, filtering, calendar, board model
 settings/ + types/ plugin settings (Zod schema + defaults) and the settings tab
 utils/             logging, date formatting, placeholder expressions, small DOM helpers
@@ -58,17 +58,17 @@ side effects and DOM, verified manually in Obsidian.
 
 ## Config flow
 
-Three layers resolved by the (planned) profile service, in precedence order:
-**per-view `this.config` → local profile/overrides → Starter Kit mirror → built-in defaults.**
+Three layers resolved by the note-type service, in precedence order:
+**per-view `this.config` → local note type → Starter Kit mirror → built-in defaults.**
 When the Starter Kit plugin is present, its note-type config is the read-only source of
 truth, mirrored into a local snapshot in plugin settings so it survives SK being disabled.
 
 **Note-type recognition (issue #31).** A file's type is resolved by `recognizeNoteTypeFor`:
 Starter Kit recognition first (when present), then **local mapping rules** — the pure
-`domain/note-type-recognition.ts` matches a file (path + tags) against each non-Default profile's
+`domain/note-type-recognition.ts` matches a file (path + tags) against each non-Default note type's
 `typeRecognition.mappings` (tag / folder / regex). So locally-defined types (created in Settings →
 Note types) and orphaned SK types both recognize without the Starter Kit, driving per-file
-swimlane/archive/display and the dominant-type active profile.
+swimlane/archive/display and the dominant-type active note type.
 
 ## Styling / isolation (hard rule)
 
@@ -93,7 +93,7 @@ Edit only `src/styles.src.css`; the root `styles.css` is generated.
 
 Through Milestone 4: a working board with columns from a status property, an Unmapped column,
 pointer-event drag/drop and reorder persisted to notes, a right-click menu, note-type
-**profiles** (mirrored from the Obsidian Starter Kit when present), a **color** system applied
+**note types** (mirrored from the Obsidian Starter Kit when present), a **color** system applied
 to cards/columns, **config-driven card presentation** (title/fields/cover/wrap), **configurable
 swimlanes** (group by note type or a property, with collapsible lanes and an Ungrouped lane;
 cross-lane drag rewrites the grouping property), **relationships** (parent/sibling/child/

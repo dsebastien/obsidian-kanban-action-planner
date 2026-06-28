@@ -1,6 +1,6 @@
 # Domain Model
 
-The configuration domain model lives in `src/app/domain/profile.ts` as Zod schemas; the
+The configuration domain model lives in `src/app/domain/note type.ts` as Zod schemas; the
 TypeScript types are inferred from those schemas (`z.infer`) so schema and type never drift.
 Stored config is validated against these schemas on load.
 
@@ -24,7 +24,7 @@ column rule.
 
 ## Core terms
 
-- **Profile** — the reusable note-type configuration unit. Identifies how a note type is
+- **Note type** — the reusable note-type configuration unit. Identifies how a note type is
   recognized (`typeRecognition.mappings`: tag/folder/regex) and carries everything needed to
   render and operate a board for that type: status/order property names, derived `columns`,
   swimlane grouping, colors, card presentation, archiving, relationships, calendar config.
@@ -50,10 +50,10 @@ column rule.
 - **ArchiveConfig** (issue #7) — `archiveFolder` (supports `{{year}}`/`{{month}}`/`{{week}}`/
   `{{quarter}}`/`{{day}}`/`{{date}}`/`{{datetime}}`/`{{uuid}}` placeholders, resolved by the
   pure `utils/expressions.ts`) and an optional `triggerStatus`. Archiving is **per note type**
-  (issue #29): each note-type profile carries its own `archive`, and the view resolves a card's
+  (issue #29): each note type carries its own `archive`, and the view resolves a card's
   config by _its_ recognized type (`archiveByPath`, built from per-file `recognizeNoteType`), so a
   board mixing types files each card where it belongs; untyped cards (no Starter Kit) fall back to
-  the default profile. Configure-board → Archiving renders a folder + trigger **per type present**
+  the default note type. Configure-board → Archiving renders a folder + trigger **per type present**
   on the board. Archiving **moves** the note via `services/archive.service.ts`
   (`fileManager.renameFile`, links preserved); manual via the card menu (shown only when the
   card's type has a folder), or auto when a card **transitions into** its type's `triggerStatus`
@@ -93,5 +93,5 @@ column rule.
 ## Settings shape
 
 `src/app/types/plugin-settings.intf.ts` (`pluginSettingsSchema`) holds a `schemaVersion`,
-global default property names, the default date format, and the local `profiles` store
+global default property names, the default date format, and the local `note types` store
 (empty until a board is configured or a Starter Kit type is mirrored).

@@ -116,7 +116,7 @@ Record<role,string[]>; tags: string[]; due: Date|null; props: Map<string,string[
   (covers board and calendar, since both consume the same `cards`).
 - Hold `filterQuery` (string from `this.config`) + parsed AST; re-parse on change.
 - On input change: debounced (~150 ms) `set('filterQuery', …)` then a light re-render
-  (re-filter + re-build board / calendar; no profile/relationship re-resolution).
+  (re-filter + re-build board / calendar; no note-type/relationship re-resolution).
 
 **Toolbar — `view-toolbar.ts` + `kanban-view.ts`:**
 

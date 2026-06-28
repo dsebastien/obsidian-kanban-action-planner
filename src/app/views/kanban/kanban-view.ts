@@ -12,9 +12,9 @@ import type {
     CardPresentation,
     ColumnDef,
     LaneGrouping,
-    Profile,
+    NoteType,
     RelationshipRole
-} from '../../domain/profile'
+} from '../../domain/note-type'
 import { buildBoard } from '../../domain/board-model'
 import type { Board, UnmappedPosition } from '../../domain/board-model'
 import { detectStatusProperty, normalizeStatusValue, splitStatusValue } from '../../domain/status'
@@ -34,14 +34,14 @@ import {
     setProperty
 } from '../../services/frontmatter.service'
 import {
-    DEFAULT_PROFILE_ID,
+    DEFAULT_NOTE_TYPE_ID,
     columnsFromValues,
-    createDefaultProfile,
-    findProfile,
+    createDefaultNoteType,
+    findNoteType,
     recognizeNoteTypeFor,
-    resolveActiveProfile,
+    resolveActiveNoteType,
     setCardPresentation
-} from '../../services/profile-service'
+} from '../../services/note-type.service'
 import { buildCardDisplay } from '../../services/card-display.service'
 import { archiveNote } from '../../services/archive.service'
 import {
@@ -85,7 +85,7 @@ interface ObsidianSettings {
 /**
  * The Kanban Bases view.
  *
- * Reads the filtered notes, resolves the active note-type profile (mirrored from
+ * Reads the filtered notes, resolves the active note-type noteType (mirrored from
  * the Starter Kit when present), derives colored columns, renders a draggable
  * board, and persists status + manual order back to the notes. `data` is
  * replaced on every update, so it is always re-read in {@link onDataUpdated}.
@@ -112,8 +112,8 @@ export class KanbanActionPlannerView extends BasesView {
     private orderProperty = 'manual_order'
     private dueDateProperty = 'date_due'
     private availableProperties: string[] = []
-    private profile: Profile = createDefaultProfile(DEFAULT_PROFILE_ID, 'Default', 'local')
-    private profileStatusValues: string[] | null = null
+    private noteType: NoteType = createDefaultNoteType(DEFAULT_NOTE_TYPE_ID, 'Default', 'local')
+    private noteTypeStatusValues: string[] | null = null
     private columns: ColumnDef[] = []
     private laneGrouping: LaneGrouping = { kind: 'none' }
     private laneValueByPath = new Map<string, string | null>()
@@ -263,12 +263,12 @@ export class KanbanActionPlannerView extends BasesView {
         return entries.map((e) => e.file).filter((f): f is TFile => f instanceof TFile)
     }
 
-    /** Resolve the profile + lane values (may hit the async Starter Kit API), then render. */
+    /** Resolve the note type + lane values (may hit the async Starter Kit API), then render. */
     private async resolveAndRebuild(): Promise<void> {
         const files = this.files()
-        const resolved = await resolveActiveProfile(this.app, this.plugin, files)
-        this.profile = resolved.profile
-        this.profileStatusValues = resolved.statusValues
+        const resolved = await resolveActiveNoteType(this.app, this.plugin, files)
+        this.noteType = resolved.noteType
+        this.noteTypeStatusValues = resolved.statusValues
         // Recognize each file's note type once (Starter Kit only) — shared by
         // swimlanes and per-type archiving. Runs with or without the Starter Kit:
         // SK recognition first, then local mapping rules (issue #31).
@@ -292,8 +292,8 @@ export class KanbanActionPlannerView extends BasesView {
 
     /**
      * Resolve each card's archive config by its note type: a recognized type uses
-     * its own profile's archive (so a mixed board files each type where it
-     * belongs); untyped cards fall back to the active/default profile.
+     * its own note type's archive (so a mixed board files each type where it
+     * belongs); untyped cards fall back to the active/default note type.
      */
     private computeArchiveByPath(files: TFile[]): Map<string, ArchiveConfig> {
         const map = new Map<string, ArchiveConfig>()
@@ -302,12 +302,12 @@ export class KanbanActionPlannerView extends BasesView {
         for (const file of files) {
             const type = this.noteTypeByPath.get(file.path) ?? null
             if (!type) {
-                map.set(file.path, this.profile.archive)
+                map.set(file.path, this.noteType.archive)
                 continue
             }
             let config = byType.get(type.id)
             if (!config) {
-                config = findProfile(this.plugin, type.id)?.archive ?? empty
+                config = findNoteType(this.plugin, type.id)?.archive ?? empty
                 byType.set(type.id, config)
             }
             map.set(file.path, config)
@@ -317,12 +317,12 @@ export class KanbanActionPlannerView extends BasesView {
 
     /** The archive config that applies to a card (by its note type). */
     private archiveConfigFor(card: KanbanCard): ArchiveConfig {
-        return this.archiveByPath.get(card.key) ?? this.profile.archive
+        return this.archiveByPath.get(card.key) ?? this.noteType.archive
     }
 
-    /** Per-view grouping override (when set) else the profile's grouping. */
+    /** Per-view grouping override (when set) else the note type's grouping. */
     private resolveLaneGrouping(): LaneGrouping {
-        return readLaneGroupingOverride(this.config) ?? this.profile.laneGrouping
+        return readLaneGroupingOverride(this.config) ?? this.noteType.laneGrouping
     }
 
     /**
@@ -359,7 +359,7 @@ export class KanbanActionPlannerView extends BasesView {
         this.dueDateProperty = this.resolveDueDateProperty()
         this.scheduledDateProperty = this.resolveScheduledDateProperty()
 
-        this.relationshipsByPath = resolveBoardRelationships(this.app, files, this.profile)
+        this.relationshipsByPath = resolveBoardRelationships(this.app, files, this.noteType)
         this.loadFilterQuery()
 
         const filter = this.relationalFilter()
@@ -399,7 +399,7 @@ export class KanbanActionPlannerView extends BasesView {
         }
 
         const values = this.resolveColumnValues()
-        this.columns = columnsFromValues(values, this.profile, true)
+        this.columns = columnsFromValues(values, this.noteType, true)
 
         let board = buildBoard(cards, this.columns, {
             grouped: this.laneGrouping.kind !== 'none',
@@ -420,7 +420,7 @@ export class KanbanActionPlannerView extends BasesView {
         this.renderToolbar(this.board.lanes.length > 1)
 
         log(
-            `Kanban rebuild: ${String(cards.length)}/${String(this.allCards.length)} cards, ${String(this.columns.length)} columns, ${String(board.lanes.length)} lane(s), profile "${this.profile.name}"`,
+            `Kanban rebuild: ${String(cards.length)}/${String(this.allCards.length)} cards, ${String(this.columns.length)} columns, ${String(board.lanes.length)} lane(s), noteType "${this.noteType.name}"`,
             'debug'
         )
 
@@ -714,8 +714,8 @@ export class KanbanActionPlannerView extends BasesView {
     private resolveStatusProperty(_files: TFile[]): string | null {
         const configured = basesPropToName(this.config.get('statusProperty'))
         if (configured) return configured
-        if (this.profile.source === 'starter-kit' && this.profile.statusProperty) {
-            return this.profile.statusProperty
+        if (this.noteType.source === 'starter-kit' && this.noteType.statusProperty) {
+            return this.noteType.statusProperty
         }
         return detectStatusProperty(
             this.availableProperties,
@@ -733,7 +733,7 @@ export class KanbanActionPlannerView extends BasesView {
     private resolveDueDateProperty(): string {
         return (
             basesPropToName(this.config.get('dueDateProperty')) ??
-            this.profile.calendar.dueDateProperty ??
+            this.noteType.calendar.dueDateProperty ??
             this.plugin.settings.defaultDueDateProperty
         )
     }
@@ -741,7 +741,7 @@ export class KanbanActionPlannerView extends BasesView {
     private resolveScheduledDateProperty(): string {
         return (
             basesPropToName(this.config.get('scheduledDateProperty')) ??
-            this.profile.calendar.scheduledDateProperty ??
+            this.noteType.calendar.scheduledDateProperty ??
             this.plugin.settings.defaultScheduledDateProperty
         )
     }
@@ -756,8 +756,8 @@ export class KanbanActionPlannerView extends BasesView {
     private resolveColumnValues(): string[] {
         const viewStatuses = readStringArray(this.config.get('statuses'))
         if (viewStatuses.length > 0) return viewStatuses
-        if (this.profileStatusValues && this.profileStatusValues.length > 0) {
-            return this.profileStatusValues
+        if (this.noteTypeStatusValues && this.noteTypeStatusValues.length > 0) {
+            return this.noteTypeStatusValues
         }
         return this.plugin.settings.defaultStatuses
     }
@@ -800,23 +800,23 @@ export class KanbanActionPlannerView extends BasesView {
     }
 
     /**
-     * The profile whose card config drives a file's display: its recognized
-     * note-type profile when available, else the board's active profile. This is
+     * The noteType whose card config drives a file's display: its recognized
+     * note-type noteType when available, else the board's active note type. This is
      * what makes a mixed board show each note type's own fields, and what the
      * card's "Show fields" menu edits.
      */
-    private cardDisplayProfile(file: TFile): Profile {
+    private cardDisplayNoteType(file: TFile): NoteType {
         const type = this.noteTypeByPath.get(file.path)
         if (type) {
-            const typeProfile = findProfile(this.plugin, type.id)
-            if (typeProfile) return typeProfile
+            const typeNoteType = findNoteType(this.plugin, type.id)
+            if (typeNoteType) return typeNoteType
         }
-        return this.profile
+        return this.noteType
     }
 
     /** The card-presentation config for a file (by its note type). */
     private cardPresentationFor(file: TFile): CardPresentation {
-        return this.cardDisplayProfile(file).card
+        return this.cardDisplayNoteType(file).card
     }
 
     /**
@@ -1072,8 +1072,8 @@ export class KanbanActionPlannerView extends BasesView {
      * {@link onSettingsChanged}).
      */
     private addDisplayFieldMenuItems(menu: Menu, card: KanbanCard): void {
-        const profile = this.cardDisplayProfile(card.file)
-        const candidates = this.displayFieldCandidates(card, profile.card)
+        const noteType = this.cardDisplayNoteType(card.file)
+        const candidates = this.displayFieldCandidates(card, noteType.card)
         if (candidates.length === 0) return
 
         menu.addSeparator()
@@ -1081,30 +1081,30 @@ export class KanbanActionPlannerView extends BasesView {
             item.setTitle('Show fields').setIcon('list')
             const submenu = item.setSubmenu()
             for (const property of candidates) {
-                const shown = profile.card.fields.some((f) => f.property === property)
+                const shown = noteType.card.fields.some((f) => f.property === property)
                 submenu.addItem((sub) =>
                     sub
                         .setTitle(property)
                         .setChecked(shown)
-                        .onClick(() => void this.toggleDisplayField(profile.id, property))
+                        .onClick(() => void this.toggleDisplayField(noteType.id, property))
                 )
             }
         })
     }
 
     /** Add or remove a property from a note type's displayed card fields. */
-    private async toggleDisplayField(profileId: string, property: string): Promise<void> {
-        const profile = findProfile(this.plugin, profileId)
-        if (!profile) return
-        const exists = profile.card.fields.some((f) => f.property === property)
+    private async toggleDisplayField(noteTypeId: string, property: string): Promise<void> {
+        const noteType = findNoteType(this.plugin, noteTypeId)
+        if (!noteType) return
+        const exists = noteType.card.fields.some((f) => f.property === property)
         const fields = exists
-            ? profile.card.fields.filter((f) => f.property !== property)
-            : [...profile.card.fields, { property, showLabel: false, emphasis: 'normal' as const }]
-        await setCardPresentation(this.plugin, profileId, { ...profile.card, fields })
+            ? noteType.card.fields.filter((f) => f.property !== property)
+            : [...noteType.card.fields, { property, showLabel: false, emphasis: 'normal' as const }]
+        await setCardPresentation(this.plugin, noteTypeId, { ...noteType.card, fields })
     }
 
     /**
-     * A profile/settings change landed (from this board's menus or the settings
+     * A noteType/settings change landed (from this board's menus or the settings
      * tab): re-resolve and re-render so card display reflects the new config.
      */
     onSettingsChanged(): void {
@@ -1204,7 +1204,7 @@ export class KanbanActionPlannerView extends BasesView {
         const date = parseFrontmatterDate(isoDate)
         if (!date) return
         const dateFormat =
-            this.profile.calendar.dateFormat || this.plugin.settings.defaultDateFormat
+            this.noteType.calendar.dateFormat || this.plugin.settings.defaultDateFormat
         await setProperty(this.app, card.file, property, formatDate(date, dateFormat))
     }
 
@@ -1610,7 +1610,7 @@ export class KanbanActionPlannerView extends BasesView {
 
     /**
      * Handle a calendar drag drop: dropping on a day writes the active
-     * dimension's date (formatted with the profile's momentjs format); dropping
+     * dimension's date (formatted with the note type's momentjs format); dropping
      * back on the panel clears it. The frontmatter write triggers a rebuild.
      */
     /** The frontmatter date properties a drag of `dimension` writes/clears. */
@@ -1637,7 +1637,7 @@ export class KanbanActionPlannerView extends BasesView {
         const date = parseFrontmatterDate(target.dayKey)
         if (!date) return
         const dateFormat =
-            this.profile.calendar.dateFormat || this.plugin.settings.defaultDateFormat
+            this.noteType.calendar.dateFormat || this.plugin.settings.defaultDateFormat
         const value = formatDate(date, dateFormat)
         for (const property of properties) await setProperty(this.app, card.file, property, value)
     }
@@ -1774,7 +1774,7 @@ function readStringArray(value: unknown): string[] {
 
 /**
  * Read the per-view swimlane grouping override. `__profile__` (or unset) means
- * "defer to the profile"; a `property` choice with no property picked also
+ * "defer to the note type"; a `property` choice with no property picked also
  * defers (so the view never silently groups by nothing).
  */
 function readLaneGroupingOverride(config: { get: (key: string) => unknown }): LaneGrouping | null {

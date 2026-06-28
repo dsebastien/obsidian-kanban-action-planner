@@ -1,6 +1,6 @@
 import { setIcon } from 'obsidian'
 import type { Board, BoardColumn, BoardLane } from '../../domain/board-model'
-import type { RelationshipRole } from '../../domain/profile'
+import type { RelationshipRole } from '../../domain/note-type'
 import { columnHeaderShade, columnShade, resolveColor } from '../../services/colors.service'
 import type { KanbanCard } from './types'
 import { renderCard } from './card-renderer'

@@ -6,27 +6,27 @@ import type {
     CardPresentation,
     ColorSpec,
     LaneGrouping,
-    Profile,
+    NoteType,
     RelationshipRole,
     RelationshipRule
-} from '../domain/profile'
+} from '../domain/note-type'
 import { FolderSuggest } from './folder-suggest'
 import { splitStatusValue } from '../domain/status'
 import { isValidHex, paletteTokens, resolveColor } from '../services/colors.service'
 import {
-    DEFAULT_PROFILE_ID,
+    DEFAULT_NOTE_TYPE_ID,
     clearColorOverride,
-    findProfile,
+    findNoteType,
     setArchiveConfig,
     setAutoAssign,
     setCardPresentation,
     setColorOverride,
     setLaneGrouping,
-    setProfileName,
+    setNoteTypeName,
     setRecognitionMappings,
     setRelationships,
     setWipLimit
-} from '../services/profile-service'
+} from '../services/note-type.service'
 
 const AUTO = '__auto__'
 const NONE = '__none__'
@@ -52,13 +52,13 @@ const SECTIONS: ReadonlyArray<{ id: SectionId; label: string; icon: string }> = 
 ]
 
 /**
- * "Configure board" modal. Edits the active profile's colors and card
+ * "Configure board" modal. Edits the active note type's colors and card
  * presentation (title source, body fields, cover image, wrapping). Every change
- * persists to the profile immediately and re-renders the board.
+ * persists to the note type immediately and re-renders the board.
  */
 export class ConfigureBoardModal extends Modal {
     private readonly plugin: KanbanActionPlannerPlugin
-    private readonly profileId: string
+    private readonly noteTypeId: string
     private readonly statusValues: string[]
     private readonly availableProperties: string[]
     private readonly onChange: () => void
@@ -68,7 +68,7 @@ export class ConfigureBoardModal extends Modal {
     constructor(
         app: App,
         plugin: KanbanActionPlannerPlugin,
-        profile: Profile,
+        noteType: NoteType,
         statusValues: string[],
         availableProperties: string[],
         onChange: () => void,
@@ -76,15 +76,15 @@ export class ConfigureBoardModal extends Modal {
     ) {
         super(app)
         this.plugin = plugin
-        this.profileId = profile.id
+        this.noteTypeId = noteType.id
         this.statusValues = statusValues
         this.availableProperties = availableProperties
         this.onChange = onChange
         if (initialSection) this.activeSection = initialSection
     }
 
-    private profile(): Profile | undefined {
-        return findProfile(this.plugin, this.profileId)
+    private noteType(): NoteType | undefined {
+        return findNoteType(this.plugin, this.noteTypeId)
     }
 
     override onOpen(): void {
@@ -98,19 +98,19 @@ export class ConfigureBoardModal extends Modal {
     }
 
     private render(): void {
-        const profile = this.profile()
+        const noteType = this.noteType()
         this.contentEl.empty()
-        if (!profile) {
-            this.contentEl.createDiv({ text: 'No profile is active for this board yet.' })
+        if (!noteType) {
+            this.contentEl.createDiv({ text: 'No note type is active for this board yet.' })
             return
         }
 
         this.contentEl.createEl('p', {
             cls: 'kap-modal-subtitle',
             text:
-                profile.source === 'starter-kit'
-                    ? `Note type "${profile.name}" (recognized via the Obsidian Starter Kit). These shared settings apply to every board of this type. Per-board options (columns, filters, calendar) live in Bases "Configure view".`
-                    : `Profile "${profile.name}". These shared settings apply to every board using it. Per-board options (columns, filters, calendar) live in Bases "Configure view".`
+                noteType.source === 'starter-kit'
+                    ? `Note type "${noteType.name}" (recognized via the Obsidian Starter Kit). These shared settings apply to every board of this type. Per-board options (columns, filters, calendar) live in Bases "Configure view".`
+                    : `Note type "${noteType.name}". These shared settings apply to every board using it. Per-board options (columns, filters, calendar) live in Bases "Configure view".`
         })
 
         const layout = this.contentEl.createDiv({ cls: 'kap-settings' })
@@ -137,58 +137,58 @@ export class ConfigureBoardModal extends Modal {
         }
 
         this.body = layout.createDiv({ cls: 'kap-settings-content' })
-        this.renderActiveSection(profile)
+        this.renderActiveSection(noteType)
     }
 
     /** Whether this is an editable local note type (vs. Starter Kit / Default). */
-    private isLocalNoteType(profile: Profile): boolean {
-        return profile.source === 'local' && profile.id !== DEFAULT_PROFILE_ID
+    private isLocalNoteType(noteType: NoteType): boolean {
+        return noteType.source === 'local' && noteType.id !== DEFAULT_NOTE_TYPE_ID
     }
 
     /** Sections to show — the "Note type" (recognition) tab is local-types only. */
     private visibleSections(): ReadonlyArray<{ id: SectionId; label: string; icon: string }> {
-        const profile = this.profile()
-        const local = profile ? this.isLocalNoteType(profile) : false
+        const noteType = this.noteType()
+        const local = noteType ? this.isLocalNoteType(noteType) : false
         return SECTIONS.filter((s) => s.id !== 'recognition' || local)
     }
 
-    private renderActiveSection(profile: Profile): void {
+    private renderActiveSection(noteType: NoteType): void {
         switch (this.activeSection) {
             case 'recognition':
-                if (this.isLocalNoteType(profile)) this.renderRecognition(profile)
-                else this.renderCard(profile)
+                if (this.isLocalNoteType(noteType)) this.renderRecognition(noteType)
+                else this.renderCard(noteType)
                 return
             case 'cards':
-                this.renderCard(profile)
+                this.renderCard(noteType)
                 return
             case 'colors':
-                this.renderColors(profile)
+                this.renderColors(noteType)
                 return
             case 'swimlanes':
-                this.renderSwimlanes(profile)
+                this.renderSwimlanes(noteType)
                 return
             case 'relationships':
-                this.renderRelationships(profile)
+                this.renderRelationships(noteType)
                 return
             case 'archiving':
-                this.renderArchiving(profile)
+                this.renderArchiving(noteType)
                 return
             case 'limits':
-                this.renderLimits(profile)
+                this.renderLimits(noteType)
                 return
         }
     }
 
     // ── Note type recognition (issue #31; local types only) ───
 
-    private renderRecognition(profile: Profile): void {
+    private renderRecognition(noteType: NoteType): void {
         new Setting(this.body).setName('Note type').setHeading()
         new Setting(this.body)
             .setName('Name')
             .setDesc('Display name for this note type.')
             .addText((input) =>
                 // Persist without re-rendering so the text input keeps focus.
-                input.setValue(profile.name).onChange((value) => void this.patchName(value))
+                input.setValue(noteType.name).onChange((value) => void this.patchName(value))
             )
 
         new Setting(this.body).setName('Recognition rules').setHeading()
@@ -197,7 +197,7 @@ export class ConfigureBoardModal extends Modal {
             text: 'A note is this type when ANY rule matches — by tag (incl. nested), folder (and subfolders), or a regular expression on the note path.'
         })
 
-        const mappings = profile.typeRecognition.mappings
+        const mappings = noteType.typeRecognition.mappings
         if (mappings.length === 0) {
             this.body.createDiv({
                 cls: 'kap-modal-empty',
@@ -237,30 +237,30 @@ export class ConfigureBoardModal extends Modal {
     }
 
     private async patchName(name: string): Promise<void> {
-        await setProfileName(this.plugin, this.profileId, name)
+        await setNoteTypeName(this.plugin, this.noteTypeId, name)
         this.onChange()
     }
 
     /** Apply a partial change to one recognition mapping, reading the freshest copy. */
     private async updateMapping(
         index: number,
-        patch: Partial<Profile['typeRecognition']['mappings'][number]>,
+        patch: Partial<NoteType['typeRecognition']['mappings'][number]>,
         rerender: boolean
     ): Promise<void> {
-        const current = this.profile()?.typeRecognition.mappings
+        const current = this.noteType()?.typeRecognition.mappings
         if (!current) return
         const mappings = current.map((m, i) => (i === index ? { ...m, ...patch } : m))
-        await setRecognitionMappings(this.plugin, this.profileId, mappings)
+        await setRecognitionMappings(this.plugin, this.noteTypeId, mappings)
         this.onChange()
         if (rerender) this.render()
     }
 
     private async removeMapping(index: number): Promise<void> {
-        const current = this.profile()?.typeRecognition.mappings
+        const current = this.noteType()?.typeRecognition.mappings
         if (!current) return
         await setRecognitionMappings(
             this.plugin,
-            this.profileId,
+            this.noteTypeId,
             current.filter((_, i) => i !== index)
         )
         this.onChange()
@@ -268,8 +268,8 @@ export class ConfigureBoardModal extends Modal {
     }
 
     private async addMapping(): Promise<void> {
-        const current = this.profile()?.typeRecognition.mappings ?? []
-        await setRecognitionMappings(this.plugin, this.profileId, [
+        const current = this.noteType()?.typeRecognition.mappings ?? []
+        await setRecognitionMappings(this.plugin, this.noteTypeId, [
             ...current,
             { type: 'tag', value: '', enabled: true }
         ])
@@ -279,7 +279,7 @@ export class ConfigureBoardModal extends Modal {
 
     // ── WIP limits ────────────────────────────────────────────
 
-    private renderLimits(profile: Profile): void {
+    private renderLimits(noteType: NoteType): void {
         new Setting(this.body).setName('WIP limits').setHeading()
         this.body.createEl('p', {
             cls: 'kap-modal-subtitle',
@@ -295,7 +295,7 @@ export class ConfigureBoardModal extends Modal {
         }
 
         for (const statusValue of this.statusValues) {
-            const current = profile.wipLimits[statusValue]
+            const current = noteType.wipLimits[statusValue]
             new Setting(this.body).setName(splitStatusValue(statusValue).label).addText((input) => {
                 input.inputEl.type = 'number'
                 input.inputEl.min = '1'
@@ -313,20 +313,20 @@ export class ConfigureBoardModal extends Modal {
     }
 
     private async patchWipLimit(statusValue: string, limit: number | null): Promise<void> {
-        await setWipLimit(this.plugin, this.profileId, statusValue, limit)
+        await setWipLimit(this.plugin, this.noteTypeId, statusValue, limit)
         this.onChange()
     }
 
     // ── Archiving ─────────────────────────────────────────────
 
-    private renderArchiving(profile: Profile): void {
+    private renderArchiving(noteType: NoteType): void {
         new Setting(this.body).setName('Archiving').setHeading()
         this.body.createEl('p', {
             cls: 'kap-modal-subtitle',
             text: 'Archived notes of this type move into this folder and leave the board. Placeholders: {{year}}, {{month}}, {{week}}, {{quarter}}, {{day}}, {{date}}, {{datetime}}, {{uuid}}.'
         })
 
-        this.renderArchiveControls(profile.archive, this.statusValues, (patch, rerender) => {
+        this.renderArchiveControls(noteType.archive, this.statusValues, (patch, rerender) => {
             void this.patchArchive(patch, rerender)
         })
     }
@@ -383,21 +383,21 @@ export class ConfigureBoardModal extends Modal {
     }
 
     /**
-     * Apply a partial change to the active/default profile's archive config,
+     * Apply a partial change to the active/default note type's archive config,
      * reading the freshest stored config so folder + trigger edits don't clobber
      * each other. `rerender` re-renders (skip it for the text field to keep focus).
      */
     private async patchArchive(patch: Partial<ArchiveConfig>, rerender: boolean): Promise<void> {
-        const current = this.profile()?.archive
+        const current = this.noteType()?.archive
         if (!current) return
-        await setArchiveConfig(this.plugin, this.profileId, { ...current, ...patch })
+        await setArchiveConfig(this.plugin, this.noteTypeId, { ...current, ...patch })
         this.onChange()
         if (rerender) this.render()
     }
 
     // ── Relationships ─────────────────────────────────────────
 
-    private renderRelationships(profile: Profile): void {
+    private renderRelationships(noteType: NoteType): void {
         new Setting(this.body).setName('Relationships').setHeading()
         this.body.createEl('p', {
             cls: 'kap-modal-subtitle',
@@ -405,7 +405,7 @@ export class ConfigureBoardModal extends Modal {
         })
 
         for (const { role, label } of RELATIONSHIP_ROLES_UI) {
-            const current = profile.relationships.find((r) => r.role === role)
+            const current = noteType.relationships.find((r) => r.role === role)
             new Setting(this.body).setName(label).addDropdown((dd) => {
                 dd.addOption(NONE, 'None')
                 for (const prop of this.availableProperties) dd.addOption(prop, prop)
@@ -416,8 +416,8 @@ export class ConfigureBoardModal extends Modal {
                     void this.mutate(() =>
                         setRelationships(
                             this.plugin,
-                            this.profileId,
-                            upsertRule(profile.relationships, role, (rule) => ({
+                            this.noteTypeId,
+                            upsertRule(noteType.relationships, role, (rule) => ({
                                 ...rule,
                                 linkProperty: value === NONE ? '' : value
                             }))
@@ -427,7 +427,7 @@ export class ConfigureBoardModal extends Modal {
             })
         }
 
-        const childRule = profile.relationships.find((r) => r.role === 'child')
+        const childRule = noteType.relationships.find((r) => r.role === 'child')
         new Setting(this.body)
             .setName('Detect children by tag')
             .setDesc(
@@ -445,8 +445,8 @@ export class ConfigureBoardModal extends Modal {
                         void this.mutate(() =>
                             setRelationships(
                                 this.plugin,
-                                this.profileId,
-                                upsertRule(profile.relationships, 'child', (rule) => ({
+                                this.noteTypeId,
+                                upsertRule(noteType.relationships, 'child', (rule) => ({
                                     ...rule,
                                     heuristic:
                                         tags.length > 0
@@ -461,8 +461,8 @@ export class ConfigureBoardModal extends Modal {
 
     // ── Swimlanes ─────────────────────────────────────────────
 
-    private renderSwimlanes(profile: Profile): void {
-        const grouping = profile.laneGrouping
+    private renderSwimlanes(noteType: NoteType): void {
+        const grouping = noteType.laneGrouping
         new Setting(this.body).setName('Swimlanes').setHeading()
 
         new Setting(this.body)
@@ -488,7 +488,7 @@ export class ConfigureBoardModal extends Modal {
                                             : (this.availableProperties[0] ?? '')
                                 }
                               : { kind: 'none' }
-                    void this.mutate(() => setLaneGrouping(this.plugin, this.profileId, next))
+                    void this.mutate(() => setLaneGrouping(this.plugin, this.noteTypeId, next))
                 })
             })
 
@@ -503,7 +503,7 @@ export class ConfigureBoardModal extends Modal {
                 dd.setValue(grouping.property || NONE)
                 dd.onChange((value) => {
                     void this.mutate(() =>
-                        setLaneGrouping(this.plugin, this.profileId, {
+                        setLaneGrouping(this.plugin, this.noteTypeId, {
                             kind: 'property',
                             property: value === NONE ? '' : value
                         })
@@ -514,15 +514,15 @@ export class ConfigureBoardModal extends Modal {
 
     // ── Colors ────────────────────────────────────────────────
 
-    private renderColors(profile: Profile): void {
+    private renderColors(noteType: NoteType): void {
         new Setting(this.body).setName('Colors').setHeading()
 
         new Setting(this.body)
             .setName('Auto-assign colors')
             .setDesc('Give each status a palette color automatically when not set explicitly.')
             .addToggle((toggle) =>
-                toggle.setValue(profile.colors.autoAssign).onChange((value) => {
-                    void this.mutate(() => setAutoAssign(this.plugin, this.profileId, value))
+                toggle.setValue(noteType.colors.autoAssign).onChange((value) => {
+                    void this.mutate(() => setAutoAssign(this.plugin, this.noteTypeId, value))
                 })
             )
 
@@ -535,12 +535,12 @@ export class ConfigureBoardModal extends Modal {
         }
 
         for (const statusValue of this.statusValues) {
-            this.renderStatusRow(profile, statusValue)
+            this.renderStatusRow(noteType, statusValue)
         }
     }
 
-    private renderStatusRow(profile: Profile, statusValue: string): void {
-        const override = profile.colors.overrides[statusValue]
+    private renderStatusRow(noteType: NoteType, statusValue: string): void {
+        const override = noteType.colors.overrides[statusValue]
         new Setting(this.body)
             .setName(splitStatusValue(statusValue).label)
             .addDropdown((dd) => {
@@ -551,18 +551,18 @@ export class ConfigureBoardModal extends Modal {
                 dd.onChange((value) => {
                     if (value === AUTO) {
                         void this.mutate(() =>
-                            clearColorOverride(this.plugin, this.profileId, statusValue)
+                            clearColorOverride(this.plugin, this.noteTypeId, statusValue)
                         )
                     } else if (value === 'custom') {
                         void this.mutate(() =>
-                            setColorOverride(this.plugin, this.profileId, statusValue, {
+                            setColorOverride(this.plugin, this.noteTypeId, statusValue, {
                                 kind: 'hex',
                                 value: currentHex(override)
                             })
                         )
                     } else {
                         void this.mutate(() =>
-                            setColorOverride(this.plugin, this.profileId, statusValue, {
+                            setColorOverride(this.plugin, this.noteTypeId, statusValue, {
                                 kind: 'palette',
                                 token: value
                             })
@@ -575,7 +575,7 @@ export class ConfigureBoardModal extends Modal {
                 picker.onChange((hex) => {
                     if (!isValidHex(hex)) return
                     void this.mutate(() =>
-                        setColorOverride(this.plugin, this.profileId, statusValue, {
+                        setColorOverride(this.plugin, this.noteTypeId, statusValue, {
                             kind: 'hex',
                             value: hex
                         })
@@ -586,8 +586,8 @@ export class ConfigureBoardModal extends Modal {
 
     // ── Card presentation ─────────────────────────────────────
 
-    private renderCard(profile: Profile): void {
-        const card = profile.card
+    private renderCard(noteType: NoteType): void {
+        const card = noteType.card
         new Setting(this.body).setName('Cards').setHeading()
 
         new Setting(this.body)
@@ -717,7 +717,7 @@ export class ConfigureBoardModal extends Modal {
     }
 
     private async mutateCard(card: CardPresentation): Promise<void> {
-        await this.mutate(() => setCardPresentation(this.plugin, this.profileId, card))
+        await this.mutate(() => setCardPresentation(this.plugin, this.noteTypeId, card))
     }
 }
 

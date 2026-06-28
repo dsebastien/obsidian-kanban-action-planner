@@ -15,7 +15,7 @@ export class KanbanActionPlannerPlugin extends Plugin {
     override settings: PluginSettings = produce(DEFAULT_SETTINGS, () => DEFAULT_SETTINGS)
 
     /**
-     * Live kanban view instances, so a settings/profile change can refresh every
+     * Live kanban view instances, so a settings/noteType change can refresh every
      * open board immediately (see {@link saveSettings}). Views add/remove
      * themselves on load/unload.
      */
@@ -127,7 +127,7 @@ export class KanbanActionPlannerPlugin extends Plugin {
      * Loaded data is shallow-merged onto the defaults (so newly-added keys get
      * sensible values) and validated with Zod. Invalid data falls back to
      * defaults rather than throwing, so a corrupt `data.json` never breaks the
-     * plugin. Full per-field migrations land alongside the profile store.
+     * plugin. Full per-field migrations land alongside the note type store.
      */
     async loadSettings() {
         log('Loading settings', 'debug')

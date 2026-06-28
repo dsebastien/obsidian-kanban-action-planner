@@ -1,7 +1,7 @@
 /**
  * Pure local note-type recognition (issue #31).
  *
- * Matches a file against a profile's `typeRecognition.mappings` so note types
+ * Matches a file against a note type's `typeRecognition.mappings` so note types
  * work **without** the Obsidian Starter Kit (and so previously-Starter-Kit types
  * keep recognizing from their mirrored mappings once the Starter Kit is gone).
  *
@@ -57,7 +57,7 @@ export function matchesMapping(file: RecognitionFile, mapping: RecognitionMappin
     }
 }
 
-/** Whether any of a profile's mappings match the file. */
+/** Whether any of a note type's mappings match the file. */
 export function matchesAnyMapping(
     file: RecognitionFile,
     mappings: ReadonlyArray<RecognitionMapping>
@@ -66,7 +66,7 @@ export function matchesAnyMapping(
 }
 
 /**
- * The id of the first profile whose recognition mappings match the file, or
+ * The id of the first noteType whose recognition mappings match the file, or
  * null. Candidates are pre-filtered/ordered by the caller (Default excluded).
  */
 export function recognizeLocalType(

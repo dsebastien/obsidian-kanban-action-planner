@@ -1,4 +1,4 @@
-import type { ColorSpec } from '../domain/profile'
+import type { ColorSpec } from '../domain/note-type'
 
 /**
  * Color resolution for cards and columns.

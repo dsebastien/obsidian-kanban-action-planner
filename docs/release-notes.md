@@ -65,7 +65,7 @@
 - **plugin:** core Kanban board with drag/drop and order persistence
 - **plugin:** definition-driven columns + ctrl/cmd-click opens new tab
 - **plugin:** incremental board refresh + uniform sizing (M6)
-- **plugin:** note-type profiles, Starter Kit mirroring, and colors
+- **plugin:** note types, Starter Kit mirroring, and colors
 - **plugin:** open related notes in a new tab on ctrl/cmd-click
 - **plugin:** place Unmapped column first by default, configurable per view
 - **plugin:** register Kanban Bases view scaffold and config model

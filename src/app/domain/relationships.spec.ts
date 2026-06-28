@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 import { normalizeTag, resolveRelationships } from './relationships'
 import type { HeuristicRule, NoteRecord } from './relationships'
-import type { RelationshipRole } from './profile'
+import type { RelationshipRole } from './note-type'
 
 function record(
     key: string,

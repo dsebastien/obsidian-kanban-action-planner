@@ -36,7 +36,7 @@ function buildPropertyFilter(app: App): (prop: BasesPropertyId) => boolean {
  * `this.config` and affect only this one view. They sit alongside two other
  * surfaces:
  *   - vault-wide **defaults** in the plugin settings tab (property names,
- *     default statuses, date format), used when a view/profile doesn't override;
+ *     default statuses, date format), used when a view/noteType doesn't override;
  *   - **shared note-type config** in the plugin settings → Note types (colors,
  *     cards, relationships, archiving, the default swimlane grouping) — the rich
  *     controls Bases options can't render. The board's gear jumps there.

@@ -1,5 +1,5 @@
 import type { App, TFile } from 'obsidian'
-import type { ArchiveConfig } from '../domain/profile'
+import type { ArchiveConfig } from '../domain/note-type'
 import { resolvePlaceholders, type ExpressionContext } from '../utils/expressions'
 import { log } from '../../utils/log'
 

@@ -1,4 +1,4 @@
-import type { ColorSpec, ColumnDef } from './profile'
+import type { ColorSpec, ColumnDef } from './note-type'
 import { compareStatusValues, resolveColumnId, splitStatusValue } from './status'
 import { UNGROUPED_LANE_ID, UNMAPPED_COLUMN_ID } from '../constants'
 

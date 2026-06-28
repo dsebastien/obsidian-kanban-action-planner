@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test'
-import { archiveConfigSchema } from './profile'
+import { archiveConfigSchema } from './note-type'
 
 describe('archiveConfigSchema (issue #32 migration)', () => {
     it('keeps an explicit triggerStatuses list', () => {
