@@ -37,7 +37,6 @@ import { buildCardDisplay } from '../../services/card-display.service'
 import { archiveNote } from '../../services/archive.service'
 import {
     addDays,
-    bucketByDay,
     buildCalendar,
     formatLongDate,
     parseFrontmatterDate,
@@ -50,6 +49,7 @@ import type { CalendarRange, DateDimension } from '../../domain/calendar'
 import { compareTabCards, matchesQuery } from '../../domain/calendar-tabs'
 import type { TabSortKey, TabSortMode } from '../../domain/calendar-tabs'
 import { renderCalendar } from '../../ui/calendar/calendar-renderer'
+import type { CalendarEntry } from '../../ui/calendar/calendar-renderer'
 import { CalendarDnd } from '../../ui/calendar/calendar-dnd'
 import type { CalendarDropTarget } from '../../ui/calendar/calendar-dnd'
 import { formatDate } from '../../utils/momentjs'
@@ -59,6 +59,7 @@ import type { DropTarget } from '../../ui/board/dnd-controller'
 import type { KanbanCard } from '../../ui/board/types'
 import { renderViewToolbar } from '../../ui/view-toolbar'
 import { ConfigureBoardModal } from '../../ui/configure-board-modal'
+import { DatePromptModal } from '../../ui/date-prompt-modal'
 import { log } from '../../../utils/log'
 
 /**
@@ -103,6 +104,9 @@ export class KanbanActionPlannerView extends BasesView {
     private calendarAnchor: Date | null = null
     private calendarPanelCollapsed = false
     private calendarFocusedDay: string | null = null
+    // Legend toggles: show planned work and/or deadlines on the grid (both on).
+    private showScheduled = true
+    private showDeadlines = true
     // Auto-collapse the scheduling pane when the container is too narrow.
     private panelAutoCollapsed = false
     private panelLastNarrow: boolean | null = null
@@ -131,7 +135,8 @@ export class KanbanActionPlannerView extends BasesView {
             onDrop: (cardKey, target) => void this.handleDrop(cardKey, target)
         })
         this.calendarDnd = new CalendarDnd(this.boardEl, {
-            onDrop: (cardKey, target) => void this.handleCalendarDrop(cardKey, target)
+            onDrop: (cardKey, target, dimension) =>
+                void this.handleCalendarDrop(cardKey, target, dimension)
         })
         this.resizeObserver = new ResizeObserver(() => this.debouncedResize())
         this.resizeObserver.observe(this.boardEl)
@@ -528,6 +533,7 @@ export class KanbanActionPlannerView extends BasesView {
                     .onClick(() => void this.setCardStatus(card, null, UNMAPPED_COLUMN_ID))
             )
         }
+        this.addSchedulingMenuItems(menu, card)
         if (this.archivingConfigured()) {
             menu.addSeparator()
             menu.addItem((item) =>
@@ -539,6 +545,103 @@ export class KanbanActionPlannerView extends BasesView {
         }
         this.addRelationshipMenuItems(menu, card)
         menu.showAtMouseEvent(event)
+    }
+
+    /** "Schedule" / "Set deadline" quick dates + precise picker + clear. */
+    private addSchedulingMenuItems(menu: Menu, card: KanbanCard): void {
+        const todayKey = toDateKey(startOfDay(new Date()))
+        const tomorrowKey = toDateKey(addDays(startOfDay(new Date()), 1))
+        const scheduled = this.cardDate(card, 'scheduled')
+        const deadline = this.cardDate(card, 'deadline')
+
+        menu.addItem((i) =>
+            i
+                .setTitle('Schedule for today')
+                .setIcon('calendar-clock')
+                .setSection('kap-schedule')
+                .onClick(() => void this.writeCardDate(card, 'scheduled', todayKey))
+        )
+        menu.addItem((i) =>
+            i
+                .setTitle('Schedule for tomorrow')
+                .setIcon('calendar-clock')
+                .setSection('kap-schedule')
+                .onClick(() => void this.writeCardDate(card, 'scheduled', tomorrowKey))
+        )
+        menu.addItem((i) =>
+            i
+                .setTitle('Schedule on a date…')
+                .setIcon('calendar')
+                .setSection('kap-schedule')
+                .onClick(() => this.promptDate(card, 'scheduled', scheduled))
+        )
+        if (scheduled) {
+            menu.addItem((i) =>
+                i
+                    .setTitle('Clear scheduled date')
+                    .setIcon('x')
+                    .setSection('kap-schedule')
+                    .onClick(() => void this.writeCardDate(card, 'scheduled', null))
+            )
+        }
+
+        menu.addItem((i) =>
+            i
+                .setTitle('Set deadline today')
+                .setIcon('alarm-clock')
+                .setSection('kap-deadline')
+                .onClick(() => void this.writeCardDate(card, 'deadline', todayKey))
+        )
+        menu.addItem((i) =>
+            i
+                .setTitle('Set deadline on a date…')
+                .setIcon('alarm-clock')
+                .setSection('kap-deadline')
+                .onClick(() => this.promptDate(card, 'deadline', deadline))
+        )
+        if (deadline) {
+            menu.addItem((i) =>
+                i
+                    .setTitle('Clear deadline')
+                    .setIcon('x')
+                    .setSection('kap-deadline')
+                    .onClick(() => void this.writeCardDate(card, 'deadline', null))
+            )
+        }
+    }
+
+    /** Read a card's scheduled/deadline date (null when unset). */
+    private cardDate(card: KanbanCard, dimension: DateDimension): Date | null {
+        const property =
+            dimension === 'scheduled' ? this.scheduledDateProperty : this.dueDateProperty
+        return parseFrontmatterDate(getFrontmatterValue(this.app, card.file, property))
+    }
+
+    /** Open the date picker for a card's scheduled date or deadline. */
+    private promptDate(card: KanbanCard, dimension: DateDimension, current: Date | null): void {
+        const heading = dimension === 'scheduled' ? 'Schedule date' : 'Deadline'
+        new DatePromptModal(this.app, heading, current ? toDateKey(current) : '', (iso) => {
+            void this.writeCardDate(card, dimension, iso)
+        }).open()
+    }
+
+    /** Write (or clear, when `isoDate` is null) a card's scheduled date or deadline. */
+    private async writeCardDate(
+        card: KanbanCard,
+        dimension: DateDimension,
+        isoDate: string | null
+    ): Promise<void> {
+        const property =
+            dimension === 'scheduled' ? this.scheduledDateProperty : this.dueDateProperty
+        if (isoDate === null) {
+            await deleteProperty(this.app, card.file, property)
+            return
+        }
+        const date = parseFrontmatterDate(isoDate)
+        if (!date) return
+        const dateFormat =
+            this.profile.calendar.dateFormat || this.plugin.settings.defaultDateFormat
+        await setProperty(this.app, card.file, property, formatDate(date, dateFormat))
     }
 
     /** Add "open related note" items (blockers first) when the card has any. */
@@ -710,8 +813,25 @@ export class KanbanActionPlannerView extends BasesView {
         const unplanned = cards.filter((c) => dateFor(c, 'scheduled') === null)
         const noDeadline = cards.filter((c) => dateFor(c, 'deadline') === null)
         const panelCards = this.sortFilterPanel(dimension === 'scheduled' ? unplanned : noDeadline)
-        const placed = cards.filter((c) => dateFor(c, dimension) !== null)
-        const cardsByDay = bucketByDay(placed, (c) => dateFor(c, dimension))
+
+        // Unified overlay: every card is placed on BOTH its scheduled day (blue)
+        // and its deadline (orange); same-day collapses to one "both" chip.
+        const cardsByDay = new Map<string, CalendarEntry[]>()
+        const place = (key: string, entry: CalendarEntry): void => {
+            const arr = cardsByDay.get(key)
+            if (arr) arr.push(entry)
+            else cardsByDay.set(key, [entry])
+        }
+        for (const card of cards) {
+            const sched = this.showScheduled ? dateFor(card, 'scheduled') : null
+            const due = this.showDeadlines ? dateFor(card, 'deadline') : null
+            if (sched && due && toDateKey(sched) === toDateKey(due)) {
+                place(toDateKey(sched), { card, kind: 'both', overdue: due < today })
+            } else {
+                if (sched) place(toDateKey(sched), { card, kind: 'scheduled', overdue: false })
+                if (due) place(toDateKey(due), { card, kind: 'deadline', overdue: due < today })
+            }
+        }
         const firstDay = this.plugin.settings.firstDayOfWeek
 
         renderCalendar(
@@ -725,6 +845,8 @@ export class KanbanActionPlannerView extends BasesView {
                 cardsByDay,
                 panelCollapsed: this.calendarPanelCollapsed,
                 counts: { unplanned: unplanned.length, noDeadline: noDeadline.length },
+                showScheduled: this.showScheduled,
+                showDeadlines: this.showDeadlines,
                 weekdays: weekdayLabels(firstDay),
                 focusedDay: this.calendarFocusedDay,
                 focusedDayLabel: this.focusedDayLabel()
@@ -734,6 +856,11 @@ export class KanbanActionPlannerView extends BasesView {
                 onContextMenu: (card, event) => this.showCardMenu(card, event),
                 onSwitchTab: (dim) => {
                     this.calendarTab = dim
+                    this.rebuild()
+                },
+                onToggleDimension: (dim) => {
+                    if (dim === 'scheduled') this.showScheduled = !this.showScheduled
+                    else this.showDeadlines = !this.showDeadlines
                     this.rebuild()
                 },
                 onSetRange: (r) => {
@@ -812,23 +939,29 @@ export class KanbanActionPlannerView extends BasesView {
         return cache ? (getAllTags(cache) ?? []) : []
     }
 
-    /** The frontmatter property for the active scheduling dimension. */
-    private activeDateProperty(): string {
-        return this.calendarTab === 'scheduled' ? this.scheduledDateProperty : this.dueDateProperty
-    }
-
     /**
      * Handle a calendar drag drop: dropping on a day writes the active
      * dimension's date (formatted with the profile's momentjs format); dropping
      * back on the panel clears it. The frontmatter write triggers a rebuild.
      */
-    private async handleCalendarDrop(cardKey: string, target: CalendarDropTarget): Promise<void> {
+    /** The frontmatter date properties a drag of `dimension` writes/clears. */
+    private propertiesForDimension(dimension: string): string[] {
+        if (dimension === 'deadline') return [this.dueDateProperty]
+        if (dimension === 'both') return [this.scheduledDateProperty, this.dueDateProperty]
+        return [this.scheduledDateProperty]
+    }
+
+    private async handleCalendarDrop(
+        cardKey: string,
+        target: CalendarDropTarget,
+        dimension: string
+    ): Promise<void> {
         const card = this.cardsByKey.get(cardKey)
         if (!card) return
-        const property = this.activeDateProperty()
+        const properties = this.propertiesForDimension(dimension)
 
         if (target.kind === 'panel') {
-            await deleteProperty(this.app, card.file, property)
+            for (const property of properties) await deleteProperty(this.app, card.file, property)
             return
         }
 
@@ -836,7 +969,8 @@ export class KanbanActionPlannerView extends BasesView {
         if (!date) return
         const dateFormat =
             this.profile.calendar.dateFormat || this.plugin.settings.defaultDateFormat
-        await setProperty(this.app, card.file, property, formatDate(date, dateFormat))
+        const value = formatDate(date, dateFormat)
+        for (const property of properties) await setProperty(this.app, card.file, property, value)
     }
 
     private anchorLabel(anchor: Date, range: CalendarRange): string {

@@ -13,7 +13,8 @@ const DRAG_THRESHOLD_PX = 5
 export type CalendarDropTarget = { kind: 'day'; dayKey: string } | { kind: 'panel' }
 
 export interface CalendarDndCallbacks {
-    onDrop: (cardKey: string, target: CalendarDropTarget) => void
+    /** `dimension` is the dragged chip's `data-dimension` (`scheduled`/`deadline`/`both`). */
+    onDrop: (cardKey: string, target: CalendarDropTarget, dimension: string) => void
 }
 
 export class CalendarDnd {
@@ -120,6 +121,7 @@ export class CalendarDnd {
     private handlePointerUp(e: PointerEvent): void {
         if (this.pointerId !== e.pointerId) return
         const cardKey = this.sourceCardEl?.dataset['cardKey'] ?? null
+        const dimension = this.sourceCardEl?.dataset['dimension'] ?? 'scheduled'
         const target = this.currentTarget
         const wasDragging = this.dragging
         this.cleanup()
@@ -138,7 +140,7 @@ export class CalendarDnd {
             window.setTimeout(() => controller.abort(), 50)
         }
         if (wasDragging && cardKey && target) {
-            this.callbacks.onDrop(cardKey, target)
+            this.callbacks.onDrop(cardKey, target, dimension)
         }
     }
 

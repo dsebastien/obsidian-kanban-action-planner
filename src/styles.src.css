@@ -735,9 +735,69 @@
             transform var(--kap-transition) var(--kap-ease);
     }
 
-    /* Deadline-placed chips get an orange edge (vs the blue scheduled accent). */
+    /* Placement color: deadline = orange, both-same-day = split blue/orange edge,
+       overdue deadline = red. (border-image paints the 2px left edge.) */
     .kap-cal-card-deadline {
         border-left-color: var(--color-orange);
+    }
+
+    .kap-cal-card-both {
+        border-left-color: transparent;
+        border-image: linear-gradient(
+                to bottom,
+                var(--interactive-accent) 0 50%,
+                var(--color-orange) 50% 100%
+            )
+            1;
+    }
+
+    .kap-cal-card-overdue {
+        border-left-color: var(--text-error);
+    }
+
+    .kap-cal-card-both.kap-cal-card-overdue {
+        border-image: linear-gradient(
+                to bottom,
+                var(--interactive-accent) 0 50%,
+                var(--text-error) 50% 100%
+            )
+            1;
+    }
+
+    /* Calendar legend = filter: swatch + label toggling each dimension. */
+    .kap-cal-legend {
+        @apply inline-flex items-center gap-2;
+    }
+
+    .kap-cal-legend-item {
+        @apply inline-flex items-center gap-1 cursor-pointer text-[0.8em];
+        color: var(--text-muted);
+        transition: opacity var(--kap-transition) var(--kap-ease);
+    }
+
+    .kap-cal-legend-swatch {
+        @apply inline-block rounded-[2px] w-[0.7rem] h-[0.7rem];
+    }
+
+    .kap-cal-legend-scheduled .kap-cal-legend-swatch {
+        background: var(--interactive-accent);
+    }
+
+    .kap-cal-legend-deadline .kap-cal-legend-swatch {
+        background: var(--color-orange);
+    }
+
+    .kap-cal-legend-item:hover {
+        color: var(--text-normal);
+    }
+
+    .kap-cal-legend-off {
+        opacity: 0.45;
+    }
+
+    .kap-cal-legend-off .kap-cal-legend-swatch {
+        background: transparent;
+        box-shadow: inset 0 0 0 1px var(--text-muted);
     }
 
     .kap-cal-card:hover {
@@ -817,6 +877,20 @@
     .kap-modal-empty {
         color: var(--text-muted);
         padding: var(--size-4-2, 0.5rem) 0;
+    }
+
+    /* Date-picker modal (schedule / set deadline). */
+    .kap-date-input {
+        @apply w-full;
+    }
+
+    .kap-date-actions {
+        @apply flex items-center justify-end gap-2 mt-4;
+    }
+
+    /* Clear sits on the left; Cancel / Set on the right. */
+    .kap-date-actions .kap-date-clear {
+        @apply mr-auto;
     }
 
     /* Configure-board modal: a two-pane layout — section nav (left) + content.

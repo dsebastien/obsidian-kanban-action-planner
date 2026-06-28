@@ -1,6 +1,20 @@
 import type { CalendarBlock, CalendarRange, DateDimension } from '../../domain/calendar'
 import type { KanbanCard } from '../board/types'
 
+/**
+ * How a chip sits on a day: by its `scheduled` date (blue), its `deadline`
+ * (orange), or `both` when the two land on the same day (split edge).
+ */
+export type CalendarEntryKind = 'scheduled' | 'deadline' | 'both'
+
+/** One card placed on a day by one (or both) of its dates. */
+export interface CalendarEntry {
+    card: KanbanCard
+    kind: CalendarEntryKind
+    /** A deadline that's already in the past (drawn red). */
+    overdue: boolean
+}
+
 /** Everything the calendar view needs to render one frame. */
 export interface CalendarViewModel {
     range: CalendarRange
@@ -9,10 +23,13 @@ export interface CalendarViewModel {
     blocks: CalendarBlock[]
     /** Cards missing the active dimension's date (shown in the panel list). */
     panelCards: KanbanCard[]
-    /** Cards that have the active dimension's date, bucketed by `YYYY-MM-DD`. */
-    cardsByDay: Map<string, KanbanCard[]>
+    /** Card placements bucketed by `YYYY-MM-DD` — both dimensions, color-coded. */
+    cardsByDay: Map<string, CalendarEntry[]>
     panelCollapsed: boolean
     counts: { unplanned: number; noDeadline: number }
+    /** Legend toggles: which dimensions are currently shown on the grid. */
+    showScheduled: boolean
+    showDeadlines: boolean
     /** Weekday header labels, ordered for the configured first day of week. */
     weekdays: string[]
     /** When set (`YYYY-MM-DD`), the grid is replaced by a focused single-day view. */
@@ -25,6 +42,8 @@ export interface CalendarCallbacks {
     onOpen: (card: KanbanCard, newTab: boolean) => void
     onContextMenu: (card: KanbanCard, event: MouseEvent) => void
     onSwitchTab: (dim: DateDimension) => void
+    /** Toggle a dimension's visibility on the grid (the legend). */
+    onToggleDimension: (dim: DateDimension) => void
     onSetRange: (range: CalendarRange) => void
     onShiftAnchor: (direction: number) => void
     onToday: () => void
@@ -104,7 +123,9 @@ function renderPanel(
                     : 'Every card has a deadline.'
         })
     }
-    for (const card of model.panelCards) renderChip(list, card, callbacks)
+    // Panel chips represent the active backlog; dragging one sets that dimension.
+    for (const card of model.panelCards)
+        renderChip(list, { card, kind: model.activeTab, overdue: false }, callbacks)
 }
 
 function addTab(
@@ -119,6 +140,53 @@ function addTab(
     tab.createSpan({ cls: 'kap-panel-tab-label', text: label })
     tab.createSpan({ cls: 'kap-panel-tab-count', text: String(count) })
     tab.addEventListener('click', onClick)
+}
+
+/**
+ * The legend doubles as a filter: each swatch toggles whether that dimension's
+ * chips show on the grid. Both on by default — the whole point is seeing planned
+ * work and deadlines together.
+ */
+function renderLegend(
+    parent: HTMLElement,
+    model: CalendarViewModel,
+    callbacks: CalendarCallbacks
+): void {
+    const legend = parent.createDiv({ cls: 'kap-cal-legend' })
+    addLegendItem(legend, 'Scheduled', 'scheduled', model.showScheduled, () =>
+        callbacks.onToggleDimension('scheduled')
+    )
+    addLegendItem(legend, 'Deadlines', 'deadline', model.showDeadlines, () =>
+        callbacks.onToggleDimension('deadline')
+    )
+}
+
+function addLegendItem(
+    parent: HTMLElement,
+    label: string,
+    dim: DateDimension,
+    active: boolean,
+    onClick: () => void
+): void {
+    const item = parent.createDiv({
+        cls: `kap-cal-legend-item kap-cal-legend-${dim}`,
+        attr: {
+            'role': 'button',
+            'tabindex': '0',
+            'aria-pressed': String(active),
+            'title': `Toggle ${label}`
+        }
+    })
+    if (!active) item.addClass('kap-cal-legend-off')
+    item.createSpan({ cls: 'kap-cal-legend-swatch' })
+    item.createSpan({ cls: 'kap-cal-legend-label', text: label })
+    item.addEventListener('click', onClick)
+    item.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault()
+            onClick()
+        }
+    })
 }
 
 function renderCalendarGrid(
@@ -139,6 +207,7 @@ function renderCalendarGrid(
     navButton(nav, 'Today', 'Jump to today', () => callbacks.onToday())
     navButton(nav, '›', 'Next', () => callbacks.onShiftAnchor(1))
     toolbar.createSpan({ cls: 'kap-calendar-anchor', text: model.anchorLabel })
+    renderLegend(toolbar, model, callbacks)
     renderRanges(toolbar, model, callbacks)
 
     const blocksEl = cal.createDiv({ cls: 'kap-calendar-blocks' })
@@ -203,14 +272,13 @@ function renderBlock(
                     callbacks.onFocusDay(day.key)
                 }
             })
-            const cards = model.cardsByDay.get(day.key) ?? []
+            const entries = model.cardsByDay.get(day.key) ?? []
             if (compact) {
-                if (cards.length > 0) {
-                    cell.createSpan({ cls: 'kap-cal-daycount', text: String(cards.length) })
+                if (entries.length > 0) {
+                    cell.createSpan({ cls: 'kap-cal-daycount', text: String(entries.length) })
                 }
             } else {
-                for (const card of cards)
-                    renderChip(cell, card, callbacks, model.activeTab === 'deadline')
+                for (const entry of entries) renderChip(cell, entry, callbacks)
             }
         }
     }
@@ -246,23 +314,24 @@ function renderFocusedDay(
     const dayEl = focus.createDiv({ cls: 'kap-cal-day kap-cal-focus-day' })
     dayEl.dataset['day'] = model.focusedDay ?? ''
     dayEl.setAttribute('role', 'list')
-    const cards = model.cardsByDay.get(model.focusedDay ?? '') ?? []
-    if (cards.length === 0) {
-        dayEl.createDiv({ cls: 'kap-panel-empty', text: 'Nothing scheduled for this day.' })
+    const entries = model.cardsByDay.get(model.focusedDay ?? '') ?? []
+    if (entries.length === 0) {
+        dayEl.createDiv({ cls: 'kap-panel-empty', text: 'Nothing on this day.' })
     }
-    for (const card of cards) renderChip(dayEl, card, callbacks, model.activeTab === 'deadline')
+    for (const entry of entries) renderChip(dayEl, entry, callbacks)
 }
 
-function renderChip(
-    parent: HTMLElement,
-    card: KanbanCard,
-    callbacks: CalendarCallbacks,
-    isDeadline = false
-): void {
+function renderChip(parent: HTMLElement, entry: CalendarEntry, callbacks: CalendarCallbacks): void {
+    const { card, kind, overdue } = entry
     const chip = parent.createDiv({ cls: 'kap-cal-card' })
-    // Deadline-placed chips get an orange edge (vs the blue scheduled accent).
-    if (isDeadline) chip.addClass('kap-cal-card-deadline')
+    // Color-code by placement: scheduled = blue (default), deadline = orange,
+    // both-same-day = split edge; an overdue deadline goes red.
+    if (kind === 'deadline') chip.addClass('kap-cal-card-deadline')
+    else if (kind === 'both') chip.addClass('kap-cal-card-both')
+    if (overdue) chip.addClass('kap-cal-card-overdue')
     chip.dataset['cardKey'] = card.key
+    // Which date a drag of THIS chip moves (the DnD controller reads it).
+    chip.dataset['dimension'] = kind
     chip.setAttribute('role', 'listitem')
     chip.setAttribute('tabindex', '0')
     // Full title on hover — chips can clamp/truncate, so keep the text reachable.
