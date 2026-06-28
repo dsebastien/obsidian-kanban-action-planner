@@ -2,6 +2,25 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.0](https://github.com/dsebastien/obsidian-kanban-action-planner/compare/0.2.0...0.3.0) (2026-06-28)
+
+### Features
+
+* **plugin:** add a JQL-lite filter bar to the toolbar ([b5b6e57](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/b5b6e57f9fe05dfb13d93ef34e6caee12eab5d59)), closes [#34](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/34)
+* **plugin:** auto-archive on multiple trigger statuses ([d4d0041](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/d4d0041ad2df29b6c42e6fca9f0e3d4fabd6b17b)), closes [#32](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/32)
+* **plugin:** clean the Bases property pickers (issue [#8](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/8)) ([81e0675](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/81e0675e3dfb3c75a1a2bdf0cd42af53ef1750b2))
+* **plugin:** command-palette commands for the active Kanban view ([77cf243](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/77cf24317407f906c373f14e62ea516589df7ab9)), closes [#27](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/27)
+* **plugin:** drag column headers to reorder columns ([adf37a2](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/adf37a21ec287beb04857d975312bcf5ed2c571b)), closes [#24](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/24)
+* **plugin:** fully turn off relationship roles set to "None" ([a40e402](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/a40e40279e1a3a142076c70abe193a67e2b5a009))
+* **plugin:** keyboard move, reorder, and menu for cards (a11y) ([025466b](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/025466b516bfa78720ca21e5398215614d9e5571)), closes [#20](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/20)
+* **plugin:** local note types — create + recognize without the Starter Kit ([015431a](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/015431ab428afef4d0c71af84332bdc09cd6987c)), closes [#31](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/31)
+* **plugin:** multi-select cards + bulk actions ([c746362](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/c7463626bf2688bdfedaa9cc046d9a45377dcc11)), closes [#18](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/18)
+* **plugin:** persist calendar & lane view state across reloads ([#19](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/19)) ([3ec3ca4](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/3ec3ca44511352d5f95d6ebfdd4c096216bb0b69))
+* **plugin:** soft WIP limits per column ([9951b3e](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/9951b3e5d8b352aeb4da770ef9c41a577abf4158)), closes [#16](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/16)
+* **plugin:** stabilize horizontal scroll when the Unmapped column toggles ([5e7a8a9](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/5e7a8a98786049a43f7a3ad2703c3dabca8deec8)), closes [#12](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/12)
+* **plugin:** stronger overdue emphasis on cards ([c701c52](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/c701c520e0668e60a8b98dace09d6da7761ea218)), closes [#22](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/22)
+* **plugin:** uniform card height and per-note-type card fields ([c49172f](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/c49172f76549e010a3011543cdf5ee41b0a96612))
+
 ## [0.2.0](https://github.com/dsebastien/obsidian-kanban-action-planner/compare/0.1.0...0.2.0) (2026-06-28)
 
 ### Features
@@ -79,6 +98,7 @@ All notable changes to this project will be documented in this file.
 
 * **plugin:** match Starter Kit's {{quarter}} placeholder format (Q2, not 2) ([4fde618](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/4fde6185c5956e3f6fd2ca3a9b03e70cf5e16840))
 * **plugin:** persist discovered statuses so Show empty columns works ([cf91b81](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/cf91b81a1b0786e35c73f4885882e2dc33564c62))
+
 
 
 

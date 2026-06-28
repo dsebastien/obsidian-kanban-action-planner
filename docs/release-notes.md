@@ -1,5 +1,24 @@
 # Release Notes
 
+## 0.3.0 (2026-06-28)
+
+### Features
+
+- **plugin:** add a JQL-lite filter bar to the toolbar
+- **plugin:** auto-archive on multiple trigger statuses
+- **plugin:** clean the Bases property pickers (issue [#8](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/8))
+- **plugin:** command-palette commands for the active Kanban view
+- **plugin:** drag column headers to reorder columns
+- **plugin:** fully turn off relationship roles set to "None"
+- **plugin:** keyboard move, reorder, and menu for cards (a11y)
+- **plugin:** local note types — create + recognize without the Starter Kit
+- **plugin:** multi-select cards + bulk actions
+- **plugin:** persist calendar & lane view state across reloads ([#19](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/19))
+- **plugin:** soft WIP limits per column
+- **plugin:** stabilize horizontal scroll when the Unmapped column toggles
+- **plugin:** stronger overdue emphasis on cards
+- **plugin:** uniform card height and per-note-type card fields
+
 ## 0.2.0 (2026-06-28)
 
 ### Features
@@ -65,7 +84,7 @@
 - **plugin:** core Kanban board with drag/drop and order persistence
 - **plugin:** definition-driven columns + ctrl/cmd-click opens new tab
 - **plugin:** incremental board refresh + uniform sizing (M6)
-- **plugin:** note types, Starter Kit mirroring, and colors
+- **plugin:** note-type profiles, Starter Kit mirroring, and colors
 - **plugin:** open related notes in a new tab on ctrl/cmd-click
 - **plugin:** place Unmapped column first by default, configurable per view
 - **plugin:** register Kanban Bases view scaffold and config model
