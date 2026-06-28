@@ -102,7 +102,7 @@ export class BoardDnd {
         const ghost = this.sourceCardEl.cloneNode(true) as HTMLElement
         ghost.addClass('kap-card-ghost')
         ghost.style.width = `${String(this.sourceCardEl.offsetWidth)}px`
-        document.body.appendChild(ghost)
+        activeDocument.body.appendChild(ghost)
         this.ghostEl = ghost
 
         this.placeholderEl = createDiv({ cls: 'kap-card-placeholder' })
@@ -143,7 +143,7 @@ export class BoardDnd {
     }
 
     private columnElementAt(x: number, y: number): HTMLElement | null {
-        const el = document.elementFromPoint(x, y) as HTMLElement | null
+        const el = activeDocument.elementFromPoint(x, y) as HTMLElement | null
         return el?.closest<HTMLElement>('.kap-column') ?? null
     }
 

@@ -89,7 +89,7 @@ export class CalendarDnd {
         const ghost = this.sourceCardEl.cloneNode(true) as HTMLElement
         ghost.addClass('kap-card-ghost')
         ghost.style.width = `${String(this.sourceCardEl.offsetWidth)}px`
-        document.body.appendChild(ghost)
+        activeDocument.body.appendChild(ghost)
         this.ghostEl = ghost
     }
 
@@ -99,7 +99,7 @@ export class CalendarDnd {
     }
 
     private updateDropTarget(e: PointerEvent): void {
-        const el = document.elementFromPoint(e.clientX, e.clientY) as HTMLElement | null
+        const el = activeDocument.elementFromPoint(e.clientX, e.clientY) as HTMLElement | null
         const dayEl = el?.closest<HTMLElement>('.kap-cal-day') ?? null
         const panelEl = el?.closest<HTMLElement>('[data-calendar-panel]') ?? null
         const nextDropEl = dayEl ?? panelEl
