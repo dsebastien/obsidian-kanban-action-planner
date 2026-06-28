@@ -83,6 +83,14 @@ See `documentation/plans/kanban-action-planner-implementation-plan.md` for full 
    `metadataCache.on('changed')` for any note currently on the board — so editing a `blocked_by`
    link (or any frontmatter) in place updates the card without a reload, even when the Base result
    set is unchanged (`onDataUpdated` alone would miss it).
+   **Editable from the board (issue #14, supersedes the former read-only rule).** A card's
+   right-click **Relationships** submenu can **add** (per role with a non-empty link-property — "None"
+   roles are not addable) and **remove** a relationship. Writes manage **direct** links only — the
+   wikilinks physically stored in _this note's own_ role link-property — using the **active note
+   type's** `roleProperties` so writes and reads agree. Inverse-derived and heuristic relations stay
+   read-only (they live on the other note / are computed). Adds store the canonical `[[wikilink]]`
+   form and dedup by resolved path; removes delete the property when it empties. The metadata-cache
+   refresh above re-renders badges/blocked state live after a write.
 10. **Calendar mode.** A toggle adds a collapsible "Scheduling" panel (Unplanned /
     No-Deadline tabs; title always visible, vertical when collapsed) + a week/month/quarter/
     year calendar. Dragging a card to a day sets the relevant date property (momentjs format,

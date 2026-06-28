@@ -140,6 +140,13 @@ On each card:
   when there are several (Ctrl/Cmd-click for a new tab). Blocking never changes a card's status
   automatically.
 - The card's right-click menu also lists related notes to open.
+- **Edit relationships from the board.** The right-click menu's **Relationships** submenu lets you
+  **Add** a parent/sibling/child/blocked-by (pick a note from the fuzzy list) or **Remove** one. This
+  writes the link to the note's frontmatter property for that role — so it shows up everywhere, and
+  the blocked badge/filter update live. You can only add a role that has a property configured (a
+  role set to **None** has nowhere to store the link), and you can only remove links stored **on this
+  note** (a relationship the plugin _infers_ — e.g. a child shown because the other note names this
+  one as its parent — is edited from that other note).
 
 **Blockers can live on another board; archiving a blocker clears it.** A blocker counts wherever it
 lives — a **task** blocked by a **project** stays blocked even though the project sits on a different

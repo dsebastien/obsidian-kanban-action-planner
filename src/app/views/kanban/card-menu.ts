@@ -38,6 +38,18 @@ export interface CardMenuHost {
     /** Quick "today"/"tomorrow" keys + the current new-tab modifier check. */
     todayKey(): string
     tomorrowKey(): string
+    // Relationship editing (issue #14).
+    /** Roles whose link-property is non-empty, so a target can be added. */
+    addableRelationshipRoles(): ReadonlySet<RelationshipRole>
+    /** Removable direct links currently on the card (per role + target). */
+    directRelationships(card: KanbanCard): Array<{
+        role: RelationshipRole
+        target: { path: string; label: string }
+    }>
+    /** Open a note picker and link the chosen note in `role`'s property. */
+    addRelationship(card: KanbanCard, role: RelationshipRole): void
+    /** Remove the link to `targetPath` from `role`'s property. */
+    removeRelationship(card: KanbanCard, role: RelationshipRole, targetPath: string): Promise<void>
 }
 
 /** Build the card right-click / keyboard context menu (issue #3, #7, #20, #27). */
@@ -84,7 +96,40 @@ export function buildCardMenu(card: KanbanCard, host: CardMenuHost): Menu {
     }
     addDisplayFieldMenuItems(menu, card, host)
     addRelationshipMenuItems(menu, card, host)
+    addRelationshipEditItems(menu, card, host)
     return menu
+}
+
+/** "Relationships" submenu to add/remove direct relationships (issue #14). */
+function addRelationshipEditItems(menu: Menu, card: KanbanCard, host: CardMenuHost): void {
+    const addable = host.addableRelationshipRoles()
+    const direct = host.directRelationships(card)
+    if (addable.size === 0 && direct.length === 0) return
+
+    menu.addSeparator()
+    menu.addItem((item) => {
+        item.setTitle('Relationships').setIcon('link')
+        const submenu = item.setSubmenu()
+        for (const { role, label, icon } of RELATIONSHIP_MENU) {
+            if (!addable.has(role)) continue
+            submenu.addItem((sub) =>
+                sub
+                    .setTitle(`Add ${label.toLowerCase()}…`)
+                    .setIcon(icon)
+                    .onClick(() => host.addRelationship(card, role))
+            )
+        }
+        if (direct.length > 0) submenu.addSeparator()
+        for (const { role, target } of direct) {
+            const meta = RELATIONSHIP_MENU.find((m) => m.role === role)
+            submenu.addItem((sub) =>
+                sub
+                    .setTitle(`Remove ${(meta?.label ?? role).toLowerCase()}: ${target.label}`)
+                    .setIcon('x')
+                    .onClick(() => void host.removeRelationship(card, role, target.path))
+            )
+        }
+    })
 }
 
 /** "Schedule" / "Set deadline" quick dates + precise picker + clear. */

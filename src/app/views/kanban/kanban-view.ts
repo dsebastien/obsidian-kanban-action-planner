@@ -25,10 +25,16 @@ import { passesFilter } from '../../domain/filtering'
 import type { BlockedFilter, RelationalFilter } from '../../domain/filtering'
 import type { RelationshipSet } from '../../domain/relationships'
 import {
+    addRelationshipLink,
+    directLinkTargets,
+    removeRelationshipLink,
     resolveBoardRelationships,
+    roleProperties,
     toCardRelationships
 } from '../../services/relationships.service'
 import type { RelatedNote } from '../../services/relationships.service'
+import { RELATIONSHIP_ROLES } from '../../domain/relationships'
+import { RelationshipTargetModal } from '../../ui/relationship-target-modal'
 import { planInsertion } from '../../domain/ordering'
 import {
     coerceOrder,
@@ -1010,8 +1016,76 @@ export class KanbanActionPlannerView extends BasesView {
                 this.toggleDisplayField(noteTypeId, property),
             openRelated: (note, newTab) => this.openRelated(note, newTab),
             todayKey: () => toDateKey(startOfDay(new Date())),
-            tomorrowKey: () => toDateKey(addDays(startOfDay(new Date()), 1))
+            tomorrowKey: () => toDateKey(addDays(startOfDay(new Date()), 1)),
+            addableRelationshipRoles: () => this.addableRelationshipRoles(),
+            directRelationships: (card) => this.directRelationships(card),
+            addRelationship: (card, role) => this.addRelationship(card, role),
+            removeRelationship: (card, role, targetPath) =>
+                this.removeRelationship(card, role, targetPath)
         }
+    }
+
+    // ── Relationship editing (issue #14) ──────────────────────
+
+    /** The role→link-property map for the active note type (read+write agree). */
+    private relationshipProperties(): Record<RelationshipRole, string> {
+        return roleProperties(this.noteType)
+    }
+
+    /** Roles whose link-property is non-empty, so a target can be linked. */
+    private addableRelationshipRoles(): ReadonlySet<RelationshipRole> {
+        const props = this.relationshipProperties()
+        const roles = new Set<RelationshipRole>()
+        for (const role of RELATIONSHIP_ROLES) {
+            if (props[role].length > 0) roles.add(role)
+        }
+        return roles
+    }
+
+    /** Removable direct links currently stored on the card, per role. */
+    private directRelationships(
+        card: KanbanCard
+    ): Array<{ role: RelationshipRole; target: { path: string; label: string } }> {
+        const props = this.relationshipProperties()
+        const out: Array<{ role: RelationshipRole; target: { path: string; label: string } }> = []
+        for (const role of RELATIONSHIP_ROLES) {
+            const property = props[role]
+            if (property.length === 0) continue
+            for (const target of directLinkTargets(this.app, card.file, property)) {
+                out.push({ role, target })
+            }
+        }
+        return out
+    }
+
+    /** Open a note picker and link the chosen note in `role`'s property. */
+    private addRelationship(card: KanbanCard, role: RelationshipRole): void {
+        const property = this.relationshipProperties()[role]
+        if (property.length === 0) return
+        const exclude = new Set<string>([card.file.path])
+        for (const target of directLinkTargets(this.app, card.file, property)) {
+            exclude.add(target.path)
+        }
+        new RelationshipTargetModal(this.app, role, exclude, (target) => {
+            void addRelationshipLink(this.app, card.file, property, target).then((added) => {
+                new Notice(
+                    added
+                        ? `Linked "${target.basename}" as ${role.replace('_', ' ')}.`
+                        : `"${target.basename}" is already linked.`
+                )
+            })
+        }).open()
+    }
+
+    /** Remove the link to `targetPath` from `role`'s property. */
+    private async removeRelationship(
+        card: KanbanCard,
+        role: RelationshipRole,
+        targetPath: string
+    ): Promise<void> {
+        const property = this.relationshipProperties()[role]
+        if (property.length === 0) return
+        await removeRelationshipLink(this.app, card.file, property, targetPath)
     }
 
     // ── Keyboard move & reorder (issue #20) ───────────────────

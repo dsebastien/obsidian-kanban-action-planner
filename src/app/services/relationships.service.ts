@@ -4,6 +4,8 @@ import type { NoteType, RelationshipRole } from '../domain/note-type'
 import { RELATIONSHIP_ROLES, normalizeTag, resolveRelationships } from '../domain/relationships'
 import type { HeuristicRule, NoteRecord, RelationshipSet } from '../domain/relationships'
 import { isArchivedPath } from '../domain/archive-paths'
+import { formatWikiLink, parseWikiLinkTarget, toLinkStringList } from '../domain/wikilinks'
+import { findKeyCaseInsensitive } from './frontmatter.service'
 import {
     DEFAULT_BLOCKED_BY_PROPERTY,
     DEFAULT_CHILD_PROPERTY,
@@ -75,20 +77,84 @@ function heuristicRules(noteType: NoteType): HeuristicRule[] {
     return rules
 }
 
-/** Resolve the targets of one frontmatter link-property (case-insensitive key match). */
-function linkPropertyTargets(app: App, file: TFile, property: string): string[] {
+/** A resolved direct link target (the note physically linked in a property). */
+export interface DirectLink {
+    path: string
+    label: string
+}
+
+/**
+ * Resolve the direct link targets stored in `file`'s `property` (case-insensitive
+ * key match), as `{ path, label }` — read from the metadata cache's parsed
+ * `frontmatterLinks`. These are the *removable* relationships for issue #14.
+ */
+export function directLinkTargets(app: App, file: TFile, property: string): DirectLink[] {
     const links = app.metadataCache.getFileCache(file)?.frontmatterLinks
     if (!links) return []
     const prop = property.toLowerCase()
-    const out: string[] = []
+    const out: DirectLink[] = []
+    const seen = new Set<string>()
     for (const link of links) {
         const key = link.key.toLowerCase()
         if (key !== prop && !key.startsWith(`${prop}.`)) continue
         const linkpath = link.link.split('#')[0] ?? link.link
         const dest = app.metadataCache.getFirstLinkpathDest(linkpath, file.path)
-        if (dest && !out.includes(dest.path)) out.push(dest.path)
+        if (dest && !seen.has(dest.path)) {
+            seen.add(dest.path)
+            out.push({ path: dest.path, label: dest.basename })
+        }
     }
     return out
+}
+
+/** Resolve the targets of one frontmatter link-property (case-insensitive key match). */
+function linkPropertyTargets(app: App, file: TFile, property: string): string[] {
+    return directLinkTargets(app, file, property).map((d) => d.path)
+}
+
+/**
+ * Add a wikilink to `target` into `file`'s `property` (issue #14). Stores the
+ * canonical wikilink form (so it works regardless of the user's markdown-link
+ * setting). Deduped by resolved path — returns false when already linked.
+ */
+export async function addRelationshipLink(
+    app: App,
+    file: TFile,
+    property: string,
+    target: TFile
+): Promise<boolean> {
+    if (directLinkTargets(app, file, property).some((d) => d.path === target.path)) return false
+    const linkString = formatWikiLink(app.metadataCache.fileToLinktext(target, file.path))
+    await app.fileManager.processFrontMatter(file, (fm: Record<string, unknown>) => {
+        const key = findKeyCaseInsensitive(fm, property) ?? property
+        const list = toLinkStringList(fm[key])
+        list.push(linkString)
+        fm[key] = list
+    })
+    return true
+}
+
+/**
+ * Remove every link in `file`'s `property` that resolves to `targetPath` (issue
+ * #14). Deletes the property when it becomes empty so no stray `[]` is left.
+ */
+export async function removeRelationshipLink(
+    app: App,
+    file: TFile,
+    property: string,
+    targetPath: string
+): Promise<void> {
+    await app.fileManager.processFrontMatter(file, (fm: Record<string, unknown>) => {
+        const key = findKeyCaseInsensitive(fm, property)
+        if (key === null) return
+        const kept = toLinkStringList(fm[key]).filter((linkString) => {
+            const linkpath = parseWikiLinkTarget(linkString)
+            const dest = app.metadataCache.getFirstLinkpathDest(linkpath, file.path)
+            return (dest?.path ?? linkpath) !== targetPath
+        })
+        if (kept.length === 0) delete fm[key]
+        else fm[key] = kept
+    })
 }
 
 /** Build a {@link NoteRecord} for one file. */
