@@ -15,6 +15,7 @@ import type {
     NoteType,
     RelationshipRole
 } from '../../domain/note-type'
+import { archiveFolderPrefixes } from '../../domain/archive-paths'
 import { buildBoard } from '../../domain/board-model'
 import type { Board, UnmappedPosition } from '../../domain/board-model'
 import { detectStatusProperty, normalizeStatusValue } from '../../domain/status'
@@ -238,16 +239,45 @@ export class KanbanActionPlannerView extends BasesView {
         // would otherwise leave the card stale until reload.
         this.registerEvent(
             this.app.metadataCache.on('changed', (file) => {
-                if (this.isOnBoard(file)) this.debouncedRebuild()
+                if (this.affectsBoard(file.path)) this.debouncedRebuild()
+            })
+        )
+        // A blocker being archived is a MOVE: it doesn't touch the blocked card's
+        // own file, so refresh when a relationship target (or board note) is
+        // renamed/deleted too, so the blocked card re-resolves (issue #13).
+        this.registerEvent(
+            this.app.vault.on('rename', (file, oldPath) => {
+                if (this.affectsBoard(file.path) || this.affectsBoard(oldPath)) {
+                    this.debouncedRebuild()
+                }
+            })
+        )
+        this.registerEvent(
+            this.app.vault.on('delete', (file) => {
+                if (this.affectsBoard(file.path)) this.debouncedRebuild()
             })
         )
         this.plugin.trackKanbanView(this)
         void this.resolveAndRebuild()
     }
 
-    /** Whether a changed file is currently part of this board's note set. */
-    private isOnBoard(file: TFile): boolean {
-        return this.files().some((f) => f.path === file.path)
+    /**
+     * Whether a path is a note on this board OR a relationship target of one, so
+     * an in-place edit, archive (move), or delete of it should refresh the board.
+     */
+    private affectsBoard(path: string): boolean {
+        if (this.files().some((f) => f.path === path)) return true
+        for (const set of this.relationshipsByPath.values()) {
+            if (
+                set.blocked_by.includes(path) ||
+                set.parent.includes(path) ||
+                set.child.includes(path) ||
+                set.sibling.includes(path)
+            ) {
+                return true
+            }
+        }
+        return false
     }
 
     override onunload(): void {
@@ -365,6 +395,17 @@ export class KanbanActionPlannerView extends BasesView {
         return this.archiveByPath.get(card.key) ?? this.noteType.archive
     }
 
+    /**
+     * Static archive-folder prefixes across every note type, so a `blocked_by`
+     * target that has been archived (moved under one of them) stops blocking,
+     * whatever note type the blocker is (issue #13).
+     */
+    private archiveFolderPrefixes(): string[] {
+        return archiveFolderPrefixes(
+            this.plugin.settings.noteTypes.map((t) => t.archive.archiveFolder)
+        )
+    }
+
     /** Per-view grouping override (when set) else the note type's grouping. */
     private resolveLaneGrouping(): LaneGrouping {
         return readLaneGroupingOverride(this.config) ?? this.noteType.laneGrouping
@@ -404,7 +445,12 @@ export class KanbanActionPlannerView extends BasesView {
         this.dueDateProperty = this.resolveDueDateProperty()
         this.scheduledDateProperty = this.resolveScheduledDateProperty()
 
-        this.relationshipsByPath = resolveBoardRelationships(this.app, files, this.noteType)
+        this.relationshipsByPath = resolveBoardRelationships(
+            this.app,
+            files,
+            this.noteType,
+            this.archiveFolderPrefixes()
+        )
         this.loadFilterQuery()
         this.loadCollapseState()
 

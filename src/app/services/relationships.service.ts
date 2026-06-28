@@ -8,6 +8,7 @@ import {
     resolveRelationships
 } from '../domain/relationships'
 import type { HeuristicRule, NoteRecord, RelationshipSet } from '../domain/relationships'
+import { isArchivedPath } from '../domain/archive-paths'
 import {
     DEFAULT_BLOCKED_BY_PROPERTY,
     DEFAULT_CHILD_PROPERTY,
@@ -113,15 +114,34 @@ function toRecord(app: App, file: TFile, props: Record<RelationshipRole, string>
 /**
  * Resolve relationships for every board file under the active note type. Returns a
  * map keyed by file path; missing files default to an empty set.
+ *
+ * `archivePrefixes` are the static folder prefixes of the configured archive
+ * folders (across note types). A `blocked_by` target whose note lives under one
+ * of them is **archived** and is dropped, so an archived blocker stops blocking
+ * the card while active off-board blockers (a project on another board) keep
+ * blocking (issue #13).
  */
 export function resolveBoardRelationships(
     app: App,
     files: ReadonlyArray<TFile>,
-    noteType: NoteType
+    noteType: NoteType,
+    archivePrefixes: ReadonlyArray<string> = []
 ): Map<string, RelationshipSet> {
     const props = roleProperties(noteType)
     const records = files.map((file) => toRecord(app, file, props))
-    return resolveRelationships(records, heuristicRules(noteType), activeRoles(noteType, props))
+    const resolved = resolveRelationships(
+        records,
+        heuristicRules(noteType),
+        activeRoles(noteType, props)
+    )
+    if (archivePrefixes.length > 0) {
+        for (const set of resolved.values()) {
+            set.blocked_by = set.blocked_by.filter(
+                (target) => !isArchivedPath(target, archivePrefixes)
+            )
+        }
+    }
+    return resolved
 }
 
 /** A related note resolved for display/navigation. */

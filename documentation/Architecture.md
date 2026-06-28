@@ -177,10 +177,13 @@ placeholder suffix.
 Relationships are layered in two pure modules + a bridge: `domain/relationships.ts`
 (`resolveRelationships` — direct + inverse + heuristic) and `domain/filtering.ts` (blocked
 filter) are unit-tested; `services/relationships.service.ts` reads tags/links from the metadata
-cache and feeds the domain. Relationships are read-only (never written back). **`blocked_by` is
-board-scoped (issue #13):** `resolveRelationships` drops direct targets of `boardScopedRoles`
-(`DEFAULT_BOARD_SCOPED_ROLES = { blocked_by }`) when the target isn't itself a board record, so an
-archived/removed blocker stops blocking; navigational roles may still point off-board. On the card,
+cache and feeds the domain. Relationships are read-only (never written back). **Off-board blockers
+count; archived ones drop (issue #13):** direct links resolve against the whole vault, so a task
+`blocked_by` a project on another board still shows blocked. `resolveBoardRelationships` then drops
+any `blocked_by` target whose note lives under a configured archive folder — `domain/archive-paths.ts`
+(`archiveFolderPrefix`/`isArchivedPath`, unit-tested) matches paths against each archive template's
+static prefix (before the first `{{`), gathered across all note types. Navigational roles are not
+archive-filtered. On the card,
 `ui/board/card-renderer.ts` draws one counted badge per non-empty role (`onRelationship`
 callback); the view resolves the badge to a single-note open or a picker `Menu`, honouring
 Ctrl/Cmd for a new tab (`isNewTabEvent`).

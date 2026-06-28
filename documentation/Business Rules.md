@@ -72,11 +72,14 @@ See `documentation/plans/kanban-action-planner-implementation-plan.md` for full 
    no auto-transition. **A role configured as "None"** (empty link-property and no heuristic)
    is fully off: it gets **no** related notes from any source — not direct, not inverse of an
    active opposite role, not heuristic — so its badge never appears for that note type.
-   **`blocked_by` is board-scoped (issue #13):** a direct blocker only counts while the blocker
-   is itself on the board; a blocker that leaves the board (archived/removed/filtered out) stops
-   blocking the card (`DEFAULT_BOARD_SCOPED_ROLES = { blocked_by }` in `domain/relationships.ts`).
-   Navigational roles (parent/child/sibling) may still point off-board. **Live refresh:** because
-   relationships are read-only and resolved from the metadata cache, the view also rebuilds on
+   **Blockers may be off-board; archived blockers drop (issue #13).** A `blocked_by` link counts
+   even when the blocker is on **another board** (a task blocked by a project) — direct links are
+   resolved against the whole vault, not the board. A blocker stops counting only when it is
+   **archived**: the service drops any `blocked_by` target whose note lives under a configured
+   archive folder (matched by the folder template's static prefix, before the first `{{` —
+   `domain/archive-paths.ts`; prefixes gathered across all note types). Navigational roles
+   (parent/child/sibling) are not archive-filtered. **Live refresh:** because relationships are
+   read-only and resolved from the metadata cache, the view also rebuilds on
    `metadataCache.on('changed')` for any note currently on the board — so editing a `blocked_by`
    link (or any frontmatter) in place updates the card without a reload, even when the Base result
    set is unchanged (`onDataUpdated` alone would miss it).

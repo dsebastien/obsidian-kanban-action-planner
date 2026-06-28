@@ -133,12 +133,12 @@ On each card:
   automatically.
 - The card's right-click menu also lists related notes to open.
 
-**Blockers must be on the board.** A blocker only counts while it's still part of the board. When
-a blocker is **archived** (or otherwise leaves the board — its status/tag changes so it no longer
-matches the Base), it stops blocking: the **⛔** count drops and the card unblocks once its last
-on-board blocker is gone. (Parent/sibling/child badges can still point to notes outside the board.)
-Edits apply **live** — change or remove a `blocked by` link on a note and the board updates without
-a reload.
+**Blockers can live on another board; archiving a blocker clears it.** A blocker counts wherever it
+lives — a **task** blocked by a **project** stays blocked even though the project sits on a different
+board. A blocker stops counting only when it's **archived** (moved into a note type's archive
+folder): the **⛔** count drops, and the card unblocks once its last non-archived blocker is gone.
+(Parent/sibling/child badges aren't affected by archiving.) Edits apply **live** — change or remove a
+`blocked by` link, or archive a blocker, and the board updates without a reload.
 
 Use the **Blocked cards** view option to **show all**, show **only blocked**, or **hide
 blocked** cards.
