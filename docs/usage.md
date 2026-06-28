@@ -306,12 +306,13 @@ finished cards into a folder) sections — see Swimlanes and Archiving above.
 
 ## Obsidian Starter Kit integration
 
-If the [Obsidian Starter Kit](https://store.dsebastien.net/) plugin is installed, the board
-recognizes a note's type and uses that type's **status property and allowed values** to build
-its columns — including empty columns in the type's defined order. The Starter Kit stays the
-source of truth for that; your color choices are saved locally and survive the Starter Kit
-being disabled. Without the Starter Kit, columns come from the status values found in your
-notes.
+The [Obsidian Starter Kit](https://www.store.dsebastien.net/product/obsidian-starter-kit) is
+**completely optional** — the plugin works fully without it; the two simply combine well. If
+the Starter Kit plugin is installed, the board recognizes a note's type and uses that type's
+**status property and allowed values** to build its columns — including empty columns in the
+type's defined order. The Starter Kit stays the source of truth for that; your color choices
+are saved locally and survive the Starter Kit being disabled. Without the Starter Kit, columns
+come from the status values found in your notes.
 
 ## Where it lives
 

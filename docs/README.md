@@ -28,8 +28,11 @@ with the changes written straight back into your notes.
 - **Click a card** — opens the note.
 - **Colors** — give each status a color (auto-assigned palette or custom); cards and columns
   follow it and adapt to your theme.
-- **Obsidian Starter Kit aware** — when installed, columns come from your note type's defined
-  statuses automatically; your color choices are saved locally regardless.
+- **Obsidian Starter Kit aware** — the plugin works fully on its own; the
+  [Obsidian Starter Kit](https://www.store.dsebastien.net/product/obsidian-starter-kit) is
+  **completely optional** and just pairs well with it. When the Starter Kit is installed,
+  columns come from your note type's defined statuses automatically; your color choices are
+  saved locally regardless.
 
 ## Quick Start
 
