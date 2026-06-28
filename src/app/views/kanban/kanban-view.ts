@@ -103,6 +103,11 @@ export class KanbanActionPlannerView extends BasesView {
     private calendarAnchor: Date | null = null
     private calendarPanelCollapsed = false
     private calendarFocusedDay: string | null = null
+    // Auto-collapse the scheduling pane when the container is too narrow.
+    private panelAutoCollapsed = false
+    private panelLastNarrow: boolean | null = null
+    private resizeObserver: ResizeObserver | null = null
+    private readonly debouncedResize: Debouncer<[], void>
 
     constructor(
         controller: QueryController,
@@ -113,6 +118,7 @@ export class KanbanActionPlannerView extends BasesView {
         this.containerEl = containerEl
         this.plugin = plugin
         this.debouncedRebuild = debounce(() => void this.resolveAndRebuild(), 250)
+        this.debouncedResize = debounce(() => this.evaluatePanelAutoCollapse(), 120)
     }
 
     override onload(): void {
@@ -127,10 +133,14 @@ export class KanbanActionPlannerView extends BasesView {
         this.calendarDnd = new CalendarDnd(this.boardEl, {
             onDrop: (cardKey, target) => void this.handleCalendarDrop(cardKey, target)
         })
+        this.resizeObserver = new ResizeObserver(() => this.debouncedResize())
+        this.resizeObserver.observe(this.boardEl)
         void this.resolveAndRebuild()
     }
 
     override onunload(): void {
+        this.resizeObserver?.disconnect()
+        this.resizeObserver = null
         this.dnd?.destroy()
         this.dnd = null
         this.calendarDnd?.destroy()
@@ -636,6 +646,37 @@ export class KanbanActionPlannerView extends BasesView {
         if (this.calendarMode() === calendar) return
         this.config.set('calendarMode', calendar)
         this.rebuild()
+        // Re-evaluate the auto-collapse for the (now visible) scheduling pane.
+        this.panelLastNarrow = null
+        this.evaluatePanelAutoCollapse()
+    }
+
+    /**
+     * Collapse the scheduling pane automatically when the calendar container is
+     * too narrow to show it comfortably, and restore it when there's room again
+     * — but only on a width-category change, so a manual toggle is never fought.
+     */
+    private evaluatePanelAutoCollapse(): void {
+        if (!this.boardEl || !this.calendarMode()) {
+            this.panelLastNarrow = null
+            return
+        }
+        const width = this.boardEl.clientWidth
+        if (width === 0) return
+        const root = this.boardEl.ownerDocument.documentElement
+        const remPx = parseFloat(getComputedStyle(root).fontSize) || 16
+        const narrow = width < 36 * remPx
+        if (narrow === this.panelLastNarrow) return
+        this.panelLastNarrow = narrow
+        if (narrow && !this.calendarPanelCollapsed) {
+            this.calendarPanelCollapsed = true
+            this.panelAutoCollapsed = true
+            this.rebuild()
+        } else if (!narrow && this.panelAutoCollapsed) {
+            this.calendarPanelCollapsed = false
+            this.panelAutoCollapsed = false
+            this.rebuild()
+        }
     }
 
     private effectiveRange(): CalendarRange {
@@ -710,6 +751,7 @@ export class KanbanActionPlannerView extends BasesView {
                 },
                 onTogglePanel: () => {
                     this.calendarPanelCollapsed = !this.calendarPanelCollapsed
+                    this.panelAutoCollapsed = false
                     this.rebuild()
                 },
                 onFocusDay: (dayKey) => {
