@@ -530,9 +530,9 @@ export class ConfigureBoardModal extends Modal {
 
 /** Relationship roles shown in the modal, in order. */
 const RELATIONSHIP_ROLES_UI: Array<{ role: RelationshipRole; label: string }> = [
-    { role: 'parent', label: 'Parent property' },
-    { role: 'sibling', label: 'Sibling property' },
-    { role: 'child', label: 'Child property' },
+    { role: 'parent', label: 'Parents property' },
+    { role: 'sibling', label: 'Siblings property' },
+    { role: 'child', label: 'Children property' },
     { role: 'blocked_by', label: 'Blocked-by property' }
 ]
 
