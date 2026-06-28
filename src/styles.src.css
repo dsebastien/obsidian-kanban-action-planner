@@ -658,7 +658,13 @@
         transition: background-color var(--kap-transition) var(--kap-ease);
     }
 
-    /* Grid cells zoom into a focused day on click — hint it on hover. */
+    /* Grid cells zoom into a focused day on click — hint it with a pointer
+       (hand) cursor + a hover tint. Scoped to the grid, so the focused-day view
+       (which reuses .kap-cal-day) doesn't get the affordance. */
+    .kap-cal-grid .kap-cal-day {
+        @apply cursor-pointer;
+    }
+
     .kap-cal-grid .kap-cal-day:hover {
         background: var(--background-modifier-hover);
     }
