@@ -69,6 +69,7 @@ import { patchBoard } from '../../ui/board/board-renderer'
 import { applyUniformCardHeight } from '../../ui/board/card-equalize'
 import { BoardDnd } from '../../ui/board/dnd-controller'
 import type { DropTarget } from '../../ui/board/dnd-controller'
+import { ColumnDnd } from '../../ui/board/column-dnd'
 import type { KanbanCard } from '../../ui/board/types'
 import { renderViewToolbar } from '../../ui/view-toolbar'
 import { FilterBar } from '../../ui/filter-bar'
@@ -102,6 +103,7 @@ export class KanbanActionPlannerView extends BasesView {
     private filterBar: FilterBar | null = null
     private boardEl: HTMLElement | null = null
     private dnd: BoardDnd | null = null
+    private columnDnd: ColumnDnd | null = null
     private calendarDnd: CalendarDnd | null = null
     private readonly debouncedRebuild: Debouncer<[], void>
     private readonly debouncedFilter: Debouncer<[], void>
@@ -185,6 +187,9 @@ export class KanbanActionPlannerView extends BasesView {
         this.dnd = new BoardDnd(this.boardEl, {
             onDrop: (cardKey, target) => void this.handleDrop(cardKey, target)
         })
+        this.columnDnd = new ColumnDnd(this.boardEl, UNMAPPED_COLUMN_ID, {
+            onReorder: (orderedColumnIds) => this.reorderColumns(orderedColumnIds)
+        })
         this.calendarDnd = new CalendarDnd(this.boardEl, {
             onDrop: (cardKey, target, dimension) =>
                 void this.handleCalendarDrop(cardKey, target, dimension)
@@ -201,6 +206,8 @@ export class KanbanActionPlannerView extends BasesView {
         this.resizeObserver = null
         this.dnd?.destroy()
         this.dnd = null
+        this.columnDnd?.destroy()
+        this.columnDnd = null
         this.calendarDnd?.destroy()
         this.calendarDnd = null
         this.filterBar?.destroy()
@@ -507,6 +514,17 @@ export class KanbanActionPlannerView extends BasesView {
     private toggleColumn(columnId: string): void {
         if (this.collapsedColumns.has(columnId)) this.collapsedColumns.delete(columnId)
         else this.collapsedColumns.add(columnId)
+        this.rebuild()
+    }
+
+    /**
+     * Persist a drag-reordered column order (issue #24) to the per-view `statuses`
+     * list — which takes precedence over the Starter Kit / default order. The ids
+     * are status values (Unmapped is excluded from dragging).
+     */
+    private reorderColumns(orderedColumnIds: string[]): void {
+        if (orderedColumnIds.length === 0) return
+        this.config.set('statuses', orderedColumnIds)
         this.rebuild()
     }
 
@@ -822,9 +840,7 @@ export class KanbanActionPlannerView extends BasesView {
     // ── Keyboard move & reorder (issue #20) ───────────────────
 
     /** Locate a card within the current board (lane, column index, card index). */
-    private cardLocation(
-        card: KanbanCard
-    ): {
+    private cardLocation(card: KanbanCard): {
         laneId: string
         columns: Board<KanbanCard>['lanes'][number]['columns']
         colIndex: number

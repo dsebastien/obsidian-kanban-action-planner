@@ -43,6 +43,9 @@ until you define your statuses.
 - **Drag a card within a column** to reorder it; the new position is saved to a
   `manual_order` property on the note.
 - **Drag a card to the Unmapped column** to clear its status.
+- **Drag a column header left/right** to reorder the columns. The new order is saved to _this
+  board_ (the per-view status list) and takes precedence over the default order. The Unmapped
+  column stays put (its side is set by the **Unmapped column position** option).
 
 Ordering is stored in your notes (not in plugin data), so it travels with the vault.
 

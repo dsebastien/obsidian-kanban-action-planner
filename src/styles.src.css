@@ -288,6 +288,38 @@
         @apply flex items-center gap-2 px-3 py-2;
         font-weight: var(--font-semibold, 600);
         border-bottom: 1px solid var(--background-modifier-border);
+        /* Draggable to reorder columns (issue #24); the toggle button overrides. */
+        cursor: grab;
+        touch-action: none;
+    }
+
+    .kap-column-header:active {
+        cursor: grabbing;
+    }
+
+    /* The dragged column dims; a clone follows the pointer; a bar marks the slot. */
+    .kap-column-dragging {
+        opacity: 0.4;
+    }
+
+    .kap-column-ghost {
+        position: fixed;
+        top: 0;
+        left: 0;
+        z-index: var(--layer-dragged, 1000);
+        pointer-events: none;
+        opacity: 0.9;
+        background: var(--background-secondary);
+        border: 1px solid var(--background-modifier-border);
+        border-radius: var(--radius-m, 8px);
+        box-shadow: var(--shadow-l);
+    }
+
+    .kap-column-drop-indicator {
+        flex: 0 0 3px;
+        align-self: stretch;
+        background: var(--interactive-accent);
+        border-radius: 2px;
     }
 
     .kap-column-title {

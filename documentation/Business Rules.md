@@ -131,7 +131,12 @@ See `documentation/plans/kanban-action-planner-implementation-plan.md` for full 
     — so background Kanban leaves never match. Each uses `checkCallback` (no-op + hidden when no
     Kanban view is focused) and is hotkey-bindable: toggle board/calendar, focus filter, clear
     filter, next/previous swimlane.
-20. **Keyboard move & reorder (issue #20, a11y).** A focused card supports `Ctrl/Cmd+←/→` to
+20. **Drag to reorder columns (issue #24).** Dragging a status column's header (pointer DnD,
+    `ColumnDnd`) reorders the columns and persists the new order to the per-view `statuses`
+    list (which overrides the Starter Kit / default order). The Unmapped column is not
+    draggable — its side is the `unmappedPosition` option. Reordering writes only the column
+    order, not the notes.
+21. **Keyboard move & reorder (issue #20, a11y).** A focused card supports `Ctrl/Cmd+←/→` to
     move to the adjacent column (writes status), `Alt+↑/↓` to reorder within its column (writes
     manual order), and the menu key / `Shift+F10` to open its context menu — all via the same
     `applyMove` path as drag-and-drop. Focus follows the card after the rebuild
