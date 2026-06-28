@@ -110,7 +110,10 @@ host matches), each column's card list is reconciled by the pure, unit-tested
 unchanged cards keep their exact DOM node (so scroll, focus, and an in-flight drag survive),
 only changed/new cards are rebuilt, gone cards removed, and order is fixed with a React-style
 cursor. Shape changes (config edits, a new status column, calendar↔board switch, the empty
-state) fall back to a full `renderBoard()`. Lane collapse/counts are synced in place. **Sizing
+state) fall back to a full `renderBoard()`. Lane collapse/counts are synced in place. **Scroll
+anchoring (issue #12):** around each render the view captures the leftmost on-screen column and
+re-pins it to the same offset afterwards (`captureColumnAnchor`/`restoreColumnAnchor`), so the
+Unmapped column appearing/disappearing at the left edge never shifts the columns you're viewing. **Sizing
 invariants:** every column is a fixed equal width; cards are a single uniform height board-wide,
 computed at runtime by `ui/board/card-equalize.ts` `applyUniformCardHeight()` as the tallest
 card's natural height (published as the `--kap-card-height` CSS var, applied as `min-height`;

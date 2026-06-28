@@ -386,6 +386,10 @@ export class KanbanActionPlannerView extends BasesView {
             'debug'
         )
 
+        // Anchor the horizontal scroll on the column the user is looking at, so a
+        // structural change (notably the Unmapped column appearing/disappearing at
+        // the left edge) doesn't shift the visible columns sideways (issue #12).
+        const anchor = this.captureColumnAnchor()
         patchBoard(
             this.boardEl,
             this.board,
@@ -399,11 +403,45 @@ export class KanbanActionPlannerView extends BasesView {
             this.collapsedLanes,
             this.collapsedColumns
         )
+        this.restoreColumnAnchor(anchor)
 
         // All cards share one height (the tallest card's), recomputed here since
         // the card set / content just changed. Synchronous (before paint) so
         // cards never flash at uneven heights.
         this.equalizeCardHeights()
+    }
+
+    /**
+     * Record the leftmost on-screen column and its offset from the scroller's
+     * left edge, so the same column can be pinned back to that spot after a
+     * re-render. Reads the first column board (columns are identical per lane).
+     */
+    private captureColumnAnchor(): { id: string; offset: number } | null {
+        const scroller = this.boardEl?.querySelector<HTMLElement>('.kap-board')
+        if (!scroller) return null
+        const sRect = scroller.getBoundingClientRect()
+        const cols = Array.from(scroller.querySelectorAll<HTMLElement>(':scope > .kap-column'))
+        const anchorEl =
+            cols.find((c) => c.getBoundingClientRect().right > sRect.left + 1) ?? cols[0]
+        const id = anchorEl?.dataset['columnId']
+        if (!anchorEl || !id) return null
+        return { id, offset: anchorEl.getBoundingClientRect().left - sRect.left }
+    }
+
+    /** Pin the anchored column back to its captured offset, in every lane board. */
+    private restoreColumnAnchor(anchor: { id: string; offset: number } | null): void {
+        if (!anchor || !this.boardEl) return
+        const escaped = cssEscapeId(anchor.id)
+        for (const scroller of Array.from(
+            this.boardEl.querySelectorAll<HTMLElement>('.kap-board')
+        )) {
+            const el = scroller.querySelector<HTMLElement>(
+                `:scope > .kap-column[data-column-id="${escaped}"]`
+            )
+            if (!el) continue
+            const delta = el.getBoundingClientRect().left - scroller.getBoundingClientRect().left
+            scroller.scrollLeft += delta - anchor.offset
+        }
     }
 
     /**
@@ -1389,6 +1427,13 @@ const RELATIONSHIP_MENU: Array<{ role: RelationshipRole; label: string; icon: st
 /** Whether an event asks to open in a new tab (Ctrl/Cmd held). */
 function isNewTabEvent(evt: MouseEvent | KeyboardEvent): boolean {
     return evt.ctrlKey || evt.metaKey
+}
+
+/** Escape a value for use inside a `[data-…="…"]` attribute selector. */
+function cssEscapeId(value: string): string {
+    return typeof CSS !== 'undefined' && typeof CSS.escape === 'function'
+        ? CSS.escape(value)
+        : value.replace(/["\\]/g, '\\$&')
 }
 
 /** Flatten a frontmatter value into searchable strings (scalars only; objects skipped). */
