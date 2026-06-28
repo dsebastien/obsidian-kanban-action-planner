@@ -55,7 +55,7 @@ export class KanbanActionPlannerPlugin extends Plugin {
             icon: KANBAN_VIEW_ICON,
             factory: (controller, containerEl) =>
                 new KanbanActionPlannerView(controller, containerEl, this),
-            options: () => getKanbanViewOptions(this.settings)
+            options: () => getKanbanViewOptions(this.app, this.settings)
         })
 
         if (registered) {

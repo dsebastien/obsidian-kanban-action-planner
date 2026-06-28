@@ -1,5 +1,33 @@
-import type { BasesAllOptions } from 'obsidian'
+import type { App, BasesAllOptions, BasesPropertyId } from 'obsidian'
 import type { PluginSettings } from '../../types/plugin-settings.intf'
+import { isStarterKitAvailable, listNoteTypes } from '../../services/starter-kit.service'
+
+/**
+ * Keep the Bases property dropdowns clean (issue #8): only real frontmatter
+ * (`note.*`) properties are offered — `file.*`/`formula.*` are both noise and
+ * non-functional here (the plugin reads/writes status, order, grouping and sort
+ * via frontmatter). When the Obsidian Starter Kit is enabled, the list is further
+ * limited to its note types' known property names (union across types, since the
+ * options panel has no single-note-type context); an empty known set falls back
+ * to all `note.*` so the dropdowns never go blank.
+ */
+export function isSelectableProperty(prop: string, known: ReadonlySet<string> | null): boolean {
+    const dot = prop.indexOf('.')
+    if (dot < 0 || prop.slice(0, dot) !== 'note') return false
+    return known ? known.has(prop.slice(dot + 1).toLowerCase()) : true
+}
+
+function buildPropertyFilter(app: App): (prop: BasesPropertyId) => boolean {
+    let known: Set<string> | null = null
+    if (isStarterKitAvailable(app)) {
+        const set = new Set<string>()
+        for (const type of listNoteTypes(app)) {
+            for (const prop of type.properties ?? []) set.add(prop.name.toLowerCase())
+        }
+        known = set.size > 0 ? set : null
+    }
+    return (prop) => isSelectableProperty(prop, known)
+}
 
 /**
  * Per-view options shown in the Bases "Configure view" panel.
@@ -21,7 +49,8 @@ import type { PluginSettings } from '../../types/plugin-settings.intf'
  * default, its placeholder/default makes that explicit (e.g. Swimlanes →
  * "Use note type default").
  */
-export function getKanbanViewOptions(settings: PluginSettings): BasesAllOptions[] {
+export function getKanbanViewOptions(app: App, settings: PluginSettings): BasesAllOptions[] {
+    const propertyFilter = buildPropertyFilter(app)
     return [
         {
             type: 'group',
@@ -31,7 +60,8 @@ export function getKanbanViewOptions(settings: PluginSettings): BasesAllOptions[
                     type: 'property',
                     key: 'statusProperty',
                     displayName: 'Status property',
-                    placeholder: settings.defaultStatusProperty
+                    placeholder: settings.defaultStatusProperty,
+                    filter: propertyFilter
                 },
                 {
                     type: 'multitext',
@@ -43,7 +73,8 @@ export function getKanbanViewOptions(settings: PluginSettings): BasesAllOptions[
                     type: 'property',
                     key: 'orderProperty',
                     displayName: 'Manual order property',
-                    placeholder: settings.defaultOrderProperty
+                    placeholder: settings.defaultOrderProperty,
+                    filter: propertyFilter
                 },
                 {
                     type: 'toggle',
@@ -83,7 +114,8 @@ export function getKanbanViewOptions(settings: PluginSettings): BasesAllOptions[
                     type: 'property',
                     key: 'laneGroupingProperty',
                     displayName: 'Grouping property',
-                    placeholder: 'Property to group lanes by'
+                    placeholder: 'Property to group lanes by',
+                    filter: propertyFilter
                 }
             ]
         },
@@ -138,7 +170,8 @@ export function getKanbanViewOptions(settings: PluginSettings): BasesAllOptions[
                     type: 'property',
                     key: 'calendarSortProperty',
                     displayName: 'Scheduling panel sort property',
-                    placeholder: 'Used when sort is "By property"'
+                    placeholder: 'Used when sort is "By property"',
+                    filter: propertyFilter
                 }
             ]
         }

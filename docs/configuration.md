@@ -18,7 +18,9 @@ Settings live in three places, by scope:
   recognized type. Click **Configure** next to a type to edit it.
 - **Per-board configuration** (**Configure view** — the Bases view options for the Kanban view)
   — settings for **this board only**, grouped into **Columns**, **Swimlanes**, **Filters**, and
-  **Calendar**.
+  **Calendar**. The property pickers there list only your notes' **frontmatter** properties (not
+  `file.*` or formula columns, which the board can't read or write); when the Obsidian Starter
+  Kit is enabled they're further limited to your note types' known properties.
 
 The **gear** in the board's top-right is a shortcut that opens the plugin's **Note types**
 settings (note-type config — colors, cards, relationships, archiving, default swimlane grouping —
