@@ -138,6 +138,10 @@ re-run after every `patchBoard` and on resize). Cards never shrink below their c
 (`flex: none`) so nothing is clipped — the column body scrolls instead; sparser cards get
 matching whitespace. The pure max-picking helper `uniformCardHeight()` is unit-tested.
 
+**Hover preview.** The plugin registers a hover-link source (`registerHoverLinkSource`, Mod-gated by
+default) and a delegated `pointerover` on the board host triggers the core Page-preview popover for
+the card under the pointer (the view implements `HoverParent`).
+
 **View chrome & responsiveness.** The view root (`.kap-root`) is a flex column: a top
 `.kap-toolbar` over a flex-1 `.kap-board-host`. `ui/view-toolbar.ts` renders a **Board / Calendar
 mode switch** (left; persists `calendarMode` via `this.config.set`) and right-side actions — the

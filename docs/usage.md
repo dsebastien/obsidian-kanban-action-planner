@@ -275,6 +275,9 @@ auto-archive, so you never mass-archive by accident.
 
 ## Other interactions
 
+- **Hover a card to preview its note** — Obsidian's native page-preview popover, the same as
+  hovering a link. By default it's **Ctrl/Cmd-gated** (hold the key while hovering); change that
+  under **Settings → Core plugins → Page preview** (the source is listed as "Kanban Action Planner").
 - **Click** a card to open the note; **Ctrl/Cmd-click** opens it in a new tab.
 - **Right-click** (or long-press on touch) a card for a menu: open the note (or in a new
   tab), set its status, clear the status, **archive** the note, open a related note, or use

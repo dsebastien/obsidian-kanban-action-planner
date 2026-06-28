@@ -1,5 +1,5 @@
 import { BasesView, debounce, Menu, Notice, TFile } from 'obsidian'
-import type { Debouncer, QueryController } from 'obsidian'
+import type { Debouncer, HoverParent, HoverPopover, QueryController } from 'obsidian'
 import type { KanbanActionPlannerPlugin } from '../../plugin'
 import {
     CSS_ROOT_CLASS,
@@ -105,8 +105,10 @@ interface ObsidianSettings {
  * board, and persists status + manual order back to the notes. `data` is
  * replaced on every update, so it is always re-read in {@link onDataUpdated}.
  */
-export class KanbanActionPlannerView extends BasesView {
+export class KanbanActionPlannerView extends BasesView implements HoverParent {
     override readonly type = KANBAN_VIEW_TYPE
+    /** Set by the core "Page preview" plugin while a card hover popover is open. */
+    hoverPopover: HoverPopover | null = null
 
     private readonly containerEl: HTMLElement
     private readonly plugin: KanbanActionPlannerPlugin
@@ -265,8 +267,31 @@ export class KanbanActionPlannerView extends BasesView {
                 if (this.affectsBoard(file.path)) this.debouncedRebuild()
             })
         )
+        // Native note popover on card hover via the core "Page preview" plugin.
+        this.registerDomEvent(this.boardEl, 'pointerover', (evt) => this.onCardPointerOver(evt))
         this.plugin.trackKanbanView(this)
         void this.resolveAndRebuild()
+    }
+
+    /**
+     * Trigger Obsidian's "Page preview" popover for the card under the pointer, so
+     * hovering a card previews its note (Ctrl/Cmd-gated by default — see the
+     * registered hover-link source). The core plugin dedups by `targetEl`.
+     */
+    private onCardPointerOver(evt: PointerEvent): void {
+        const target = evt.target
+        if (!(target instanceof HTMLElement)) return
+        const cardEl = target.closest<HTMLElement>('.kap-card[data-card-key]')
+        const key = cardEl?.dataset['cardKey']
+        if (!cardEl || !key) return
+        this.app.workspace.trigger('hover-link', {
+            event: evt,
+            source: KANBAN_VIEW_TYPE,
+            hoverParent: this,
+            targetEl: cardEl,
+            linktext: key,
+            sourcePath: key
+        })
     }
 
     /**

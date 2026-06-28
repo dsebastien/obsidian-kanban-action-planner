@@ -40,6 +40,13 @@ export class KanbanActionPlannerPlugin extends Plugin {
 
         this.registerKanbanView()
         this.registerCommands()
+        // Let the core "Page preview" plugin show note popovers when hovering a
+        // card (issue #14 follow-up). `defaultMod` keeps it Ctrl/Cmd-gated by
+        // default, matching Obsidian's editor link-preview behaviour.
+        this.registerHoverLinkSource(KANBAN_VIEW_TYPE, {
+            display: 'Kanban Action Planner',
+            defaultMod: true
+        })
 
         // Add a settings screen for the plugin
         this.addSettingTab(new KanbanActionPlannerSettingTab(this.app, this))
