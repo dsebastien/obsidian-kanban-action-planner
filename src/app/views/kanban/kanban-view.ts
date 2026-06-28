@@ -123,6 +123,8 @@ export class KanbanActionPlannerView extends BasesView {
     private readonly collapsedColumns = new Set<string>()
     private board: Board<KanbanCard> = { lanes: [], isMultiLane: false }
     private cardsByKey = new Map<string, KanbanCard>()
+    // After a keyboard move/reorder rebuild, refocus this card so focus follows it.
+    private refocusCardKey: string | null = null
 
     // Filter bar (issue #34). `allCards`/`searchByKey` are the unfiltered set +
     // per-card search index; the parsed query filters them on each render.
@@ -421,17 +423,31 @@ export class KanbanActionPlannerView extends BasesView {
                 onContextMenu: (card, event) => this.showCardMenu(card, event),
                 onToggleLane: (laneId) => this.toggleLane(laneId),
                 onToggleColumn: (columnId) => this.toggleColumn(columnId),
-                onRelationship: (card, role, event) => this.showRelatedMenu(card, role, event)
+                onRelationship: (card, role, event) => this.showRelatedMenu(card, role, event),
+                onMoveColumn: (card, direction) => this.moveCardColumn(card, direction),
+                onReorderCard: (card, direction) => this.reorderCard(card, direction),
+                onKeyboardMenu: (card, cardEl) => this.showCardMenuAt(card, cardEl)
             },
             this.collapsedLanes,
             this.collapsedColumns
         )
         this.restoreColumnAnchor(anchor)
+        this.applyRefocus()
 
         // All cards share one height (the tallest card's), recomputed here since
         // the card set / content just changed. Synchronous (before paint) so
         // cards never flash at uneven heights.
         this.equalizeCardHeights()
+    }
+
+    /** Refocus the card a keyboard move/reorder acted on, so focus follows it. */
+    private applyRefocus(): void {
+        if (!this.refocusCardKey || !this.boardEl) return
+        const el = this.boardEl.querySelector<HTMLElement>(
+            `.kap-card[data-card-key="${cssEscapeId(this.refocusCardKey)}"]`
+        )
+        this.refocusCardKey = null
+        el?.focus()
     }
 
     /**
@@ -748,6 +764,16 @@ export class KanbanActionPlannerView extends BasesView {
     }
 
     private showCardMenu(card: KanbanCard, event: MouseEvent): void {
+        this.buildCardMenu(card).showAtMouseEvent(event)
+    }
+
+    /** Keyboard-triggered card menu, anchored just below the card (issue #20). */
+    private showCardMenuAt(card: KanbanCard, cardEl: HTMLElement): void {
+        const rect = cardEl.getBoundingClientRect()
+        this.buildCardMenu(card).showAtPosition({ x: rect.left, y: rect.bottom })
+    }
+
+    private buildCardMenu(card: KanbanCard): Menu {
         const menu = new Menu()
         menu.addItem((item) =>
             item
@@ -790,7 +816,54 @@ export class KanbanActionPlannerView extends BasesView {
         }
         this.addDisplayFieldMenuItems(menu, card)
         this.addRelationshipMenuItems(menu, card)
-        menu.showAtMouseEvent(event)
+        return menu
+    }
+
+    // ── Keyboard move & reorder (issue #20) ───────────────────
+
+    /** Locate a card within the current board (lane, column index, card index). */
+    private cardLocation(
+        card: KanbanCard
+    ): {
+        laneId: string
+        columns: Board<KanbanCard>['lanes'][number]['columns']
+        colIndex: number
+        cardIndex: number
+    } | null {
+        for (const lane of this.board.lanes) {
+            for (let colIndex = 0; colIndex < lane.columns.length; colIndex++) {
+                const column = lane.columns[colIndex]
+                if (!column) continue
+                const cardIndex = column.cards.findIndex((c) => c.key === card.key)
+                if (cardIndex >= 0) {
+                    return { laneId: lane.lane.id, columns: lane.columns, colIndex, cardIndex }
+                }
+            }
+        }
+        return null
+    }
+
+    /** Keyboard: move a card to the adjacent column (writes status; focus follows). */
+    private moveCardColumn(card: KanbanCard, direction: 1 | -1): void {
+        const loc = this.cardLocation(card)
+        if (!loc) return
+        const target = loc.columns[loc.colIndex + direction]
+        if (!target) return // at the first/last column
+        const newStatus = target.column.id === UNMAPPED_COLUMN_ID ? null : target.column.statusValue
+        this.refocusCardKey = card.key
+        void this.applyMove(card, newStatus, loc.laneId, target.column.id, target.cards.length)
+    }
+
+    /** Keyboard: reorder a card up/down within its column (writes manual order). */
+    private reorderCard(card: KanbanCard, direction: 1 | -1): void {
+        const loc = this.cardLocation(card)
+        if (!loc) return
+        const column = loc.columns[loc.colIndex]
+        if (!column) return
+        const target = loc.cardIndex + direction
+        if (target < 0 || target >= column.cards.length) return // at the top/bottom
+        this.refocusCardKey = card.key
+        void this.applyMove(card, card.statusValue, loc.laneId, column.column.id, target)
     }
 
     /**

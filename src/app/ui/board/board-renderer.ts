@@ -15,6 +15,12 @@ export interface BoardRenderCallbacks {
     onToggleColumn?: (columnId: string) => void
     /** Activate a card relationship badge. */
     onRelationship?: (card: KanbanCard, role: RelationshipRole, event: MouseEvent) => void
+    /** Keyboard: move the card to the adjacent column (−1 left / +1 right). */
+    onMoveColumn?: (card: KanbanCard, direction: 1 | -1) => void
+    /** Keyboard: reorder the card within its column (−1 up / +1 down). */
+    onReorderCard?: (card: KanbanCard, direction: 1 | -1) => void
+    /** Keyboard: open the card's context menu, anchored to its element. */
+    onKeyboardMenu?: (card: KanbanCard, cardEl: HTMLElement) => void
 }
 
 /** `data-board-struct` records the rendered lane/column shape for patch vs full-render. */
@@ -262,6 +268,17 @@ function buildCardNode(
         if (e.key === 'Enter' || e.key === ' ') {
             e.preventDefault()
             callbacks.onOpen(card, e.ctrlKey || e.metaKey)
+        } else if ((e.ctrlKey || e.metaKey) && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+            // Move to the adjacent column (writes status).
+            e.preventDefault()
+            callbacks.onMoveColumn?.(card, e.key === 'ArrowRight' ? 1 : -1)
+        } else if (e.altKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
+            // Reorder within the column (writes manual order).
+            e.preventDefault()
+            callbacks.onReorderCard?.(card, e.key === 'ArrowDown' ? 1 : -1)
+        } else if (e.key === 'ContextMenu' || (e.shiftKey && e.key === 'F10')) {
+            e.preventDefault()
+            callbacks.onKeyboardMenu?.(card, cardEl)
         }
     })
     cardEl.addEventListener('contextmenu', (e) => {

@@ -223,6 +223,18 @@ change a date without dragging — and it works on the board too, not just the c
 property** (e.g. a priority or estimate). To narrow the panel, use the toolbar
 [filter box](#filtering-search-bar) — it applies to the calendar and its panel together.
 
+## Keyboard
+
+Cards are fully keyboard-operable. **Tab** to a card, then:
+
+- **Enter / Space** — open the note (**Ctrl/Cmd** for a new tab).
+- **Ctrl/Cmd + ← / →** — move the card to the previous/next column (changes its status).
+- **Alt + ↑ / ↓** — reorder the card up/down within its column.
+- **Menu key** (or **Shift + F10**) — open the card's context menu.
+
+Focus follows the card after it moves, so you can keep going. (See also the command palette
+commands above, which are hotkey-bindable.)
+
 ## Other interactions
 
 - **Click** a card to open the note; **Ctrl/Cmd-click** opens it in a new tab.
