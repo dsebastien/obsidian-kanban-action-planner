@@ -55,7 +55,6 @@ import {
 import type { DateDimension } from '../../domain/calendar'
 import { isEmptyQuery, matchesFilterQuery, parseFilterQuery } from '../../domain/filter-query'
 import type { CardSearchRecord, FilterContext, FilterQuery } from '../../domain/filter-query'
-import type { TabSortMode } from '../../domain/calendar-tabs'
 import { CalendarDnd } from '../../ui/calendar/calendar-dnd'
 import { formatDate } from '../../utils/momentjs'
 import { patchBoard } from '../../ui/board/board-renderer'
@@ -70,6 +69,14 @@ import { BoardSelection } from './board-selection'
 import { buildCardMenu, isNewTabEvent } from './card-menu'
 import type { CardMenuHost } from './card-menu'
 import { CalendarController } from './calendar-controller'
+import {
+    basesPropToName,
+    cssEscapeId,
+    normalizeLaneValue,
+    readLaneGroupingOverride,
+    readSortMode,
+    readStringArray
+} from './view-config'
 import { DatePromptModal } from '../../ui/date-prompt-modal'
 import { log } from '../../../utils/log'
 
@@ -1162,66 +1169,4 @@ export class KanbanActionPlannerView extends BasesView {
             `Archiving "${card.title}" — it still has ${parts.join(' and ')}. Links are kept.`
         )
     }
-}
-
-/** Escape a value for use inside a `[data-…="…"]` attribute selector. */
-function cssEscapeId(value: string): string {
-    return typeof CSS !== 'undefined' && typeof CSS.escape === 'function'
-        ? CSS.escape(value)
-        : value.replace(/["\\]/g, '\\$&')
-}
-
-/** Read the scheduling-panel sort mode, defaulting to manual order. */
-function readSortMode(value: unknown): TabSortMode {
-    return value === 'name' || value === 'property' ? value : 'order'
-}
-
-/** Read a stored multitext option into a clean string array. */
-function readStringArray(value: unknown): string[] {
-    if (Array.isArray(value)) {
-        return value.filter((v): v is string => typeof v === 'string' && v.trim().length > 0)
-    }
-    if (typeof value === 'string' && value.trim().length > 0) {
-        return value
-            .split(/[\n,]/)
-            .map((s) => s.trim())
-            .filter((s) => s.length > 0)
-    }
-    return []
-}
-
-/**
- * Read the per-view swimlane grouping override. `__profile__` (or unset) means
- * "defer to the note type"; a `property` choice with no property picked also
- * defers (so the view never silently groups by nothing).
- */
-function readLaneGroupingOverride(config: { get: (key: string) => unknown }): LaneGrouping | null {
-    const kind = config.get('laneGrouping')
-    if (kind === 'none') return { kind: 'none' }
-    if (kind === 'note-type') return { kind: 'note-type' }
-    if (kind === 'property') {
-        const property = basesPropToName(config.get('laneGroupingProperty'))
-        return property ? { kind: 'property', property } : null
-    }
-    return null
-}
-
-/** Normalize a raw frontmatter value into a swimlane key, or `null` (→ Ungrouped). */
-function normalizeLaneValue(raw: unknown): string | null {
-    if (typeof raw === 'string') {
-        const trimmed = raw.trim()
-        return trimmed.length > 0 ? trimmed : null
-    }
-    if (typeof raw === 'number' || typeof raw === 'boolean') return String(raw)
-    return null
-}
-
-/** Extract a frontmatter property name from a stored Bases property id. */
-function basesPropToName(value: unknown): string | null {
-    if (typeof value !== 'string' || value.length === 0) return null
-    const dot = value.indexOf('.')
-    if (dot === -1) return value
-    const prefix = value.slice(0, dot)
-    // Only note (frontmatter) properties are read/written by name.
-    return prefix === 'note' ? value.slice(dot + 1) : null
 }
