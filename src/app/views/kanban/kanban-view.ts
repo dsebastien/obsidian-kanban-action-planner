@@ -46,24 +46,16 @@ import { buildCardDisplay } from '../../services/card-display.service'
 import { archiveNote } from '../../services/archive.service'
 import {
     addDays,
-    buildCalendar,
-    formatLongDate,
     parseFrontmatterDate,
     periodRange,
-    shiftAnchor,
     startOfDay,
-    toDateKey,
-    weekdayLabels
+    toDateKey
 } from '../../domain/calendar'
-import type { CalendarRange, DateDimension } from '../../domain/calendar'
+import type { DateDimension } from '../../domain/calendar'
 import { isEmptyQuery, matchesFilterQuery, parseFilterQuery } from '../../domain/filter-query'
 import type { CardSearchRecord, FilterContext, FilterQuery } from '../../domain/filter-query'
-import { compareTabCards } from '../../domain/calendar-tabs'
-import type { TabSortKey, TabSortMode } from '../../domain/calendar-tabs'
-import { renderCalendar } from '../../ui/calendar/calendar-renderer'
-import type { CalendarEntry } from '../../ui/calendar/calendar-renderer'
+import type { TabSortMode } from '../../domain/calendar-tabs'
 import { CalendarDnd } from '../../ui/calendar/calendar-dnd'
-import type { CalendarDropTarget } from '../../ui/calendar/calendar-dnd'
 import { formatDate } from '../../utils/momentjs'
 import { patchBoard } from '../../ui/board/board-renderer'
 import { applyUniformCardHeight } from '../../ui/board/card-equalize'
@@ -76,6 +68,7 @@ import { FilterBar } from '../../ui/filter-bar'
 import { BoardSelection } from './board-selection'
 import { buildCardMenu, isNewTabEvent } from './card-menu'
 import type { CardMenuHost } from './card-menu'
+import { CalendarController } from './calendar-controller'
 import { DatePromptModal } from '../../ui/date-prompt-modal'
 import { log } from '../../../utils/log'
 
@@ -143,19 +136,9 @@ export class KanbanActionPlannerView extends BasesView {
     private parsedQuery: FilterQuery = { groups: [] }
     private filterInitialized = false
 
-    // Calendar mode (Milestone 5) — in-memory per-session view state.
+    // Calendar mode (Milestone 5) — state + rendering owned by CalendarController.
     private scheduledDateProperty = 'date_scheduled'
-    private calendarRangeOverride: CalendarRange | null = null
-    private calendarTab: DateDimension = 'scheduled'
-    private calendarAnchor: Date | null = null
-    private calendarPanelCollapsed = false
-    private calendarFocusedDay: string | null = null
-    // Legend toggles: show planned work and/or deadlines on the grid (both on).
-    private showScheduled = true
-    private showDeadlines = true
-    // Auto-collapse the scheduling pane when the container is too narrow.
-    private panelAutoCollapsed = false
-    private panelLastNarrow: boolean | null = null
+    private calendar: CalendarController | null = null
     private resizeObserver: ResizeObserver | null = null
     private readonly debouncedResize: Debouncer<[], void>
 
@@ -212,9 +195,26 @@ export class KanbanActionPlannerView extends BasesView {
         this.columnDnd = new ColumnDnd(this.boardEl, UNMAPPED_COLUMN_ID, {
             onReorder: (orderedColumnIds) => this.reorderColumns(orderedColumnIds)
         })
+        this.calendar = new CalendarController({
+            app: this.app,
+            boardEl: () => this.boardEl,
+            rebuild: () => this.rebuild(),
+            isCalendarMode: () => this.calendarMode(),
+            openCard: (card, newTab) => this.openCard(card, newTab),
+            showCardMenu: (card, event) => this.showCardMenu(card, event),
+            cardForKey: (key) => this.cardsByKey.get(key),
+            scheduledProperty: () => this.scheduledDateProperty,
+            deadlineProperty: () => this.dueDateProperty,
+            dateFormat: () =>
+                this.noteType.calendar.dateFormat || this.plugin.settings.defaultDateFormat,
+            firstDayOfWeek: () => this.plugin.settings.firstDayOfWeek,
+            configuredRange: () => this.config.get('calendarRange'),
+            sortMode: () => readSortMode(this.config.get('calendarTabSort')),
+            sortProperty: () => basesPropToName(this.config.get('calendarSortProperty'))
+        })
         this.calendarDnd = new CalendarDnd(this.boardEl, {
             onDrop: (cardKey, target, dimension) =>
-                void this.handleCalendarDrop(cardKey, target, dimension)
+                void this.calendar?.handleDrop(cardKey, target, dimension)
         })
         this.resizeObserver = new ResizeObserver(() => this.debouncedResize())
         this.resizeObserver.observe(this.boardEl)
@@ -232,6 +232,7 @@ export class KanbanActionPlannerView extends BasesView {
         this.columnDnd = null
         this.calendarDnd?.destroy()
         this.calendarDnd = null
+        this.calendar = null
         this.filterBar?.destroy()
         this.filterBar = null
         this.selection = null
@@ -410,7 +411,7 @@ export class KanbanActionPlannerView extends BasesView {
 
         if (this.calendarMode()) {
             this.renderToolbar(false)
-            this.renderCalendarFrame(cards)
+            this.calendar?.render(cards)
             return
         }
 
@@ -1132,8 +1133,8 @@ export class KanbanActionPlannerView extends BasesView {
         this.config.set('calendarMode', calendar)
         this.rebuild()
         // Re-evaluate the auto-collapse for the (now visible) scheduling pane.
-        this.panelLastNarrow = null
-        this.evaluatePanelAutoCollapse()
+        this.calendar?.resetNarrow()
+        this.calendar?.evaluatePanelAutoCollapse()
     }
 
     /**
@@ -1141,235 +1142,8 @@ export class KanbanActionPlannerView extends BasesView {
      * card heights (a narrower column rewraps titles, changing the tallest card).
      */
     private onResize(): void {
-        this.evaluatePanelAutoCollapse()
+        this.calendar?.evaluatePanelAutoCollapse()
         this.equalizeCardHeights()
-    }
-
-    /**
-     * Collapse the scheduling pane automatically when the calendar container is
-     * too narrow to show it comfortably, and restore it when there's room again
-     * — but only on a width-category change, so a manual toggle is never fought.
-     */
-    private evaluatePanelAutoCollapse(): void {
-        if (!this.boardEl || !this.calendarMode()) {
-            this.panelLastNarrow = null
-            return
-        }
-        const width = this.boardEl.clientWidth
-        if (width === 0) return
-        const root = this.boardEl.ownerDocument.documentElement
-        const remPx = parseFloat(getComputedStyle(root).fontSize) || 16
-        const narrow = width < 36 * remPx
-        if (narrow === this.panelLastNarrow) return
-        this.panelLastNarrow = narrow
-        if (narrow && !this.calendarPanelCollapsed) {
-            this.calendarPanelCollapsed = true
-            this.panelAutoCollapsed = true
-            this.rebuild()
-        } else if (!narrow && this.panelAutoCollapsed) {
-            this.calendarPanelCollapsed = false
-            this.panelAutoCollapsed = false
-            this.rebuild()
-        }
-    }
-
-    private effectiveRange(): CalendarRange {
-        if (this.calendarRangeOverride) return this.calendarRangeOverride
-        const configured = this.config.get('calendarRange')
-        return configured === 'week' ||
-            configured === 'month' ||
-            configured === 'quarter' ||
-            configured === 'year'
-            ? configured
-            : 'month'
-    }
-
-    private effectiveAnchor(): Date {
-        return this.calendarAnchor ?? startOfDay(new Date())
-    }
-
-    /** Compute the calendar/scheduling model and render it into the board host. */
-    private renderCalendarFrame(cards: KanbanCard[]): void {
-        if (!this.boardEl) return
-        const range = this.effectiveRange()
-        const anchor = this.effectiveAnchor()
-        const today = startOfDay(new Date())
-        const dimension = this.calendarTab
-
-        const dateFor = (card: KanbanCard, dim: DateDimension): Date | null => {
-            const prop = dim === 'scheduled' ? this.scheduledDateProperty : this.dueDateProperty
-            return parseFrontmatterDate(getFrontmatterValue(this.app, card.file, prop))
-        }
-
-        const unplanned = cards.filter((c) => dateFor(c, 'scheduled') === null)
-        const noDeadline = cards.filter((c) => dateFor(c, 'deadline') === null)
-        const panelCards = this.sortFilterPanel(dimension === 'scheduled' ? unplanned : noDeadline)
-
-        // Unified overlay: every card is placed on BOTH its scheduled day (blue)
-        // and its deadline (orange); same-day collapses to one "both" chip.
-        const cardsByDay = new Map<string, CalendarEntry[]>()
-        const place = (key: string, entry: CalendarEntry): void => {
-            const arr = cardsByDay.get(key)
-            if (arr) arr.push(entry)
-            else cardsByDay.set(key, [entry])
-        }
-        for (const card of cards) {
-            const sched = this.showScheduled ? dateFor(card, 'scheduled') : null
-            const due = this.showDeadlines ? dateFor(card, 'deadline') : null
-            if (sched && due && toDateKey(sched) === toDateKey(due)) {
-                place(toDateKey(sched), { card, kind: 'both', overdue: due < today })
-            } else {
-                if (sched) place(toDateKey(sched), { card, kind: 'scheduled', overdue: false })
-                if (due) place(toDateKey(due), { card, kind: 'deadline', overdue: due < today })
-            }
-        }
-        const firstDay = this.plugin.settings.firstDayOfWeek
-
-        renderCalendar(
-            this.boardEl,
-            {
-                range,
-                activeTab: dimension,
-                anchorLabel: this.anchorLabel(anchor, range),
-                blocks: buildCalendar(anchor, range, today, firstDay),
-                panelCards,
-                cardsByDay,
-                panelCollapsed: this.calendarPanelCollapsed,
-                counts: { unplanned: unplanned.length, noDeadline: noDeadline.length },
-                showScheduled: this.showScheduled,
-                showDeadlines: this.showDeadlines,
-                weekdays: weekdayLabels(firstDay),
-                focusedDay: this.calendarFocusedDay,
-                focusedDayLabel: this.focusedDayLabel()
-            },
-            {
-                onOpen: (card, newTab) => this.openCard(card, newTab),
-                onContextMenu: (card, event) => this.showCardMenu(card, event),
-                onSwitchTab: (dim) => {
-                    this.calendarTab = dim
-                    this.rebuild()
-                },
-                onToggleDimension: (dim) => {
-                    if (dim === 'scheduled') this.showScheduled = !this.showScheduled
-                    else this.showDeadlines = !this.showDeadlines
-                    this.rebuild()
-                },
-                onSetRange: (r) => {
-                    this.calendarRangeOverride = r
-                    this.calendarFocusedDay = null // leaving the focused day on a range change
-                    this.rebuild()
-                },
-                onShiftAnchor: (direction) => {
-                    this.calendarAnchor = shiftAnchor(this.effectiveAnchor(), range, direction)
-                    this.rebuild()
-                },
-                onToday: () => {
-                    this.calendarAnchor = null
-                    this.rebuild()
-                },
-                onTogglePanel: () => {
-                    this.calendarPanelCollapsed = !this.calendarPanelCollapsed
-                    this.panelAutoCollapsed = false
-                    this.rebuild()
-                },
-                onFocusDay: (dayKey) => {
-                    this.calendarFocusedDay = dayKey
-                    this.rebuild()
-                },
-                onClearFocus: () => {
-                    this.calendarFocusedDay = null
-                    this.rebuild()
-                },
-                onFocusShift: (direction) => {
-                    const current = parseFrontmatterDate(this.calendarFocusedDay)
-                    if (current) this.calendarFocusedDay = toDateKey(addDays(current, direction))
-                    this.rebuild()
-                },
-                onFocusToday: () => {
-                    this.calendarFocusedDay = toDateKey(startOfDay(new Date()))
-                    this.rebuild()
-                }
-            }
-        )
-    }
-
-    /** Long label for the focused day (empty when no day is focused). */
-    private focusedDayLabel(): string {
-        const date = parseFrontmatterDate(this.calendarFocusedDay)
-        return date ? formatLongDate(date) : ''
-    }
-
-    /** Sort the scheduling-panel cards (the toolbar filter already narrowed them). */
-    private sortFilterPanel(cards: KanbanCard[]): KanbanCard[] {
-        const mode = readSortMode(this.config.get('calendarTabSort'))
-        const sortProperty =
-            mode === 'property' ? basesPropToName(this.config.get('calendarSortProperty')) : null
-        return cards
-            .map((card) => ({ card, key: this.tabSortKey(card, sortProperty) }))
-            .sort((a, b) => compareTabCards(a.key, b.key, mode))
-            .map((e) => e.card)
-    }
-
-    private tabSortKey(card: KanbanCard, sortProperty: string | null): TabSortKey {
-        const tags = this.cardTags(card.file)
-        const sortValue = sortProperty
-            ? coerceSortValue(getFrontmatterValue(this.app, card.file, sortProperty))
-            : null
-        return {
-            title: card.display.title,
-            order: card.order,
-            sortValue,
-            searchText: `${card.display.title} ${tags.join(' ')}`.toLowerCase()
-        }
-    }
-
-    private cardTags(file: TFile): string[] {
-        const cache = this.app.metadataCache.getFileCache(file)
-        return cache ? (getAllTags(cache) ?? []) : []
-    }
-
-    /**
-     * Handle a calendar drag drop: dropping on a day writes the active
-     * dimension's date (formatted with the note type's momentjs format); dropping
-     * back on the panel clears it. The frontmatter write triggers a rebuild.
-     */
-    /** The frontmatter date properties a drag of `dimension` writes/clears. */
-    private propertiesForDimension(dimension: string): string[] {
-        if (dimension === 'deadline') return [this.dueDateProperty]
-        if (dimension === 'both') return [this.scheduledDateProperty, this.dueDateProperty]
-        return [this.scheduledDateProperty]
-    }
-
-    private async handleCalendarDrop(
-        cardKey: string,
-        target: CalendarDropTarget,
-        dimension: string
-    ): Promise<void> {
-        const card = this.cardsByKey.get(cardKey)
-        if (!card) return
-        const properties = this.propertiesForDimension(dimension)
-
-        if (target.kind === 'panel') {
-            for (const property of properties) await deleteProperty(this.app, card.file, property)
-            return
-        }
-
-        const date = parseFrontmatterDate(target.dayKey)
-        if (!date) return
-        const dateFormat =
-            this.noteType.calendar.dateFormat || this.plugin.settings.defaultDateFormat
-        const value = formatDate(date, dateFormat)
-        for (const property of properties) await setProperty(this.app, card.file, property, value)
-    }
-
-    private anchorLabel(anchor: Date, range: CalendarRange): string {
-        const year = anchor.getFullYear()
-        if (range === 'quarter') {
-            return `Q${String(Math.floor(anchor.getMonth() / 3) + 1)} ${String(year)}`
-        }
-        if (range === 'year') return String(year)
-        // week / month: the single block's own label is the clearest.
-        return buildCalendar(anchor, range, anchor)[0]?.label ?? ''
     }
 
     // ── Archiving ─────────────────────────────────────────────
@@ -1451,18 +1225,6 @@ function stringifyForSearch(raw: unknown): string[] {
 /** Read the scheduling-panel sort mode, defaulting to manual order. */
 function readSortMode(value: unknown): TabSortMode {
     return value === 'name' || value === 'property' ? value : 'order'
-}
-
-/** Coerce a frontmatter value into a sortable number/string, or null. */
-function coerceSortValue(raw: unknown): number | string | null {
-    if (typeof raw === 'number') return Number.isFinite(raw) ? raw : null
-    if (typeof raw === 'string') {
-        const trimmed = raw.trim()
-        if (trimmed.length === 0) return null
-        const n = Number(trimmed)
-        return Number.isFinite(n) ? n : trimmed
-    }
-    return null
 }
 
 /** Read a stored multitext option into a clean string array. */
