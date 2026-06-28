@@ -112,14 +112,123 @@
         @apply flex-1 min-h-0 w-full;
     }
 
-    /* Top toolbar: Board/Calendar mode switch (left) + configure gear (right). */
+    /* Top toolbar: mode switch (left) · filter (grows) · nav + gear (right).
+       Wraps on very narrow widths so the filter input drops to its own line. */
     .kap-root .kap-toolbar {
-        @apply flex items-center justify-between gap-2 flex-none px-3 py-2;
+        @apply flex items-center gap-2 flex-none px-3 py-2 flex-wrap;
         border-bottom: 1px solid var(--background-modifier-border);
+    }
+
+    .kap-root .kap-toolbar-left,
+    .kap-root .kap-toolbar-right {
+        @apply inline-flex items-center gap-1 flex-none;
     }
 
     .kap-root .kap-mode-switch {
         @apply inline-flex items-center gap-1;
+    }
+
+    /* Filter bar (issue #34): grows to fill the middle of the toolbar. */
+    .kap-root .kap-filter {
+        @apply relative flex items-center gap-1 flex-1 min-w-[9rem] h-7 px-2;
+        background: var(--background-modifier-hover);
+        border: 1px solid var(--background-modifier-border);
+        border-radius: var(--radius-s, 6px);
+        transition: border-color var(--kap-transition) var(--kap-ease);
+    }
+
+    .kap-root .kap-filter:focus-within,
+    .kap-root .kap-filter.kap-filter-active {
+        border-color: var(--interactive-accent);
+    }
+
+    .kap-root .kap-filter-icon {
+        @apply inline-flex flex-none items-center;
+        color: var(--text-faint);
+    }
+
+    .kap-root .kap-filter-icon svg {
+        width: 1em;
+        height: 1em;
+    }
+
+    .kap-root .kap-filter-input {
+        @apply flex-1 min-w-0 border-0 bg-transparent p-0 text-[0.9em];
+        color: var(--text-normal);
+        box-shadow: none;
+    }
+
+    .kap-root .kap-filter-input:focus {
+        outline: none;
+        box-shadow: none;
+    }
+
+    .kap-root .kap-filter-count {
+        @apply flex-none whitespace-nowrap text-[0.78em];
+        color: var(--text-muted);
+    }
+
+    .kap-root .kap-filter-clear,
+    .kap-root .kap-filter-help {
+        @apply inline-flex flex-none items-center justify-center w-5 h-5 p-0 border-0 rounded cursor-pointer bg-transparent;
+        color: var(--text-muted);
+        transition:
+            color var(--kap-transition) var(--kap-ease),
+            background-color var(--kap-transition) var(--kap-ease);
+    }
+
+    .kap-root .kap-filter-clear:hover,
+    .kap-root .kap-filter-help:hover {
+        color: var(--text-normal);
+        background: var(--background-modifier-border);
+    }
+
+    .kap-root .kap-filter-clear svg,
+    .kap-root .kap-filter-help svg {
+        width: 0.85em;
+        height: 0.85em;
+    }
+
+    .kap-root .kap-hidden {
+        @apply hidden;
+    }
+
+    /* Shown only when an active filter matches zero cards. */
+    .kap-root .kap-filter-empty {
+        @apply flex-none px-3 py-2 text-center text-[0.85em];
+        color: var(--text-muted);
+        border-bottom: 1px solid var(--background-modifier-border);
+    }
+
+    /* Syntax cheat-sheet popover, anchored under the filter's right edge. */
+    .kap-root .kap-filter-helpbox {
+        @apply absolute right-0 top-full z-30 mt-1 flex flex-col gap-1 p-3 text-[0.8em];
+        min-width: 19rem;
+        max-width: 26rem;
+        background: var(--background-primary);
+        border: 1px solid var(--background-modifier-border);
+        border-radius: var(--radius-m, 8px);
+        box-shadow: var(--shadow-l);
+    }
+
+    .kap-root .kap-filter-helprow {
+        @apply flex items-baseline gap-2;
+    }
+
+    .kap-root .kap-filter-helpsyntax {
+        @apply flex-none whitespace-nowrap;
+        font-family: var(--font-monospace);
+        color: var(--text-accent);
+    }
+
+    .kap-root .kap-filter-helpdesc {
+        color: var(--text-muted);
+    }
+
+    .kap-root .kap-filter-helpnote {
+        @apply mt-1 pt-2;
+        border-top: 1px solid var(--background-modifier-border);
+        color: var(--text-muted);
     }
 
     .kap-root .kap-mode-btn {

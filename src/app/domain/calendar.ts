@@ -223,6 +223,35 @@ export function shiftAnchor(anchor: Date, range: CalendarRange, direction: numbe
     }
 }
 
+/**
+ * The local-midnight start/end day of the calendar period containing `today`:
+ * the current week (honoring `firstDay`), month, quarter, or year. Both bounds
+ * are inclusive. Used by the filter bar's `due:week|month|quarter|year` keywords
+ * so they line up with the calendar's vocabulary.
+ */
+export function periodRange(
+    kind: CalendarRange,
+    today: Date,
+    firstDay: number = DEFAULT_FIRST_DAY
+): { start: Date; end: Date } {
+    const y = today.getFullYear()
+    const m = today.getMonth()
+    switch (kind) {
+        case 'week': {
+            const start = startOfWeek(today, firstDay)
+            return { start, end: addDays(start, 6) }
+        }
+        case 'month':
+            return { start: new Date(y, m, 1), end: new Date(y, m + 1, 0) }
+        case 'quarter': {
+            const qStart = Math.floor(m / 3) * 3
+            return { start: new Date(y, qStart, 1), end: new Date(y, qStart + 3, 0) }
+        }
+        case 'year':
+            return { start: new Date(y, 0, 1), end: new Date(y, 11, 31) }
+    }
+}
+
 /** Bucket items onto local day keys via `dateOf`; items with no date are skipped. */
 export function bucketByDay<T>(
     items: ReadonlyArray<T>,

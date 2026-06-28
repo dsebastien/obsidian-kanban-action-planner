@@ -139,12 +139,6 @@ export function getKanbanViewOptions(settings: PluginSettings): BasesAllOptions[
                     key: 'calendarSortProperty',
                     displayName: 'Scheduling panel sort property',
                     placeholder: 'Used when sort is "By property"'
-                },
-                {
-                    type: 'text',
-                    key: 'calendarFilter',
-                    displayName: 'Scheduling panel filter',
-                    placeholder: 'Filter by name or #tag'
                 }
             ]
         }

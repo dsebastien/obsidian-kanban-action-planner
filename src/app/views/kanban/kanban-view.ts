@@ -17,7 +17,7 @@ import type {
 } from '../../domain/profile'
 import { buildBoard } from '../../domain/board-model'
 import type { Board, UnmappedPosition } from '../../domain/board-model'
-import { detectStatusProperty, normalizeStatusValue } from '../../domain/status'
+import { detectStatusProperty, normalizeStatusValue, splitStatusValue } from '../../domain/status'
 import { passesFilter } from '../../domain/filtering'
 import type { BlockedFilter, RelationalFilter } from '../../domain/filtering'
 import type { RelationshipSet } from '../../domain/relationships'
@@ -49,13 +49,16 @@ import {
     buildCalendar,
     formatLongDate,
     parseFrontmatterDate,
+    periodRange,
     shiftAnchor,
     startOfDay,
     toDateKey,
     weekdayLabels
 } from '../../domain/calendar'
 import type { CalendarRange, DateDimension } from '../../domain/calendar'
-import { compareTabCards, matchesQuery } from '../../domain/calendar-tabs'
+import { isEmptyQuery, matchesFilterQuery, parseFilterQuery } from '../../domain/filter-query'
+import type { CardSearchRecord, FilterContext, FilterQuery } from '../../domain/filter-query'
+import { compareTabCards } from '../../domain/calendar-tabs'
 import type { TabSortKey, TabSortMode } from '../../domain/calendar-tabs'
 import { renderCalendar } from '../../ui/calendar/calendar-renderer'
 import type { CalendarEntry } from '../../ui/calendar/calendar-renderer'
@@ -68,6 +71,7 @@ import { BoardDnd } from '../../ui/board/dnd-controller'
 import type { DropTarget } from '../../ui/board/dnd-controller'
 import type { KanbanCard } from '../../ui/board/types'
 import { renderViewToolbar } from '../../ui/view-toolbar'
+import { FilterBar } from '../../ui/filter-bar'
 import { DatePromptModal } from '../../ui/date-prompt-modal'
 import { log } from '../../../utils/log'
 
@@ -92,10 +96,15 @@ export class KanbanActionPlannerView extends BasesView {
     private readonly plugin: KanbanActionPlannerPlugin
     private rootEl: HTMLElement | null = null
     private toolbarEl: HTMLElement | null = null
+    private toolbarLeftEl: HTMLElement | null = null
+    private toolbarRightEl: HTMLElement | null = null
+    private filterEmptyEl: HTMLElement | null = null
+    private filterBar: FilterBar | null = null
     private boardEl: HTMLElement | null = null
     private dnd: BoardDnd | null = null
     private calendarDnd: CalendarDnd | null = null
     private readonly debouncedRebuild: Debouncer<[], void>
+    private readonly debouncedFilter: Debouncer<[], void>
 
     private statusProperty: string | null = null
     private orderProperty = 'manual_order'
@@ -114,6 +123,14 @@ export class KanbanActionPlannerView extends BasesView {
     private readonly collapsedColumns = new Set<string>()
     private board: Board<KanbanCard> = { lanes: [], isMultiLane: false }
     private cardsByKey = new Map<string, KanbanCard>()
+
+    // Filter bar (issue #34). `allCards`/`searchByKey` are the unfiltered set +
+    // per-card search index; the parsed query filters them on each render.
+    private allCards: KanbanCard[] = []
+    private searchByKey = new Map<string, CardSearchRecord>()
+    private filterQuery = ''
+    private parsedQuery: FilterQuery = { groups: [] }
+    private filterInitialized = false
 
     // Calendar mode (Milestone 5) — in-memory per-session view state.
     private scheduledDateProperty = 'date_scheduled'
@@ -141,13 +158,27 @@ export class KanbanActionPlannerView extends BasesView {
         this.plugin = plugin
         this.debouncedRebuild = debounce(() => void this.resolveAndRebuild(), 250)
         this.debouncedResize = debounce(() => this.onResize(), 120)
+        this.debouncedFilter = debounce(() => this.commitFilter(), 150)
     }
 
     override onload(): void {
         this.rootEl = this.containerEl.createDiv({ cls: CSS_ROOT_CLASS })
-        // Toolbar contents are rendered in rebuild(), once `this.config` is
-        // populated — reading it here (onload) would throw.
+        // Toolbar controls are rendered in rebuild(), once `this.config` is
+        // populated — reading it here (onload) would throw. The three slots are
+        // created now: left (mode switch) and right (lane nav + gear) are
+        // re-rendered each rebuild; the middle filter input is persistent so it
+        // never loses focus mid-typing. Its initial value loads on first rebuild.
         this.toolbarEl = this.rootEl.createDiv({ cls: 'kap-toolbar' })
+        this.toolbarLeftEl = this.toolbarEl.createDiv({ cls: 'kap-toolbar-left' })
+        this.filterBar = new FilterBar(this.toolbarEl, '', {
+            onInput: (value) => this.onFilterInput(value),
+            onClear: () => this.onFilterClear()
+        })
+        this.toolbarRightEl = this.toolbarEl.createDiv({ cls: 'kap-toolbar-right' })
+        this.filterEmptyEl = this.rootEl.createDiv({
+            cls: 'kap-filter-empty kap-hidden',
+            text: 'No cards match the filter.'
+        })
         this.boardEl = this.rootEl.createDiv({ cls: 'kap-board-host' })
         this.dnd = new BoardDnd(this.boardEl, {
             onDrop: (cardKey, target) => void this.handleDrop(cardKey, target)
@@ -170,9 +201,14 @@ export class KanbanActionPlannerView extends BasesView {
         this.dnd = null
         this.calendarDnd?.destroy()
         this.calendarDnd = null
+        this.filterBar?.destroy()
+        this.filterBar = null
         this.rootEl?.remove()
         this.rootEl = null
         this.toolbarEl = null
+        this.toolbarLeftEl = null
+        this.toolbarRightEl = null
+        this.filterEmptyEl = null
         this.boardEl = null
     }
 
@@ -286,12 +322,37 @@ export class KanbanActionPlannerView extends BasesView {
         this.scheduledDateProperty = this.resolveScheduledDateProperty()
 
         this.relationshipsByPath = resolveBoardRelationships(this.app, files, this.profile)
+        this.loadFilterQuery()
 
         const filter = this.relationalFilter()
-        const cards = files
+        this.allCards = files
             .map((file) => this.toCard(file))
             .filter((card) => passesFilter(this.relationshipsByPath.get(card.key), filter))
+        this.searchByKey = new Map(this.allCards.map((c) => [c.key, this.buildSearchRecord(c)]))
+
+        this.applyFilterAndRender()
+    }
+
+    /**
+     * Apply the text filter to the already-built card set and (re-)render the
+     * board or calendar. Split out from {@link rebuild} so a filter keystroke
+     * re-renders without re-deriving cards/relationships (and without touching
+     * the persistent filter input, so focus is never stolen mid-typing).
+     */
+    private applyFilterAndRender(): void {
+        if (!this.boardEl) return
+
+        const active = !isEmptyQuery(this.parsedQuery)
+        const ctx = this.filterContext()
+        const cards = active
+            ? this.allCards.filter((c) => {
+                  const rec = this.searchByKey.get(c.key)
+                  return rec ? matchesFilterQuery(rec, this.parsedQuery, ctx) : true
+              })
+            : this.allCards
         this.cardsByKey = new Map(cards.map((c) => [c.key, c]))
+        this.filterBar?.setCount(active ? cards.length : null)
+        this.filterEmptyEl?.toggleClass('kap-hidden', !(active && cards.length === 0))
 
         if (this.calendarMode()) {
             this.renderToolbar(false)
@@ -321,7 +382,7 @@ export class KanbanActionPlannerView extends BasesView {
         this.renderToolbar(this.board.lanes.length > 1)
 
         log(
-            `Kanban rebuild: ${String(cards.length)} cards, ${String(this.columns.length)} columns, ${String(board.lanes.length)} lane(s), profile "${this.profile.name}"`,
+            `Kanban rebuild: ${String(cards.length)}/${String(this.allCards.length)} cards, ${String(this.columns.length)} columns, ${String(board.lanes.length)} lane(s), profile "${this.profile.name}"`,
             'debug'
         )
 
@@ -879,11 +940,12 @@ export class KanbanActionPlannerView extends BasesView {
         return this.config.get('calendarMode') === true
     }
 
-    /** (Re)render the top toolbar so its controls reflect the current mode + lanes. */
+    /** (Re)render the toolbar's mode + action slots (the filter slot is persistent). */
     private renderToolbar(showLaneNav: boolean): void {
-        if (!this.toolbarEl) return
+        if (!this.toolbarLeftEl || !this.toolbarRightEl) return
         renderViewToolbar(
-            this.toolbarEl,
+            this.toolbarLeftEl,
+            this.toolbarRightEl,
             { calendarMode: this.calendarMode(), showLaneNav },
             {
                 onSetCalendarMode: (calendar) => this.setCalendarMode(calendar),
@@ -892,6 +954,102 @@ export class KanbanActionPlannerView extends BasesView {
                 onLaneNext: () => this.scrollLane(1)
             }
         )
+    }
+
+    // ── Filter bar (issue #34) ────────────────────────────────
+
+    /** Load the persisted filter query on first rebuild and sync the input. */
+    private loadFilterQuery(): void {
+        if (this.filterInitialized) return
+        this.filterInitialized = true
+        const stored = this.config.get('filterQuery')
+        this.filterQuery = typeof stored === 'string' ? stored : ''
+        this.parsedQuery = parseFilterQuery(this.filterQuery)
+        this.filterBar?.setValue(this.filterQuery)
+    }
+
+    /** Keystroke in the filter input: parse now, persist + re-render debounced. */
+    private onFilterInput(value: string): void {
+        this.filterQuery = value
+        this.parsedQuery = parseFilterQuery(value)
+        this.debouncedFilter()
+    }
+
+    /** Clear button / Esc: reset and re-render immediately. */
+    private onFilterClear(): void {
+        this.filterQuery = ''
+        this.parsedQuery = parseFilterQuery('')
+        this.config.set('filterQuery', '')
+        this.applyFilterAndRender()
+    }
+
+    /** Persist the current query and re-render (debounced target). */
+    private commitFilter(): void {
+        this.config.set('filterQuery', this.filterQuery)
+        this.applyFilterAndRender()
+    }
+
+    /** The `due:` evaluation context (today + calendar period ranges). */
+    private filterContext(): FilterContext {
+        const today = startOfDay(new Date())
+        const firstDay = this.plugin.settings.firstDayOfWeek
+        return {
+            today,
+            periods: {
+                week: periodRange('week', today, firstDay),
+                month: periodRange('month', today, firstDay),
+                quarter: periodRange('quarter', today, firstDay),
+                year: periodRange('year', today, firstDay)
+            }
+        }
+    }
+
+    /** Build a card's lowercased search index from the metadata cache. */
+    private buildSearchRecord(card: KanbanCard): CardSearchRecord {
+        const file = card.file
+        const cache = this.app.metadataCache.getFileCache(file)
+        const frontmatter = cache?.frontmatter ?? {}
+        const props = new Map<string, string[]>()
+        const haystack: string[] = [card.display.title]
+
+        for (const [key, raw] of Object.entries(frontmatter)) {
+            const values = stringifyForSearch(raw)
+            if (values.length === 0) continue
+            const lowered = values.map((v) => v.toLowerCase())
+            props.set(key.toLowerCase(), lowered)
+            haystack.push(...lowered)
+        }
+
+        const tags = (cache ? (getAllTags(cache) ?? []) : []).map((t) =>
+            t.replace(/^#/, '').toLowerCase()
+        )
+        haystack.push(...tags)
+
+        const rels: Record<RelationshipRole, string[]> = {
+            parent: card.relationships.parent.map((r) => r.label.toLowerCase()),
+            sibling: card.relationships.sibling.map((r) => r.label.toLowerCase()),
+            child: card.relationships.child.map((r) => r.label.toLowerCase()),
+            blocked_by: card.relationships.blocked_by.map((r) => r.label.toLowerCase())
+        }
+        for (const list of Object.values(rels)) haystack.push(...list)
+
+        const statusText: string[] = []
+        if (card.statusValue) {
+            statusText.push(card.statusValue.toLowerCase())
+            statusText.push(splitStatusValue(card.statusValue).label.toLowerCase())
+        }
+
+        const due = parseFrontmatterDate(getFrontmatterValue(this.app, file, this.dueDateProperty))
+
+        return {
+            title: card.display.title.toLowerCase(),
+            haystack: haystack.join('  ').toLowerCase(),
+            statusText,
+            rels,
+            tags,
+            due,
+            props
+        }
     }
 
     /** Smooth-scroll the swimlane container to the previous/next lane. */
@@ -1086,15 +1244,13 @@ export class KanbanActionPlannerView extends BasesView {
         return date ? formatLongDate(date) : ''
     }
 
-    /** Apply the configured panel filter (name/tag) and sort to the tab cards. */
+    /** Sort the scheduling-panel cards (the toolbar filter already narrowed them). */
     private sortFilterPanel(cards: KanbanCard[]): KanbanCard[] {
-        const query = readText(this.config.get('calendarFilter'))
         const mode = readSortMode(this.config.get('calendarTabSort'))
         const sortProperty =
             mode === 'property' ? basesPropToName(this.config.get('calendarSortProperty')) : null
         return cards
             .map((card) => ({ card, key: this.tabSortKey(card, sortProperty) }))
-            .filter((e) => matchesQuery(e.key.searchText, query))
             .sort((a, b) => compareTabCards(a.key, b.key, mode))
             .map((e) => e.card)
     }
@@ -1234,9 +1390,13 @@ function isNewTabEvent(evt: MouseEvent | KeyboardEvent): boolean {
     return evt.ctrlKey || evt.metaKey
 }
 
-/** Read a stored text option into a trimmed string (`''` when unset). */
-function readText(value: unknown): string {
-    return typeof value === 'string' ? value.trim() : ''
+/** Flatten a frontmatter value into searchable strings (scalars only; objects skipped). */
+function stringifyForSearch(raw: unknown): string[] {
+    if (raw === null || raw === undefined) return []
+    if (typeof raw === 'string') return raw.trim() ? [raw] : []
+    if (typeof raw === 'number' || typeof raw === 'boolean') return [String(raw)]
+    if (Array.isArray(raw)) return raw.flatMap((v) => stringifyForSearch(v))
+    return []
 }
 
 /** Read the scheduling-panel sort mode, defaulting to manual order. */

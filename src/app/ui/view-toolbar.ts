@@ -20,19 +20,21 @@ export interface ViewToolbarCallbacks {
 }
 
 /**
- * Render the view's top toolbar: a Board / Calendar mode switch on the left and,
- * on the right, the up/down swimlane navigation (only with multiple lanes) plus
- * the "Configure board" gear. Re-render (the caller empties the host) whenever
- * the mode or lane count changes so the controls stay in sync.
+ * Render the view's toolbar controls into two stable slots: the Board / Calendar
+ * mode switch into `leftEl`, and the swimlane navigation (only with multiple
+ * lanes) plus the "Configure board" gear into `rightEl`. Each slot is emptied
+ * and refilled so the controls stay in sync on mode/lane changes. The filter
+ * input lives in a separate, persistent slot between them (owned by the view) so
+ * it is never re-rendered and never loses focus mid-typing.
  */
 export function renderViewToolbar(
-    parentEl: HTMLElement,
+    leftEl: HTMLElement,
+    rightEl: HTMLElement,
     state: ViewToolbarState,
     callbacks: ViewToolbarCallbacks
 ): void {
-    parentEl.empty()
-
-    const modeSwitch = parentEl.createDiv({
+    leftEl.empty()
+    const modeSwitch = leftEl.createDiv({
         cls: 'kap-mode-switch',
         attr: { 'role': 'tablist', 'aria-label': 'View mode' }
     })
@@ -43,12 +45,12 @@ export function renderViewToolbar(
         callbacks.onSetCalendarMode(true)
     )
 
-    const actions = parentEl.createDiv({ cls: 'kap-toolbar-actions' })
+    rightEl.empty()
     if (state.showLaneNav) {
-        addIconButton(actions, 'chevron-up', 'Previous swimlane', callbacks.onLanePrev)
-        addIconButton(actions, 'chevron-down', 'Next swimlane', callbacks.onLaneNext)
+        addIconButton(rightEl, 'chevron-up', 'Previous swimlane', callbacks.onLanePrev)
+        addIconButton(rightEl, 'chevron-down', 'Next swimlane', callbacks.onLaneNext)
     }
-    renderGearButton(actions, callbacks.onConfigure)
+    renderGearButton(rightEl, callbacks.onConfigure)
 }
 
 function addModeButton(
