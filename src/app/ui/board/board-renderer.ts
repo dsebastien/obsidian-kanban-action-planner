@@ -2,9 +2,11 @@ import { setIcon } from 'obsidian'
 import type { Board, BoardColumn, BoardLane } from '../../domain/board-model'
 import type { RelationshipRole } from '../../domain/note-type'
 import { columnHeaderShade, columnShade, resolveColor } from '../../services/colors.service'
+import { cssEscapeAttr } from '../../utils/css-escape'
 import type { KanbanCard } from './types'
 import { renderCard } from './card-renderer'
 import { planReconcile } from './reconcile'
+import { cardSignature, structureSignature } from './signatures'
 
 export interface BoardRenderCallbacks {
     onOpen: (card: KanbanCard, newTab: boolean) => void
@@ -95,21 +97,13 @@ export function patchBoard(
 
     for (const lane of board.lanes) {
         const laneEl = rootEl.querySelector<HTMLElement>(
-            `:scope > .kap-lanes > .kap-lane[data-lane-id="${cssEscape(lane.lane.id)}"]`
+            `:scope > .kap-lanes > .kap-lane[data-lane-id="${cssEscapeAttr(lane.lane.id)}"]`
         )
         if (!laneEl) continue
         syncLaneChrome(laneEl, lane, collapsedLanes)
         const boardEl = laneEl.querySelector<HTMLElement>('.kap-board')
         if (boardEl) patchColumns(boardEl, lane.columns, callbacks, collapsedColumns)
     }
-}
-
-/** A stable signature of the board's lane/column shape (not card contents). */
-function structureSignature(board: Board<KanbanCard>): string {
-    const lanes = board.lanes
-        .map((l) => `${l.lane.id}:${l.columns.map((c) => c.column.id).join(',')}`)
-        .join(';')
-    return `${board.isMultiLane ? 'M' : 'S'}|${lanes}`
 }
 
 function renderLane(
@@ -202,7 +196,7 @@ function patchColumns(
 ): void {
     for (const { column, cards } of columns) {
         const colEl = boardEl.querySelector<HTMLElement>(
-            `:scope > .kap-column[data-column-id="${cssEscape(column.id)}"]`
+            `:scope > .kap-column[data-column-id="${cssEscapeAttr(column.id)}"]`
         )
         const listEl = colEl?.querySelector<HTMLElement>('.kap-column-cards')
         if (!colEl || !listEl) continue
@@ -290,19 +284,6 @@ function buildCardNode(
     return cardEl
 }
 
-/** A signature of everything that affects a card's rendered content + accent. */
-function cardSignature(card: KanbanCard, accent: string): string {
-    const d = card.display
-    const fields = d.fields.map((f) => `${f.label ?? ''}|${f.text}|${f.emphasis ?? ''}`).join('~')
-    const roles: RelationshipRole[] = ['blocked_by', 'parent', 'child', 'sibling']
-    const rels = roles
-        .map((r) => `${r}:${card.relationships[r].map((x) => x.key).join(',')}`)
-        .join(';')
-    return [d.title, d.wrap ? 'w' : '', d.coverUrl ?? '', d.dueState, fields, rels, accent].join(
-        '§'
-    )
-}
-
 /**
  * Render a column's count, showing `n / limit` when a soft WIP limit is set and
  * flagging the column when it is over its limit (issue #16). The limit never
@@ -316,11 +297,4 @@ function setColumnCount(
 ): void {
     countEl.setText(limit !== undefined ? `${String(count)} / ${String(limit)}` : String(count))
     colEl.toggleClass('kap-column-over-limit', limit !== undefined && count > limit)
-}
-
-/** Escape a value for use inside an attribute selector. */
-function cssEscape(value: string): string {
-    return typeof CSS !== 'undefined' && typeof CSS.escape === 'function'
-        ? CSS.escape(value)
-        : value.replace(/["\\]/g, '\\$&')
 }

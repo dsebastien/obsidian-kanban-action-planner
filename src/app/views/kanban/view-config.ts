@@ -6,13 +6,6 @@ interface ConfigReader {
     get(key: string): unknown
 }
 
-/** Escape a value for use inside a `[data-…="…"]` attribute selector. */
-export function cssEscapeId(value: string): string {
-    return typeof CSS !== 'undefined' && typeof CSS.escape === 'function'
-        ? CSS.escape(value)
-        : value.replace(/["\\]/g, '\\$&')
-}
-
 /** Read the scheduling-panel sort mode, defaulting to manual order. */
 export function readSortMode(value: unknown): TabSortMode {
     return value === 'name' || value === 'property' ? value : 'order'

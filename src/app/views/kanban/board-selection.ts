@@ -4,6 +4,7 @@ import type { ArchiveConfig, ColumnDef } from '../../domain/note-type'
 import type { KanbanCard } from '../../ui/board/types'
 import { deleteProperty, setProperty } from '../../services/frontmatter.service'
 import { archiveNote } from '../../services/archive.service'
+import { inclusiveKeyRange } from './selection-range'
 
 /**
  * What {@link BoardSelection} needs from the host view (the subset of view state
@@ -91,17 +92,8 @@ export class BoardSelection {
 
     /** Select the inclusive range from the last-selected card to `toKey`. */
     private selectRange(toKey: string): void {
-        const order = this.host.flatCardKeys()
-        const a = this.lastKey ? order.indexOf(this.lastKey) : -1
-        const b = order.indexOf(toKey)
-        if (a < 0 || b < 0) {
-            this.keys.add(toKey)
-            return
-        }
-        const [lo, hi] = a < b ? [a, b] : [b, a]
-        for (let i = lo; i <= hi; i++) {
-            const key = order[i]
-            if (key) this.keys.add(key)
+        for (const key of inclusiveKeyRange(this.host.flatCardKeys(), this.lastKey, toKey)) {
+            this.keys.add(key)
         }
     }
 

@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 import {
     basesPropToName,
-    cssEscapeId,
     normalizeLaneValue,
     readIdArray,
     readLaneGroupingOverride,
@@ -13,14 +12,6 @@ import {
 function config(values: Record<string, unknown>): { get(key: string): unknown } {
     return { get: (key: string): unknown => values[key] }
 }
-
-describe('cssEscapeId', () => {
-    it('escapes quotes and backslashes for an attribute selector', () => {
-        // CSS.escape is unavailable under bun, so the regex fallback runs.
-        expect(cssEscapeId('a"b\\c')).toBe('a\\"b\\\\c')
-        expect(cssEscapeId('plain')).toBe('plain')
-    })
-})
 
 describe('readSortMode', () => {
     it('accepts name/property and defaults everything else to order', () => {

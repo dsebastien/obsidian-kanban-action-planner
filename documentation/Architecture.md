@@ -121,7 +121,9 @@ applies the blocked filter, and persists status/order/grouping-property writes v
 **Incremental refresh (M6).** The view calls `patchBoard()` (not a full re-render) on every
 update. When the lane/column **shape** is unchanged (a `data-board-struct` signature on the
 host matches), each column's card list is reconciled by the pure, unit-tested
-`ui/board/reconcile.ts` `planReconcile()` over `data-card-key` + a content `data-card-sig`:
+`ui/board/reconcile.ts` `planReconcile()` over `data-card-key` + a content `data-card-sig`.
+Both signatures are the pure, unit-tested `ui/board/signatures.ts` (`structureSignature` /
+`cardSignature`):
 unchanged cards keep their exact DOM node (so scroll, focus, and an in-flight drag survive),
 only changed/new cards are rebuilt, gone cards removed, and order is fixed with a React-style
 cursor. Shape changes (config edits, a new status column, calendar↔board switch, the empty

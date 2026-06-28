@@ -75,13 +75,13 @@ import { CalendarController } from './calendar-controller'
 import type { CalendarViewState } from './calendar-controller'
 import {
     basesPropToName,
-    cssEscapeId,
     normalizeLaneValue,
     readIdArray,
     readLaneGroupingOverride,
     readSortMode,
     readStringArray
 } from './view-config'
+import { cssEscapeAttr } from '../../utils/css-escape'
 import { DatePromptModal } from '../../ui/date-prompt-modal'
 import { log } from '../../../utils/log'
 
@@ -559,7 +559,7 @@ export class KanbanActionPlannerView extends BasesView {
     private applyRefocus(): void {
         if (!this.refocusCardKey || !this.boardEl) return
         const el = this.boardEl.querySelector<HTMLElement>(
-            `.kap-card[data-card-key="${cssEscapeId(this.refocusCardKey)}"]`
+            `.kap-card[data-card-key="${cssEscapeAttr(this.refocusCardKey)}"]`
         )
         this.refocusCardKey = null
         el?.focus()
@@ -594,7 +594,7 @@ export class KanbanActionPlannerView extends BasesView {
     /** Pin the anchored column back to its captured offset, in every lane board. */
     private restoreColumnAnchor(anchor: { id: string; offset: number } | null): void {
         if (!anchor || !this.boardEl) return
-        const escaped = cssEscapeId(anchor.id)
+        const escaped = cssEscapeAttr(anchor.id)
         for (const scroller of Array.from(
             this.boardEl.querySelectorAll<HTMLElement>('.kap-board')
         )) {
