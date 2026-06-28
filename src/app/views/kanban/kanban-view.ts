@@ -9,6 +9,7 @@ import {
 } from '../../constants'
 import type {
     ArchiveConfig,
+    CardPresentation,
     ColumnDef,
     LaneGrouping,
     Profile,
@@ -38,7 +39,8 @@ import {
     columnsFromValues,
     createDefaultProfile,
     findProfile,
-    resolveActiveProfile
+    resolveActiveProfile,
+    setCardPresentation
 } from '../../services/profile-service'
 import { buildCardDisplay } from '../../services/card-display.service'
 import { archiveNote } from '../../services/archive.service'
@@ -61,6 +63,7 @@ import { CalendarDnd } from '../../ui/calendar/calendar-dnd'
 import type { CalendarDropTarget } from '../../ui/calendar/calendar-dnd'
 import { formatDate } from '../../utils/momentjs'
 import { patchBoard } from '../../ui/board/board-renderer'
+import { applyUniformCardHeight } from '../../ui/board/card-equalize'
 import { BoardDnd } from '../../ui/board/dnd-controller'
 import type { DropTarget } from '../../ui/board/dnd-controller'
 import type { KanbanCard } from '../../ui/board/types'
@@ -137,7 +140,7 @@ export class KanbanActionPlannerView extends BasesView {
         this.containerEl = containerEl
         this.plugin = plugin
         this.debouncedRebuild = debounce(() => void this.resolveAndRebuild(), 250)
-        this.debouncedResize = debounce(() => this.evaluatePanelAutoCollapse(), 120)
+        this.debouncedResize = debounce(() => this.onResize(), 120)
     }
 
     override onload(): void {
@@ -155,10 +158,12 @@ export class KanbanActionPlannerView extends BasesView {
         })
         this.resizeObserver = new ResizeObserver(() => this.debouncedResize())
         this.resizeObserver.observe(this.boardEl)
+        this.plugin.trackKanbanView(this)
         void this.resolveAndRebuild()
     }
 
     override onunload(): void {
+        this.plugin.untrackKanbanView(this)
         this.resizeObserver?.disconnect()
         this.resizeObserver = null
         this.dnd?.destroy()
@@ -333,6 +338,20 @@ export class KanbanActionPlannerView extends BasesView {
             this.collapsedLanes,
             this.collapsedColumns
         )
+
+        // All cards share one height (the tallest card's), recomputed here since
+        // the card set / content just changed. Synchronous (before paint) so
+        // cards never flash at uneven heights.
+        this.equalizeCardHeights()
+    }
+
+    /**
+     * Make every card the same size board-wide by sizing them to the tallest
+     * card's natural height. Board mode only — the calendar has no cards.
+     */
+    private equalizeCardHeights(): void {
+        if (!this.boardEl || this.calendarMode()) return
+        applyUniformCardHeight(this.boardEl)
     }
 
     private relationalFilter(): RelationalFilter {
@@ -419,7 +438,12 @@ export class KanbanActionPlannerView extends BasesView {
                 ? null
                 : normalizeStatusValue(getFrontmatterValue(this.app, file, this.statusProperty))
         const order = coerceOrder(getFrontmatterValue(this.app, file, this.orderProperty))
-        const display = buildCardDisplay(this.app, file, this.profile.card, this.dueDateProperty)
+        const display = buildCardDisplay(
+            this.app,
+            file,
+            this.cardPresentationFor(file),
+            this.dueDateProperty
+        )
         const laneValue =
             this.laneGrouping.kind === 'none' ? null : (this.laneValueByPath.get(file.path) ?? null)
         const relationships = toCardRelationships(this.relationshipsByPath.get(file.path))
@@ -433,6 +457,45 @@ export class KanbanActionPlannerView extends BasesView {
             display,
             relationships
         }
+    }
+
+    /**
+     * The profile whose card config drives a file's display: its recognized
+     * note-type profile when available, else the board's active profile. This is
+     * what makes a mixed board show each note type's own fields, and what the
+     * card's "Show fields" menu edits.
+     */
+    private cardDisplayProfile(file: TFile): Profile {
+        const type = this.noteTypeByPath.get(file.path)
+        if (type) {
+            const typeProfile = findProfile(this.plugin, type.id)
+            if (typeProfile) return typeProfile
+        }
+        return this.profile
+    }
+
+    /** The card-presentation config for a file (by its note type). */
+    private cardPresentationFor(file: TFile): CardPresentation {
+        return this.cardDisplayProfile(file).card
+    }
+
+    /**
+     * Candidate property names for a card's "Show fields" menu: every frontmatter
+     * key found on notes of the same recognized note type (so the list is
+     * type-relevant), plus any already-displayed field (so it can be unchecked).
+     */
+    private displayFieldCandidates(card: KanbanCard, presentation: CardPresentation): string[] {
+        const type = this.noteTypeByPath.get(card.key) ?? null
+        const names = new Set<string>()
+        for (const file of this.files()) {
+            if (type && this.noteTypeByPath.get(file.path)?.id !== type.id) continue
+            const fm = this.app.metadataCache.getFileCache(file)?.frontmatter
+            if (fm) for (const key of Object.keys(fm)) names.add(key)
+        }
+        for (const field of presentation.fields) names.add(field.property)
+        return Array.from(names)
+            .filter((n) => n.length > 0)
+            .sort((a, b) => a.localeCompare(b))
     }
 
     private collectPropertyNames(files: TFile[]): string[] {
@@ -602,8 +665,55 @@ export class KanbanActionPlannerView extends BasesView {
                     .onClick(() => void this.archiveCard(card))
             )
         }
+        this.addDisplayFieldMenuItems(menu, card)
         this.addRelationshipMenuItems(menu, card)
         menu.showAtMouseEvent(event)
+    }
+
+    /**
+     * "Show fields" submenu: a checkable list of candidate properties for the
+     * card's note type. Toggling one adds/removes it from that note type's card
+     * config; the change persists and every open board refreshes (via
+     * {@link onSettingsChanged}).
+     */
+    private addDisplayFieldMenuItems(menu: Menu, card: KanbanCard): void {
+        const profile = this.cardDisplayProfile(card.file)
+        const candidates = this.displayFieldCandidates(card, profile.card)
+        if (candidates.length === 0) return
+
+        menu.addSeparator()
+        menu.addItem((item) => {
+            item.setTitle('Show fields').setIcon('list')
+            const submenu = item.setSubmenu()
+            for (const property of candidates) {
+                const shown = profile.card.fields.some((f) => f.property === property)
+                submenu.addItem((sub) =>
+                    sub
+                        .setTitle(property)
+                        .setChecked(shown)
+                        .onClick(() => void this.toggleDisplayField(profile.id, property))
+                )
+            }
+        })
+    }
+
+    /** Add or remove a property from a note type's displayed card fields. */
+    private async toggleDisplayField(profileId: string, property: string): Promise<void> {
+        const profile = findProfile(this.plugin, profileId)
+        if (!profile) return
+        const exists = profile.card.fields.some((f) => f.property === property)
+        const fields = exists
+            ? profile.card.fields.filter((f) => f.property !== property)
+            : [...profile.card.fields, { property, showLabel: false, emphasis: 'normal' as const }]
+        await setCardPresentation(this.plugin, profileId, { ...profile.card, fields })
+    }
+
+    /**
+     * A profile/settings change landed (from this board's menus or the settings
+     * tab): re-resolve and re-render so card display reflects the new config.
+     */
+    onSettingsChanged(): void {
+        this.debouncedRebuild()
     }
 
     /** "Schedule" / "Set deadline" quick dates + precise picker + clear. */
@@ -811,6 +921,15 @@ export class KanbanActionPlannerView extends BasesView {
         // Re-evaluate the auto-collapse for the (now visible) scheduling pane.
         this.panelLastNarrow = null
         this.evaluatePanelAutoCollapse()
+    }
+
+    /**
+     * Container resized: re-evaluate the calendar pane auto-collapse and re-equalize
+     * card heights (a narrower column rewraps titles, changing the tallest card).
+     */
+    private onResize(): void {
+        this.evaluatePanelAutoCollapse()
+        this.equalizeCardHeights()
     }
 
     /**

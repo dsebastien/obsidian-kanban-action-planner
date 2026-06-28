@@ -310,14 +310,20 @@
         @apply max-h-full;
     }
 
-    /* Uniform card envelope: a shared min-height floor gives a consistent look
-       regardless of how much a card holds; growth is bounded by field
-       truncation (default) or a line-clamp in wrap mode (see below). Width is
-       always the column width. Documented trade-off: heights are not forced to
-       a single value (that would hide content) — instead growth is capped. */
+    /* Uniform card envelope: all cards share a single height, computed at runtime
+       as the tallest card's natural height (board-wide) and published as
+       `--kap-card-height`. This keeps every card the same size while still
+       growing automatically to fit the richest card's content — no clipping;
+       sparse cards simply get matching whitespace. The `2.75rem` fallback is the
+       floor used before the measurement runs (or when there are no cards). Width
+       is always the column width. See applyUniformCardHeight in card-equalize.ts. */
     .kap-card {
         box-sizing: border-box;
-        min-height: 2.75rem;
+        /* Never let flexbox shrink a card below its content — that clips text
+           when the column fills up. Cards keep their natural height and the
+           column body scrolls instead (see .kap-column-cards overflow-y). */
+        flex: none;
+        min-height: var(--kap-card-height, 2.75rem);
         padding: var(--size-4-2, 0.5rem) var(--size-4-3, 0.75rem);
         background: var(--background-primary);
         border: 1px solid var(--background-modifier-border);

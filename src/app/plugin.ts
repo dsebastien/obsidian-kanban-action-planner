@@ -15,6 +15,23 @@ export class KanbanActionPlannerPlugin extends Plugin {
     override settings: PluginSettings = produce(DEFAULT_SETTINGS, () => DEFAULT_SETTINGS)
 
     /**
+     * Live kanban view instances, so a settings/profile change can refresh every
+     * open board immediately (see {@link saveSettings}). Views add/remove
+     * themselves on load/unload.
+     */
+    private readonly openKanbanViews = new Set<KanbanActionPlannerView>()
+
+    /** Register a live kanban view for settings-change notifications. */
+    trackKanbanView(view: KanbanActionPlannerView): void {
+        this.openKanbanViews.add(view)
+    }
+
+    /** Stop notifying a kanban view (called on its unload). */
+    untrackKanbanView(view: KanbanActionPlannerView): void {
+        this.openKanbanViews.delete(view)
+    }
+
+    /**
      * Executed as soon as the plugin loads
      */
     override async onload() {
@@ -85,5 +102,8 @@ export class KanbanActionPlannerPlugin extends Plugin {
         log('Saving settings', 'debug', this.settings)
         await this.saveData(this.settings)
         log('Settings saved', 'debug', this.settings)
+        // Refresh every open board so card display reflects the new config
+        // immediately (debounced per view).
+        for (const view of this.openKanbanViews) view.onSettingsChanged()
     }
 }
