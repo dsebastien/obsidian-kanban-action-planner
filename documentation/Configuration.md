@@ -20,20 +20,28 @@ Effective value for any setting resolves in this order (first match wins):
 
 ## Configuration surfaces (where you edit each layer)
 
-Two places, by scope (M7 settings model):
+Three places, by scope:
 
-1. **Plugin settings tab** — vault-wide **defaults** only: property names, default statuses,
-   date format (`settings/settings-tab.ts`). Used when nothing more specific applies.
+1. **Plugin settings tab** (`settings/settings-tab.ts`) — vault-wide **defaults** (property
+   names, default statuses, date format) **plus a central "Note types" list** (issue #30): every
+   note type's shared config (statuses, colors, cards, relationships, archiving) lives in
+   `plugin.settings.profiles`, keyed by note-type id, and is editable here once — boards apply it
+   by recognition (no per-board duplication). The tab merges Starter Kit types (`listNoteTypes`)
+   with stored local profiles and a Default; **Configure** opens `ui/configure-board-modal.ts` for
+   that type's profile (status values from the type, property names from the SK type +
+   profile-referenced props, a single archive section). Starter Kit types stay synced via
+   `resolveActiveProfile`/`mirrorNoteType`.
 2. **Per-board configuration**, which legitimately spans two scopes because Bases option types
    can't render rich controls (no color picker, no dynamic list editor):
     - **Bases "Configure view"** (`views/kanban/kanban-view-options.ts`) — **per-view**
       (`this.config`) settings, grouped for legibility into **Columns / Swimlanes / Filters /
       Calendar**. Affects only that one view.
-    - **Gear → "Configure board"** (`ui/configure-board-modal.ts`) — **shared** note-type/profile
-      settings: colors, card presentation, relationships, archiving, and the **default**
-      swimlane grouping. Applies to every board of that type. The modal is a two-pane dialog with
-      a left section nav (Cards / Colors / Swimlanes / Relationships / Archiving); the
-      Archive-folder field has inline folder autocomplete (`ui/folder-suggest.ts`).
+    - **Gear → "Configure board"** (`ui/configure-board-modal.ts`) — a board-side shortcut that
+      edits the **same** central note-type profile (colors, card presentation, relationships,
+      archiving, default swimlane grouping). The modal is a two-pane dialog with a left section
+      nav (Cards / Colors / Swimlanes / Relationships / Archiving); the Archive-folder field has
+      inline folder autocomplete (`ui/folder-suggest.ts`) and, on a board mixing types, one
+      archive section per present type (issue #29).
 
 The grouping in "Configure view" is display-only — option `key`s are unchanged, so stored
 config round-trips. **Swimlanes** is intentionally settable in both: the modal sets the shared

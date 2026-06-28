@@ -7,17 +7,21 @@ nav_order: 3
 
 ## Where settings live
 
-Settings live in two places, by scope:
+Settings live in three places, by scope:
 
 - **Plugin settings** (**Settings → Community plugins → Kanban Action Planner**) — vault-wide
-  **defaults**: property names, default statuses, and the date format. Used when a board or
-  note type doesn't specify its own.
+  **defaults** (property names, default statuses, date format) **plus a central "Note types"
+  list**. Each note type's shared config (statuses, colors, cards, relationships, archiving)
+  is defined here once and applied by **every** board to its recognized notes — no need to
+  reconfigure a type per board. When the Obsidian Starter Kit is present, its note types are
+  synchronized into this list automatically; the **Default** entry covers notes with no
+  recognized type. Click **Configure** next to a type to edit it.
 - **Per-board configuration**, in two complementary spots on a board:
     - **Configure view** (the Bases view options for the Kanban view) — settings for **this
       board only**, grouped into **Columns**, **Swimlanes**, **Filters**, and **Calendar**.
-    - **Configure board** (the **gear** in the board's top-right) — **shared** settings for the
-      note type / profile: colors, card content, relationships, archiving, and the default
-      swimlane grouping. These apply to **every** board of that type.
+    - **Configure board** (the **gear** in the board's top-right) — a shortcut to edit the
+      **same** central note-type config (colors, card content, relationships, archiving, default
+      swimlane grouping) for the board's type, without leaving the board.
 
 Precedence (most specific wins): a **view's** Configure-view setting → the **board/profile**
 default (gear, or a Starter Kit note type) → the **global** default. For example, swimlane
