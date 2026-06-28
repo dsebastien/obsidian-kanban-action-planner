@@ -44,7 +44,8 @@ The core is a custom Obsidian **Bases view** (Obsidian ≥ 1.13.0 API):
 ## Layering (target)
 
 ```
-views/kanban/      Bases view + its options panel (thin; delegates to ui + domain)
+views/kanban/      Bases view + options panel + extracted controllers (e.g. board-selection.ts
+                   owns multi-select/bulk via a small host interface; more to follow)
 ui/                vanilla-DOM renderers: board, calendar, view toolbar, gear, folder suggest, modal (no UI deps)
 services/          side-effectful adapters: frontmatter R/W, Starter Kit API, note types, colors, archive
 domain/            pure, unit-tested logic: status, ordering, relationships, filtering, calendar, board model
