@@ -6,6 +6,7 @@ import { compareStatusValues, splitStatusValue } from '../domain/status'
 import { matchesAnyMapping } from '../domain/note-type-recognition'
 import type { RecognitionFile } from '../domain/note-type-recognition'
 import { autoAssignColor } from './colors.service'
+import { log } from '../../utils/log'
 import {
     findStatusProperty,
     isStarterKitAvailable,
@@ -110,6 +111,22 @@ export function findNoteType(plugin: KanbanActionPlannerPlugin, id: string): Not
     return plugin.settings.noteTypes.find((p) => p.id === id)
 }
 
+/**
+ * Resolve a note type for a **write**, logging when it's missing so the write is
+ * never silently dropped (e.g. the type was deleted between UI render and save).
+ * Callers still early-return on `undefined`; the log makes the lost write visible.
+ */
+function requireNoteType(
+    plugin: KanbanActionPlannerPlugin,
+    noteTypeId: string
+): NoteType | undefined {
+    const noteType = findNoteType(plugin, noteTypeId)
+    if (!noteType) {
+        log(`Cannot update note type "${noteTypeId}": not found (write skipped).`, 'warn')
+    }
+    return noteType
+}
+
 /** Insert or replace a note type, persisting settings. */
 export async function upsertNoteType(
     plugin: KanbanActionPlannerPlugin,
@@ -144,7 +161,7 @@ export async function setColorOverride(
     statusValue: string,
     spec: ColorSpec
 ): Promise<void> {
-    const noteType = findNoteType(plugin, noteTypeId)
+    const noteType = requireNoteType(plugin, noteTypeId)
     if (!noteType) return
     await upsertNoteType(
         plugin,
@@ -160,7 +177,7 @@ export async function clearColorOverride(
     noteTypeId: string,
     statusValue: string
 ): Promise<void> {
-    const noteType = findNoteType(plugin, noteTypeId)
+    const noteType = requireNoteType(plugin, noteTypeId)
     if (!noteType) return
     await upsertNoteType(
         plugin,
@@ -176,7 +193,7 @@ export async function setAutoAssign(
     noteTypeId: string,
     autoAssign: boolean
 ): Promise<void> {
-    const noteType = findNoteType(plugin, noteTypeId)
+    const noteType = requireNoteType(plugin, noteTypeId)
     if (!noteType) return
     await upsertNoteType(
         plugin,
@@ -192,7 +209,7 @@ export async function setRelationships(
     noteTypeId: string,
     relationships: NoteType['relationships']
 ): Promise<void> {
-    const noteType = findNoteType(plugin, noteTypeId)
+    const noteType = requireNoteType(plugin, noteTypeId)
     if (!noteType) return
     await upsertNoteType(
         plugin,
@@ -208,7 +225,7 @@ export async function setLaneGrouping(
     noteTypeId: string,
     laneGrouping: LaneGrouping
 ): Promise<void> {
-    const noteType = findNoteType(plugin, noteTypeId)
+    const noteType = requireNoteType(plugin, noteTypeId)
     if (!noteType) return
     await upsertNoteType(
         plugin,
@@ -224,7 +241,7 @@ export async function setArchiveConfig(
     noteTypeId: string,
     archive: NoteType['archive']
 ): Promise<void> {
-    const noteType = findNoteType(plugin, noteTypeId)
+    const noteType = requireNoteType(plugin, noteTypeId)
     if (!noteType) return
     await upsertNoteType(
         plugin,
@@ -256,7 +273,7 @@ export async function setNoteTypeName(
     noteTypeId: string,
     name: string
 ): Promise<void> {
-    const noteType = findNoteType(plugin, noteTypeId)
+    const noteType = requireNoteType(plugin, noteTypeId)
     if (!noteType) return
     await upsertNoteType(
         plugin,
@@ -272,7 +289,7 @@ export async function setRecognitionMappings(
     noteTypeId: string,
     mappings: NoteType['typeRecognition']['mappings']
 ): Promise<void> {
-    const noteType = findNoteType(plugin, noteTypeId)
+    const noteType = requireNoteType(plugin, noteTypeId)
     if (!noteType) return
     await upsertNoteType(
         plugin,
@@ -301,7 +318,7 @@ export async function setWipLimit(
     statusValue: string,
     limit: number | null
 ): Promise<void> {
-    const noteType = findNoteType(plugin, noteTypeId)
+    const noteType = requireNoteType(plugin, noteTypeId)
     if (!noteType) return
     await upsertNoteType(
         plugin,
@@ -318,7 +335,7 @@ export async function setCardPresentation(
     noteTypeId: string,
     card: NoteType['card']
 ): Promise<void> {
-    const noteType = findNoteType(plugin, noteTypeId)
+    const noteType = requireNoteType(plugin, noteTypeId)
     if (!noteType) return
     await upsertNoteType(
         plugin,
