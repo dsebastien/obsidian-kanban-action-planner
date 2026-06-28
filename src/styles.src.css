@@ -46,6 +46,18 @@
         --kap-ease: cubic-bezier(0.2, 0, 0, 1);
     }
 
+    /* Every plugin button should read as clickable. Obsidian's unlayered <button>
+       rule sets a non-pointer cursor that outranks any layered rule, so without
+       !important they all show the default arrow. Covers the view buttons (mode
+       switch, ranges, ‹/Today/›, tabs, toggles, gear, nav) and our modals. */
+    /* stylelint-disable declaration-no-important -- beats Obsidian's unlayered button cursor */
+    .kap-root button,
+    .kap-config-modal button,
+    .kap-date-actions button {
+        cursor: pointer !important;
+    }
+    /* stylelint-enable declaration-no-important */
+
     /* Right-side toolbar actions: swimlane up/down nav + configure gear. */
     .kap-root .kap-toolbar-actions {
         @apply inline-flex items-center gap-1;
