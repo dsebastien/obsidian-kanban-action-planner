@@ -11,11 +11,13 @@ Prefix status values with a number to control column order, e.g. `10 Todo`, `20 
 `30 Done`. The number sets the order and is hidden in the column header. Without a prefix,
 columns are ordered alphabetically.
 
-## Keep status values consistent
+## Match your notes' status values to your defined columns
 
-A column is created for each distinct status value. Small differences (`Doing` vs `doing`,
-or a trailing space) create separate columns, so keep values consistent across notes. The
-plugin trims surrounding whitespace when reading a status.
+Columns are **defined** (the per-view **Statuses (columns)** list, the Starter Kit, or the global
+**Default statuses**) — they are never created from the values found in your notes. So a card only
+lands in a column when its status value **matches** a defined one; anything else goes to **Unmapped**.
+Keep your notes' status values consistent with the column definitions (mind `Doing` vs `doing` or a
+trailing space — the plugin trims surrounding whitespace, but not other differences).
 
 ## Let the Base do the filtering
 
@@ -33,9 +35,10 @@ different slices of the same notes.
 
 ### All my notes are in the "Unmapped" column
 
-The notes have no `status` property, or its values differ from what you expect. Add a
-`status` property; each distinct value becomes its own column and the Unmapped column
-disappears once every note is mapped.
+Either you haven't **defined any columns** yet, or your notes' status values don't match the ones
+you defined. Define your statuses in **Configure view → Statuses (columns)** (or the global **Default
+statuses**, or via the Starter Kit), then make sure each note's `status` matches one of them. The
+Unmapped column disappears once every note maps to a defined column.
 
 ### Reordering writes a number to several notes at once
 

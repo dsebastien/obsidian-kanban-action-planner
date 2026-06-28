@@ -16,30 +16,47 @@ with the changes written straight back into your notes.
 
 ## Key Features
 
-- **Kanban view inside Bases** — add a "Kanban" view to any Base; the Base's filters choose
-  the notes.
-- **Status → columns** — columns are defined explicitly (per view, from the Starter Kit, or
-  in plugin settings); cards are placed by their status property, and notes with no/unknown
-  status collect in an **Unmapped** column that disappears when empty.
-- **Drag & drop** — move a card to another column to change its status, or reorder within a
-  column; the order is saved to your note.
-- **Right-click a card** — open the note or set its status from a menu (works on touch via
-  long-press).
-- **Click a card** — opens the note.
-- **Colors** — give each status a color (auto-assigned palette or custom); cards and columns
-  follow it and adapt to your theme.
+- **Kanban view inside Bases** — add a "Kanban" view to any Base; the Base's filters choose the
+  notes, and each note becomes a card.
+- **Status → columns** — columns are **defined explicitly** (per view, from the Starter Kit, or in
+  plugin settings), never guessed from your data, so a typo can't create a stray column. Cards are
+  placed by their status property; notes with no/unknown status collect in an **Unmapped** column
+  that disappears when empty.
+- **Drag, reorder, sort** — drag a card to another column to change status, or reorder within a
+  column (saved to the note). Or auto-sort each column by **name** or any **property** (ascending or
+  descending). Full keyboard support too.
+- **Swimlanes** — split the board into horizontal lanes by note type or any property, with
+  collapsible lanes and columns.
+- **Filter as you type** — a toolbar search box with a compact Jira-like query language
+  (`status:active OR due:overdue`, `parent:"PKM" -tag:archived`), saved per view.
+- **Relationships** — see, navigate, **and edit** parent / sibling / child / blocked-by links from
+  the card menu; a blocked card is flagged and filterable.
+- **Calendar mode** — switch a board to a calendar that plots scheduled dates and deadlines
+  together; drag a card onto a day to schedule it.
+- **Archiving** — move a finished note to a placeholder-driven archive folder, manually or
+  automatically when it reaches a chosen status.
+- **WIP limits, multi-select & bulk actions, overdue emphasis, hover preview** — soft per-column
+  limits, Shift-click selection with bulk set-status/archive/open, red/amber due-date washes, and a
+  native note popover on card hover.
+- **Colors & per-type card display** — give each status a color (palette or custom, theme-aware);
+  choose which fields show on cards, per note type.
 - **Obsidian Starter Kit aware** — the plugin works fully on its own; the
   [Obsidian Starter Kit](https://www.store.dsebastien.net/product/obsidian-starter-kit) is
-  **completely optional** and just pairs well with it. When the Starter Kit is installed,
-  columns come from your note type's defined statuses automatically; your color choices are
-  saved locally regardless.
+  **completely optional** and just pairs well with it. With it installed, columns and note types
+  come from your Starter Kit config automatically; your local choices are saved regardless.
+- **Everything lives in your notes** — status, order, dates, relationships, and grouping are all
+  written to frontmatter, so your board is just your notes. No lock-in.
 
 ## Quick Start
 
 1. Install and enable the plugin.
 2. Open or create a **Base**, then add a view and pick **Kanban**.
-3. Give your notes a `status` property (any value). Each distinct value becomes a column.
-4. Drag cards between columns to change status, or reorder them within a column.
+3. Give your notes a `status` property. **Define your columns** by listing the status values in
+   **Configure view → Statuses (columns)** (one per line, e.g. `10 Todo`, `20 Doing`, `30 Done`) —
+   or set vault-wide **Default statuses** in the plugin settings, or let the Starter Kit provide
+   them. Until columns are defined, every card sits in **Unmapped**.
+4. Drag cards between columns to change status, reorder or sort them within a column, and right-click
+   a card for scheduling, archiving, relationships, and more.
 
 ## About
 
