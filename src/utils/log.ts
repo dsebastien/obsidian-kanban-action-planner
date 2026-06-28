@@ -2,8 +2,7 @@ import * as pluginManifest from '../../manifest.json'
 
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error'
 
-export const LOG_SEPARATOR = '--------------------------------------------------------'
-export const LOG_PREFIX = `${pluginManifest.name}:`
+const LOG_PREFIX = `${pluginManifest.name}:`
 
 /**
  * Log a message.

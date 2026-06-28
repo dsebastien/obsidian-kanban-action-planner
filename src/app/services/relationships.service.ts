@@ -1,12 +1,7 @@
 import { getAllTags } from 'obsidian'
 import type { App, TFile } from 'obsidian'
 import type { NoteType, RelationshipRole } from '../domain/note-type'
-import {
-    RELATIONSHIP_ROLES,
-    emptyRelationshipSet,
-    normalizeTag,
-    resolveRelationships
-} from '../domain/relationships'
+import { RELATIONSHIP_ROLES, normalizeTag, resolveRelationships } from '../domain/relationships'
 import type { HeuristicRule, NoteRecord, RelationshipSet } from '../domain/relationships'
 import { isArchivedPath } from '../domain/archive-paths'
 import {
@@ -170,11 +165,6 @@ export function toCardRelationships(set: RelationshipSet | undefined): CardRelat
 /** True when a card has any related note across all roles. */
 export function hasAnyRelationship(rels: CardRelationships): boolean {
     return RELATIONSHIP_ROLES.some((role) => rels[role].length > 0)
-}
-
-/** The empty card-relationships value (no related notes). */
-export function emptyCardRelationships(): CardRelationships {
-    return toCardRelationships(emptyRelationshipSet())
 }
 
 /** Display label for a vault path: the file's base name without extension. */

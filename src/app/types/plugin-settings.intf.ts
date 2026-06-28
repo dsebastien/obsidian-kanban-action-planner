@@ -11,7 +11,7 @@ import {
 } from '../constants'
 
 /** Current settings schema version; bump when the shape changes (migrations). */
-export const SETTINGS_SCHEMA_VERSION = 1
+const SETTINGS_SCHEMA_VERSION = 1
 
 /**
  * Plugin settings.

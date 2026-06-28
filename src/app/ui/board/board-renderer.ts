@@ -38,7 +38,7 @@ const STRUCT_ATTR = 'boardStruct'
  * attributes are the contract the DnD controller and the incremental
  * {@link patchBoard} reconciler rely on.
  */
-export function renderBoard(
+function renderBoard(
     rootEl: HTMLElement,
     board: Board<KanbanCard>,
     callbacks: BoardRenderCallbacks,

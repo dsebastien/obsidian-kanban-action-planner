@@ -47,7 +47,7 @@ function unwrap<T>(res: unknown): T | null {
 }
 
 /** Feature-detect the Starter Kit API, or `null` when unavailable. */
-export function getStarterKitApi(app: App): SkApiLike | null {
+function getStarterKitApi(app: App): SkApiLike | null {
     const pm = (app as unknown as { plugins?: { plugins?: Record<string, unknown> } }).plugins
     const plugin = pm?.plugins?.[STARTER_KIT_PLUGIN_ID] as { api?: unknown } | undefined
     const api = plugin?.api

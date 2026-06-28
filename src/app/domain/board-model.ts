@@ -57,12 +57,12 @@ export interface Board<T extends BoardCardBase> {
 }
 
 /** The implicit single-lane id used when grouping is off. */
-export const SINGLE_LANE_ID = ''
+const SINGLE_LANE_ID = ''
 
 const UNMAPPED_COLOR: ColorSpec = { kind: 'palette', token: 'unmapped' }
 
 /** The synthetic column collecting cards with missing/unknown status. */
-export function unmappedColumn(): ColumnDef {
+function unmappedColumn(): ColumnDef {
     return {
         id: UNMAPPED_COLUMN_ID,
         statusValue: '',

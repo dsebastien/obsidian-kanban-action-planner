@@ -14,8 +14,6 @@ export interface RelationalFilter {
     blocked: BlockedFilter
 }
 
-export const DEFAULT_RELATIONAL_FILTER: RelationalFilter = { blocked: 'all' }
-
 /** A card is blocked when it has at least one (unresolved-or-resolved) blocker. */
 export function isBlocked(relationships: RelationshipSet | undefined): boolean {
     return relationships !== undefined && relationships.blocked_by.length > 0

@@ -8,7 +8,7 @@
  */
 
 /** CSS custom property the card stylesheet reads for its shared min-height. */
-export const CARD_HEIGHT_VAR = '--kap-card-height'
+const CARD_HEIGHT_VAR = '--kap-card-height'
 
 /**
  * The shared height (px) for a set of measured natural card heights: the max,

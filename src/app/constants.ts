@@ -20,7 +20,6 @@ export const KANBAN_VIEW_NAME = 'Kanban'
  * (or get clobbered by) Obsidian core or other plugins.
  */
 export const CSS_ROOT_CLASS = 'kap-root'
-export const CSS_PREFIX = 'kap-'
 
 /** Default frontmatter property names (configurable in settings / per view). */
 export const DEFAULT_STATUS_PROPERTY = 'status'

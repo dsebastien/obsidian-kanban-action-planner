@@ -46,7 +46,7 @@ export interface NoteTypeDefaults {
     dateFormat: string
 }
 
-export function defaultsFromPlugin(plugin: KanbanActionPlannerPlugin): NoteTypeDefaults {
+function defaultsFromPlugin(plugin: KanbanActionPlannerPlugin): NoteTypeDefaults {
     const s = plugin.settings
     return {
         statusProperty: s.defaultStatusProperty,

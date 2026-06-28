@@ -18,10 +18,10 @@ export type ArchiveResult =
     | { ok: false; reason: 'no-folder' | 'collision' | 'error'; message?: string }
 
 /** Build the current expression context (real clock + UUID generator). */
-export function archiveContext(): ExpressionContext {
+function archiveContext(): ExpressionContext {
     return {
         now: new Date(),
-        uuid: () => globalThis.crypto.randomUUID()
+        uuid: () => window.crypto.randomUUID()
     }
 }
 
