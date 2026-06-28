@@ -1,5 +1,20 @@
 # Release Notes
 
+## 0.1.0 (2026-06-28)
+
+### Features
+
+- **plugin:** auto-collapse the scheduling pane when the calendar is narrow
+- **plugin:** folder autocomplete and a tabbed Configure board dialog
+- **plugin:** orange edge for deadline-placed chips in the calendar
+- **plugin:** pointer cursor on calendar grid days to signal click-to-zoom
+
+### Bug Fixes
+
+- **plugin:** keep all calendar days visible when days have cards
+- **plugin:** pluralize relationship property labels in board settings
+- **plugin:** remove horizontal scrollbar in Configure board dialog
+
 ## 0.0.4 (2026-06-27)
 
 ### Features

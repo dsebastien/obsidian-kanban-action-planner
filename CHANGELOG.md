@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.0](https://github.com/dsebastien/obsidian-kanban-action-planner/compare/0.0.4...0.1.0) (2026-06-28)
+
+### Features
+
+* **plugin:** auto-collapse the scheduling pane when the calendar is narrow ([6767493](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/676749321d0619c54703cbe7a3bd9563763af3c3))
+* **plugin:** folder autocomplete and a tabbed Configure board dialog ([3085c51](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/3085c5116a127ca69c80bcd7b44940fcc037edff))
+* **plugin:** orange edge for deadline-placed chips in the calendar ([a977473](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/a97747373f334f2e66512efe4f7d5fbda21abcea))
+* **plugin:** pointer cursor on calendar grid days to signal click-to-zoom ([98486fe](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/98486fefc9061a2b6ff5d1132cffec7d480072cd))
+
+### Bug Fixes
+
+* **plugin:** keep all calendar days visible when days have cards ([f1b29f5](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/f1b29f5034022d08b90654e9893a33ee5427e91c))
+* **plugin:** pluralize relationship property labels in board settings ([1ff718f](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/1ff718fe3998559da93a6f00e344dd655d01ded8))
+* **plugin:** remove horizontal scrollbar in Configure board dialog ([c239640](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/c239640e49f2fa79c28937c76a19fe76a5096b04))
+
 ## [0.0.4](https://github.com/dsebastien/obsidian-kanban-action-planner/compare/0.0.3...0.0.4) (2026-06-27)
 
 ### Features
@@ -52,6 +67,7 @@ All notable changes to this project will be documented in this file.
 
 * **plugin:** match Starter Kit's {{quarter}} placeholder format (Q2, not 2) ([4fde618](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/4fde6185c5956e3f6fd2ca3a9b03e70cf5e16840))
 * **plugin:** persist discovered statuses so Show empty columns works ([cf91b81](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/cf91b81a1b0786e35c73f4885882e2dc33564c62))
+
 
 
 
