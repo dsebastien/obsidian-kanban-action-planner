@@ -107,9 +107,10 @@ Each relationship role reads a link-property (frontmatter wikilinks), configured
 | Blocked by | `blocked_by`     | Notes blocking this one.         |
 
 Inverse relations are derived automatically (a declared child gives the target a parent, and so
-on). Setting a role's property to **None** disables link detection for that role. The **Detect
+on). Setting a role's property to **None** turns that role **fully off**: its badge never
+appears — no direct links, no inverse of an active opposite role, no heuristic. The **Detect
 children by tag** option adds a heuristic: a note carrying one of the listed tags that links to
-a card counts as that card's child.
+a card counts as that card's child (this also keeps the child role active).
 
 Relationships are **read-only** — the plugin never writes them. A non-empty **blocked by** flags
 the card (red badge + edge) and powers the **Blocked cards** view filter and badge navigation;

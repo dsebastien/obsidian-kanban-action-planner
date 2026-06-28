@@ -192,7 +192,12 @@ or **a property** (e.g. a priority or estimate), and **filter** the list by name
 
 - **Click** a card to open the note; **Ctrl/Cmd-click** opens it in a new tab.
 - **Right-click** (or long-press on touch) a card for a menu: open the note (or in a new
-  tab), set its status, clear the status, **archive** the note, or open a related note.
+  tab), set its status, clear the status, **archive** the note, open a related note, or use
+  **Show fields** to tick which properties appear on cards.
+- **Show fields** lists the properties found on notes of that card's note type, each with a
+  checkmark. Ticking or unticking one adds or removes it from the note type's card display, and
+  **every open board updates immediately** (the same as editing **Displayed fields** in
+  settings).
 
 ## View options (Configure view)
 
@@ -251,7 +256,9 @@ The note type's **Cards** section controls what each card shows:
 - **Title** — use the note name (default) or any property as the card heading. Clicking the
   card still opens the note.
 - **Displayed fields** — add properties to show on the card, reorder them, and toggle a label
-  for each. Values render by type (dates, numbers, lists, links).
+  for each. Values render by type (dates, numbers, lists, links). For a quick add/remove without
+  opening settings, **right-click a card → Show fields**. Edits here apply to every board
+  showing that note type and update open boards immediately.
 - **Cover image** — pick a property holding an image link, vault path, or URL to show a cover
   at the top of the card.
 - **Wrap long values** — wrap field values onto multiple lines instead of truncating them.

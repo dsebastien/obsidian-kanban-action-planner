@@ -22,6 +22,13 @@ The core is a custom Obsidian **Bases view** (Obsidian ≥ 1.13.0 API):
   whose `BasesEntry` objects expose `.file: TFile` and `.getValue(propertyId)`); it is
   **replaced** on every update and never cached. Per-view state is persisted via
   `this.config.get/set`.
+- **Live config propagation.** The plugin tracks open views in a `Set` (`trackKanbanView` /
+  `untrackKanbanView`, wired in the view's load/unload). `saveSettings()` — the single sink for
+  every profile/settings write — calls `view.onSettingsChanged()` (debounced rebuild) on each,
+  so a card-field edit from the right-click "Show fields" menu **or** the settings tab refreshes
+  every open board immediately. Card display is resolved **per note type** (`cardPresentationFor`
+  → the file's note-type profile, else the active profile), so a mixed board shows each type's
+  own fields.
 
 ## Layering (target)
 
@@ -93,9 +100,12 @@ unchanged cards keep their exact DOM node (so scroll, focus, and an in-flight dr
 only changed/new cards are rebuilt, gone cards removed, and order is fixed with a React-style
 cursor. Shape changes (config edits, a new status column, calendar↔board switch, the empty
 state) fall back to a full `renderBoard()`. Lane collapse/counts are synced in place. **Sizing
-invariants:** every column is a fixed equal width; cards share a `min-height` floor with growth
-bounded by field truncation (or a 4-line clamp in wrap mode) — uniform width + capped height
-rather than a single forced height (which would hide content).
+invariants:** every column is a fixed equal width; cards are a single uniform height board-wide,
+computed at runtime by `ui/board/card-equalize.ts` `applyUniformCardHeight()` as the tallest
+card's natural height (published as the `--kap-card-height` CSS var, applied as `min-height`;
+re-run after every `patchBoard` and on resize). Cards never shrink below their content
+(`flex: none`) so nothing is clipped — the column body scrolls instead; sparser cards get
+matching whitespace. The pure max-picking helper `uniformCardHeight()` is unit-tested.
 
 **View chrome & responsiveness.** The view root (`.kap-root`) is a flex column: a top
 `.kap-toolbar` over a flex-1 `.kap-board-host`. `ui/view-toolbar.ts` renders a **Board / Calendar

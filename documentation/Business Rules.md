@@ -53,10 +53,25 @@ See `documentation/plans/kanban-action-planner-implementation-plan.md` for full 
 8. **Config-driven cards (issues #3–#6).** Card title source, displayed body fields, optional
    cover image, and property text-wrapping are all configurable; note name + red due-date are
    defaults. Clicking a card opens the note.
+   8b. **Per-note-type card display, live.** A card's displayed fields come from its **note
+   type's** profile (a mixed board shows each type's own config; untyped cards fall back to the
+   board's active profile). Display fields are toggled either in settings or by **right-clicking
+   a card → "Show fields"** (a checked list of candidate properties for that note type). Any
+   change to a profile's card config — from the menu or the settings tab — **immediately
+   re-renders every open board** (all profile/settings writes flow through `saveSettings`, which
+   notifies live views). New display fields default to no label.
+   8a. **Uniform card size.** All cards are the same height board-wide, sized to the
+   content-tallest card's natural height (recomputed on every rebuild and on container
+   resize; published as the `--kap-card-height` CSS var, applied as `min-height`). No card
+   content is ever clipped — cards keep their natural height (`flex: none` so the
+   height-constrained column scrolls instead of shrinking cards); sparser cards get matching
+   whitespace.
 9. **Relationships.** Roles parent/sibling/child/`blocked_by` detected via explicit
    link-properties (primary) and a tag+link heuristic (secondary); inverses via reverse
    lookup. Non-empty `blocked_by` flags the card and enables navigate-to-blockers + filter;
-   no auto-transition.
+   no auto-transition. **A role configured as "None"** (empty link-property and no heuristic)
+   is fully off: it gets **no** related notes from any source — not direct, not inverse of an
+   active opposite role, not heuristic — so its badge never appears for that note type.
 10. **Calendar mode.** A toggle adds a collapsible "Scheduling" panel (Unplanned /
     No-Deadline tabs; title always visible, vertical when collapsed) + a week/month/quarter/
     year calendar. Dragging a card to a day sets the relevant date property (momentjs format,
