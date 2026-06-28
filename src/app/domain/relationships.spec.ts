@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 import { normalizeTag, resolveRelationships } from './relationships'
 import type { HeuristicRule, NoteRecord } from './relationships'
+import type { RelationshipRole } from './profile'
 
 function record(
     key: string,
@@ -114,5 +115,56 @@ describe('resolveRelationships', () => {
             [heuristic]
         )
         expect(rels.get('project.md')?.child).toEqual([])
+    })
+
+    describe('inactive roles (configured as "None")', () => {
+        const active = (...roles: RelationshipRole[]): Set<RelationshipRole> => new Set(roles)
+
+        it('suppresses a direct link for an inactive role', () => {
+            const rels = resolveRelationships(
+                [record('a.md', { blocked_by: ['b.md'] }), record('b.md')],
+                [],
+                active('parent', 'sibling', 'child') // blocked_by off
+            )
+            expect(rels.get('a.md')?.blocked_by).toEqual([])
+        })
+
+        it('suppresses the inverse into an inactive role (parent off, child kept)', () => {
+            const rels = resolveRelationships(
+                [record('a.md', { child: ['b.md'] }), record('b.md')],
+                [],
+                active('child', 'sibling', 'blocked_by') // parent off
+            )
+            // The active child link still resolves...
+            expect(rels.get('a.md')?.child).toEqual(['b.md'])
+            // ...but b never gets a parent badge, since parent is off.
+            expect(rels.get('b.md')?.parent).toEqual([])
+        })
+
+        it('suppresses both directions of a symmetric inactive role (sibling off)', () => {
+            const rels = resolveRelationships(
+                [record('a.md', { sibling: ['b.md'] }), record('b.md')],
+                [],
+                active('parent', 'child', 'blocked_by') // sibling off
+            )
+            expect(rels.get('a.md')?.sibling).toEqual([])
+            expect(rels.get('b.md')?.sibling).toEqual([])
+        })
+
+        it('suppresses heuristic-derived relations for an inactive role (child off)', () => {
+            const heuristic: HeuristicRule = {
+                role: 'child',
+                allowedTypeTags: ['#task'],
+                requiresLinkToSource: true
+            }
+            const rels = resolveRelationships(
+                [record('project.md'), record('task.md', {}, ['#task'], ['project.md'])],
+                [heuristic],
+                active('parent', 'sibling', 'blocked_by') // child off
+            )
+            expect(rels.get('project.md')?.child).toEqual([])
+            // The inverse parent is still allowed onto the active 'parent' role.
+            expect(rels.get('task.md')?.parent).toEqual(['project.md'])
+        })
     })
 })

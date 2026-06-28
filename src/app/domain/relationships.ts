@@ -15,6 +15,11 @@ import type { RelationshipRole } from './profile'
  *   type tag and linking to a source note is treated as standing in the rule's
  *   role relative to that source.
  *
+ * A role can be turned **off** entirely (configured as "None"): an inactive role
+ * never receives any related notes, from any source — not even the inverse of an
+ * active opposite role. See the `activeRoles` parameter of
+ * {@link resolveRelationships}.
+ *
  * Everything here is pure and unit-tested with plain objects; the Obsidian
  * metadata bridge lives in `services/relationships.service.ts`.
  */
@@ -66,16 +71,22 @@ export function normalizeTag(tag: string): string {
  * value is the note's role sets (deduped, self-references removed). Direct links
  * are kept even when they leave the known set; inverse and heuristic relations
  * are only formed between known records.
+ *
+ * `activeRoles` lists the roles that are turned on; a role outside it is fully
+ * suppressed (no direct, inverse, or heuristic relations) — this is how a role
+ * configured as "None" disappears entirely. Defaults to all roles active.
  */
 export function resolveRelationships(
     records: ReadonlyArray<NoteRecord>,
-    heuristics: ReadonlyArray<HeuristicRule> = []
+    heuristics: ReadonlyArray<HeuristicRule> = [],
+    activeRoles: ReadonlySet<RelationshipRole> = new Set(RELATIONSHIP_ROLES)
 ): Map<string, RelationshipSet> {
     const inSet = new Set(records.map((r) => r.key))
     const result = new Map<string, RelationshipSet>()
     for (const r of records) result.set(r.key, emptyRelationshipSet())
 
     const add = (key: string, role: RelationshipRole, target: string): void => {
+        if (!activeRoles.has(role)) return
         if (target === key) return
         const set = result.get(key)
         if (!set) return

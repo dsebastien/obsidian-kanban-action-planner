@@ -83,5 +83,6 @@ void mock.module('obsidian', () => ({
         arrayBuffer: new ArrayBuffer(0)
     }),
     debounce: (fn: (...args: unknown[]) => unknown) => fn,
-    setIcon: () => {}
+    setIcon: () => {},
+    getAllTags: (_cache: unknown): string[] => []
 }))

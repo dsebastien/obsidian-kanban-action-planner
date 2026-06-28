@@ -46,6 +46,25 @@ export function roleProperties(profile: Profile): Record<RelationshipRole, strin
     return map
 }
 
+/**
+ * The roles that are turned on for a profile. A role is active when it has a
+ * non-empty link-property or a configured heuristic; a role with neither is
+ * "None" and is fully suppressed (no direct, inverse, or heuristic relations).
+ */
+export function activeRoles(
+    profile: Profile,
+    props: Record<RelationshipRole, string>
+): Set<RelationshipRole> {
+    const withHeuristic = new Set(
+        profile.relationships.filter((r) => r.heuristic).map((r) => r.role)
+    )
+    const active = new Set<RelationshipRole>()
+    for (const role of RELATIONSHIP_ROLES) {
+        if (props[role].length > 0 || withHeuristic.has(role)) active.add(role)
+    }
+    return active
+}
+
 /** Heuristic rules declared on the profile, normalized for the domain. */
 function heuristicRules(profile: Profile): HeuristicRule[] {
     const rules: HeuristicRule[] = []
@@ -102,7 +121,7 @@ export function resolveBoardRelationships(
 ): Map<string, RelationshipSet> {
     const props = roleProperties(profile)
     const records = files.map((file) => toRecord(app, file, props))
-    return resolveRelationships(records, heuristicRules(profile))
+    return resolveRelationships(records, heuristicRules(profile), activeRoles(profile, props))
 }
 
 /** A related note resolved for display/navigation. */
