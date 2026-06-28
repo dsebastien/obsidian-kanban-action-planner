@@ -262,6 +262,18 @@ auto-archive, so you never mass-archive by accident.
   **every open board updates immediately** (the same as editing **Displayed fields** in
   settings).
 
+## Remembered view state
+
+Each Kanban view remembers how you left it, **per view**, across reloads and reopening Obsidian:
+
+- Board vs **Calendar** mode, and the calendar **range** (Week/Month/Quarter/Year), **active
+  tab**, **panel collapsed** state, and the **Scheduled/Deadlines** legend toggles.
+- **Collapsed swimlanes** and **collapsed columns**.
+- The toolbar **filter** query.
+
+Two calendar bits are deliberately **not** remembered — they reset every time you reopen the
+view: the **anchor** (the calendar jumps back to today) and the **focused day** zoom (cleared).
+
 ## View options (Configure view)
 
 Open the view's options (the Bases **Configure view** panel) to tune **this board** without

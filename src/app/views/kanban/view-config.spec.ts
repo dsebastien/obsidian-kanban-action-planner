@@ -3,6 +3,7 @@ import {
     basesPropToName,
     cssEscapeId,
     normalizeLaneValue,
+    readIdArray,
     readLaneGroupingOverride,
     readSortMode,
     readStringArray
@@ -46,6 +47,20 @@ describe('readStringArray', () => {
         expect(readStringArray('   ')).toEqual([])
         expect(readStringArray(42)).toEqual([])
         expect(readStringArray(undefined)).toEqual([])
+    })
+})
+
+describe('readIdArray', () => {
+    it('keeps non-empty strings from an array without splitting', () => {
+        expect(readIdArray(['a', '', '  ', 'b'])).toEqual(['a', 'b'])
+        expect(readIdArray(['a, b', 'c'])).toEqual(['a, b', 'c'])
+        expect(readIdArray(['x', 1, null])).toEqual(['x'])
+    })
+
+    it('returns empty for non-array input', () => {
+        expect(readIdArray('a,b')).toEqual([])
+        expect(readIdArray(undefined)).toEqual([])
+        expect(readIdArray(null)).toEqual([])
     })
 })
 

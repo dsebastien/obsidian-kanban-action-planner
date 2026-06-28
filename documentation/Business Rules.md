@@ -159,3 +159,13 @@ See `documentation/plans/kanban-action-planner-implementation-plan.md` for full 
     work with or without the Starter Kit — and orphaned SK types keep recognizing from their
     mirrored mappings. Deleting a type removes only its config (notes untouched), via a themed
     confirm modal. Default note type is never a recognition candidate.
+24. **Persisted view state (issue #19).** Durable per-view UI state is saved to `this.config`
+    (the same flat-key mechanism as `filterQuery`/`calendarMode`; no options-schema change) and
+    restored on reload/reopen: `calendarRangeOverride` (toolbar range, layered over the configured
+    `calendarRange` default), `calendarTab`, `calendarPanelCollapsed`, `calendarShowScheduled`,
+    `calendarShowDeadlines`, `collapsedLanes`, `collapsedColumns`. **Transient** bits are
+    deliberately NOT persisted (reset on reload): the calendar **anchor** (→ today) and **focused
+    day** (→ none), plus the auto-collapse runtime memo. Reads default-on-missing (backward
+    compatible: a view with no stored keys behaves as before). The `CalendarController` loads its
+    durable fields lazily on first render (config is unavailable at construction) and writes on each
+    change; lane/column collapse loads once in `rebuild()` and writes on toggle.

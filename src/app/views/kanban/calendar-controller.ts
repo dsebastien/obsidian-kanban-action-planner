@@ -25,6 +25,19 @@ import { formatDate } from '../../utils/momentjs'
 import type { KanbanCard } from '../../ui/board/types'
 
 /**
+ * The durable calendar UI state persisted per-view across reloads (issue #19).
+ * Transient bits (anchor date, focused day) are deliberately excluded — they
+ * reset to today/none on reload.
+ */
+export interface CalendarViewState {
+    range: CalendarRange | null
+    tab: DateDimension
+    panelCollapsed: boolean
+    showScheduled: boolean
+    showDeadlines: boolean
+}
+
+/**
  * What {@link CalendarController} needs from the host view: the board host
  * element, the resolved date/sort config, and the actions it triggers — all
  * as closures so the controller never reaches into view privates.
@@ -49,6 +62,10 @@ export interface CalendarHost {
     /** Resolved scheduling-panel sort mode + optional sort property. */
     sortMode(): TabSortMode
     sortProperty(): string | null
+    /** Read the persisted durable calendar state (defaults when unset) — issue #19. */
+    restoreState(): CalendarViewState
+    /** Persist the durable calendar state per-view — issue #19. */
+    persistState(state: CalendarViewState): void
 }
 
 /**
@@ -70,8 +87,38 @@ export class CalendarController {
     // Auto-collapse the scheduling pane when the container is too narrow.
     private panelAutoCollapsed = false
     private panelLastNarrow: boolean | null = null
+    // Durable state is loaded from config lazily (config is unavailable at
+    // construction; the view reads it on first render) — issue #19.
+    private loaded = false
 
     constructor(private readonly host: CalendarHost) {}
+
+    /**
+     * Load the persisted durable state once. Config is not available when the
+     * controller is constructed, so this defers to the first render/evaluate —
+     * mirroring the view's lazy `loadFilterQuery`.
+     */
+    private ensureLoaded(): void {
+        if (this.loaded) return
+        this.loaded = true
+        const state = this.host.restoreState()
+        this.rangeOverride = state.range
+        this.tab = state.tab
+        this.panelCollapsed = state.panelCollapsed
+        this.showScheduled = state.showScheduled
+        this.showDeadlines = state.showDeadlines
+    }
+
+    /** Persist the durable bits (called after any change to one of them). */
+    private persist(): void {
+        this.host.persistState({
+            range: this.rangeOverride,
+            tab: this.tab,
+            panelCollapsed: this.panelCollapsed,
+            showScheduled: this.showScheduled,
+            showDeadlines: this.showDeadlines
+        })
+    }
 
     /** Reset the narrow-width memo so the next evaluation re-decides from scratch. */
     resetNarrow(): void {
@@ -89,6 +136,7 @@ export class CalendarController {
             this.panelLastNarrow = null
             return
         }
+        this.ensureLoaded()
         const width = boardEl.clientWidth
         if (width === 0) return
         const root = boardEl.ownerDocument.documentElement
@@ -99,10 +147,12 @@ export class CalendarController {
         if (narrow && !this.panelCollapsed) {
             this.panelCollapsed = true
             this.panelAutoCollapsed = true
+            this.persist()
             this.host.rebuild()
         } else if (!narrow && this.panelAutoCollapsed) {
             this.panelCollapsed = false
             this.panelAutoCollapsed = false
+            this.persist()
             this.host.rebuild()
         }
     }
@@ -126,6 +176,7 @@ export class CalendarController {
     render(cards: KanbanCard[]): void {
         const boardEl = this.host.boardEl()
         if (!boardEl) return
+        this.ensureLoaded()
         const range = this.effectiveRange()
         const anchor = this.effectiveAnchor()
         const today = startOfDay(new Date())
@@ -184,16 +235,19 @@ export class CalendarController {
                 onContextMenu: (card, event) => this.host.showCardMenu(card, event),
                 onSwitchTab: (dim) => {
                     this.tab = dim
+                    this.persist()
                     this.host.rebuild()
                 },
                 onToggleDimension: (dim) => {
                     if (dim === 'scheduled') this.showScheduled = !this.showScheduled
                     else this.showDeadlines = !this.showDeadlines
+                    this.persist()
                     this.host.rebuild()
                 },
                 onSetRange: (r) => {
                     this.rangeOverride = r
                     this.focusedDay = null // leaving the focused day on a range change
+                    this.persist()
                     this.host.rebuild()
                 },
                 onShiftAnchor: (direction) => {
@@ -207,6 +261,7 @@ export class CalendarController {
                 onTogglePanel: () => {
                     this.panelCollapsed = !this.panelCollapsed
                     this.panelAutoCollapsed = false
+                    this.persist()
                     this.host.rebuild()
                 },
                 onFocusDay: (dayKey) => {

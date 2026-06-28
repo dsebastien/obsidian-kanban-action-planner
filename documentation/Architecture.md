@@ -159,8 +159,14 @@ Scheduling is also reachable from the **card right-click menu** (Schedule / Set 
 today / tomorrow / pick-a-date via `ui/date-prompt-modal.ts` / clear), on the board too. A
 `ResizeObserver` on the board host **auto-collapses the panel** when the container is narrower
 than ~36rem and restores it when there's room (only on a width-category change; a manual toggle
-clears the auto state). In-memory per-session calendar state: range override, active tab, anchor,
-focused day, panel-collapsed (+ auto-collapse flags), and the two legend toggles.
+clears the auto state). **Persisted per-view across reloads (issue #19):** range override, active
+tab, panel-collapsed, and the two legend toggles are written to `this.config`
+(`calendarRangeOverride`/`calendarTab`/`calendarPanelCollapsed`/`calendarShowScheduled`/
+`calendarShowDeadlines`) — the `CalendarController` loads them lazily on first render (config is
+unavailable at construction, like the view's `loadFilterQuery`) and writes on each change. The view
+likewise persists `collapsedLanes`/`collapsedColumns` (loaded once in `rebuild()`, written on
+toggle). **Transient (reset on reload):** the anchor (→ today), the focused day (→ none), and the
+auto-collapse runtime memo.
 
 **Configure-board modal** (`ui/configure-board-modal.ts`): a two-pane dialog — a left section nav
 (Cards / Colors / Swimlanes / Relationships / Archiving) over a scrollable content pane; the

@@ -69,10 +69,12 @@ import { BoardSelection } from './board-selection'
 import { buildCardMenu, isNewTabEvent } from './card-menu'
 import type { CardMenuHost } from './card-menu'
 import { CalendarController } from './calendar-controller'
+import type { CalendarViewState } from './calendar-controller'
 import {
     basesPropToName,
     cssEscapeId,
     normalizeLaneValue,
+    readIdArray,
     readLaneGroupingOverride,
     readSortMode,
     readStringArray
@@ -127,6 +129,8 @@ export class KanbanActionPlannerView extends BasesView {
     private relationshipsByPath = new Map<string, RelationshipSet>()
     private readonly collapsedLanes = new Set<string>()
     private readonly collapsedColumns = new Set<string>()
+    // Collapsed lane/column ids load lazily from config once (issue #19).
+    private collapseInitialized = false
     private board: Board<KanbanCard> = { lanes: [], isMultiLane: false }
     private cardsByKey = new Map<string, KanbanCard>()
     // After a keyboard move/reorder rebuild, refocus this card so focus follows it.
@@ -218,7 +222,9 @@ export class KanbanActionPlannerView extends BasesView {
             firstDayOfWeek: () => this.plugin.settings.firstDayOfWeek,
             configuredRange: () => this.config.get('calendarRange'),
             sortMode: () => readSortMode(this.config.get('calendarTabSort')),
-            sortProperty: () => basesPropToName(this.config.get('calendarSortProperty'))
+            sortProperty: () => basesPropToName(this.config.get('calendarSortProperty')),
+            restoreState: () => this.restoreCalendarState(),
+            persistState: (state) => this.persistCalendarState(state)
         })
         this.calendarDnd = new CalendarDnd(this.boardEl, {
             onDrop: (cardKey, target, dimension) =>
@@ -386,6 +392,7 @@ export class KanbanActionPlannerView extends BasesView {
 
         this.relationshipsByPath = resolveBoardRelationships(this.app, files, this.noteType)
         this.loadFilterQuery()
+        this.loadCollapseState()
 
         const filter = this.relationalFilter()
         this.allCards = files
@@ -555,13 +562,51 @@ export class KanbanActionPlannerView extends BasesView {
     private toggleLane(laneId: string): void {
         if (this.collapsedLanes.has(laneId)) this.collapsedLanes.delete(laneId)
         else this.collapsedLanes.add(laneId)
+        this.config.set('collapsedLanes', [...this.collapsedLanes])
         this.rebuild()
     }
 
     private toggleColumn(columnId: string): void {
         if (this.collapsedColumns.has(columnId)) this.collapsedColumns.delete(columnId)
         else this.collapsedColumns.add(columnId)
+        this.config.set('collapsedColumns', [...this.collapsedColumns])
         this.rebuild()
+    }
+
+    /** Load the persisted collapsed lane/column ids on first rebuild (issue #19). */
+    private loadCollapseState(): void {
+        if (this.collapseInitialized) return
+        this.collapseInitialized = true
+        this.collapsedLanes.clear()
+        for (const id of readIdArray(this.config.get('collapsedLanes'))) this.collapsedLanes.add(id)
+        this.collapsedColumns.clear()
+        for (const id of readIdArray(this.config.get('collapsedColumns')))
+            this.collapsedColumns.add(id)
+    }
+
+    /** Read the durable calendar UI state (defaults when unset) — issue #19. */
+    private restoreCalendarState(): CalendarViewState {
+        const stored = this.config.get('calendarRangeOverride')
+        const range =
+            stored === 'week' || stored === 'month' || stored === 'quarter' || stored === 'year'
+                ? stored
+                : null
+        return {
+            range,
+            tab: this.config.get('calendarTab') === 'deadline' ? 'deadline' : 'scheduled',
+            panelCollapsed: this.config.get('calendarPanelCollapsed') === true,
+            showScheduled: this.config.get('calendarShowScheduled') !== false,
+            showDeadlines: this.config.get('calendarShowDeadlines') !== false
+        }
+    }
+
+    /** Persist the durable calendar UI state per-view — issue #19. */
+    private persistCalendarState(state: CalendarViewState): void {
+        this.config.set('calendarRangeOverride', state.range)
+        this.config.set('calendarTab', state.tab)
+        this.config.set('calendarPanelCollapsed', state.panelCollapsed)
+        this.config.set('calendarShowScheduled', state.showScheduled)
+        this.config.set('calendarShowDeadlines', state.showDeadlines)
     }
 
     /**

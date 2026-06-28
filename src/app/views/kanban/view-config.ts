@@ -18,6 +18,16 @@ export function readSortMode(value: unknown): TabSortMode {
     return value === 'name' || value === 'property' ? value : 'order'
 }
 
+/**
+ * Read a stored array of ids verbatim (only keeps non-empty strings). Unlike
+ * {@link readStringArray} it never splits on commas/newlines, so an id that
+ * contains a comma (a lane value, a status id) survives a save/restore round-trip.
+ */
+export function readIdArray(value: unknown): string[] {
+    if (!Array.isArray(value)) return []
+    return value.filter((v): v is string => typeof v === 'string' && v.trim().length > 0)
+}
+
 /** Read a stored multitext option into a clean string array. */
 export function readStringArray(value: unknown): string[] {
     if (Array.isArray(value)) {
