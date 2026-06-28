@@ -325,8 +325,17 @@ type's defined order. The Starter Kit stays the source of truth for that; your c
 are saved locally and survive the Starter Kit being disabled. Without the Starter Kit, columns
 come from the status values found in your notes.
 
+## Command palette
+
+A few commands act on the **currently focused** Kanban view (they do nothing when another view
+is active, and each can be given a hotkey in **Settings → Hotkeys**):
+
+- **Toggle board / calendar mode**
+- **Focus filter** — jump to the filter box
+- **Clear filter**
+- **Go to next swimlane** / **Go to previous swimlane**
+
 ## Where it lives
 
-Everything happens inside the Bases Kanban view — there are no separate commands to run. The
-plugin's settings tab holds the global default property names used when a note or board
-doesn't override them.
+Most of the experience is inside the Bases Kanban view itself. The plugin's settings tab holds
+the global default property names used when a note or board doesn't override them.

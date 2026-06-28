@@ -216,6 +216,29 @@ export class KanbanActionPlannerView extends BasesView {
         this.debouncedRebuild()
     }
 
+    // ── Public command surface (issue #27) ───────────────────
+
+    /** Switch between board and calendar mode. */
+    toggleMode(): void {
+        this.setCalendarMode(!this.calendarMode())
+    }
+
+    /** Put the cursor in the filter box. */
+    focusFilter(): void {
+        this.filterBar?.focus()
+    }
+
+    /** Clear the filter query (input + state). */
+    clearFilter(): void {
+        this.filterBar?.setValue('')
+        this.onFilterClear()
+    }
+
+    /** Scroll to the next/previous swimlane (multi-lane boards). */
+    goToLane(direction: 1 | -1): void {
+        this.scrollLane(direction)
+    }
+
     // ── Build ─────────────────────────────────────────────────
 
     private files(): TFile[] {

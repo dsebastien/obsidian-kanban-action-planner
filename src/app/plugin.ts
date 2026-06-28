@@ -39,9 +39,65 @@ export class KanbanActionPlannerPlugin extends Plugin {
         await this.loadSettings()
 
         this.registerKanbanView()
+        this.registerCommands()
 
         // Add a settings screen for the plugin
         this.addSettingTab(new KanbanActionPlannerSettingTab(this.app, this))
+    }
+
+    /**
+     * The Kanban view in the active leaf, or null when none is focused. A Bases
+     * leaf hosts our view as its current sub-view (`controller.view`); we read it
+     * directly and `instanceof`-check, so background Kanban leaves never match.
+     */
+    private activeKanbanView(): KanbanActionPlannerView | null {
+        const leaf = this.app.workspace.activeLeaf
+        if (!leaf || leaf.view.getViewType() !== 'bases') return null
+        const subView = (leaf.view as unknown as { controller?: { view?: unknown } }).controller
+            ?.view
+        return subView instanceof KanbanActionPlannerView ? subView : null
+    }
+
+    /**
+     * Command-palette commands acting on the active Kanban view (issue #27).
+     * Each uses `checkCallback` so it only appears/runs when a Kanban view is
+     * focused, and is hotkey-bindable.
+     */
+    private registerCommands(): void {
+        const onActiveView =
+            (run: (view: KanbanActionPlannerView) => void) =>
+            (checking: boolean): boolean => {
+                const view = this.activeKanbanView()
+                if (!view) return false
+                if (!checking) run(view)
+                return true
+            }
+
+        this.addCommand({
+            id: 'toggle-calendar-mode',
+            name: 'Toggle board / calendar mode',
+            checkCallback: onActiveView((view) => view.toggleMode())
+        })
+        this.addCommand({
+            id: 'focus-filter',
+            name: 'Focus filter',
+            checkCallback: onActiveView((view) => view.focusFilter())
+        })
+        this.addCommand({
+            id: 'clear-filter',
+            name: 'Clear filter',
+            checkCallback: onActiveView((view) => view.clearFilter())
+        })
+        this.addCommand({
+            id: 'next-swimlane',
+            name: 'Go to next swimlane',
+            checkCallback: onActiveView((view) => view.goToLane(1))
+        })
+        this.addCommand({
+            id: 'previous-swimlane',
+            name: 'Go to previous swimlane',
+            checkCallback: onActiveView((view) => view.goToLane(-1))
+        })
     }
 
     override onunload() {}

@@ -126,3 +126,8 @@ See `documentation/plans/kanban-action-planner-implementation-plan.md` for full 
     cards get a red background wash, due-today an amber wash. This uses the **background**
     channel so it stays distinct from a blocked card's red **left accent** — both can show at
     once (blocked owns the accent, overdue owns the wash). Recomputed on every rebuild.
+19. **Command palette (issue #27).** Plugin commands act on the **active** Kanban view, found by
+    reading the active Bases leaf's current sub-view (`controller.view`) and `instanceof`-checking
+    — so background Kanban leaves never match. Each uses `checkCallback` (no-op + hidden when no
+    Kanban view is focused) and is hotkey-bindable: toggle board/calendar, focus filter, clear
+    filter, next/previous swimlane.
