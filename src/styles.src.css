@@ -634,7 +634,10 @@
 
     .kap-cal-grid {
         @apply grid;
-        grid-template-columns: repeat(7, 1fr);
+        /* minmax(0, 1fr) (not 1fr = minmax(auto, 1fr)) so a day's nowrap chips
+           can't push its column past a 1/7 share — all 7 days always stay
+           visible; chips truncate to the cell width instead. */
+        grid-template-columns: repeat(7, minmax(0, 1fr));
         border: 1px solid var(--background-modifier-border);
         border-radius: var(--radius-s, 6px);
         overflow: hidden;
@@ -651,7 +654,9 @@
     }
 
     .kap-cal-day {
-        @apply flex flex-col gap-1 p-1;
+        /* min-w-0: let the cell shrink within its grid track so nowrap chips
+           truncate instead of widening the column. */
+        @apply flex flex-col gap-1 p-1 min-w-0;
         min-height: 4.5rem;
         border-top: 1px solid var(--background-modifier-border);
         border-left: 1px solid var(--background-modifier-border);
