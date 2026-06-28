@@ -180,3 +180,13 @@ See `documentation/plans/kanban-action-planner-implementation-plan.md` for full 
     compatible: a view with no stored keys behaves as before). The `CalendarController` loads its
     durable fields lazily on first render (config is unavailable at construction) and writes on each
     change; lane/column collapse loads once in `rebuild()` and writes on toggle.
+25. **In-column sort (issue #17).** A per-view **Card sort** option orders each column's cards by
+    `order` (manual, default) / `name` / `property`, with a `cardSortDirection` (`asc`/`desc`) and a
+    `cardSortProperty`. The pure `compareTabCards` (shared with the calendar panel,
+    `domain/calendar-tabs.ts`) does the comparison; direction flips only the value compare —
+    **missing values always sort last** and the title tie-break stays ascending. `buildBoard` takes
+    an optional `compare` comparator (default = manual `compareCards`), so the default board is
+    byte-identical to before. While a non-manual sort is active, **`manual_order` writes are
+    suppressed** — in-column drag and the keyboard reorder are no-ops (status changes via
+    cross-column drag still work); switching back to Manual order restores `manual_order` ordering
+    and re-enables reordering.

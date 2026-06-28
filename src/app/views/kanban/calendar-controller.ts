@@ -11,7 +11,7 @@ import {
     weekdayLabels
 } from '../../domain/calendar'
 import type { CalendarRange, DateDimension } from '../../domain/calendar'
-import { compareTabCards } from '../../domain/calendar-tabs'
+import { compareTabCards, coerceSortValue } from '../../domain/calendar-tabs'
 import type { TabSortKey, TabSortMode } from '../../domain/calendar-tabs'
 import { renderCalendar } from '../../ui/calendar/calendar-renderer'
 import type { CalendarEntry } from '../../ui/calendar/calendar-renderer'
@@ -363,16 +363,4 @@ export class CalendarController {
         // week / month: the single block's own label is the clearest.
         return buildCalendar(anchor, range, anchor)[0]?.label ?? ''
     }
-}
-
-/** Coerce a frontmatter value into a sortable number/string, or null. */
-function coerceSortValue(raw: unknown): number | string | null {
-    if (typeof raw === 'number') return Number.isFinite(raw) ? raw : null
-    if (typeof raw === 'string') {
-        const trimmed = raw.trim()
-        if (trimmed.length === 0) return null
-        const n = Number(trimmed)
-        return Number.isFinite(n) ? n : trimmed
-    }
-    return null
 }

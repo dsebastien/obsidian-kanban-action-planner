@@ -17,6 +17,8 @@ import type {
 } from '../../domain/note-type'
 import { archiveFolderPrefixes } from '../../domain/archive-paths'
 import { buildBoard } from '../../domain/board-model'
+import { compareTabCards, coerceSortValue } from '../../domain/calendar-tabs'
+import type { SortDirection, TabSortKey, TabSortMode } from '../../domain/calendar-tabs'
 import type { Board, UnmappedPosition } from '../../domain/board-model'
 import { detectStatusProperty, normalizeStatusValue } from '../../domain/status'
 import { passesFilter } from '../../domain/filtering'
@@ -500,7 +502,8 @@ export class KanbanActionPlannerView extends BasesView {
 
         let board = buildBoard(cards, this.columns, {
             grouped: this.laneGrouping.kind !== 'none',
-            unmappedPosition: this.unmappedPosition()
+            unmappedPosition: this.unmappedPosition(),
+            compare: this.cardComparator()
         })
         if (!this.showEmptyColumns()) {
             board = {
@@ -740,6 +743,46 @@ export class KanbanActionPlannerView extends BasesView {
         return this.config.get('unmappedPosition') === 'last' ? 'last' : 'first'
     }
 
+    /** The per-view in-column sort mode (issue #17); `order` = manual (default). */
+    private cardSortMode(): TabSortMode {
+        return readSortMode(this.config.get('cardSort'))
+    }
+
+    private cardSortDirection(): SortDirection {
+        return this.config.get('cardSortDirection') === 'desc' ? 'desc' : 'asc'
+    }
+
+    /**
+     * In-column comparator for {@link buildBoard} (issue #17). Returns `undefined`
+     * for manual order so the board keeps its default `manual_order` sort; for a
+     * name/property sort it reuses the pure `compareTabCards`, caching each card's
+     * sort key so the property read happens once per card, not per comparison.
+     */
+    private cardComparator(): ((a: KanbanCard, b: KanbanCard) => number) | undefined {
+        const mode = this.cardSortMode()
+        if (mode === 'order') return undefined
+        const direction = this.cardSortDirection()
+        const sortProperty =
+            mode === 'property' ? basesPropToName(this.config.get('cardSortProperty')) : null
+        const cache = new Map<string, TabSortKey>()
+        const keyOf = (card: KanbanCard): TabSortKey => {
+            const cached = cache.get(card.key)
+            if (cached) return cached
+            const sortValue = sortProperty
+                ? coerceSortValue(getFrontmatterValue(this.app, card.file, sortProperty))
+                : null
+            const key: TabSortKey = {
+                title: card.display.title,
+                order: card.order,
+                sortValue,
+                searchText: ''
+            }
+            cache.set(card.key, key)
+            return key
+        }
+        return (a, b) => compareTabCards(keyOf(a), keyOf(b), mode, direction)
+    }
+
     private toCard(file: TFile): KanbanCard {
         const statusValue =
             this.statusProperty === null
@@ -904,6 +947,11 @@ export class KanbanActionPlannerView extends BasesView {
         // note leaves the board, so there's no order to persist).
         if (await this.maybeAutoArchive(card, newStatus)) return
 
+        // Manual order is only written under the default (manual) sort; a
+        // name/property sort owns the in-column order, so a reorder is a no-op
+        // (the status change above still applies) — issue #17.
+        if (this.cardSortMode() !== 'order') return
+
         const destCards = this.columnCards(destLaneId, destColumnId).filter(
             (c) => c.key !== card.key
         )
@@ -1001,6 +1049,7 @@ export class KanbanActionPlannerView extends BasesView {
 
     /** Keyboard: reorder a card up/down within its column (writes manual order). */
     private reorderCard(card: KanbanCard, direction: 1 | -1): void {
+        if (this.cardSortMode() !== 'order') return // manual reorder is off under a sort (#17)
         const loc = this.cardLocation(card)
         if (!loc) return
         const column = loc.columns[loc.colIndex]

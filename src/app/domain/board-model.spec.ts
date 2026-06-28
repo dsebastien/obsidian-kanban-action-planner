@@ -149,4 +149,25 @@ describe('buildBoard', () => {
         const ungrouped = board.lanes.find((l) => l.lane.id === UNGROUPED_LANE_ID)
         expect(ungrouped?.cardCount).toBe(1)
     })
+
+    it('sorts in-column cards with a custom comparator when provided (issue #17)', () => {
+        // Manual order would give a, b, c; the custom comparator sorts by key desc.
+        const board = buildBoard(
+            [card('a', '10 Todo', 1), card('b', '10 Todo', 2), card('c', '10 Todo', 3)],
+            columns,
+            { grouped: false, compare: (x, y) => y.key.localeCompare(x.key) }
+        )
+        const todo = board.lanes[0]?.columns.find((c) => c.column.id === '10 Todo')
+        expect(todo?.cards.map((c) => c.key)).toEqual(['c', 'b', 'a'])
+    })
+
+    it('defaults to manual order when no comparator is given', () => {
+        const board = buildBoard(
+            [card('a', '10 Todo', 3), card('b', '10 Todo', 1), card('c', '10 Todo', 2)],
+            columns,
+            { grouped: false }
+        )
+        const todo = board.lanes[0]?.columns.find((c) => c.column.id === '10 Todo')
+        expect(todo?.cards.map((c) => c.key)).toEqual(['b', 'c', 'a'])
+    })
 })

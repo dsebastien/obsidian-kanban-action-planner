@@ -47,7 +47,15 @@ until you define your statuses.
   board_ (the per-view status list) and takes precedence over the default order. The Unmapped
   column stays put (its side is set by the **Unmapped column position** option).
 
-Ordering is stored in your notes (not in plugin data), so it travels with the vault.
+Manual ordering is stored in your notes (not in plugin data), so it travels with the vault.
+
+**Auto-sort a column by a property.** Instead of hand-curated manual order, a board can sort the
+cards inside every column by **name** or by any **property** (priority, due date, created, …),
+ascending or descending — set **Card sort**, **Card sort property**, and **Card sort direction** in
+**Configure view → Columns**. Missing values sort last. While a non-manual sort is active, dragging
+a card within a column (and the keyboard reorder) is turned off — sorting owns the order — but you
+can still drag between columns to change status. Switch **Card sort** back to **Manual order** to
+restore your saved `manual_order` and re-enable reordering.
 
 ## Filtering (search bar)
 
@@ -292,6 +300,10 @@ changing your notes. They're grouped:
 - **Statuses (columns)** — the list of status values to show as columns, in order (one per
   entry). This is the per-view column definition.
 - **Manual order property** — choose where card order is stored.
+- **Card sort** — how cards are ordered inside each column: **Manual order** (default, drag to
+  arrange), **Name (A–Z)**, or **By property**. **Card sort property** picks the property for the
+  last option, and **Card sort direction** sets ascending/descending. A non-manual sort disables
+  in-column drag/keyboard reorder (missing values sort last).
 - **Show empty columns** — keep columns with no cards visible (useful when columns come from a
   note type's defined statuses).
 - **Unmapped column position** — show the Unmapped column first (left, the default) or last

@@ -77,6 +77,31 @@ export function getKanbanViewOptions(app: App, settings: PluginSettings): BasesA
                     filter: propertyFilter
                 },
                 {
+                    type: 'dropdown',
+                    key: 'cardSort',
+                    displayName: 'Card sort',
+                    default: 'order',
+                    options: {
+                        order: 'Manual order',
+                        name: 'Name (A–Z)',
+                        property: 'By property'
+                    }
+                },
+                {
+                    type: 'property',
+                    key: 'cardSortProperty',
+                    displayName: 'Card sort property',
+                    placeholder: 'Used when card sort is "By property"',
+                    filter: propertyFilter
+                },
+                {
+                    type: 'dropdown',
+                    key: 'cardSortDirection',
+                    displayName: 'Card sort direction',
+                    default: 'asc',
+                    options: { asc: 'Ascending', desc: 'Descending' }
+                },
+                {
                     type: 'toggle',
                     key: 'showEmptyColumns',
                     displayName: 'Show empty columns',

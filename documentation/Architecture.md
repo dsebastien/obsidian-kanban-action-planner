@@ -107,7 +107,11 @@ a blocked filter), per-view options, a tabbed Configure-board modal, and global 
 (scheduling panel + grid, deadline highlighting, responsive auto-collapse) are also implemented.
 
 The board pipeline: `domain/board-model.ts` `buildBoard()` is pure and unit-tested (buckets
-cards into `BoardLane[] → BoardColumn[]`, `isMultiLane` flag); `ui/board/board-renderer.ts`
+cards into `BoardLane[] → BoardColumn[]`, `isMultiLane` flag; an optional `compare` comparator
+sets the in-column order, defaulting to manual `manual_order` — issue #17). The view builds that
+comparator from the per-view **Card sort** options via the shared pure `compareTabCards`
+(`domain/calendar-tabs.ts`), and suppresses `manual_order` writes while a non-manual sort is active.
+`ui/board/board-renderer.ts`
 renders chrome-free for a single lane or collapsible `.kap-lane` swimlanes otherwise;
 `ui/board/dnd-controller.ts` reports `{ laneId, columnId, index }` drop targets; the view
 (`views/kanban/kanban-view.ts`) resolves grouping + per-file lane values, computes relationships,

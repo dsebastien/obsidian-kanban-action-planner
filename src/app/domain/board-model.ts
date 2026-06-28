@@ -92,7 +92,8 @@ export type UnmappedPosition = 'first' | 'last'
 function bucketColumns<T extends BoardCardBase>(
     cards: ReadonlyArray<T>,
     columns: ReadonlyArray<ColumnDef>,
-    unmappedPosition: UnmappedPosition
+    unmappedPosition: UnmappedPosition,
+    compare: (a: T, b: T) => number
 ): BoardColumn<T>[] {
     const knownIds = new Set(columns.map((c) => c.id))
     const buckets = new Map<string, T[]>()
@@ -107,14 +108,14 @@ function bucketColumns<T extends BoardCardBase>(
 
     const mapped: BoardColumn<T>[] = columns.map((column) => ({
         column,
-        cards: (buckets.get(column.id) as T[]).slice().sort(compareCards)
+        cards: (buckets.get(column.id) as T[]).slice().sort(compare)
     }))
 
     if (unmapped.length === 0) return mapped
 
     const unmappedBucket: BoardColumn<T> = {
         column: unmappedColumn(),
-        cards: unmapped.slice().sort(compareCards)
+        cards: unmapped.slice().sort(compare)
     }
     return unmappedPosition === 'first' ? [unmappedBucket, ...mapped] : [...mapped, unmappedBucket]
 }
@@ -126,19 +127,25 @@ function bucketColumns<T extends BoardCardBase>(
 export function buildSingleLaneBoard<T extends BoardCardBase>(
     cards: ReadonlyArray<T>,
     columns: ReadonlyArray<ColumnDef>,
-    unmappedPosition: UnmappedPosition = 'first'
+    unmappedPosition: UnmappedPosition = 'first',
+    compare: (a: T, b: T) => number = compareCards
 ): SingleLaneBoard<T> {
-    return { columns: bucketColumns(cards, columns, unmappedPosition) }
+    return { columns: bucketColumns(cards, columns, unmappedPosition, compare) }
 }
 
 /** Where the Ungrouped lane sits relative to the real lanes. */
 export type UngroupedPosition = 'first' | 'last'
 
-export interface BuildBoardOptions {
+export interface BuildBoardOptions<T extends BoardCardBase = BoardCardBase> {
     /** When false, a single chrome-free lane holds every card. */
     grouped: boolean
     unmappedPosition?: UnmappedPosition
     ungroupedPosition?: UngroupedPosition
+    /**
+     * In-column card comparator. Defaults to manual order (issue #4); the view
+     * passes a property/name comparator for non-manual sorts (issue #17).
+     */
+    compare?: (a: T, b: T) => number
 }
 
 /**
@@ -152,14 +159,17 @@ export interface BuildBoardOptions {
 export function buildBoard<T extends BoardCardBase>(
     cards: ReadonlyArray<T>,
     columns: ReadonlyArray<ColumnDef>,
-    options: BuildBoardOptions
+    options: BuildBoardOptions<T>
 ): Board<T> {
     const unmappedPosition = options.unmappedPosition ?? 'first'
+    const compare = options.compare ?? compareCards
 
     if (!options.grouped) {
         return {
             isMultiLane: false,
-            lanes: [singleLane(SINGLE_LANE_ID, '', false, cards, columns, unmappedPosition)]
+            lanes: [
+                singleLane(SINGLE_LANE_ID, '', false, cards, columns, unmappedPosition, compare)
+            ]
         }
     }
 
@@ -183,7 +193,8 @@ export function buildBoard<T extends BoardCardBase>(
             false,
             groups.get(value) as T[],
             columns,
-            unmappedPosition
+            unmappedPosition,
+            compare
         )
     )
 
@@ -194,7 +205,8 @@ export function buildBoard<T extends BoardCardBase>(
             true,
             ungrouped,
             columns,
-            unmappedPosition
+            unmappedPosition,
+            compare
         )
         if (options.ungroupedPosition === 'first') lanes.unshift(ungroupedLane)
         else lanes.push(ungroupedLane)
@@ -209,11 +221,12 @@ function singleLane<T extends BoardCardBase>(
     isUngrouped: boolean,
     cards: ReadonlyArray<T>,
     columns: ReadonlyArray<ColumnDef>,
-    unmappedPosition: UnmappedPosition
+    unmappedPosition: UnmappedPosition,
+    compare: (a: T, b: T) => number
 ): BoardLane<T> {
     return {
         lane: { id, label, isUngrouped },
-        columns: bucketColumns(cards, columns, unmappedPosition),
+        columns: bucketColumns(cards, columns, unmappedPosition, compare),
         cardCount: cards.length
     }
 }
