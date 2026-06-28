@@ -193,6 +193,52 @@
         @apply hidden;
     }
 
+    /* Active toggle (multi-select mode) on a toolbar icon button. */
+    .kap-root .kap-nav-btn-active,
+    .kap-root .kap-nav-btn-active:hover {
+        color: var(--text-on-accent);
+        background: var(--interactive-accent);
+        border-color: var(--interactive-accent);
+    }
+
+    /* Multi-select action bar (issue #18) — under the toolbar when ≥1 selected. */
+    .kap-root .kap-selection-bar {
+        @apply flex flex-none items-center gap-2 flex-wrap px-3 py-2;
+        background: var(--background-secondary);
+        border-bottom: 1px solid var(--background-modifier-border);
+    }
+
+    .kap-root .kap-selection-count {
+        @apply font-medium text-[0.85em];
+        color: var(--text-normal);
+    }
+
+    .kap-root .kap-selection-actions {
+        @apply inline-flex items-center gap-1;
+    }
+
+    .kap-root .kap-selection-btn {
+        @apply inline-flex items-center h-7 px-3 border-0 rounded cursor-pointer text-[0.85em];
+        color: var(--text-normal);
+        background: var(--interactive-normal);
+        box-shadow: var(--shadow-s);
+        transition: background-color var(--kap-transition) var(--kap-ease);
+    }
+
+    .kap-root .kap-selection-btn:hover {
+        background: var(--interactive-hover);
+    }
+
+    /* Selected cards (multi-select): accent ring + faint accent wash. */
+    .kap-card-selected {
+        outline: 2px solid var(--interactive-accent);
+        outline-offset: -1px;
+    }
+
+    .kap-board-selecting .kap-card {
+        cursor: pointer;
+    }
+
     /* Shown only when an active filter matches zero cards. */
     .kap-root .kap-filter-empty {
         @apply flex-none px-3 py-2 text-center text-[0.85em];

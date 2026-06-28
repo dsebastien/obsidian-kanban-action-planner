@@ -8,6 +8,8 @@ import { planReconcile } from './reconcile'
 
 export interface BoardRenderCallbacks {
     onOpen: (card: KanbanCard, newTab: boolean) => void
+    /** A mouse click on a card — the view decides open vs. (multi-)select. */
+    onCardClick: (card: KanbanCard, event: MouseEvent) => void
     onContextMenu: (card: KanbanCard, event: MouseEvent) => void
     /** Toggle a swimlane's collapsed state (multi-lane boards only). */
     onToggleLane?: (laneId: string) => void
@@ -263,7 +265,7 @@ function buildCardNode(
 ): HTMLElement {
     const cardEl = renderCard(card, accent, { onRelationship: callbacks.onRelationship })
     cardEl.dataset['cardSig'] = cardSignature(card, accent)
-    cardEl.addEventListener('click', (e) => callbacks.onOpen(card, e.ctrlKey || e.metaKey))
+    cardEl.addEventListener('click', (e) => callbacks.onCardClick(card, e))
     cardEl.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' || e.key === ' ') {
             e.preventDefault()

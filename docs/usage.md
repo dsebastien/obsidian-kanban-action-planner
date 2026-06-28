@@ -238,6 +238,19 @@ Cards are fully keyboard-operable. **Tab** to a card, then:
 Focus follows the card after it moves, so you can keep going. (See also the command palette
 commands above, which are hotkey-bindable.)
 
+## Multi-select & bulk actions
+
+Press the **Select** button (the checklist icon next to the gear) to enter **select mode**:
+
+- **Click** cards to select/deselect them; **Shift-click** selects a range.
+- An action bar shows how many are selected, with bulk actions: **Set status** (pick a column,
+  or clear), **Archive**, **Open** (each in a new tab), and **Clear**.
+- Press **Select** again to leave select mode.
+
+Bulk writes are applied to each note and a summary notice reports how many succeeded (and any
+that were skipped or failed). Bulk **Set status** changes only the status — it doesn't trigger
+auto-archive, so you never mass-archive by accident.
+
 ## Other interactions
 
 - **Click** a card to open the note; **Ctrl/Cmd-click** opens it in a new tab.

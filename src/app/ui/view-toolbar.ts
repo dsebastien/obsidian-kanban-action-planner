@@ -6,6 +6,8 @@ export interface ViewToolbarState {
     calendarMode: boolean
     /** Whether to show the up/down swimlane navigation (board mode, >1 lane). */
     showLaneNav: boolean
+    /** Whether multi-select mode is active (board mode only). */
+    selectionMode: boolean
 }
 
 export interface ViewToolbarCallbacks {
@@ -17,6 +19,8 @@ export interface ViewToolbarCallbacks {
     onLanePrev: () => void
     /** Scroll to the next swimlane. */
     onLaneNext: () => void
+    /** Toggle multi-select mode. */
+    onToggleSelectionMode: () => void
 }
 
 /**
@@ -50,6 +54,15 @@ export function renderViewToolbar(
         addIconButton(rightEl, 'chevron-up', 'Previous swimlane', callbacks.onLanePrev)
         addIconButton(rightEl, 'chevron-down', 'Next swimlane', callbacks.onLaneNext)
     }
+    if (!state.calendarMode) {
+        const selectBtn = addIconButton(
+            rightEl,
+            'list-checks',
+            state.selectionMode ? 'Exit select mode' : 'Select multiple cards',
+            callbacks.onToggleSelectionMode
+        )
+        if (state.selectionMode) selectBtn.addClass('kap-nav-btn-active')
+    }
     renderGearButton(rightEl, callbacks.onConfigure)
 }
 
@@ -73,11 +86,12 @@ function addIconButton(
     icon: string,
     label: string,
     onClick: () => void
-): void {
+): HTMLElement {
     const btn = parent.createEl('button', {
         cls: 'kap-nav-btn',
         attr: { 'type': 'button', 'aria-label': label, 'title': label }
     })
     setIcon(btn, icon)
     btn.addEventListener('click', onClick)
+    return btn
 }

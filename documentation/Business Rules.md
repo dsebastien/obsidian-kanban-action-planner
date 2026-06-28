@@ -142,3 +142,10 @@ See `documentation/plans/kanban-action-planner-implementation-plan.md` for full 
     `applyMove` path as drag-and-drop. Focus follows the card after the rebuild
     (`refocusCardKey`). Honors reduced-motion (no new animation; the board's reduced-motion
     rules apply).
+22. **Multi-select + bulk actions (issue #18).** A toolbar **Select** toggle enters select mode:
+    click toggles a card's selection, Shift-click selects a range (board order). An action bar
+    (shown when ≥1 selected) offers bulk **Set status** (per-column menu, incl. clear),
+    **Archive**, **Open** (new tabs), and **Clear**. Writes are sequential with a summary notice
+    (no true cross-file atomicity is possible; failures are surfaced, never silent). Bulk
+    set-status does **not** auto-archive (guards against accidental mass-archiving). Selections
+    drop automatically when a card leaves the board (archived/filtered).

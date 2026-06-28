@@ -128,6 +128,12 @@ export class KanbanActionPlannerView extends BasesView {
     // After a keyboard move/reorder rebuild, refocus this card so focus follows it.
     private refocusCardKey: string | null = null
 
+    // Multi-select + bulk actions (issue #18).
+    private selectionMode = false
+    private readonly selectedKeys = new Set<string>()
+    private lastSelectedKey: string | null = null
+    private selectionBarEl: HTMLElement | null = null
+
     // Filter bar (issue #34). `allCards`/`searchByKey` are the unfiltered set +
     // per-card search index; the parsed query filters them on each render.
     private allCards: KanbanCard[] = []
@@ -179,6 +185,7 @@ export class KanbanActionPlannerView extends BasesView {
             onClear: () => this.onFilterClear()
         })
         this.toolbarRightEl = this.toolbarEl.createDiv({ cls: 'kap-toolbar-right' })
+        this.selectionBarEl = this.rootEl.createDiv({ cls: 'kap-selection-bar kap-hidden' })
         this.filterEmptyEl = this.rootEl.createDiv({
             cls: 'kap-filter-empty kap-hidden',
             text: 'No cards match the filter.'
@@ -218,6 +225,7 @@ export class KanbanActionPlannerView extends BasesView {
         this.toolbarLeftEl = null
         this.toolbarRightEl = null
         this.filterEmptyEl = null
+        this.selectionBarEl = null
         this.boardEl = null
     }
 
@@ -427,6 +435,7 @@ export class KanbanActionPlannerView extends BasesView {
             this.board,
             {
                 onOpen: (card, newTab) => this.openCard(card, newTab),
+                onCardClick: (card, event) => this.onCardClick(card, event),
                 onContextMenu: (card, event) => this.showCardMenu(card, event),
                 onToggleLane: (laneId) => this.toggleLane(laneId),
                 onToggleColumn: (columnId) => this.toggleColumn(columnId),
@@ -440,6 +449,7 @@ export class KanbanActionPlannerView extends BasesView {
         )
         this.restoreColumnAnchor(anchor)
         this.applyRefocus()
+        this.refreshSelectionUi()
 
         // All cards share one height (the tallest card's), recomputed here since
         // the card set / content just changed. Synchronous (before paint) so
@@ -455,6 +465,181 @@ export class KanbanActionPlannerView extends BasesView {
         )
         this.refocusCardKey = null
         el?.focus()
+    }
+
+    // ── Multi-select + bulk actions (issue #18) ───────────────
+
+    private toggleSelectionMode(): void {
+        this.selectionMode = !this.selectionMode
+        if (!this.selectionMode) {
+            this.selectedKeys.clear()
+            this.lastSelectedKey = null
+        }
+        this.renderToolbar(this.board.lanes.length > 1)
+        this.refreshSelectionUi()
+    }
+
+    /** Mouse click on a card: (multi-)select in selection mode, else open. */
+    private onCardClick(card: KanbanCard, event: MouseEvent): void {
+        if (!this.selectionMode) {
+            this.openCard(card, event.ctrlKey || event.metaKey)
+            return
+        }
+        event.preventDefault()
+        if (event.shiftKey && this.lastSelectedKey) this.selectRange(card.key)
+        else if (this.selectedKeys.has(card.key)) this.selectedKeys.delete(card.key)
+        else this.selectedKeys.add(card.key)
+        this.lastSelectedKey = card.key
+        this.refreshSelectionUi()
+    }
+
+    /** Select the inclusive range from the last-selected card to `toKey`. */
+    private selectRange(toKey: string): void {
+        const order = this.flatCardKeys()
+        const a = this.lastSelectedKey ? order.indexOf(this.lastSelectedKey) : -1
+        const b = order.indexOf(toKey)
+        if (a < 0 || b < 0) {
+            this.selectedKeys.add(toKey)
+            return
+        }
+        const [lo, hi] = a < b ? [a, b] : [b, a]
+        for (let i = lo; i <= hi; i++) {
+            const key = order[i]
+            if (key) this.selectedKeys.add(key)
+        }
+    }
+
+    /** Visible card keys in board order (lane → column → card). */
+    private flatCardKeys(): string[] {
+        const keys: string[] = []
+        for (const lane of this.board.lanes) {
+            for (const col of lane.columns) for (const c of col.cards) keys.push(c.key)
+        }
+        return keys
+    }
+
+    private selectedCards(): KanbanCard[] {
+        const out: KanbanCard[] = []
+        for (const key of this.selectedKeys) {
+            const card = this.cardsByKey.get(key)
+            if (card) out.push(card)
+        }
+        return out
+    }
+
+    private clearSelection(): void {
+        this.selectedKeys.clear()
+        this.lastSelectedKey = null
+        this.refreshSelectionUi()
+    }
+
+    /** Re-apply selected styling to card nodes and (re)render the action bar. */
+    private refreshSelectionUi(): void {
+        if (!this.boardEl) return
+        // Drop selections no longer on the board (archived / filtered out).
+        for (const key of [...this.selectedKeys]) {
+            if (!this.cardsByKey.has(key)) this.selectedKeys.delete(key)
+        }
+        this.boardEl.toggleClass('kap-board-selecting', this.selectionMode)
+        for (const el of Array.from(this.boardEl.querySelectorAll<HTMLElement>('.kap-card'))) {
+            el.toggleClass('kap-card-selected', this.selectedKeys.has(el.dataset['cardKey'] ?? ''))
+        }
+        this.renderSelectionBar()
+    }
+
+    private renderSelectionBar(): void {
+        const bar = this.selectionBarEl
+        if (!bar) return
+        const count = this.selectedKeys.size
+        bar.empty()
+        if (!this.selectionMode || count === 0) {
+            bar.addClass('kap-hidden')
+            return
+        }
+        bar.removeClass('kap-hidden')
+        bar.createSpan({ cls: 'kap-selection-count', text: `${String(count)} selected` })
+        const actions = bar.createDiv({ cls: 'kap-selection-actions' })
+
+        const statusBtn = actions.createEl('button', {
+            cls: 'kap-selection-btn',
+            text: 'Set status'
+        })
+        statusBtn.addEventListener('click', (e) => this.openBulkStatusMenu(e))
+        this.addSelectionButton(actions, 'Archive', () => void this.bulkArchive())
+        this.addSelectionButton(actions, 'Open', () => this.bulkOpen())
+        this.addSelectionButton(actions, 'Clear', () => this.clearSelection())
+    }
+
+    private addSelectionButton(parent: HTMLElement, label: string, onClick: () => void): void {
+        parent
+            .createEl('button', { cls: 'kap-selection-btn', text: label })
+            .addEventListener('click', onClick)
+    }
+
+    private openBulkStatusMenu(event: MouseEvent): void {
+        const menu = new Menu()
+        for (const col of this.columns) {
+            menu.addItem((item) =>
+                item.setTitle(col.label).onClick(() => void this.bulkSetStatus(col.statusValue))
+            )
+        }
+        menu.addSeparator()
+        menu.addItem((item) =>
+            item
+                .setTitle('Clear status')
+                .setIcon('x')
+                .onClick(() => void this.bulkSetStatus(null))
+        )
+        menu.showAtMouseEvent(event)
+    }
+
+    /** Bulk-write the status on all selected cards (sequential; summary notice). */
+    private async bulkSetStatus(statusValue: string | null): Promise<void> {
+        if (!this.statusProperty) return
+        const property = this.statusProperty
+        let ok = 0
+        let failed = 0
+        for (const card of this.selectedCards()) {
+            try {
+                if (statusValue === null) await deleteProperty(this.app, card.file, property)
+                else await setProperty(this.app, card.file, property, statusValue)
+                ok++
+            } catch {
+                failed++
+            }
+        }
+        new Notice(
+            `Set status on ${String(ok)} card(s)${failed ? `, ${String(failed)} failed` : ''}.`
+        )
+        this.clearSelection()
+    }
+
+    private async bulkArchive(): Promise<void> {
+        let ok = 0
+        let skipped = 0
+        let failed = 0
+        for (const card of this.selectedCards()) {
+            const archive = this.archiveConfigFor(card)
+            if (archive.archiveFolder.trim().length === 0) {
+                skipped++
+                continue
+            }
+            const result = await archiveNote(this.app, card.file, archive)
+            if (result.ok) ok++
+            else failed++
+        }
+        const parts = [`Archived ${String(ok)}`]
+        if (skipped) parts.push(`${String(skipped)} skipped (no folder)`)
+        if (failed) parts.push(`${String(failed)} failed`)
+        new Notice(`${parts.join(', ')}.`)
+        this.clearSelection()
+    }
+
+    private bulkOpen(): void {
+        for (const card of this.selectedCards()) {
+            void this.app.workspace.getLeaf('tab').openFile(card.file)
+        }
+        this.clearSelection()
     }
 
     /**
@@ -1097,12 +1282,13 @@ export class KanbanActionPlannerView extends BasesView {
         renderViewToolbar(
             this.toolbarLeftEl,
             this.toolbarRightEl,
-            { calendarMode: this.calendarMode(), showLaneNav },
+            { calendarMode: this.calendarMode(), showLaneNav, selectionMode: this.selectionMode },
             {
                 onSetCalendarMode: (calendar) => this.setCalendarMode(calendar),
                 onConfigure: () => this.openSettings(),
                 onLanePrev: () => this.scrollLane(-1),
-                onLaneNext: () => this.scrollLane(1)
+                onLaneNext: () => this.scrollLane(1),
+                onToggleSelectionMode: () => this.toggleSelectionMode()
             }
         )
     }
