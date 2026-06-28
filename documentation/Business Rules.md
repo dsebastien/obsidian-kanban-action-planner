@@ -101,3 +101,15 @@ See `documentation/plans/kanban-action-planner-implementation-plan.md` for full 
 15. **Big-bang delivery.** No public release between milestones; a single `1.0.0` cut after
     all milestones pass (version stays `0.0.0` until then). UI behavior is never claimed from
     a green build alone — it is flagged for manual verification in Obsidian.
+16. **Filter bar (issue #34).** A toolbar search box (after the Board/Calendar switch) narrows
+    the visible cards in **both** modes via a "JQL-lite" query: whitespace = AND, `OR`/`|`
+    between groups (AND binds tighter, no parentheses), `-`/`NOT` negation, `property:value`
+    qualifiers with comma-as-OR and quoting, all case-insensitive substring. Reserved names
+    (`title`, `status` [value or column label], `parent`/`child`/`sibling`/`blocked`, `tag`,
+    `due`) win over same-named frontmatter; any other name is a frontmatter property. `due:`
+    alone has operators (`< > <= >=`, exact day) and keywords (`today`, `overdue`, `none`,
+    `week`/`month`/`quarter`/`year` = the calendar period containing today). Bare words search
+    title + relationship names + tags + all frontmatter values (never note body). The query
+    persists per-view in `this.config.filterQuery`; it ANDs with the blocked filter and keeps
+    existing column/lane visibility rules. Parsing is best-effort (never throws). This subsumes
+    and replaces the old per-view `calendarFilter` option.

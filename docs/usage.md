@@ -46,6 +46,40 @@ until you define your statuses.
 
 Ordering is stored in your notes (not in plugin data), so it travels with the vault.
 
+## Filtering (search bar)
+
+The **filter box** in the toolbar (right after the **Board / Calendar** buttons) narrows the
+visible cards as you type — in **both** board and calendar mode. It supports a compact,
+Jira-like query language; the count of matches shows next to the box, and the **×** (or **Esc**)
+clears it. Your filter is **saved with the view**, so it persists when you reopen the board.
+Click the **?** for an in-app cheat-sheet.
+
+**Basics**
+
+- **Words = AND.** `book project` matches cards containing both.
+- **`OR` (or `|`) between groups.** `book OR plan`. AND binds tighter than OR, so
+  `book project OR goal` means `(book AND project) OR goal`.
+- **`-` or `NOT` excludes.** `project -status:done`.
+- A plain word searches the **title, related note names, tags, and every frontmatter
+  property value** (not the note body).
+
+**`property:value` qualifiers**
+
+- Quote values with spaces: `parent:"PKM Library"`.
+- **Comma = OR** within one property: `status:active,done`.
+- Recognized names: `title`, `status` (matches the value or its column label), `parent`,
+  `child`, `sibling`, `blocked`, `tag`, `due`, **or any frontmatter property** (e.g.
+  `urgency:now`, `effort:large`) — even properties not shown on the card.
+
+**`due:` dates**
+
+- Keywords: `due:today`, `due:overdue`, `due:none`, and `due:week` / `due:month` /
+  `due:quarter` / `due:year` (the calendar period containing today).
+- Comparisons: `due:>2026-01-01`, `due:<2026-01-01`, `due:>=…`, `due:<=…`, or an exact day
+  `due:2026-01-15`.
+
+Example: `book parent:"PKM" status:active OR due:overdue`.
+
 ## Swimlanes (grouping)
 
 Split the board into horizontal **lanes**, each with its own columns. Choose how to group in the
@@ -185,8 +219,9 @@ panel onto the focused day to schedule it, or drag one out to the panel to clear
 **Set deadline**. "On a date…" opens a small date picker. This is the quickest way to set or
 change a date without dragging — and it works on the board too, not just the calendar.
 
-**Sort and filter the panel** (view options): order the cards by **Manual order**, **Name**,
-or **a property** (e.g. a priority or estimate), and **filter** the list by name or `#tag`.
+**Sort the panel** (view options): order the cards by **Manual order**, **Name**, or **a
+property** (e.g. a priority or estimate). To narrow the panel, use the toolbar
+[filter box](#filtering-search-bar) — it applies to the calendar and its panel together.
 
 ## Other interactions
 
@@ -228,7 +263,8 @@ changing your notes. They're grouped:
 **Calendar**
 
 - **Default range** — Week, Month, Quarter, or Year.
-- **Scheduling panel sort / sort property / filter** — order and filter the panel's tab cards.
+- **Scheduling panel sort / sort property** — order the panel's tab cards (narrowing is done
+  with the toolbar filter box).
 
 (Calendar mode itself is toggled by the in-view **Board / Calendar** switch; the scheduled/due
 date **property names** are set globally in plugin settings.)

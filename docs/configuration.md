@@ -156,8 +156,8 @@ properties (their names are set in plugin settings) and writes them when you dra
 Dates are parsed leniently (a `YYYY-MM-DD` or full date string, or a real date value) and
 written with the profile's momentjs **date format** (default `YYYY-MM-DD`). The calendar's
 default **range** (week/month/quarter/year) and the **panel sort** (manual order / name /
-a property) and **filter** (name or `#tag`) are all view options. Tab counts reflect the full
-backlog size; the filter narrows only the visible list.
+a property) are view options. To narrow the calendar (grid and panel together), use the
+toolbar **filter box** — see the usage guide's "Filtering" section.
 
 The week the calendar grid starts on is set by **First day of the week** in the plugin settings
 (default **Monday**). This only affects the calendar display; the `{{week}}` archive placeholder
