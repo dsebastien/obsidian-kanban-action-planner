@@ -59,9 +59,13 @@ column rule.
   **first day of week** — `startOfWeek`/`weekdayLabels` keyed off the global `firstDayOfWeek`
   setting, `parseFrontmatterDate`, `bucketByDay`, `shiftAnchor`, `addDays`, `formatLongDate`)
   and `domain/calendar-tabs.ts` (`matchesQuery` + `compareTabCards` for the panel's
-  filter/sort). The active tab selects the **date dimension** (`scheduled` vs `deadline`);
-  dragging a card onto a day writes that dimension's property (formatted via
-  `utils/momentjs.ts`), dragging back to the panel clears it (`ui/calendar/*`).
+  filter/sort). The grid shows **both date dimensions at once** — each card is plotted on its
+  `scheduled` day (blue) _and_ its `deadline` (orange; split-edge if same day, red if overdue) —
+  so a card with both dates appears twice. The panel tabs are backlogs (cards missing each date)
+  and choose which date a panel drag sets; a dragged calendar chip moves _its own_ dimension's
+  property (formatted via `utils/momentjs.ts`), dragging back to the panel clears it; a toolbar
+  legend filters each dimension (`ui/calendar/*`). Dates are also settable from the card
+  right-click menu (today / tomorrow / pick-a-date / clear).
   **Day view / zoom:** the range switcher has a first-class **Day** entry (focuses today); a day
   number click zooms into that specific day. Both set `focusedDay` in the renderer model →
   a single-day list with ‹ Back + ‹/Today/› day nav and the range switcher (Day active). The

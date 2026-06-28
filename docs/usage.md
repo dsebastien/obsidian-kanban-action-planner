@@ -127,15 +127,25 @@ top-left of the view to flip between the two modes (it persists per view; you ca
 **Calendar mode** in the view options). The view splits into a left **Scheduling** panel and a
 calendar on the right.
 
-The panel has two tabs, and the active tab decides which date the calendar works with:
+**The calendar shows both dimensions at once.** Every card is plotted on **both** its
+**scheduled date** (`date_scheduled` by default) and its **deadline** (`date_due`), so you can
+see what's planned _and_ what's due in one view. Chips are color-coded by their left edge:
 
-- **Unplanned** — cards with no **scheduled date** (`date_scheduled` by default). The calendar
-  then shows cards on their scheduled date.
-- **No deadline** — cards with no **due date** (`date_due` by default). The calendar shows
-  cards on their due date.
+- **Blue** — a scheduled date (when you plan to work on it).
+- **Orange** — a deadline.
+- **Split blue/orange** — both fall on the same day.
+- **Red** — an overdue deadline (its day is already in the past).
 
-Cards placed on the calendar by a **due date** show an **orange** left edge; cards placed by a
-**scheduled date** show the usual accent (blue) — so deadlines stand out at a glance.
+A card with a scheduled date _and_ a deadline therefore appears twice — once on each day — so a
+task planned for Monday and due Friday shows up on both. Use the **legend** in the calendar
+toolbar (`◼ Scheduled  ◼ Deadlines`) as a filter: click either swatch to hide/show that
+dimension (both on by default).
+
+The panel's two tabs are **backlogs** — cards still missing a date — and they decide which date
+a _panel drag_ sets:
+
+- **Unplanned** — cards with no scheduled date.
+- **No deadline** — cards with no deadline.
 
 Each tab count is the size of that backlog. Collapse the panel with the **«** toggle (the
 "Scheduling" title stays visible, turned vertical). When the calendar gets too narrow — for
@@ -156,10 +166,17 @@ panel onto the focused day to schedule it, or drag one out to the panel to clear
 
 **Schedule by dragging:**
 
-- **Drag a card from the panel onto a day** to set the active tab's date (written in your
-  configured date format, `YYYY-MM-DD` by default). The card moves onto that day.
-- **Drag a card from a day back onto the panel** to clear that date. The card returns to the
-  panel.
+- **Drag a chip on the calendar onto another day** to move _its own_ date — a blue chip
+  reschedules, an orange chip moves the deadline, a split chip moves both together (written in
+  your configured date format, `YYYY-MM-DD` by default).
+- **Drag a card from the panel onto a day** to set the date for the active backlog tab
+  (Unplanned → scheduled date, No deadline → deadline).
+- **Drag a chip back onto the panel** to clear the date it represents.
+
+**Schedule from the right-click menu (any card, board or calendar).** Right-click a card for
+**Schedule for today / tomorrow / on a date… / Clear scheduled date** and the same for
+**Set deadline**. "On a date…" opens a small date picker. This is the quickest way to set or
+change a date without dragging — and it works on the board too, not just the calendar.
 
 **Sort and filter the panel** (view options): order the cards by **Manual order**, **Name**,
 or **a property** (e.g. a priority or estimate), and **filter** the list by name or `#tag`.

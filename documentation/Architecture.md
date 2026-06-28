@@ -110,15 +110,22 @@ through `renderBoard`/`patchBoard`. Swimlanes are content-sized but capped at on
 (`max-h-full`), scrolling their columns internally.
 
 **Calendar mode.** When `calendarMode` is on, `rebuild()` calls `renderCalendarFrame()` instead of
-the board: `ui/calendar/calendar-renderer.ts` draws a collapsible **Scheduling** panel
-(Unplanned / No-deadline tabs = the scheduled vs deadline date dimension) plus a CSS-grid
-calendar (`grid-template-columns: repeat(7, minmax(0, 1fr))` so every day stays visible and chips
-truncate). Chips placed by a **deadline** get an orange edge (vs the blue scheduled accent).
-`ui/calendar/calendar-dnd.ts` mirrors `BoardDnd` for set/clear-date drops. A `ResizeObserver` on
-the board host **auto-collapses the panel** when the container is narrower than ~36rem and
-restores it when there's room (only on a width-category change; a manual toggle clears the auto
-state). In-memory per-session calendar state: range override, active tab, anchor, focused day,
-panel-collapsed (+ auto-collapse flags).
+the board: `ui/calendar/calendar-renderer.ts` draws a collapsible **Scheduling** panel plus a
+CSS-grid calendar (`grid-template-columns: repeat(7, minmax(0, 1fr))` so every day stays visible
+and chips truncate). **Unified overlay:** the grid plots every card on **both** its scheduled day
+_and_ its deadline — `cardsByDay` is a `Map<dayKey, CalendarEntry[]>` where each entry carries a
+`kind` (`scheduled` blue / `deadline` orange / `both` split-edge when same day) and an `overdue`
+flag (deadline before today → red). A card with two dates appears twice. The panel's two tabs are
+now just **backlogs** (cards missing each date) and decide which date a _panel drag_ sets; a
+toolbar **legend** doubles as a per-dimension filter (`showScheduled`/`showDeadlines`). DnD:
+`ui/calendar/calendar-dnd.ts` reads the dragged chip's `data-dimension` and reports it, so
+dragging a chip moves _its own_ date (`both` moves both); dropping on the panel clears it.
+Scheduling is also reachable from the **card right-click menu** (Schedule / Set deadline →
+today / tomorrow / pick-a-date via `ui/date-prompt-modal.ts` / clear), on the board too. A
+`ResizeObserver` on the board host **auto-collapses the panel** when the container is narrower
+than ~36rem and restores it when there's room (only on a width-category change; a manual toggle
+clears the auto state). In-memory per-session calendar state: range override, active tab, anchor,
+focused day, panel-collapsed (+ auto-collapse flags), and the two legend toggles.
 
 **Configure-board modal** (`ui/configure-board-modal.ts`): a two-pane dialog — a left section nav
 (Cards / Colors / Swimlanes / Relationships / Archiving) over a scrollable content pane; the
