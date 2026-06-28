@@ -1,5 +1,17 @@
 # Release Notes
 
+## 0.2.0 (2026-06-28)
+
+### Features
+
+- **plugin:** central Note Types settings — define each type's config once
+- **plugin:** note-type-specific archiving (per-type archive folders)
+- **plugin:** unified calendar showing scheduled and deadline dates together
+
+### Bug Fixes
+
+- **plugin:** show a pointer cursor on every plugin button
+
 ## 0.1.0 (2026-06-28)
 
 ### Features

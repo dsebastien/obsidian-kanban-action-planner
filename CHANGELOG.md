@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.0](https://github.com/dsebastien/obsidian-kanban-action-planner/compare/0.1.0...0.2.0) (2026-06-28)
+
+### Features
+
+* **plugin:** central Note Types settings — define each type's config once ([7643341](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/76433414f06347cc8378d9f1d79fa8ab01537b4c))
+* **plugin:** note-type-specific archiving (per-type archive folders) ([75f1cff](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/75f1cff769279f8e63ee67629ff9682347426767))
+* **plugin:** unified calendar showing scheduled and deadline dates together ([858417d](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/858417dbd08233d057713970f60eb0084de84abd))
+
+### Bug Fixes
+
+* **plugin:** show a pointer cursor on every plugin button ([f7df0b9](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/f7df0b9e24780a42e30fa032d0601c05bf497f4d))
+
 ## [0.1.0](https://github.com/dsebastien/obsidian-kanban-action-planner/compare/0.0.4...0.1.0) (2026-06-28)
 
 ### Features
@@ -67,6 +79,7 @@ All notable changes to this project will be documented in this file.
 
 * **plugin:** match Starter Kit's {{quarter}} placeholder format (Q2, not 2) ([4fde618](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/4fde6185c5956e3f6fd2ca3a9b03e70cf5e16840))
 * **plugin:** persist discovered statuses so Show empty columns works ([cf91b81](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/cf91b81a1b0786e35c73f4885882e2dc33564c62))
+
 
 
 
