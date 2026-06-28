@@ -1,5 +1,12 @@
 # Release Notes
 
+## 0.4.1 (2026-06-28)
+
+### Bug Fixes
+
+- **plugin:** log instead of silently dropping note-type writes
+- **plugin:** use activeDocument for drag ghost + hit-testing
+
 ## 0.4.0 (2026-06-28)
 
 ### Features

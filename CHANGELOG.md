@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.1](https://github.com/dsebastien/obsidian-kanban-action-planner/compare/0.4.0...0.4.1) (2026-06-28)
+
+### Bug Fixes
+
+* **plugin:** log instead of silently dropping note-type writes ([6717919](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/67179199a0a7dafce3b0a810eec2d5746c06b102))
+* **plugin:** use activeDocument for drag ghost + hit-testing ([0074a94](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/0074a94770aab86eab779adfd526ac582a3a9eae))
+
 ## [0.4.0](https://github.com/dsebastien/obsidian-kanban-action-planner/compare/0.3.0...0.4.0) (2026-06-28)
 
 ### Features
@@ -109,6 +116,7 @@ All notable changes to this project will be documented in this file.
 
 * **plugin:** match Starter Kit's {{quarter}} placeholder format (Q2, not 2) ([4fde618](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/4fde6185c5956e3f6fd2ca3a9b03e70cf5e16840))
 * **plugin:** persist discovered statuses so Show empty columns works ([cf91b81](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/cf91b81a1b0786e35c73f4885882e2dc33564c62))
+
 
 
 
