@@ -72,6 +72,14 @@ See `documentation/plans/kanban-action-planner-implementation-plan.md` for full 
    no auto-transition. **A role configured as "None"** (empty link-property and no heuristic)
    is fully off: it gets **no** related notes from any source — not direct, not inverse of an
    active opposite role, not heuristic — so its badge never appears for that note type.
+   **`blocked_by` is board-scoped (issue #13):** a direct blocker only counts while the blocker
+   is itself on the board; a blocker that leaves the board (archived/removed/filtered out) stops
+   blocking the card (`DEFAULT_BOARD_SCOPED_ROLES = { blocked_by }` in `domain/relationships.ts`).
+   Navigational roles (parent/child/sibling) may still point off-board. **Live refresh:** because
+   relationships are read-only and resolved from the metadata cache, the view also rebuilds on
+   `metadataCache.on('changed')` for any note currently on the board — so editing a `blocked_by`
+   link (or any frontmatter) in place updates the card without a reload, even when the Base result
+   set is unchanged (`onDataUpdated` alone would miss it).
 10. **Calendar mode.** A toggle adds a collapsible "Scheduling" panel (Unplanned /
     No-Deadline tabs; title always visible, vertical when collapsed) + a week/month/quarter/
     year calendar. Dragging a card to a day sets the relevant date property (momentjs format,

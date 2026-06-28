@@ -8,7 +8,9 @@ import type { RelationshipRole } from './note-type'
  * related notes per role by combining three sources:
  *
  * - **Direct** — the targets a note names in its own role link-property. May
- *   point outside the known set (e.g. a blocker not on this board).
+ *   point outside the known set (e.g. a parent not on this board) — EXCEPT for
+ *   **board-scoped roles** (`blocked_by` by default), whose off-board targets are
+ *   dropped so an archived/removed blocker stops blocking the card (issue #13).
  * - **Inverse** — reverse lookup within the known set: `parent`/`child` are
  *   inverses, `sibling` is symmetric (`blocked_by` has no modelled inverse).
  * - **Heuristic** — a secondary, link-scoped rule: a note carrying an allowed
@@ -66,20 +68,32 @@ export function normalizeTag(tag: string): string {
     return trimmed.length > 0 ? `#${trimmed}` : ''
 }
 
+/** Roles whose direct targets must be on the board to count (issue #13). */
+export const DEFAULT_BOARD_SCOPED_ROLES: ReadonlySet<RelationshipRole> = new Set<RelationshipRole>([
+    'blocked_by'
+])
+
 /**
  * Resolve relationships for every record. Returns a map keyed by note key; each
  * value is the note's role sets (deduped, self-references removed). Direct links
- * are kept even when they leave the known set; inverse and heuristic relations
- * are only formed between known records.
+ * are kept even when they leave the known set — EXCEPT for `boardScopedRoles`,
+ * whose off-board targets are dropped; inverse and heuristic relations are only
+ * formed between known records.
  *
  * `activeRoles` lists the roles that are turned on; a role outside it is fully
  * suppressed (no direct, inverse, or heuristic relations) — this is how a role
  * configured as "None" disappears entirely. Defaults to all roles active.
+ *
+ * `boardScopedRoles` (default `{ blocked_by }`) lists roles whose **direct**
+ * targets only count when the target is itself a known record. This makes an
+ * archived/removed blocker stop blocking once it leaves the board (issue #13),
+ * while navigational roles (parent/child/sibling) may still point off-board.
  */
 export function resolveRelationships(
     records: ReadonlyArray<NoteRecord>,
     heuristics: ReadonlyArray<HeuristicRule> = [],
-    activeRoles: ReadonlySet<RelationshipRole> = new Set(RELATIONSHIP_ROLES)
+    activeRoles: ReadonlySet<RelationshipRole> = new Set(RELATIONSHIP_ROLES),
+    boardScopedRoles: ReadonlySet<RelationshipRole> = DEFAULT_BOARD_SCOPED_ROLES
 ): Map<string, RelationshipSet> {
     const inSet = new Set(records.map((r) => r.key))
     const result = new Map<string, RelationshipSet>()
@@ -99,6 +113,8 @@ export function resolveRelationships(
             const targets = record.roleLinks[role]
             if (!targets) continue
             for (const target of targets) {
+                // A board-scoped role (blocked_by) drops targets that left the board.
+                if (boardScopedRoles.has(role) && !inSet.has(target)) continue
                 add(record.key, role, target)
                 const inverse = INVERSE[role]
                 if (inverse && inSet.has(target)) add(target, inverse, record.key)

@@ -177,7 +177,15 @@ placeholder suffix.
 Relationships are layered in two pure modules + a bridge: `domain/relationships.ts`
 (`resolveRelationships` — direct + inverse + heuristic) and `domain/filtering.ts` (blocked
 filter) are unit-tested; `services/relationships.service.ts` reads tags/links from the metadata
-cache and feeds the domain. Relationships are read-only (never written back). On the card,
+cache and feeds the domain. Relationships are read-only (never written back). **`blocked_by` is
+board-scoped (issue #13):** `resolveRelationships` drops direct targets of `boardScopedRoles`
+(`DEFAULT_BOARD_SCOPED_ROLES = { blocked_by }`) when the target isn't itself a board record, so an
+archived/removed blocker stops blocking; navigational roles may still point off-board. On the card,
 `ui/board/card-renderer.ts` draws one counted badge per non-empty role (`onRelationship`
 callback); the view resolves the badge to a single-note open or a picker `Menu`, honouring
 Ctrl/Cmd for a new tab (`isNewTabEvent`).
+
+**Live in-place refresh (issue #13).** Beyond `onDataUpdated` (which fires only when the Base
+result set changes), the view registers `metadataCache.on('changed')` and rebuilds (debounced) when
+a note **currently on the board** changes — so editing a `blocked_by` link, a due date, or a
+displayed field updates the card without a reload even though the result set is unchanged.

@@ -57,10 +57,30 @@ describe('resolveRelationships', () => {
         expect(rels.get('b.md')?.parent).toEqual([])
     })
 
-    it('keeps direct links that point outside the known set (no inverse)', () => {
-        const rels = resolveRelationships([record('a.md', { blocked_by: ['external.md'] })])
-        expect(rels.get('a.md')?.blocked_by).toEqual(['external.md'])
+    it('keeps a navigational direct link that points outside the known set (no inverse)', () => {
+        const rels = resolveRelationships([record('a.md', { parent: ['external.md'] })])
+        expect(rels.get('a.md')?.parent).toEqual(['external.md'])
         expect(rels.has('external.md')).toBe(false)
+    })
+
+    it('drops an off-board blocked_by target so an archived blocker stops blocking (issue #13)', () => {
+        // A is blocked by B (on board) and C (archived → not a known record).
+        const rels = resolveRelationships([
+            record('a.md', { blocked_by: ['b.md', 'c.md'] }),
+            record('b.md')
+        ])
+        expect(rels.get('a.md')?.blocked_by).toEqual(['b.md'])
+    })
+
+    it('honours a custom boardScopedRoles set (scope parent, keep blocked_by off-board)', () => {
+        const rels = resolveRelationships(
+            [record('a.md', { parent: ['external.md'], blocked_by: ['gone.md'] })],
+            [],
+            new Set<RelationshipRole>(['parent', 'sibling', 'child', 'blocked_by']),
+            new Set<RelationshipRole>(['parent'])
+        )
+        expect(rels.get('a.md')?.parent).toEqual([]) // parent now board-scoped → dropped
+        expect(rels.get('a.md')?.blocked_by).toEqual(['gone.md']) // not scoped → kept
     })
 
     it('ignores self-references', () => {

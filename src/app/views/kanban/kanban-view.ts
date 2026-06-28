@@ -232,8 +232,22 @@ export class KanbanActionPlannerView extends BasesView {
         })
         this.resizeObserver = new ResizeObserver(() => this.debouncedResize())
         this.resizeObserver.observe(this.boardEl)
+        // Refresh when a note already on the board changes in place (issue #13).
+        // `onDataUpdated` only fires when the Base result set changes, so editing a
+        // card's frontmatter (a blocked_by link, a due date, a displayed field)
+        // would otherwise leave the card stale until reload.
+        this.registerEvent(
+            this.app.metadataCache.on('changed', (file) => {
+                if (this.isOnBoard(file)) this.debouncedRebuild()
+            })
+        )
         this.plugin.trackKanbanView(this)
         void this.resolveAndRebuild()
+    }
+
+    /** Whether a changed file is currently part of this board's note set. */
+    private isOnBoard(file: TFile): boolean {
+        return this.files().some((f) => f.path === file.path)
     }
 
     override onunload(): void {
