@@ -7,14 +7,25 @@ import {
     UNGROUPED_LANE_ID,
     UNMAPPED_COLUMN_ID
 } from '../../constants'
-import type { ColumnDef, LaneGrouping, Profile, RelationshipRole } from '../../domain/profile'
+import type {
+    ArchiveConfig,
+    ColumnDef,
+    LaneGrouping,
+    Profile,
+    RelationshipRole
+} from '../../domain/profile'
 import { buildBoard } from '../../domain/board-model'
 import type { Board, UnmappedPosition } from '../../domain/board-model'
 import { detectStatusProperty, normalizeStatusValue } from '../../domain/status'
 import { passesFilter } from '../../domain/filtering'
 import type { BlockedFilter, RelationalFilter } from '../../domain/filtering'
 import type { RelationshipSet } from '../../domain/relationships'
-import { recognizeNoteType } from '../../services/starter-kit.service'
+import {
+    findStatusProperty,
+    isStarterKitAvailable,
+    listNoteTypes,
+    recognizeNoteType
+} from '../../services/starter-kit.service'
 import {
     resolveBoardRelationships,
     toCardRelationships
@@ -31,6 +42,7 @@ import {
     DEFAULT_PROFILE_ID,
     columnsFromValues,
     createDefaultProfile,
+    findProfile,
     resolveActiveProfile
 } from '../../services/profile-service'
 import { buildCardDisplay } from '../../services/card-display.service'
@@ -91,6 +103,9 @@ export class KanbanActionPlannerView extends BasesView {
     private columns: ColumnDef[] = []
     private laneGrouping: LaneGrouping = { kind: 'none' }
     private laneValueByPath = new Map<string, string | null>()
+    // Per-file note type (Starter Kit) and the archive config it resolves to.
+    private noteTypeByPath = new Map<string, { id: string; name: string } | null>()
+    private archiveByPath = new Map<string, ArchiveConfig>()
     private relationshipsByPath = new Map<string, RelationshipSet>()
     private readonly collapsedLanes = new Set<string>()
     private readonly collapsedColumns = new Set<string>()
@@ -173,9 +188,57 @@ export class KanbanActionPlannerView extends BasesView {
         const resolved = await resolveActiveProfile(this.app, this.plugin, files)
         this.profile = resolved.profile
         this.profileStatusValues = resolved.statusValues
+        // Recognize each file's note type once (Starter Kit only) — shared by
+        // swimlanes and per-type archiving.
+        this.noteTypeByPath = isStarterKitAvailable(this.app)
+            ? await this.recognizeNoteTypes(files)
+            : new Map()
         this.laneGrouping = this.resolveLaneGrouping()
-        this.laneValueByPath = await this.computeLaneValues(files, this.laneGrouping)
+        this.laneValueByPath = this.computeLaneValues(files, this.laneGrouping)
+        this.archiveByPath = this.computeArchiveByPath(files)
         this.rebuild()
+    }
+
+    /** Recognize the Starter Kit note type of every file. */
+    private async recognizeNoteTypes(
+        files: TFile[]
+    ): Promise<Map<string, { id: string; name: string } | null>> {
+        const map = new Map<string, { id: string; name: string } | null>()
+        for (const file of files) {
+            const type = await recognizeNoteType(this.app, file)
+            map.set(file.path, type ? { id: type.id, name: type.name } : null)
+        }
+        return map
+    }
+
+    /**
+     * Resolve each card's archive config by its note type: a recognized type uses
+     * its own profile's archive (so a mixed board files each type where it
+     * belongs); untyped cards fall back to the active/default profile.
+     */
+    private computeArchiveByPath(files: TFile[]): Map<string, ArchiveConfig> {
+        const map = new Map<string, ArchiveConfig>()
+        const byType = new Map<string, ArchiveConfig>()
+        const empty: ArchiveConfig = { archiveFolder: '', triggerStatus: null }
+        for (const file of files) {
+            const type = this.noteTypeByPath.get(file.path) ?? null
+            if (!type) {
+                map.set(file.path, this.profile.archive)
+                continue
+            }
+            let config = byType.get(type.id)
+            if (!config) {
+                config = findProfile(this.plugin, type.id)?.archive ?? empty
+                byType.set(type.id, config)
+            }
+            map.set(file.path, config)
+        }
+        return map
+    }
+
+    /** The archive config that applies to a card (by its note type). */
+    private archiveConfigFor(card: KanbanCard): ArchiveConfig {
+        return this.archiveByPath.get(card.key) ?? this.profile.archive
     }
 
     /** Per-view grouping override (when set) else the profile's grouping. */
@@ -188,10 +251,7 @@ export class KanbanActionPlannerView extends BasesView {
      * `note-type` grouping, or the chosen property's scalar value for `property`
      * grouping. Empty for `none`.
      */
-    private async computeLaneValues(
-        files: TFile[],
-        grouping: LaneGrouping
-    ): Promise<Map<string, string | null>> {
+    private computeLaneValues(files: TFile[], grouping: LaneGrouping): Map<string, string | null> {
         const map = new Map<string, string | null>()
         if (grouping.kind === 'none') return map
         if (grouping.kind === 'property') {
@@ -203,9 +263,9 @@ export class KanbanActionPlannerView extends BasesView {
             }
             return map
         }
+        // note-type grouping reuses the recognition done in resolveAndRebuild.
         for (const file of files) {
-            const type = await recognizeNoteType(this.app, file)
-            map.set(file.path, type?.name ?? null)
+            map.set(file.path, this.noteTypeByPath.get(file.path)?.name ?? null)
         }
         return map
     }
@@ -398,8 +458,29 @@ export class KanbanActionPlannerView extends BasesView {
             this.profile,
             statusValues,
             this.availableProperties,
+            this.presentArchiveTypes(),
             () => void this.resolveAndRebuild()
         ).open()
+    }
+
+    /**
+     * The note types present on this board, each with its status values — so the
+     * Configure-board → Archiving section can offer a folder + trigger per type.
+     * Empty when the Starter Kit isn't recognizing types (single default profile).
+     */
+    private presentArchiveTypes(): Array<{ id: string; name: string; statusValues: string[] }> {
+        const names = new Map<string, string>()
+        for (const type of this.noteTypeByPath.values()) {
+            if (type) names.set(type.id, type.name)
+        }
+        if (names.size === 0) return []
+        const skTypes = listNoteTypes(this.app)
+        const defaultStatus = this.plugin.settings.defaultStatusProperty
+        return Array.from(names, ([id, name]) => {
+            const sk = skTypes.find((t) => t.id === id)
+            const status = sk ? findStatusProperty(sk, defaultStatus) : null
+            return { id, name, statusValues: status?.allowedValues ?? [] }
+        }).sort((a, b) => a.name.localeCompare(b.name))
     }
 
     private async handleDrop(cardKey: string, target: DropTarget): Promise<void> {
@@ -534,7 +615,7 @@ export class KanbanActionPlannerView extends BasesView {
             )
         }
         this.addSchedulingMenuItems(menu, card)
-        if (this.archivingConfigured()) {
+        if (this.archivingConfigured(card)) {
             menu.addSeparator()
             menu.addItem((item) =>
                 item
@@ -985,22 +1066,22 @@ export class KanbanActionPlannerView extends BasesView {
 
     // ── Archiving ─────────────────────────────────────────────
 
-    /** Whether the active profile has a (non-blank) archive folder configured. */
-    private archivingConfigured(): boolean {
-        return this.profile.archive.archiveFolder.trim().length > 0
+    /** Whether the card's note type has a (non-blank) archive folder configured. */
+    private archivingConfigured(card: KanbanCard): boolean {
+        return this.archiveConfigFor(card).archiveFolder.trim().length > 0
     }
 
     /**
-     * Auto-archive when a card transitions INTO the configured trigger status.
+     * Auto-archive when a card transitions INTO its note type's trigger status.
      * Returns true when the note was archived (caller then skips order writes).
      * Opt-in: no trigger status, no archive folder, or a non-transition is a no-op.
      */
     private async maybeAutoArchive(card: KanbanCard, newStatus: string | null): Promise<boolean> {
-        const trigger = this.profile.archive.triggerStatus
-        if (!trigger || newStatus !== trigger) return false
+        const archive = this.archiveConfigFor(card)
+        if (!archive.triggerStatus || newStatus !== archive.triggerStatus) return false
         if (card.statusValue === newStatus) return false // already there — not a transition
-        if (!this.archivingConfigured()) return false
-        const result = await archiveNote(this.app, card.file, this.profile.archive)
+        if (archive.archiveFolder.trim().length === 0) return false
+        const result = await archiveNote(this.app, card.file, archive)
         if (result.ok) {
             new Notice(`Archived "${card.title}" to ${result.destPath}`)
             return true
@@ -1013,12 +1094,15 @@ export class KanbanActionPlannerView extends BasesView {
 
     /** Manual archive (context menu). Warns about active relationships, then moves. */
     private async archiveCard(card: KanbanCard): Promise<void> {
-        if (!this.archivingConfigured()) {
-            new Notice('No archive folder configured. Set one in Configure board → Archiving.')
+        const archive = this.archiveConfigFor(card)
+        if (archive.archiveFolder.trim().length === 0) {
+            new Notice(
+                'No archive folder configured for this note type. Set one in Configure board → Archiving.'
+            )
             return
         }
         this.warnActiveRelationships(card)
-        const result = await archiveNote(this.app, card.file, this.profile.archive)
+        const result = await archiveNote(this.app, card.file, archive)
         if (result.ok) new Notice(`Archived "${card.title}" to ${result.destPath}`)
         else if (result.reason === 'error') {
             new Notice(`Archive failed: ${result.message ?? 'unknown error'}`)

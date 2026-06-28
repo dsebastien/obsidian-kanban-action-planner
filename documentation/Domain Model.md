@@ -49,10 +49,16 @@ column rule.
   filter** (`all`/`only`/`hide`) over the resolved sets.
 - **ArchiveConfig** (issue #7) — `archiveFolder` (supports `{{year}}`/`{{month}}`/`{{week}}`/
   `{{quarter}}`/`{{day}}`/`{{date}}`/`{{datetime}}`/`{{uuid}}` placeholders, resolved by the
-  pure `utils/expressions.ts`) and an optional `triggerStatus`. Archiving **moves** the note
-  via `services/archive.service.ts` (`fileManager.renameFile`, links preserved); manual via the
-  card menu, or auto when a card **transitions into** `triggerStatus` (opt-in, guarded). Blank
-  `archiveFolder` disables archiving; name clashes get a numeric suffix.
+  pure `utils/expressions.ts`) and an optional `triggerStatus`. Archiving is **per note type**
+  (issue #29): each note-type profile carries its own `archive`, and the view resolves a card's
+  config by _its_ recognized type (`archiveByPath`, built from per-file `recognizeNoteType`), so a
+  board mixing types files each card where it belongs; untyped cards (no Starter Kit) fall back to
+  the default profile. Configure-board → Archiving renders a folder + trigger **per type present**
+  on the board. Archiving **moves** the note via `services/archive.service.ts`
+  (`fileManager.renameFile`, links preserved); manual via the card menu (shown only when the
+  card's type has a folder), or auto when a card **transitions into** its type's `triggerStatus`
+  (opt-in, guarded). Blank `archiveFolder` disables archiving for that type; name clashes get a
+  numeric suffix.
 - **CalendarConfig** — scheduled/due date property names, momentjs `dateFormat`, default
   range, and tab sort key. Calendar mode (per-view `calendarMode` toggle) is driven by pure
   helpers: `domain/calendar.ts` (`CalendarRange`, month/week grid building with a configurable

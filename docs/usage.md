@@ -102,7 +102,14 @@ blocked** cards.
 When you're done with a card, you can **archive** its note — move it out of the board into a
 dedicated folder while keeping all links intact.
 
-Set this up in **Configure board → Archiving**:
+**Archiving is per note type.** When the Obsidian Starter Kit recognizes the note types on your
+board, **Configure board → Archiving** shows a folder (and auto-archive status) **for each
+type** — so on a board mixing e.g. Tasks and Projects, each card is archived to the folder that
+belongs to _its_ type (`Archive/Tasks/{{year}}` vs `Archive/Projects/{{year}}`). A card whose
+type has no folder set simply can't be archived (the menu item is hidden). Without the Starter
+Kit there's a single archive config for the board.
+
+Set this up in **Configure board → Archiving** (per type when available):
 
 - **Archive folder** — where archived notes go. Start typing and **existing folders
   autocomplete**; any `{{…}}` placeholder you've added is kept. The path supports placeholders
