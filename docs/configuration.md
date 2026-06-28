@@ -137,8 +137,9 @@ board → Archiving**:
     Placeholders are case-insensitive. Leaving the folder blank disables archiving. Missing
     folders are created; a name clash gets a numeric suffix so nothing is overwritten.
 
-- **Auto-archive on status** — optional (off by default). When set, a card is archived the
-  moment it **transitions into** that status; reordering within it does nothing.
+- **Auto-archive on status** — optional (off by default). Select **one or more** statuses; a
+  card is archived the moment it **transitions into** any of them. Reordering within such a
+  status does nothing.
 
 Manual archiving is available from a card's right-click menu (**Archive**). Moves go through
 Obsidian's file manager, so wikilinks to the note are updated and stay valid.

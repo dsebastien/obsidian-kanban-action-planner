@@ -81,11 +81,27 @@ export const cardPresentationSchema = z.object({
 })
 export type CardPresentation = z.infer<typeof cardPresentationSchema>
 
-/** Archiving config (issue #7). `archiveFolder` supports `{{year}}` etc. */
-export const archiveConfigSchema = z.object({
-    archiveFolder: z.string(),
-    triggerStatus: z.string().nullable()
-})
+/**
+ * Archiving config (issue #7). `archiveFolder` supports `{{year}}` etc.
+ * `triggerStatuses` lists the statuses that auto-archive a card on entry (issue
+ * #32) — empty means off. The legacy single `triggerStatus` field is migrated
+ * into the list on load and dropped on the next save.
+ */
+export const archiveConfigSchema = z
+    .object({
+        archiveFolder: z.string(),
+        triggerStatuses: z.array(z.string()).optional(),
+        triggerStatus: z.string().nullable().optional()
+    })
+    .transform(({ archiveFolder, triggerStatuses, triggerStatus }) => {
+        const list =
+            triggerStatuses && triggerStatuses.length > 0
+                ? triggerStatuses
+                : triggerStatus
+                  ? [triggerStatus]
+                  : []
+        return { archiveFolder, triggerStatuses: [...new Set(list)] }
+    })
 export type ArchiveConfig = z.infer<typeof archiveConfigSchema>
 
 /** Calendar / scheduling config. */

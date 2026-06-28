@@ -181,17 +181,33 @@ export class ConfigureBoardModal extends Modal {
 
         new Setting(this.body)
             .setName('Auto-archive on status')
-            .setDesc('Automatically archive a card when it enters this status. Opt-in.')
-            .addDropdown((dd) => {
-                dd.addOption(NONE, 'Off')
-                for (const statusValue of statusValues) {
-                    dd.addOption(statusValue, splitStatusValue(statusValue).label)
-                }
-                dd.setValue(archive.triggerStatus ?? NONE)
-                dd.onChange((value) =>
-                    patch({ triggerStatus: value === NONE ? null : value }, true)
-                )
+            .setDesc(
+                'Automatically archive a card when it enters any of the selected statuses. Opt-in.'
+            )
+            .setHeading()
+
+        if (statusValues.length === 0) {
+            this.body.createDiv({
+                cls: 'kap-modal-empty',
+                text: 'Auto-archive statuses appear here once this board has status values.'
             })
+            return
+        }
+
+        for (const statusValue of statusValues) {
+            new Setting(this.body)
+                .setName(splitStatusValue(statusValue).label)
+                .addToggle((toggle) =>
+                    toggle
+                        .setValue(archive.triggerStatuses.includes(statusValue))
+                        .onChange((on) => {
+                            const next = new Set(archive.triggerStatuses)
+                            if (on) next.add(statusValue)
+                            else next.delete(statusValue)
+                            patch({ triggerStatuses: [...next] }, true)
+                        })
+                )
+        }
     }
 
     /**

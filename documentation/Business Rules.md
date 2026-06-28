@@ -80,8 +80,10 @@ See `documentation/plans/kanban-action-planner-implementation-plan.md` for full 
     configurable archive folder that supports Starter-Kit-style placeholders (`{{year}}`,
     `{{month}}`, `{{week}}`, `{{quarter}}`, `{{day}}`, `{{date}}`, `{{datetime}}`,
     `{{uuid}}`). Archiving is manual (context menu) plus an **optional, opt-in** per-profile
-    status trigger (auto-archive when a card reaches a chosen status). File moves preserve
-    links; auto-archiving is guarded against accidental mass-archiving and logged.
+    status trigger (auto-archive when a card transitions into **any of one or more** chosen
+    statuses — issue #32; stored as `triggerStatuses`, migrated from the legacy single
+    `triggerStatus`). File moves preserve links; auto-archiving is guarded against accidental
+    mass-archiving and logged.
 12. **Responsiveness (hard invariant).** Every UI works on large desktop, small/narrow
     desktop, and mobile; layouts adapt and never break/overflow. One Pointer-event DnD path
     serves mouse/trackpad/touch, with a non-drag fallback. `isDesktopOnly` stays `false`.

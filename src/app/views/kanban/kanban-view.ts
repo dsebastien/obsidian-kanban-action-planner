@@ -260,7 +260,7 @@ export class KanbanActionPlannerView extends BasesView {
     private computeArchiveByPath(files: TFile[]): Map<string, ArchiveConfig> {
         const map = new Map<string, ArchiveConfig>()
         const byType = new Map<string, ArchiveConfig>()
-        const empty: ArchiveConfig = { archiveFolder: '', triggerStatus: null }
+        const empty: ArchiveConfig = { archiveFolder: '', triggerStatuses: [] }
         for (const file of files) {
             const type = this.noteTypeByPath.get(file.path) ?? null
             if (!type) {
@@ -1331,7 +1331,7 @@ export class KanbanActionPlannerView extends BasesView {
      */
     private async maybeAutoArchive(card: KanbanCard, newStatus: string | null): Promise<boolean> {
         const archive = this.archiveConfigFor(card)
-        if (!archive.triggerStatus || newStatus !== archive.triggerStatus) return false
+        if (newStatus === null || !archive.triggerStatuses.includes(newStatus)) return false
         if (card.statusValue === newStatus) return false // already there — not a transition
         if (archive.archiveFolder.trim().length === 0) return false
         const result = await archiveNote(this.app, card.file, archive)

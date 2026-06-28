@@ -152,10 +152,10 @@ Set this up in each type's **Archiving** section:
   `{{date}}`, `{{datetime}}`, `{{uuid}}` — e.g. `Archive/{{year}}` files into `Archive/2026`.
   Leave it blank to disable archiving. Intermediate folders are created automatically, and a name
   clash is resolved with a numeric suffix (`Task 1.md`) so nothing is ever overwritten.
-- **Auto-archive on status** — optional and off by default. Pick a status and a card is
-  archived automatically the moment it **transitions into** that status (by drag or menu).
-  Reordering a card that's already in that status does nothing — only the transition triggers
-  it.
+- **Auto-archive on status** — optional and off by default. Tick **one or more** statuses and a
+  card is archived automatically the moment it **transitions into** any of them (by drag or
+  menu). Reordering a card that's already in such a status does nothing — only the transition
+  triggers it.
 
 To archive manually, **right-click a card → Archive** (only shown when an archive folder is
 set). If the note still has active children or blockers you get a non-blocking heads-up — the

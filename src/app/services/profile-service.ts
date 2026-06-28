@@ -82,7 +82,7 @@ export function createDefaultProfile(
             coverImageProperty: null,
             wrapPropertyValues: false
         },
-        archive: { archiveFolder: '', triggerStatus: null },
+        archive: { archiveFolder: '', triggerStatuses: [] },
         relationships: [
             { role: 'parent', linkProperty: DEFAULT_PARENT_PROPERTY },
             { role: 'sibling', linkProperty: DEFAULT_SIBLING_PROPERTY },
