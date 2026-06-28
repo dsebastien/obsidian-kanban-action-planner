@@ -74,6 +74,8 @@ import type { KanbanCard } from '../../ui/board/types'
 import { renderViewToolbar } from '../../ui/view-toolbar'
 import { FilterBar } from '../../ui/filter-bar'
 import { BoardSelection } from './board-selection'
+import { buildCardMenu, isNewTabEvent } from './card-menu'
+import type { CardMenuHost } from './card-menu'
 import { DatePromptModal } from '../../ui/date-prompt-modal'
 import { log } from '../../../utils/log'
 
@@ -813,59 +815,36 @@ export class KanbanActionPlannerView extends BasesView {
     }
 
     private showCardMenu(card: KanbanCard, event: MouseEvent): void {
-        this.buildCardMenu(card).showAtMouseEvent(event)
+        buildCardMenu(card, this.cardMenuHost).showAtMouseEvent(event)
     }
 
     /** Keyboard-triggered card menu, anchored just below the card (issue #20). */
     private showCardMenuAt(card: KanbanCard, cardEl: HTMLElement): void {
         const rect = cardEl.getBoundingClientRect()
-        this.buildCardMenu(card).showAtPosition({ x: rect.left, y: rect.bottom })
+        buildCardMenu(card, this.cardMenuHost).showAtPosition({ x: rect.left, y: rect.bottom })
     }
 
-    private buildCardMenu(card: KanbanCard): Menu {
-        const menu = new Menu()
-        menu.addItem((item) =>
-            item
-                .setTitle('Open note')
-                .setIcon('file')
-                .onClick(() => this.openCard(card, false))
-        )
-        menu.addItem((item) =>
-            item
-                .setTitle('Open in new tab')
-                .setIcon('lucide-external-link')
-                .onClick(() => this.openCard(card, true))
-        )
-        menu.addSeparator()
-        for (const col of this.columns) {
-            menu.addItem((item) =>
-                item
-                    .setTitle(`Set status: ${col.label}`)
-                    .setChecked(card.statusValue === col.statusValue)
-                    .onClick(() => void this.setCardStatus(card, col.statusValue, col.id))
-            )
+    /** Closures over the card actions the {@link buildCardMenu} builder triggers. */
+    private get cardMenuHost(): CardMenuHost {
+        return {
+            openCard: (card, newTab) => this.openCard(card, newTab),
+            columns: () => this.columns,
+            setCardStatus: (card, statusValue, columnId) =>
+                this.setCardStatus(card, statusValue, columnId),
+            archivingConfigured: (card) => this.archivingConfigured(card),
+            archiveCard: (card) => this.archiveCard(card),
+            cardDate: (card, dimension) => this.cardDate(card, dimension),
+            writeCardDate: (card, dimension, iso) => this.writeCardDate(card, dimension, iso),
+            promptDate: (card, dimension, current) => this.promptDate(card, dimension, current),
+            cardDisplayNoteType: (file) => this.cardDisplayNoteType(file),
+            displayFieldCandidates: (card, presentation) =>
+                this.displayFieldCandidates(card, presentation),
+            toggleDisplayField: (noteTypeId, property) =>
+                this.toggleDisplayField(noteTypeId, property),
+            openRelated: (note, newTab) => this.openRelated(note, newTab),
+            todayKey: () => toDateKey(startOfDay(new Date())),
+            tomorrowKey: () => toDateKey(addDays(startOfDay(new Date()), 1))
         }
-        if (card.statusValue !== null) {
-            menu.addItem((item) =>
-                item
-                    .setTitle('Clear status')
-                    .setIcon('x')
-                    .onClick(() => void this.setCardStatus(card, null, UNMAPPED_COLUMN_ID))
-            )
-        }
-        this.addSchedulingMenuItems(menu, card)
-        if (this.archivingConfigured(card)) {
-            menu.addSeparator()
-            menu.addItem((item) =>
-                item
-                    .setTitle('Archive')
-                    .setIcon('archive')
-                    .onClick(() => void this.archiveCard(card))
-            )
-        }
-        this.addDisplayFieldMenuItems(menu, card)
-        this.addRelationshipMenuItems(menu, card)
-        return menu
     }
 
     // ── Keyboard move & reorder (issue #20) ───────────────────
@@ -913,33 +892,6 @@ export class KanbanActionPlannerView extends BasesView {
         void this.applyMove(card, card.statusValue, loc.laneId, column.column.id, target)
     }
 
-    /**
-     * "Show fields" submenu: a checkable list of candidate properties for the
-     * card's note type. Toggling one adds/removes it from that note type's card
-     * config; the change persists and every open board refreshes (via
-     * {@link onSettingsChanged}).
-     */
-    private addDisplayFieldMenuItems(menu: Menu, card: KanbanCard): void {
-        const noteType = this.cardDisplayNoteType(card.file)
-        const candidates = this.displayFieldCandidates(card, noteType.card)
-        if (candidates.length === 0) return
-
-        menu.addSeparator()
-        menu.addItem((item) => {
-            item.setTitle('Show fields').setIcon('list')
-            const submenu = item.setSubmenu()
-            for (const property of candidates) {
-                const shown = noteType.card.fields.some((f) => f.property === property)
-                submenu.addItem((sub) =>
-                    sub
-                        .setTitle(property)
-                        .setChecked(shown)
-                        .onClick(() => void this.toggleDisplayField(noteType.id, property))
-                )
-            }
-        })
-    }
-
     /** Add or remove a property from a note type's displayed card fields. */
     private async toggleDisplayField(noteTypeId: string, property: string): Promise<void> {
         const noteType = findNoteType(this.plugin, noteTypeId)
@@ -957,69 +909,6 @@ export class KanbanActionPlannerView extends BasesView {
      */
     onSettingsChanged(): void {
         this.debouncedRebuild()
-    }
-
-    /** "Schedule" / "Set deadline" quick dates + precise picker + clear. */
-    private addSchedulingMenuItems(menu: Menu, card: KanbanCard): void {
-        const todayKey = toDateKey(startOfDay(new Date()))
-        const tomorrowKey = toDateKey(addDays(startOfDay(new Date()), 1))
-        const scheduled = this.cardDate(card, 'scheduled')
-        const deadline = this.cardDate(card, 'deadline')
-
-        menu.addItem((i) =>
-            i
-                .setTitle('Schedule for today')
-                .setIcon('calendar-clock')
-                .setSection('kap-schedule')
-                .onClick(() => void this.writeCardDate(card, 'scheduled', todayKey))
-        )
-        menu.addItem((i) =>
-            i
-                .setTitle('Schedule for tomorrow')
-                .setIcon('calendar-clock')
-                .setSection('kap-schedule')
-                .onClick(() => void this.writeCardDate(card, 'scheduled', tomorrowKey))
-        )
-        menu.addItem((i) =>
-            i
-                .setTitle('Schedule on a date…')
-                .setIcon('calendar')
-                .setSection('kap-schedule')
-                .onClick(() => this.promptDate(card, 'scheduled', scheduled))
-        )
-        if (scheduled) {
-            menu.addItem((i) =>
-                i
-                    .setTitle('Clear scheduled date')
-                    .setIcon('x')
-                    .setSection('kap-schedule')
-                    .onClick(() => void this.writeCardDate(card, 'scheduled', null))
-            )
-        }
-
-        menu.addItem((i) =>
-            i
-                .setTitle('Set deadline today')
-                .setIcon('alarm-clock')
-                .setSection('kap-deadline')
-                .onClick(() => void this.writeCardDate(card, 'deadline', todayKey))
-        )
-        menu.addItem((i) =>
-            i
-                .setTitle('Set deadline on a date…')
-                .setIcon('alarm-clock')
-                .setSection('kap-deadline')
-                .onClick(() => this.promptDate(card, 'deadline', deadline))
-        )
-        if (deadline) {
-            menu.addItem((i) =>
-                i
-                    .setTitle('Clear deadline')
-                    .setIcon('x')
-                    .setSection('kap-deadline')
-                    .onClick(() => void this.writeCardDate(card, 'deadline', null))
-            )
-        }
     }
 
     /** Read a card's scheduled/deadline date (null when unset). */
@@ -1054,27 +943,6 @@ export class KanbanActionPlannerView extends BasesView {
         const dateFormat =
             this.noteType.calendar.dateFormat || this.plugin.settings.defaultDateFormat
         await setProperty(this.app, card.file, property, formatDate(date, dateFormat))
-    }
-
-    /** Add "open related note" items (blockers first) when the card has any. */
-    private addRelationshipMenuItems(menu: Menu, card: KanbanCard): void {
-        let separated = false
-        for (const { role, label, icon } of RELATIONSHIP_MENU) {
-            const related = card.relationships[role]
-            if (related.length === 0) continue
-            if (!separated) {
-                menu.addSeparator()
-                separated = true
-            }
-            for (const note of related) {
-                menu.addItem((item) =>
-                    item
-                        .setTitle(`${label}: ${note.label}`)
-                        .setIcon(icon)
-                        .onClick((evt) => this.openRelated(note, isNewTabEvent(evt)))
-                )
-            }
-        }
     }
 
     /**
@@ -1562,19 +1430,6 @@ export class KanbanActionPlannerView extends BasesView {
             `Archiving "${card.title}" — it still has ${parts.join(' and ')}. Links are kept.`
         )
     }
-}
-
-/** Relationship roles shown in the card context menu (blockers first). */
-const RELATIONSHIP_MENU: Array<{ role: RelationshipRole; label: string; icon: string }> = [
-    { role: 'blocked_by', label: 'Blocked by', icon: 'ban' },
-    { role: 'parent', label: 'Parent', icon: 'corner-left-up' },
-    { role: 'child', label: 'Child', icon: 'corner-right-down' },
-    { role: 'sibling', label: 'Sibling', icon: 'arrow-left-right' }
-]
-
-/** Whether an event asks to open in a new tab (Ctrl/Cmd held). */
-function isNewTabEvent(evt: MouseEvent | KeyboardEvent): boolean {
-    return evt.ctrlKey || evt.metaKey
 }
 
 /** Escape a value for use inside a `[data-…="…"]` attribute selector. */
