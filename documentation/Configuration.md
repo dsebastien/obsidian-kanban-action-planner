@@ -44,7 +44,7 @@ config has a single home. Per-card archiving still resolves by note type at runt
 
 The grouping in "Configure view" is display-only — option `key`s are unchanged, so stored
 config round-trips. **Swimlanes** is intentionally settable in both: the modal sets the shared
-default, a view overrides it (the per-view dropdown defaults to "Use board default"); this is
+default, a view overrides it (the per-view dropdown defaults to "Use note type default"); this is
 the precedence below made visible, not a duplicated control.
 
 ## Global defaults (plugin settings)

@@ -4,18 +4,22 @@ import type { PluginSettings } from '../../types/plugin-settings.intf'
 /**
  * Per-view options shown in the Bases "Configure view" panel.
  *
- * These are the **per-board** settings — they live in `this.config` and affect
- * only this one view. They sit alongside two other surfaces (M7 settings model):
+ * These are the **per-board** presentation/filter settings — they live in
+ * `this.config` and affect only this one view. They sit alongside two other
+ * surfaces:
  *   - vault-wide **defaults** in the plugin settings tab (property names,
  *     default statuses, date format), used when a view/profile doesn't override;
- *   - **shared** note-type config in the gear → "Configure board" modal (colors,
+ *   - **shared note-type config** in the plugin settings → Note types (colors,
  *     cards, relationships, archiving, the default swimlane grouping) — the rich
- *     controls Bases options can't render.
+ *     controls Bases options can't render. The board's gear jumps there.
+ *
+ * Deliberately NOT here: calendar mode (the in-view Board/Calendar switch owns
+ * it) and the scheduled/due date *property names* (conventions, set globally).
  *
  * Options are grouped purely for legibility (the `key`s are unchanged, so stored
  * config is unaffected). Where a per-view option overrides a shared/global
  * default, its placeholder/default makes that explicit (e.g. Swimlanes →
- * "Use board default").
+ * "Use note type default").
  */
 export function getKanbanViewOptions(settings: PluginSettings): BasesAllOptions[] {
     return [
@@ -64,11 +68,12 @@ export function getKanbanViewOptions(settings: PluginSettings): BasesAllOptions[
                     type: 'dropdown',
                     key: 'laneGrouping',
                     displayName: 'Grouping',
-                    // "Use board default" defers to the shared profile grouping
-                    // (set in Configure board → Swimlanes); other values override it.
+                    // "Use note type default" defers to the note type's grouping
+                    // (Settings → Note types → Swimlanes); other values override it
+                    // for this view only.
                     default: '__profile__',
                     options: {
-                        '__profile__': 'Use board default',
+                        '__profile__': 'Use note type default',
                         'none': 'None',
                         'note-type': 'By note type',
                         'property': 'By property'
@@ -103,24 +108,9 @@ export function getKanbanViewOptions(settings: PluginSettings): BasesAllOptions[
             type: 'group',
             displayName: 'Calendar',
             items: [
-                {
-                    type: 'toggle',
-                    key: 'calendarMode',
-                    displayName: 'Calendar mode',
-                    default: false
-                },
-                {
-                    type: 'property',
-                    key: 'scheduledDateProperty',
-                    displayName: 'Scheduled date property',
-                    placeholder: settings.defaultScheduledDateProperty
-                },
-                {
-                    type: 'property',
-                    key: 'dueDateProperty',
-                    displayName: 'Due date property',
-                    placeholder: settings.defaultDueDateProperty
-                },
+                // Calendar mode is toggled by the in-view Board/Calendar switch
+                // (persisted to `calendarMode`); the scheduled/due date *property
+                // names* are conventions set in plugin settings, not per board.
                 {
                     type: 'dropdown',
                     key: 'calendarRange',

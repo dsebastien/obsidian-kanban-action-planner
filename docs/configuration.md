@@ -27,7 +27,7 @@ lives there, not on the board).
 Precedence (most specific wins): a **view's** Configure-view setting → the **note type's** shared
 config (Settings → Note types) → the **global** default. For example, swimlane grouping has a
 shared default per note type, and any single view can override it in **Configure view →
-Swimlanes** (which defaults to "Use board default").
+Swimlanes** (which defaults to "Use note type default").
 
 ## Property names
 
@@ -144,8 +144,8 @@ Obsidian's file manager, so wikilinks to the note are updated and stay valid.
 
 ## Calendar mode
 
-Calendar mode is a per-view toggle (view options). It reads two date properties and writes them
-when you drag-schedule:
+Calendar mode is toggled per view by the in-view **Board / Calendar** switch. It reads two date
+properties (their names are set in plugin settings) and writes them when you drag-schedule:
 
 | Property       | Default          | Role                                                  |
 | -------------- | ---------------- | ----------------------------------------------------- |

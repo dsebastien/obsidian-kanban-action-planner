@@ -131,9 +131,8 @@ longer match the Base's filter.
 ## Calendar mode
 
 Turn the board into a **scheduling calendar**. Use the **Board / Calendar** switch at the
-top-left of the view to flip between the two modes (it persists per view; you can also toggle
-**Calendar mode** in the view options). The view splits into a left **Scheduling** panel and a
-calendar on the right.
+top-left of the view to flip between the two modes (it persists per view). The view splits into a
+left **Scheduling** panel and a calendar on the right.
 
 **The calendar shows both dimensions at once.** Every card is plotted on **both** its
 **scheduled date** (`date_scheduled` by default) and its **deadline** (`date_due`), so you can
@@ -213,8 +212,8 @@ changing your notes. They're grouped:
 
 **Swimlanes**
 
-- **Grouping** — override the board's lane grouping for this view: **Use board default**,
-  **None**, **By note type**, or **By property**. (The default is set per note type in Settings.)
+- **Grouping** — override lane grouping for this view: **Use note type default**, **None**,
+  **By note type**, or **By property**. (The default is set per note type in Settings.)
 - **Grouping property** — when grouping **By property**, the property whose values become lanes.
 
 **Filters**
@@ -223,10 +222,11 @@ changing your notes. They're grouped:
 
 **Calendar**
 
-- **Calendar mode** — turn the board into a scheduling calendar (see Calendar mode above).
-- **Scheduled / Due date property** — which properties hold the scheduled and due dates.
 - **Default range** — Week, Month, Quarter, or Year.
 - **Scheduling panel sort / sort property / filter** — order and filter the panel's tab cards.
+
+(Calendar mode itself is toggled by the in-view **Board / Calendar** switch; the scheduled/due
+date **property names** are set globally in plugin settings.)
 
 ## Note type configuration (colors, cards, relationships, archiving)
 
