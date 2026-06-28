@@ -24,9 +24,10 @@ The core is a custom Obsidian **Bases view** (Obsidian ≥ 1.13.0 API):
   `this.config.get/set`.
 - **Filter bar (issue #34).** A "JQL-lite" query, parsed by the pure, unit-tested
   `domain/filter-query.ts` (`parseFilterQuery` → OR-of-AND-groups AST; `matchesFilterQuery`
-  over a per-card `CardSearchRecord`). The view builds one `CardSearchRecord` per card from the
-  metadata cache (lowercased title, relationship names, tags, all frontmatter values, status
-  value+label, parsed due date) so keystroke matching does no file reads. `rebuild()` derives
+  over a per-card `CardSearchRecord`). `services/card-search.service.ts` (`buildCardSearchRecord`,
+  unit-tested) builds one `CardSearchRecord` per card from the metadata cache (lowercased title,
+  relationship names, tags, all frontmatter values, status value+label, parsed due date) so
+  keystroke matching does no file reads. `rebuild()` derives
   the unfiltered `allCards` + records once; `applyFilterAndRender()` filters and renders, and is
   also called directly (debounced ~150 ms) on a filter keystroke — so typing re-renders without
   re-deriving cards/relationships. The filter input is a **persistent** toolbar element

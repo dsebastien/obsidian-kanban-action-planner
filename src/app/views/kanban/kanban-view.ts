@@ -1,4 +1,4 @@
-import { BasesView, debounce, getAllTags, Menu, Notice, TFile } from 'obsidian'
+import { BasesView, debounce, Menu, Notice, TFile } from 'obsidian'
 import type { Debouncer, QueryController } from 'obsidian'
 import type { KanbanActionPlannerPlugin } from '../../plugin'
 import {
@@ -17,7 +17,7 @@ import type {
 } from '../../domain/note-type'
 import { buildBoard } from '../../domain/board-model'
 import type { Board, UnmappedPosition } from '../../domain/board-model'
-import { detectStatusProperty, normalizeStatusValue, splitStatusValue } from '../../domain/status'
+import { detectStatusProperty, normalizeStatusValue } from '../../domain/status'
 import { passesFilter } from '../../domain/filtering'
 import type { BlockedFilter, RelationalFilter } from '../../domain/filtering'
 import type { RelationshipSet } from '../../domain/relationships'
@@ -43,6 +43,7 @@ import {
     setCardPresentation
 } from '../../services/note-type.service'
 import { buildCardDisplay } from '../../services/card-display.service'
+import { buildCardSearchRecord } from '../../services/card-search.service'
 import { archiveNote } from '../../services/archive.service'
 import {
     addDays,
@@ -383,7 +384,12 @@ export class KanbanActionPlannerView extends BasesView {
         this.allCards = files
             .map((file) => this.toCard(file))
             .filter((card) => passesFilter(this.relationshipsByPath.get(card.key), filter))
-        this.searchByKey = new Map(this.allCards.map((c) => [c.key, this.buildSearchRecord(c)]))
+        this.searchByKey = new Map(
+            this.allCards.map((c) => [
+                c.key,
+                buildCardSearchRecord(this.app, c, this.dueDateProperty)
+            ])
+        )
 
         this.applyFilterAndRender()
     }
@@ -1060,54 +1066,6 @@ export class KanbanActionPlannerView extends BasesView {
         }
     }
 
-    /** Build a card's lowercased search index from the metadata cache. */
-    private buildSearchRecord(card: KanbanCard): CardSearchRecord {
-        const file = card.file
-        const cache = this.app.metadataCache.getFileCache(file)
-        const frontmatter = cache?.frontmatter ?? {}
-        const props = new Map<string, string[]>()
-        const haystack: string[] = [card.display.title]
-
-        for (const [key, raw] of Object.entries(frontmatter)) {
-            const values = stringifyForSearch(raw)
-            if (values.length === 0) continue
-            const lowered = values.map((v) => v.toLowerCase())
-            props.set(key.toLowerCase(), lowered)
-            haystack.push(...lowered)
-        }
-
-        const tags = (cache ? (getAllTags(cache) ?? []) : []).map((t) =>
-            t.replace(/^#/, '').toLowerCase()
-        )
-        haystack.push(...tags)
-
-        const rels: Record<RelationshipRole, string[]> = {
-            parent: card.relationships.parent.map((r) => r.label.toLowerCase()),
-            sibling: card.relationships.sibling.map((r) => r.label.toLowerCase()),
-            child: card.relationships.child.map((r) => r.label.toLowerCase()),
-            blocked_by: card.relationships.blocked_by.map((r) => r.label.toLowerCase())
-        }
-        for (const list of Object.values(rels)) haystack.push(...list)
-
-        const statusText: string[] = []
-        if (card.statusValue) {
-            statusText.push(card.statusValue.toLowerCase())
-            statusText.push(splitStatusValue(card.statusValue).label.toLowerCase())
-        }
-
-        const due = parseFrontmatterDate(getFrontmatterValue(this.app, file, this.dueDateProperty))
-
-        return {
-            title: card.display.title.toLowerCase(),
-            haystack: haystack.join('  ').toLowerCase(),
-            statusText,
-            rels,
-            tags,
-            due,
-            props
-        }
-    }
-
     /** Smooth-scroll the swimlane container to the previous/next lane. */
     private scrollLane(direction: number): void {
         const lanesEl = this.boardEl?.querySelector<HTMLElement>(':scope > .kap-lanes')
@@ -1211,15 +1169,6 @@ function cssEscapeId(value: string): string {
     return typeof CSS !== 'undefined' && typeof CSS.escape === 'function'
         ? CSS.escape(value)
         : value.replace(/["\\]/g, '\\$&')
-}
-
-/** Flatten a frontmatter value into searchable strings (scalars only; objects skipped). */
-function stringifyForSearch(raw: unknown): string[] {
-    if (raw === null || raw === undefined) return []
-    if (typeof raw === 'string') return raw.trim() ? [raw] : []
-    if (typeof raw === 'number' || typeof raw === 'boolean') return [String(raw)]
-    if (Array.isArray(raw)) return raw.flatMap((v) => stringifyForSearch(v))
-    return []
 }
 
 /** Read the scheduling-panel sort mode, defaulting to manual order. */
