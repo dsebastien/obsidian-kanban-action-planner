@@ -134,8 +134,13 @@ The panel has two tabs, and the active tab decides which date the calendar works
 - **No deadline** — cards with no **due date** (`date_due` by default). The calendar shows
   cards on their due date.
 
+Cards placed on the calendar by a **due date** show an **orange** left edge; cards placed by a
+**scheduled date** show the usual accent (blue) — so deadlines stand out at a glance.
+
 Each tab count is the size of that backlog. Collapse the panel with the **«** toggle (the
-"Scheduling" title stays visible, turned vertical).
+"Scheduling" title stays visible, turned vertical). When the calendar gets too narrow — for
+example in a split pane — the panel **collapses automatically** and re-opens when there's room
+again; your own manual collapse/expand always takes precedence.
 
 The calendar toolbar switches range — **Day**, **Week**, **Month**, **Quarter**, **Year** — and
 navigates with **‹ / › / Today**. Quarter and year show compact month grids with a per-day
@@ -144,7 +149,7 @@ in the plugin settings (default Monday).
 
 **Day view / zoom into a day:** click **Day** in the range switcher to open today as a focused
 single-day view, or click any **day number** (or empty cell space) to zoom into that specific
-day. The day view lists all of that day's cards and has its own **‹ / Today / ›** day navigation
+day — grid days show a pointer (hand) cursor to signal they're clickable. The day view lists all of that day's cards and has its own **‹ / Today / ›** day navigation
 (plus **‹ Back** to return to the previous range). This is especially handy from Quarter/Year,
 where days only show a count: click one to see what's on it. You can still drag a card from the
 panel onto the focused day to schedule it, or drag one out to the panel to clear its date.

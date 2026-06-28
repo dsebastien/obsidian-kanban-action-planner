@@ -27,7 +27,7 @@ The core is a custom Obsidian **Bases view** (Obsidian ≥ 1.13.0 API):
 
 ```
 views/kanban/      Bases view + its options panel (thin; delegates to ui + domain)
-ui/                vanilla-DOM renderers: board, calendar, context menu, modal (no UI deps)
+ui/                vanilla-DOM renderers: board, calendar, view toolbar, gear, folder suggest, modal (no UI deps)
 services/          side-effectful adapters: frontmatter R/W, Starter Kit API, profiles, colors, archive
 domain/            pure, unit-tested logic: status, ordering, relationships, filtering, calendar, board model
 settings/ + types/ plugin settings (Zod schema + defaults) and the settings tab
@@ -73,8 +73,9 @@ to cards/columns, **config-driven card presentation** (title/fields/cover/wrap),
 swimlanes** (group by note type or a property, with collapsible lanes and an Ungrouped lane;
 cross-lane drag rewrites the grouping property), **relationships** (parent/sibling/child/
 blocked_by detection with inverse lookup + a tag+link heuristic, blocked-by flag/navigation, and
-a blocked filter), per-view options, a Configure-board modal, and global settings. Archiving and
-calendar mode are implemented in later milestones.
+a blocked filter), per-view options, a tabbed Configure-board modal, and global settings.
+**Archiving** (folder with placeholders + optional auto-archive on status) and **calendar mode**
+(scheduling panel + grid, deadline highlighting, responsive auto-collapse) are also implemented.
 
 The board pipeline: `domain/board-model.ts` `buildBoard()` is pure and unit-tested (buckets
 cards into `BoardLane[] → BoardColumn[]`, `isMultiLane` flag); `ui/board/board-renderer.ts`
@@ -95,6 +96,35 @@ state) fall back to a full `renderBoard()`. Lane collapse/counts are synced in p
 invariants:** every column is a fixed equal width; cards share a `min-height` floor with growth
 bounded by field truncation (or a 4-line clamp in wrap mode) — uniform width + capped height
 rather than a single forced height (which would hide content).
+
+**View chrome & responsiveness.** The view root (`.kap-root`) is a flex column: a top
+`.kap-toolbar` over a flex-1 `.kap-board-host`. `ui/view-toolbar.ts` renders a **Board / Calendar
+mode switch** (left; persists `calendarMode` via `this.config.set`) and right-side actions — the
+**up/down swimlane nav** (shown only with >1 lane; `scrollLane(±1)` jumps the `.kap-lanes`
+container) and the configure **gear**. The toolbar is re-rendered from `rebuild()` (once
+`this.config` exists). Active-state button highlights use layered `!important` because Obsidian's
+unlayered `<button>` styles outrank any layered rule. **Collapse** is two-axis: lanes collapse
+vertically (per-lane id) and **columns** collapse horizontally to a labelled vertical bar (per
+status id, applied across every lane) — both tracked as in-memory `Set`s on the view and threaded
+through `renderBoard`/`patchBoard`. Swimlanes are content-sized but capped at one screen
+(`max-h-full`), scrolling their columns internally.
+
+**Calendar mode.** When `calendarMode` is on, `rebuild()` calls `renderCalendarFrame()` instead of
+the board: `ui/calendar/calendar-renderer.ts` draws a collapsible **Scheduling** panel
+(Unplanned / No-deadline tabs = the scheduled vs deadline date dimension) plus a CSS-grid
+calendar (`grid-template-columns: repeat(7, minmax(0, 1fr))` so every day stays visible and chips
+truncate). Chips placed by a **deadline** get an orange edge (vs the blue scheduled accent).
+`ui/calendar/calendar-dnd.ts` mirrors `BoardDnd` for set/clear-date drops. A `ResizeObserver` on
+the board host **auto-collapses the panel** when the container is narrower than ~36rem and
+restores it when there's room (only on a width-category change; a manual toggle clears the auto
+state). In-memory per-session calendar state: range override, active tab, anchor, focused day,
+panel-collapsed (+ auto-collapse flags).
+
+**Configure-board modal** (`ui/configure-board-modal.ts`): a two-pane dialog — a left section nav
+(Cards / Colors / Swimlanes / Relationships / Archiving) over a scrollable content pane; the
+active section renders into `this.body`. The Archive-folder field uses `ui/folder-suggest.ts`
+(`AbstractInputSuggest<TFolder>`) for inline folder autocomplete, preserving any `{{…}}`
+placeholder suffix.
 
 Relationships are layered in two pure modules + a bridge: `domain/relationships.ts`
 (`resolveRelationships` — direct + inverse + heuristic) and `domain/filtering.ts` (blocked

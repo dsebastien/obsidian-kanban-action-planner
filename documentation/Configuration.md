@@ -31,7 +31,9 @@ Two places, by scope (M7 settings model):
       Calendar**. Affects only that one view.
     - **Gear → "Configure board"** (`ui/configure-board-modal.ts`) — **shared** note-type/profile
       settings: colors, card presentation, relationships, archiving, and the **default**
-      swimlane grouping. Applies to every board of that type.
+      swimlane grouping. Applies to every board of that type. The modal is a two-pane dialog with
+      a left section nav (Cards / Colors / Swimlanes / Relationships / Archiving); the
+      Archive-folder field has inline folder autocomplete (`ui/folder-suggest.ts`).
 
 The grouping in "Configure view" is display-only — option `key`s are unchanged, so stored
 config round-trips. **Swimlanes** is intentionally settable in both: the modal sets the shared
