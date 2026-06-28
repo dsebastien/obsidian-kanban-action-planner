@@ -1,5 +1,16 @@
 # Release Notes
 
+## 0.4.0 (2026-06-28)
+
+### Features
+
+- **plugin:** sort cards within a column by a property ([#17](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/17))
+
+### Bug Fixes
+
+- **plugin:** blockers may be off-board; only archived ones drop ([#13](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/13))
+- **plugin:** stop archived/off-board blockers from blocking ([#13](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/13))
+
 ## 0.3.0 (2026-06-28)
 
 ### Features

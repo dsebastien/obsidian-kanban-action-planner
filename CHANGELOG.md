@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.0](https://github.com/dsebastien/obsidian-kanban-action-planner/compare/0.3.0...0.4.0) (2026-06-28)
+
+### Features
+
+* **plugin:** sort cards within a column by a property ([#17](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/17)) ([8d80164](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/8d8016426921ff4d4f020141cf5e102af88b69c8))
+
+### Bug Fixes
+
+* **plugin:** blockers may be off-board; only archived ones drop ([#13](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/13)) ([8c53406](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/8c534063504b7a24355c2f67eb2800d2a25a5198))
+* **plugin:** stop archived/off-board blockers from blocking ([#13](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/13)) ([e4e291b](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/e4e291bf7740d25efd52bf217a86f2e04e2adec7))
+
 ## [0.3.0](https://github.com/dsebastien/obsidian-kanban-action-planner/compare/0.2.0...0.3.0) (2026-06-28)
 
 ### Features
@@ -98,6 +109,7 @@ All notable changes to this project will be documented in this file.
 
 * **plugin:** match Starter Kit's {{quarter}} placeholder format (Q2, not 2) ([4fde618](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/4fde6185c5956e3f6fd2ca3a9b03e70cf5e16840))
 * **plugin:** persist discovered statuses so Show empty columns works ([cf91b81](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/cf91b81a1b0786e35c73f4885882e2dc33564c62))
+
 
 
 
