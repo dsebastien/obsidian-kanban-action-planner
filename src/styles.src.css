@@ -560,6 +560,25 @@
         border-left-color: var(--text-error);
     }
 
+    /* Due-date emphasis (issue #22). Uses the *background* channel so it reads at
+       a glance and stays distinguishable from the blocked card's red *left
+       accent* — a card that is both blocked and overdue shows both signals. */
+    .kap-card-overdue {
+        background: color-mix(
+            in srgb,
+            var(--color-red, var(--text-error)) 14%,
+            var(--background-primary)
+        );
+    }
+
+    .kap-card-due-today {
+        background: color-mix(
+            in srgb,
+            var(--color-orange, var(--text-warning, var(--text-accent))) 12%,
+            var(--background-primary)
+        );
+    }
+
     .kap-card-dragging {
         opacity: 0.4;
     }

@@ -84,5 +84,9 @@ void mock.module('obsidian', () => ({
     }),
     debounce: (fn: (...args: unknown[]) => unknown) => fn,
     setIcon: () => {},
-    getAllTags: (_cache: unknown): string[] => []
+    getAllTags: (_cache: unknown): string[] => [],
+    moment: (input?: unknown) => ({
+        isValid: () => input !== undefined && input !== null && input !== '',
+        format: () => (typeof input === 'string' ? input : '')
+    })
 }))

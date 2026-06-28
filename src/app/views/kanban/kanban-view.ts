@@ -503,7 +503,8 @@ export class KanbanActionPlannerView extends BasesView {
             this.app,
             file,
             this.cardPresentationFor(file),
-            this.dueDateProperty
+            this.dueDateProperty,
+            startOfDay(new Date())
         )
         const laneValue =
             this.laneGrouping.kind === 'none' ? null : (this.laneValueByPath.get(file.path) ?? null)

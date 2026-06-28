@@ -9,12 +9,17 @@ export interface CardFieldView {
     emphasis: 'normal' | 'due-red'
 }
 
+/** A card's due-date urgency, derived from the due property vs. today (issue #22). */
+export type DueState = 'none' | 'today' | 'overdue'
+
 /** Resolved presentation data for a card (title, fields, cover, wrapping). */
 export interface CardDisplay {
     title: string
     fields: CardFieldView[]
     coverUrl: string | null
     wrap: boolean
+    /** Due-date urgency for at-a-glance emphasis. */
+    dueState: DueState
 }
 
 /** A card as rendered on the board: derived display data plus its note file. */

@@ -115,3 +115,8 @@ See `documentation/plans/kanban-action-planner-implementation-plan.md` for full 
     persists per-view in `this.config.filterQuery`; it ANDs with the blocked filter and keeps
     existing column/lane visibility rules. Parsing is best-effort (never throws). This subsumes
     and replaces the old per-view `calendarFilter` option.
+17. **Overdue emphasis (issue #22).** The card display carries a pure `dueState`
+    (`overdue`/`today`/`none`) computed from the configured due-date property vs. today. Overdue
+    cards get a red background wash, due-today an amber wash. This uses the **background**
+    channel so it stays distinct from a blocked card's red **left accent** — both can show at
+    once (blocked owns the accent, overdue owns the wash). Recomputed on every rebuild.

@@ -3,7 +3,21 @@ import type { App } from 'obsidian'
 import type { CardPresentation } from '../domain/profile'
 import { getFrontmatterValue } from './frontmatter.service'
 import { formatScalar, stripWikiLink } from '../utils/format'
-import type { CardDisplay, CardFieldView } from '../ui/board/types'
+import { parseFrontmatterDate, startOfDay } from '../domain/calendar'
+import type { CardDisplay, CardFieldView, DueState } from '../ui/board/types'
+
+/**
+ * Classify a due date against `today` (issue #22): `overdue` when strictly
+ * before today, `today` on the day itself, else `none`. Pure + unit-tested.
+ */
+export function computeDueState(due: Date | null, today: Date): DueState {
+    if (!due) return 'none'
+    const d = startOfDay(due).getTime()
+    const t = startOfDay(today).getTime()
+    if (d < t) return 'overdue'
+    if (d === t) return 'today'
+    return 'none'
+}
 
 interface MomentLike {
     isValid(): boolean
@@ -21,7 +35,8 @@ export function buildCardDisplay(
     app: App,
     file: TFile,
     presentation: CardPresentation,
-    dueDateProperty: string | null
+    dueDateProperty: string | null,
+    today: Date
 ): CardDisplay {
     const title = resolveTitle(app, file, presentation)
     const fields: CardFieldView[] = []
@@ -38,8 +53,9 @@ export function buildCardDisplay(
         })
     }
 
+    const dueRaw = dueDateProperty ? getFrontmatterValue(app, file, dueDateProperty) : null
     if (dueDateProperty && !seen.has(dueDateProperty.toLowerCase())) {
-        const dueText = formatValue(getFrontmatterValue(app, file, dueDateProperty), undefined)
+        const dueText = formatValue(dueRaw, undefined)
         if (dueText) fields.push({ label: null, text: dueText, emphasis: 'due-red' })
     }
 
@@ -47,7 +63,13 @@ export function buildCardDisplay(
         ? resolveCover(app, file, getFrontmatterValue(app, file, presentation.coverImageProperty))
         : null
 
-    return { title, fields, coverUrl, wrap: presentation.wrapPropertyValues }
+    return {
+        title,
+        fields,
+        coverUrl,
+        wrap: presentation.wrapPropertyValues,
+        dueState: computeDueState(parseFrontmatterDate(dueRaw), today)
+    }
 }
 
 function resolveTitle(app: App, file: TFile, presentation: CardPresentation): string {

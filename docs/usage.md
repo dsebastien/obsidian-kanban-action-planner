@@ -301,6 +301,12 @@ The note type's **Cards** section controls what each card shows:
 
 A note's **due date** is always shown in red when set, even without configuring fields.
 
+**Overdue emphasis.** Cards with a past due date get a red background wash so overdue work pops
+at a glance, and cards due **today** get a softer amber wash. This uses the card background, so
+it stays distinct from a blocked card's red **left edge** — a card that is both blocked and
+overdue shows both signals. The state updates whenever the board refreshes (e.g. as the date
+rolls over).
+
 The dialog also has **Swimlanes** (group the board into lanes) and **Archiving** (move
 finished cards into a folder) sections — see Swimlanes and Archiving above.
 

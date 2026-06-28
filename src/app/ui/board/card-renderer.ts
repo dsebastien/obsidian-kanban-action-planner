@@ -37,6 +37,8 @@ export function renderCard(
     el.setAttribute('tabindex', '0')
     el.style.setProperty('--kap-card-accent', accentColor)
     if (card.display.wrap) el.addClass('kap-card-wrap')
+    if (card.display.dueState === 'overdue') el.addClass('kap-card-overdue')
+    else if (card.display.dueState === 'today') el.addClass('kap-card-due-today')
     if (card.relationships.blocked_by.length > 0) el.addClass('kap-card-blocked')
 
     if (card.display.coverUrl) {

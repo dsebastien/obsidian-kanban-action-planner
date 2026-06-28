@@ -277,7 +277,9 @@ function cardSignature(card: KanbanCard, accent: string): string {
     const rels = roles
         .map((r) => `${r}:${card.relationships[r].map((x) => x.key).join(',')}`)
         .join(';')
-    return [d.title, d.wrap ? 'w' : '', d.coverUrl ?? '', fields, rels, accent].join('§')
+    return [d.title, d.wrap ? 'w' : '', d.coverUrl ?? '', d.dueState, fields, rels, accent].join(
+        '§'
+    )
 }
 
 /** Escape a value for use inside an attribute selector. */
