@@ -209,7 +209,8 @@ function renderBlock(
                     cell.createSpan({ cls: 'kap-cal-daycount', text: String(cards.length) })
                 }
             } else {
-                for (const card of cards) renderChip(cell, card, callbacks)
+                for (const card of cards)
+                    renderChip(cell, card, callbacks, model.activeTab === 'deadline')
             }
         }
     }
@@ -249,11 +250,18 @@ function renderFocusedDay(
     if (cards.length === 0) {
         dayEl.createDiv({ cls: 'kap-panel-empty', text: 'Nothing scheduled for this day.' })
     }
-    for (const card of cards) renderChip(dayEl, card, callbacks)
+    for (const card of cards) renderChip(dayEl, card, callbacks, model.activeTab === 'deadline')
 }
 
-function renderChip(parent: HTMLElement, card: KanbanCard, callbacks: CalendarCallbacks): void {
+function renderChip(
+    parent: HTMLElement,
+    card: KanbanCard,
+    callbacks: CalendarCallbacks,
+    isDeadline = false
+): void {
     const chip = parent.createDiv({ cls: 'kap-cal-card' })
+    // Deadline-placed chips get an orange edge (vs the blue scheduled accent).
+    if (isDeadline) chip.addClass('kap-cal-card-deadline')
     chip.dataset['cardKey'] = card.key
     chip.setAttribute('role', 'listitem')
     chip.setAttribute('tabindex', '0')
