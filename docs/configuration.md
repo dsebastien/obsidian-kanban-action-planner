@@ -71,8 +71,13 @@ Starter Kit plugin is installed and recognizes your notes as a note type, the bo
 type as its profile — taking the status property and its allowed values from the Starter Kit
 and building columns in the defined order, including empty ones. The Starter Kit remains the
 source of truth for those facts; your color choices are stored locally in this plugin and
-keep working even if the Starter Kit is disabled. When the Starter Kit is not present, a local
-default profile is used and columns come from the status values found in your notes.
+keep working even if the Starter Kit is disabled.
+
+You can also **define your own note types** without the Starter Kit (**Settings → Note types →
+Add note type**): give the type a name and **recognition rules** (by tag, folder, or path regex).
+The plugin recognizes notes from those rules — Starter Kit recognition is tried first when it's
+installed, then your local rules. A note that matches no type (and notes when nothing is defined)
+uses the **Default** profile.
 
 ## Colors
 

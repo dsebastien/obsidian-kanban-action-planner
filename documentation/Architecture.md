@@ -63,6 +63,13 @@ Three layers resolved by the (planned) profile service, in precedence order:
 When the Starter Kit plugin is present, its note-type config is the read-only source of
 truth, mirrored into a local snapshot in plugin settings so it survives SK being disabled.
 
+**Note-type recognition (issue #31).** A file's type is resolved by `recognizeNoteTypeFor`:
+Starter Kit recognition first (when present), then **local mapping rules** — the pure
+`domain/note-type-recognition.ts` matches a file (path + tags) against each non-Default profile's
+`typeRecognition.mappings` (tag / folder / regex). So locally-defined types (created in Settings →
+Note types) and orphaned SK types both recognize without the Starter Kit, driving per-file
+swimlane/archive/display and the dominant-type active profile.
+
 ## Styling / isolation (hard rule)
 
 Tailwind v4, hardened for Obsidian plugin isolation the same way the sibling

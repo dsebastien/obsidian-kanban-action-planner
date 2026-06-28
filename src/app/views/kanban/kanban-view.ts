@@ -21,7 +21,6 @@ import { detectStatusProperty, normalizeStatusValue, splitStatusValue } from '..
 import { passesFilter } from '../../domain/filtering'
 import type { BlockedFilter, RelationalFilter } from '../../domain/filtering'
 import type { RelationshipSet } from '../../domain/relationships'
-import { isStarterKitAvailable, recognizeNoteType } from '../../services/starter-kit.service'
 import {
     resolveBoardRelationships,
     toCardRelationships
@@ -39,6 +38,7 @@ import {
     columnsFromValues,
     createDefaultProfile,
     findProfile,
+    recognizeNoteTypeFor,
     resolveActiveProfile,
     setCardPresentation
 } from '../../services/profile-service'
@@ -270,24 +270,22 @@ export class KanbanActionPlannerView extends BasesView {
         this.profile = resolved.profile
         this.profileStatusValues = resolved.statusValues
         // Recognize each file's note type once (Starter Kit only) — shared by
-        // swimlanes and per-type archiving.
-        this.noteTypeByPath = isStarterKitAvailable(this.app)
-            ? await this.recognizeNoteTypes(files)
-            : new Map()
+        // swimlanes and per-type archiving. Runs with or without the Starter Kit:
+        // SK recognition first, then local mapping rules (issue #31).
+        this.noteTypeByPath = await this.recognizeNoteTypes(files)
         this.laneGrouping = this.resolveLaneGrouping()
         this.laneValueByPath = this.computeLaneValues(files, this.laneGrouping)
         this.archiveByPath = this.computeArchiveByPath(files)
         this.rebuild()
     }
 
-    /** Recognize the Starter Kit note type of every file. */
+    /** Recognize each file's note type (Starter Kit, then local mapping rules). */
     private async recognizeNoteTypes(
         files: TFile[]
     ): Promise<Map<string, { id: string; name: string } | null>> {
         const map = new Map<string, { id: string; name: string } | null>()
         for (const file of files) {
-            const type = await recognizeNoteType(this.app, file)
-            map.set(file.path, type ? { id: type.id, name: type.name } : null)
+            map.set(file.path, await recognizeNoteTypeFor(this.app, this.plugin, file))
         }
         return map
     }

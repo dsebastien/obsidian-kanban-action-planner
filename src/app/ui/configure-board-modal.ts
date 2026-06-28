@@ -14,6 +14,7 @@ import { FolderSuggest } from './folder-suggest'
 import { splitStatusValue } from '../domain/status'
 import { isValidHex, paletteTokens, resolveColor } from '../services/colors.service'
 import {
+    DEFAULT_PROFILE_ID,
     clearColorOverride,
     findProfile,
     setArchiveConfig,
@@ -21,6 +22,8 @@ import {
     setCardPresentation,
     setColorOverride,
     setLaneGrouping,
+    setProfileName,
+    setRecognitionMappings,
     setRelationships,
     setWipLimit
 } from '../services/profile-service'
@@ -29,9 +32,17 @@ const AUTO = '__auto__'
 const NONE = '__none__'
 const NOTE_NAME = '__note_name__'
 
-type SectionId = 'cards' | 'colors' | 'swimlanes' | 'relationships' | 'archiving' | 'limits'
+type SectionId =
+    | 'recognition'
+    | 'cards'
+    | 'colors'
+    | 'swimlanes'
+    | 'relationships'
+    | 'archiving'
+    | 'limits'
 
 const SECTIONS: ReadonlyArray<{ id: SectionId; label: string; icon: string }> = [
+    { id: 'recognition', label: 'Note type', icon: 'scan-search' },
     { id: 'cards', label: 'Cards', icon: 'gallery-horizontal-end' },
     { id: 'colors', label: 'Colors', icon: 'palette' },
     { id: 'limits', label: 'WIP limits', icon: 'gauge' },
@@ -60,7 +71,8 @@ export class ConfigureBoardModal extends Modal {
         profile: Profile,
         statusValues: string[],
         availableProperties: string[],
-        onChange: () => void
+        onChange: () => void,
+        initialSection?: SectionId
     ) {
         super(app)
         this.plugin = plugin
@@ -68,6 +80,7 @@ export class ConfigureBoardModal extends Modal {
         this.statusValues = statusValues
         this.availableProperties = availableProperties
         this.onChange = onChange
+        if (initialSection) this.activeSection = initialSection
     }
 
     private profile(): Profile | undefined {
@@ -102,7 +115,7 @@ export class ConfigureBoardModal extends Modal {
 
         const layout = this.contentEl.createDiv({ cls: 'kap-settings' })
         const nav = layout.createDiv({ cls: 'kap-settings-nav', attr: { role: 'tablist' } })
-        for (const section of SECTIONS) {
+        for (const section of this.visibleSections()) {
             const active = section.id === this.activeSection
             const tab = nav.createDiv({
                 cls: active ? 'kap-settings-tab kap-settings-tab-active' : 'kap-settings-tab',
@@ -127,8 +140,24 @@ export class ConfigureBoardModal extends Modal {
         this.renderActiveSection(profile)
     }
 
+    /** Whether this is an editable local note type (vs. Starter Kit / Default). */
+    private isLocalNoteType(profile: Profile): boolean {
+        return profile.source === 'local' && profile.id !== DEFAULT_PROFILE_ID
+    }
+
+    /** Sections to show — the "Note type" (recognition) tab is local-types only. */
+    private visibleSections(): ReadonlyArray<{ id: SectionId; label: string; icon: string }> {
+        const profile = this.profile()
+        const local = profile ? this.isLocalNoteType(profile) : false
+        return SECTIONS.filter((s) => s.id !== 'recognition' || local)
+    }
+
     private renderActiveSection(profile: Profile): void {
         switch (this.activeSection) {
+            case 'recognition':
+                if (this.isLocalNoteType(profile)) this.renderRecognition(profile)
+                else this.renderCard(profile)
+                return
             case 'cards':
                 this.renderCard(profile)
                 return
@@ -148,6 +177,104 @@ export class ConfigureBoardModal extends Modal {
                 this.renderLimits(profile)
                 return
         }
+    }
+
+    // ── Note type recognition (issue #31; local types only) ───
+
+    private renderRecognition(profile: Profile): void {
+        new Setting(this.body).setName('Note type').setHeading()
+        new Setting(this.body)
+            .setName('Name')
+            .setDesc('Display name for this note type.')
+            .addText((input) =>
+                // Persist without re-rendering so the text input keeps focus.
+                input.setValue(profile.name).onChange((value) => void this.patchName(value))
+            )
+
+        new Setting(this.body).setName('Recognition rules').setHeading()
+        this.body.createEl('p', {
+            cls: 'kap-modal-subtitle',
+            text: 'A note is this type when ANY rule matches — by tag (incl. nested), folder (and subfolders), or a regular expression on the note path.'
+        })
+
+        const mappings = profile.typeRecognition.mappings
+        if (mappings.length === 0) {
+            this.body.createDiv({
+                cls: 'kap-modal-empty',
+                text: 'No rules yet — add one below so this type is recognized.'
+            })
+        }
+
+        mappings.forEach((mapping, index) => {
+            new Setting(this.body)
+                .addDropdown((dd) => {
+                    dd.addOption('tag', 'Tag')
+                    dd.addOption('folder', 'Folder')
+                    dd.addOption('regex', 'Regex')
+                    dd.setValue(mapping.type)
+                    dd.onChange((value) => {
+                        const type = value === 'folder' || value === 'regex' ? value : 'tag'
+                        void this.updateMapping(index, { type }, true)
+                    })
+                })
+                .addText((input) =>
+                    input
+                        .setPlaceholder(recognitionPlaceholder(mapping.type))
+                        .setValue(mapping.value)
+                        .onChange((value) => void this.updateMapping(index, { value }, false))
+                )
+                .addExtraButton((b) =>
+                    b
+                        .setIcon('trash')
+                        .setTooltip('Remove rule')
+                        .onClick(() => void this.removeMapping(index))
+                )
+        })
+
+        new Setting(this.body)
+            .setName('Add rule')
+            .addButton((b) => b.setButtonText('Add').onClick(() => void this.addMapping()))
+    }
+
+    private async patchName(name: string): Promise<void> {
+        await setProfileName(this.plugin, this.profileId, name)
+        this.onChange()
+    }
+
+    /** Apply a partial change to one recognition mapping, reading the freshest copy. */
+    private async updateMapping(
+        index: number,
+        patch: Partial<Profile['typeRecognition']['mappings'][number]>,
+        rerender: boolean
+    ): Promise<void> {
+        const current = this.profile()?.typeRecognition.mappings
+        if (!current) return
+        const mappings = current.map((m, i) => (i === index ? { ...m, ...patch } : m))
+        await setRecognitionMappings(this.plugin, this.profileId, mappings)
+        this.onChange()
+        if (rerender) this.render()
+    }
+
+    private async removeMapping(index: number): Promise<void> {
+        const current = this.profile()?.typeRecognition.mappings
+        if (!current) return
+        await setRecognitionMappings(
+            this.plugin,
+            this.profileId,
+            current.filter((_, i) => i !== index)
+        )
+        this.onChange()
+        this.render()
+    }
+
+    private async addMapping(): Promise<void> {
+        const current = this.profile()?.typeRecognition.mappings ?? []
+        await setRecognitionMappings(this.plugin, this.profileId, [
+            ...current,
+            { type: 'tag', value: '', enabled: true }
+        ])
+        this.onChange()
+        this.render()
     }
 
     // ── WIP limits ────────────────────────────────────────────
@@ -612,6 +739,13 @@ function upsertRule(
     const next = mutator(existing)
     const others = rules.filter((r) => r.role !== role)
     return [...others, next]
+}
+
+/** Example value text for a recognition rule, by kind. */
+function recognitionPlaceholder(type: 'tag' | 'folder' | 'regex'): string {
+    if (type === 'folder') return 'Areas/Work'
+    if (type === 'regex') return '^Projects/'
+    return 'type/task'
 }
 
 function move<T>(arr: ReadonlyArray<T>, from: number, to: number): T[] {

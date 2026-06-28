@@ -305,6 +305,15 @@ on the left — **Cards**, **Colors**, **WIP limits**, **Swimlanes**, **Relation
 **Archiving** — that apply to **every** board showing that type. The **gear** in the board's
 top-right is a shortcut that jumps straight to these settings.
 
+**Define your own note types — no Starter Kit needed.** Click **Add note type** to create a
+**local** type. Its **Note type** section lets you name it and add **recognition rules**: a note
+is recognized as this type when **any** rule matches — by **tag** (including nested tags, so
+`type` matches `type/task`), by **folder** (the note is in that folder or a subfolder), or by a
+**regex** on the note path. Recognized notes then pick up that type's colors, cards,
+relationships, and archiving, and can drive **By note type** swimlanes — all without the Obsidian
+Starter Kit. Delete a local type with the trash icon (your notes are untouched). When the Starter
+Kit _is_ installed, its recognition is tried first and your local rules act as a fallback.
+
 In the **WIP limits** section, set a soft per-column limit for any status (leave blank for no
 limit). The column header then shows **`count / limit`**, and a column over its limit turns its
 count **red** — a gentle nudge toward classic Kanban flow. Limits are a warning only: they

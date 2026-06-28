@@ -149,3 +149,13 @@ See `documentation/plans/kanban-action-planner-implementation-plan.md` for full 
     (no true cross-file atomicity is possible; failures are surfaced, never silent). Bulk
     set-status does **not** auto-archive (guards against accidental mass-archiving). Selections
     drop automatically when a card leaves the board (archived/filtered).
+23. **Local note types (issue #31).** Note types can be **created without the Starter Kit**:
+    Settings → Note types → **Add note type** makes a local profile; its **Note type** section
+    edits the name + **recognition rules** (`typeRecognition.mappings`: tag [nested-aware],
+    folder [incl. subfolders], or path regex — any match wins). Recognition is pure
+    (`domain/note-type-recognition.ts`); the service prefers Starter Kit recognition (when
+    present) then falls back to local rules (`recognizeNoteTypeFor` / `recognizeLocalNoteType`),
+    so per-file type resolution (swimlanes, archive, card display) and the dominant-type profile
+    work with or without the Starter Kit — and orphaned SK types keep recognizing from their
+    mirrored mappings. Deleting a type removes only its config (notes untouched), via a themed
+    confirm modal. Default profile is never a recognition candidate.

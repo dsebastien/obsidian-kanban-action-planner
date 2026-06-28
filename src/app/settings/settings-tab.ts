@@ -4,8 +4,15 @@ import type KanbanActionPlannerPlugin from '../../main'
 import type { PluginSettings } from '../types/plugin-settings.intf'
 import type { Profile } from '../domain/profile'
 import { findStatusProperty, listNoteTypes } from '../services/starter-kit.service'
-import { DEFAULT_PROFILE_ID, findProfile, getOrCreateProfile } from '../services/profile-service'
+import {
+    DEFAULT_PROFILE_ID,
+    createLocalNoteType,
+    deleteProfile,
+    findProfile,
+    getOrCreateProfile
+} from '../services/profile-service'
 import { ConfigureBoardModal } from '../ui/configure-board-modal'
+import { ConfirmModal } from '../ui/confirm-modal'
 import { BUY_ME_A_COFFEE_BADGE_DATA_URL } from '../assets/buy-me-a-coffee'
 
 /** A note type known to the plugin (Starter Kit or a stored local profile). */
@@ -60,7 +67,7 @@ export class KanbanActionPlannerSettingTab extends PluginSettingTab {
         })
 
         for (const type of this.knownNoteTypes()) {
-            new Setting(containerEl)
+            const setting = new Setting(containerEl)
                 .setName(type.name)
                 .setDesc(
                     type.source === 'starter-kit'
@@ -69,12 +76,32 @@ export class KanbanActionPlannerSettingTab extends PluginSettingTab {
                                   ? ` · ${String(type.statusValues.length)} statuses`
                                   : ''
                           }.`
-                        : 'Local note type.'
+                        : 'Local note type — recognized by your own tag / folder / regex rules.'
                 )
                 .addButton((button) =>
                     button.setButtonText('Configure').onClick(() => void this.openTypeConfig(type))
                 )
+            if (type.source === 'local') {
+                setting.addExtraButton((b) =>
+                    b
+                        .setIcon('trash')
+                        .setTooltip('Delete note type')
+                        .onClick(() => this.confirmDeleteNoteType(type))
+                )
+            }
         }
+
+        new Setting(containerEl)
+            .setName('Add a local note type')
+            .setDesc(
+                'Define a type recognized by tag, folder, or path regex — no Starter Kit needed.'
+            )
+            .addButton((button) =>
+                button
+                    .setButtonText('Add note type')
+                    .setCta()
+                    .onClick(() => void this.addLocalNoteType())
+            )
 
         new Setting(containerEl)
             .setName('Default (unrecognized notes)')
@@ -127,6 +154,35 @@ export class KanbanActionPlannerSettingTab extends PluginSettingTab {
             this.propertiesForType(type.id),
             () => this.display()
         ).open()
+    }
+
+    /** Create a local note type and open its config (recognition first). */
+    private async addLocalNoteType(): Promise<void> {
+        const profile = await createLocalNoteType(this.plugin, 'New type')
+        this.display()
+        new ConfigureBoardModal(
+            this.app,
+            this.plugin,
+            profile,
+            this.plugin.settings.defaultStatuses,
+            this.propertiesForType(profile.id),
+            () => this.display(),
+            'recognition'
+        ).open()
+    }
+
+    /** Confirm + delete a local note type (its notes are untouched). */
+    private confirmDeleteNoteType(type: NoteTypeRow): void {
+        new ConfirmModal(this.app, {
+            title: `Delete note type "${type.name}"?`,
+            message:
+                'This removes the type and its configuration (colors, cards, relationships, ' +
+                'archiving, recognition rules). Your notes are not changed.',
+            confirmText: 'Delete',
+            onConfirm: () => {
+                void deleteProfile(this.plugin, type.id).then(() => this.display())
+            }
+        }).open()
     }
 
     /** Best-available property names for a type's dropdowns (no board context). */

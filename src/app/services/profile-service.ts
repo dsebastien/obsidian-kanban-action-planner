@@ -1,10 +1,14 @@
+import { getAllTags } from 'obsidian'
 import type { App, TFile } from 'obsidian'
 import { produce } from 'immer'
 import type { ColorSpec, ColumnDef, LaneGrouping, Profile } from '../domain/profile'
 import { compareStatusValues, splitStatusValue } from '../domain/status'
+import { matchesAnyMapping } from '../domain/note-type-recognition'
+import type { RecognitionFile } from '../domain/note-type-recognition'
 import { autoAssignColor } from './colors.service'
 import {
     findStatusProperty,
+    isStarterKitAvailable,
     recognitionMappings,
     recognizeNoteType,
     type SkNoteType
@@ -230,6 +234,66 @@ export async function setArchiveConfig(
     )
 }
 
+/** Create a new local note type (issue #31) with a unique id; persists it. */
+export async function createLocalNoteType(
+    plugin: KanbanActionPlannerPlugin,
+    name: string
+): Promise<Profile> {
+    const id = `local-${Date.now().toString(36)}-${Math.floor(Math.random() * 1e6).toString(36)}`
+    const profile = createDefaultProfile(
+        id,
+        name.trim() || 'New type',
+        'local',
+        defaultsFromPlugin(plugin)
+    )
+    await upsertProfile(plugin, profile)
+    return profile
+}
+
+/** Rename a profile (issue #31). */
+export async function setProfileName(
+    plugin: KanbanActionPlannerPlugin,
+    profileId: string,
+    name: string
+): Promise<void> {
+    const profile = findProfile(plugin, profileId)
+    if (!profile) return
+    await upsertProfile(
+        plugin,
+        produce(profile, (draft) => {
+            draft.name = name.trim() || draft.name
+        })
+    )
+}
+
+/** Replace a local note type's recognition mappings (issue #31). */
+export async function setRecognitionMappings(
+    plugin: KanbanActionPlannerPlugin,
+    profileId: string,
+    mappings: Profile['typeRecognition']['mappings']
+): Promise<void> {
+    const profile = findProfile(plugin, profileId)
+    if (!profile) return
+    await upsertProfile(
+        plugin,
+        produce(profile, (draft) => {
+            draft.typeRecognition.mappings = mappings
+        })
+    )
+}
+
+/** Delete a stored profile (issue #31). The Default profile cannot be deleted. */
+export async function deleteProfile(
+    plugin: KanbanActionPlannerPlugin,
+    profileId: string
+): Promise<void> {
+    if (profileId === DEFAULT_PROFILE_ID) return
+    plugin.settings = produce(plugin.settings, (draft) => {
+        draft.profiles = draft.profiles.filter((p) => p.id !== profileId)
+    })
+    await plugin.saveSettings()
+}
+
 /** Set or clear a status's soft WIP limit (issue #16); `null`/≤0 removes it. */
 export async function setWipLimit(
     plugin: KanbanActionPlannerPlugin,
@@ -333,8 +397,85 @@ export async function resolveActiveProfile(
         }
     }
 
+    // Local fallback (issue #31): recognize via stored profiles' mapping rules,
+    // so note types work without the Starter Kit (and survive it being removed).
+    const localId = recognizeDominantLocalType(app, plugin, files)
+    if (localId) {
+        const local = findProfile(plugin, localId)
+        if (local) return { profile: local, statusValues: null, preserveOrder: true }
+    }
+
     const profile = await getOrCreateProfile(plugin, DEFAULT_PROFILE_ID, 'Default', 'local')
     return { profile, statusValues: null, preserveOrder: false }
+}
+
+/** Build the pure recognition view of a file (path + normalized tags). */
+function toRecognitionFile(app: App, file: TFile): RecognitionFile {
+    const cache = app.metadataCache.getFileCache(file)
+    const tags = (cache ? (getAllTags(cache) ?? []) : []).map((t) =>
+        t.toLowerCase().replace(/^#+/, '')
+    )
+    return { path: file.path, tags }
+}
+
+/** Profiles eligible for local recognition: non-Default with at least one mapping. */
+function recognitionProfiles(plugin: KanbanActionPlannerPlugin): Profile[] {
+    return plugin.settings.profiles.filter(
+        (p) => p.id !== DEFAULT_PROFILE_ID && p.typeRecognition.mappings.length > 0
+    )
+}
+
+/** Recognize a file's note type from stored mapping rules; null if none match. */
+export function recognizeLocalNoteType(
+    app: App,
+    plugin: KanbanActionPlannerPlugin,
+    file: TFile
+): { id: string; name: string } | null {
+    const record = toRecognitionFile(app, file)
+    for (const profile of recognitionProfiles(plugin)) {
+        if (matchesAnyMapping(record, profile.typeRecognition.mappings)) {
+            return { id: profile.id, name: profile.name }
+        }
+    }
+    return null
+}
+
+/**
+ * Recognize a file's note type, preferring the Starter Kit (when present) and
+ * falling back to local mapping rules (issue #31). Used for per-card swimlane /
+ * archive / display resolution.
+ */
+export async function recognizeNoteTypeFor(
+    app: App,
+    plugin: KanbanActionPlannerPlugin,
+    file: TFile
+): Promise<{ id: string; name: string } | null> {
+    if (isStarterKitAvailable(app)) {
+        const sk = await recognizeNoteType(app, file)
+        if (sk) return { id: sk.id, name: sk.name }
+    }
+    return recognizeLocalNoteType(app, plugin, file)
+}
+
+/** The most common locally-recognized note type id across a sample of files. */
+function recognizeDominantLocalType(
+    app: App,
+    plugin: KanbanActionPlannerPlugin,
+    files: TFile[]
+): string | null {
+    const candidates = recognitionProfiles(plugin)
+    if (candidates.length === 0) return null
+    const counts = new Map<string, number>()
+    for (const file of files.slice(0, 20)) {
+        const record = toRecognitionFile(app, file)
+        const hit = candidates.find((p) => matchesAnyMapping(record, p.typeRecognition.mappings))
+        if (hit) counts.set(hit.id, (counts.get(hit.id) ?? 0) + 1)
+    }
+    let best: { id: string; count: number } | null = null
+    for (const [id, count] of counts) {
+        if (!best || count > best.count) best = { id, count }
+    }
+    return best?.id ?? null
 }
 
 /** Recognize the most common Starter Kit note type across a sample of files. */
