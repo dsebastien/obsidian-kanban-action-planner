@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.0](https://github.com/dsebastien/obsidian-kanban-action-planner/compare/0.4.1...0.5.0) (2026-06-28)
+
+### Features
+
+* **plugin:** add/remove relationships from the card menu ([#14](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/14)) ([27950c3](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/27950c3f02a741539e1e73df1bc7be9fa2c75e17)), closes [#13](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/13)
+* **plugin:** native note preview on card hover ([3dc25f5](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/3dc25f57df3b6a56ba79edbb5f60d9e79de6fac5))
+
 ## [0.4.1](https://github.com/dsebastien/obsidian-kanban-action-planner/compare/0.4.0...0.4.1) (2026-06-28)
 
 ### Bug Fixes
@@ -116,6 +123,7 @@ All notable changes to this project will be documented in this file.
 
 * **plugin:** match Starter Kit's {{quarter}} placeholder format (Q2, not 2) ([4fde618](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/4fde6185c5956e3f6fd2ca3a9b03e70cf5e16840))
 * **plugin:** persist discovered statuses so Show empty columns works ([cf91b81](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/cf91b81a1b0786e35c73f4885882e2dc33564c62))
+
 
 
 

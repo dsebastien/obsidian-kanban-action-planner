@@ -1,5 +1,12 @@
 # Release Notes
 
+## 0.5.0 (2026-06-28)
+
+### Features
+
+- **plugin:** add/remove relationships from the card menu ([#14](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/14))
+- **plugin:** native note preview on card hover
+
 ## 0.4.1 (2026-06-28)
 
 ### Bug Fixes
