@@ -31,17 +31,16 @@ Three places, by scope:
    that type's profile (status values from the type, property names from the SK type +
    profile-referenced props, a single archive section). Starter Kit types stay synced via
    `resolveActiveProfile`/`mirrorNoteType`.
-2. **Per-board configuration**, which legitimately spans two scopes because Bases option types
-   can't render rich controls (no color picker, no dynamic list editor):
-    - **Bases "Configure view"** (`views/kanban/kanban-view-options.ts`) — **per-view**
-      (`this.config`) settings, grouped for legibility into **Columns / Swimlanes / Filters /
-      Calendar**. Affects only that one view.
-    - **Gear → "Configure board"** (`ui/configure-board-modal.ts`) — a board-side shortcut that
-      edits the **same** central note-type profile (colors, card presentation, relationships,
-      archiving, default swimlane grouping). The modal is a two-pane dialog with a left section
-      nav (Cards / Colors / Swimlanes / Relationships / Archiving); the Archive-folder field has
-      inline folder autocomplete (`ui/folder-suggest.ts`) and, on a board mixing types, one
-      archive section per present type (issue #29).
+2. **Bases "Configure view"** (`views/kanban/kanban-view-options.ts`) — **per-view**
+   (`this.config`) board-only settings (Bases option types can't render rich controls), grouped
+   into **Columns / Swimlanes / Filters / Calendar**. Affects only that one view.
+
+The note-type editor (`ui/configure-board-modal.ts`) — a two-pane dialog (Cards / Colors /
+Swimlanes / Relationships / Archiving; Archive-folder field has folder autocomplete via
+`ui/folder-suggest.ts`) — is opened **from the settings tab** for a chosen type. The board's
+**gear** no longer opens an in-board config modal; it calls `app.setting.openTabById(...)` to jump
+to the Note types settings (`view-toolbar` → `KanbanActionPlannerView.openSettings`), so note-type
+config has a single home. Per-card archiving still resolves by note type at runtime (issue #29).
 
 The grouping in "Configure view" is display-only — option `key`s are unchanged, so stored
 config round-trips. **Swimlanes** is intentionally settable in both: the modal sets the shared

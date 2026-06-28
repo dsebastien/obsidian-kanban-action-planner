@@ -125,7 +125,6 @@ export class KanbanActionPlannerSettingTab extends PluginSettingTab {
             profile,
             type.statusValues,
             this.propertiesForType(type.id),
-            [],
             () => this.display()
         ).open()
     }

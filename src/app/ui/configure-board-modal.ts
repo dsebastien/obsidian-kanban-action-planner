@@ -16,7 +16,6 @@ import { isValidHex, paletteTokens, resolveColor } from '../services/colors.serv
 import {
     clearColorOverride,
     findProfile,
-    getOrCreateProfile,
     setArchiveConfig,
     setAutoAssign,
     setCardPresentation,
@@ -28,13 +27,6 @@ import {
 const AUTO = '__auto__'
 const NONE = '__none__'
 const NOTE_NAME = '__note_name__'
-
-/** A note type present on the board, for the per-type Archiving section. */
-export interface ArchiveTypeInfo {
-    id: string
-    name: string
-    statusValues: string[]
-}
 
 type SectionId = 'cards' | 'colors' | 'swimlanes' | 'relationships' | 'archiving'
 
@@ -56,7 +48,6 @@ export class ConfigureBoardModal extends Modal {
     private readonly profileId: string
     private readonly statusValues: string[]
     private readonly availableProperties: string[]
-    private readonly archiveTypes: ArchiveTypeInfo[]
     private readonly onChange: () => void
     private activeSection: SectionId = 'cards'
     private body!: HTMLElement
@@ -67,7 +58,6 @@ export class ConfigureBoardModal extends Modal {
         profile: Profile,
         statusValues: string[],
         availableProperties: string[],
-        archiveTypes: ArchiveTypeInfo[],
         onChange: () => void
     ) {
         super(app)
@@ -75,7 +65,6 @@ export class ConfigureBoardModal extends Modal {
         this.profileId = profile.id
         this.statusValues = statusValues
         this.availableProperties = availableProperties
-        this.archiveTypes = archiveTypes
         this.onChange = onChange
     }
 
@@ -162,28 +151,8 @@ export class ConfigureBoardModal extends Modal {
         new Setting(this.body).setName('Archiving').setHeading()
         this.body.createEl('p', {
             cls: 'kap-modal-subtitle',
-            text: 'Archived notes move into a folder and leave the board. Placeholders: {{year}}, {{month}}, {{week}}, {{quarter}}, {{day}}, {{date}}, {{datetime}}, {{uuid}}.'
+            text: 'Archived notes of this type move into this folder and leave the board. Placeholders: {{year}}, {{month}}, {{week}}, {{quarter}}, {{day}}, {{date}}, {{datetime}}, {{uuid}}.'
         })
-
-        // With recognized note types, each gets its own folder (so a board mixing
-        // types files each card where it belongs); otherwise a single config.
-        if (this.archiveTypes.length > 0) {
-            this.body.createEl('p', {
-                cls: 'kap-modal-subtitle',
-                text: 'Each note type on this board archives to its own folder.'
-            })
-            for (const type of this.archiveTypes) {
-                new Setting(this.body).setName(type.name).setHeading()
-                const archive = findProfile(this.plugin, type.id)?.archive ?? {
-                    archiveFolder: '',
-                    triggerStatus: null
-                }
-                this.renderArchiveControls(archive, type.statusValues, (patch, rerender) => {
-                    void this.patchArchiveForType(type, patch, rerender)
-                })
-            }
-            return
-        }
 
         this.renderArchiveControls(profile.archive, this.statusValues, (patch, rerender) => {
             void this.patchArchive(patch, rerender)
@@ -234,18 +203,6 @@ export class ConfigureBoardModal extends Modal {
         const current = this.profile()?.archive
         if (!current) return
         await setArchiveConfig(this.plugin, this.profileId, { ...current, ...patch })
-        this.onChange()
-        if (rerender) this.render()
-    }
-
-    /** Same, but targets a specific note type's profile (creating it on first edit). */
-    private async patchArchiveForType(
-        type: ArchiveTypeInfo,
-        patch: Partial<ArchiveConfig>,
-        rerender: boolean
-    ): Promise<void> {
-        const profile = await getOrCreateProfile(this.plugin, type.id, type.name, 'starter-kit')
-        await setArchiveConfig(this.plugin, type.id, { ...profile.archive, ...patch })
         this.onChange()
         if (rerender) this.render()
     }

@@ -48,8 +48,9 @@ Ordering is stored in your notes (not in plugin data), so it travels with the va
 
 ## Swimlanes (grouping)
 
-Split the board into horizontal **lanes**, each with its own columns. Choose how to group in
-**Configure board → Swimlanes** (or override it per view — see View options):
+Split the board into horizontal **lanes**, each with its own columns. Choose how to group in the
+note type's **Swimlanes** section (**Settings → Note types**), or override it per view — see View
+options:
 
 - **None** — a single plain board (the default).
 - **By note type** — one lane per note type (requires the Obsidian Starter Kit to recognize
@@ -78,7 +79,8 @@ On small screens lanes stack and collapse, so you can focus on one lane at a tim
 Cards can show how notes relate. The plugin reads link-properties (frontmatter holding
 wikilinks) for four roles — **parent**, **sibling**, **child**, and **blocked by** — and
 detects the **inverse** automatically (if A lists B as a child, B shows A as a parent; siblings
-are mutual). Configure which property feeds each role in **Configure board → Relationships**.
+are mutual). Configure which property feeds each role in the note type's **Relationships** section
+(**Settings → Note types**).
 You can also detect children by tag: a note carrying one of the chosen tags that links back to
 a card is treated as its child.
 
@@ -102,14 +104,13 @@ blocked** cards.
 When you're done with a card, you can **archive** its note — move it out of the board into a
 dedicated folder while keeping all links intact.
 
-**Archiving is per note type.** When the Obsidian Starter Kit recognizes the note types on your
-board, **Configure board → Archiving** shows a folder (and auto-archive status) **for each
-type** — so on a board mixing e.g. Tasks and Projects, each card is archived to the folder that
-belongs to _its_ type (`Archive/Tasks/{{year}}` vs `Archive/Projects/{{year}}`). A card whose
-type has no folder set simply can't be archived (the menu item is hidden). Without the Starter
-Kit there's a single archive config for the board.
+**Archiving is per note type.** Each note type has its own archive folder, set in its
+**Archiving** section under **Settings → Note types** — so on a board mixing e.g. Tasks and
+Projects, each card is archived to the folder that belongs to _its_ type (`Archive/Tasks/{{year}}`
+vs `Archive/Projects/{{year}}`). A card whose type has no folder set simply can't be archived (the
+menu item is hidden).
 
-Set this up in **Configure board → Archiving** (per type when available):
+Set this up in each type's **Archiving** section:
 
 - **Archive folder** — where archived notes go. Start typing and **existing folders
   autocomplete**; any `{{…}}` placeholder you've added is kept. The path supports placeholders
@@ -213,7 +214,7 @@ changing your notes. They're grouped:
 **Swimlanes**
 
 - **Grouping** — override the board's lane grouping for this view: **Use board default**,
-  **None**, **By note type**, or **By property**. (The default is set in Configure board.)
+  **None**, **By note type**, or **By property**. (The default is set per note type in Settings.)
 - **Grouping property** — when grouping **By property**, the property whose values become lanes.
 
 **Filters**
@@ -227,12 +228,15 @@ changing your notes. They're grouped:
 - **Default range** — Week, Month, Quarter, or Year.
 - **Scheduling panel sort / sort property / filter** — order and filter the panel's tab cards.
 
-## Colors
+## Note type configuration (colors, cards, relationships, archiving)
 
-Click the **gear** in the top-right of the board to open **Configure board** — these are
-**shared** settings that apply to every board of the same note type. The dialog is organized
-into sections you pick from the left: **Cards**, **Colors**, **Swimlanes**, **Relationships**,
-and **Archiving**. In the **Colors** section:
+A note type's shared config lives **centrally** in **Settings → Community plugins → Kanban
+Action Planner → Note types**. Pick a type and click **Configure** to open a dialog with sections
+on the left — **Cards**, **Colors**, **Swimlanes**, **Relationships**, **Archiving** — that apply
+to **every** board showing that type. The **gear** in the board's top-right is a shortcut that
+jumps straight to these settings.
+
+In the **Colors** section:
 
 - Toggle **Auto-assign colors** to give each status a palette color automatically.
 - Per status, pick a palette color, choose **Custom…** and use the color picker, or pick
@@ -242,7 +246,7 @@ Card accents and column shades follow the status color and adapt to your light/d
 
 ## Card content
 
-The Configure board dialog also controls what each card shows:
+The note type's **Cards** section controls what each card shows:
 
 - **Title** — use the note name (default) or any property as the card heading. Clicking the
   card still opens the note.

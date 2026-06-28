@@ -20,12 +20,7 @@ import { detectStatusProperty, normalizeStatusValue } from '../../domain/status'
 import { passesFilter } from '../../domain/filtering'
 import type { BlockedFilter, RelationalFilter } from '../../domain/filtering'
 import type { RelationshipSet } from '../../domain/relationships'
-import {
-    findStatusProperty,
-    isStarterKitAvailable,
-    listNoteTypes,
-    recognizeNoteType
-} from '../../services/starter-kit.service'
+import { isStarterKitAvailable, recognizeNoteType } from '../../services/starter-kit.service'
 import {
     resolveBoardRelationships,
     toCardRelationships
@@ -70,9 +65,14 @@ import { BoardDnd } from '../../ui/board/dnd-controller'
 import type { DropTarget } from '../../ui/board/dnd-controller'
 import type { KanbanCard } from '../../ui/board/types'
 import { renderViewToolbar } from '../../ui/view-toolbar'
-import { ConfigureBoardModal } from '../../ui/configure-board-modal'
 import { DatePromptModal } from '../../ui/date-prompt-modal'
 import { log } from '../../../utils/log'
+
+/** The (untyped) settings controller exposed on `app.setting`. */
+interface ObsidianSettings {
+    open(): void
+    openTabById(id: string): void
+}
 
 /**
  * The Kanban Bases view.
@@ -450,37 +450,15 @@ export class KanbanActionPlannerView extends BasesView {
         void this.app.workspace.getLeaf(newTab ? 'tab' : false).openFile(card.file)
     }
 
-    private openConfigureModal(): void {
-        const statusValues = this.columns.map((c) => c.statusValue)
-        new ConfigureBoardModal(
-            this.app,
-            this.plugin,
-            this.profile,
-            statusValues,
-            this.availableProperties,
-            this.presentArchiveTypes(),
-            () => void this.resolveAndRebuild()
-        ).open()
-    }
-
     /**
-     * The note types present on this board, each with its status values — so the
-     * Configure-board → Archiving section can offer a folder + trigger per type.
-     * Empty when the Starter Kit isn't recognizing types (single default profile).
+     * Open the plugin settings (Note types). Note-type config — colors, cards,
+     * relationships, archiving — lives centrally there, not per board, so the
+     * board's gear just jumps to it.
      */
-    private presentArchiveTypes(): Array<{ id: string; name: string; statusValues: string[] }> {
-        const names = new Map<string, string>()
-        for (const type of this.noteTypeByPath.values()) {
-            if (type) names.set(type.id, type.name)
-        }
-        if (names.size === 0) return []
-        const skTypes = listNoteTypes(this.app)
-        const defaultStatus = this.plugin.settings.defaultStatusProperty
-        return Array.from(names, ([id, name]) => {
-            const sk = skTypes.find((t) => t.id === id)
-            const status = sk ? findStatusProperty(sk, defaultStatus) : null
-            return { id, name, statusValues: status?.allowedValues ?? [] }
-        }).sort((a, b) => a.name.localeCompare(b.name))
+    private openSettings(): void {
+        const setting = (this.app as unknown as { setting?: ObsidianSettings }).setting
+        setting?.open()
+        setting?.openTabById(this.plugin.manifest.id)
     }
 
     private async handleDrop(cardKey: string, target: DropTarget): Promise<void> {
@@ -799,7 +777,7 @@ export class KanbanActionPlannerView extends BasesView {
             { calendarMode: this.calendarMode(), showLaneNav },
             {
                 onSetCalendarMode: (calendar) => this.setCalendarMode(calendar),
-                onConfigure: () => this.openConfigureModal(),
+                onConfigure: () => this.openSettings(),
                 onLanePrev: () => this.scrollLane(-1),
                 onLaneNext: () => this.scrollLane(1)
             }

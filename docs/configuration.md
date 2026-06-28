@@ -16,17 +16,18 @@ Settings live in three places, by scope:
   reconfigure a type per board. When the Obsidian Starter Kit is present, its note types are
   synchronized into this list automatically; the **Default** entry covers notes with no
   recognized type. Click **Configure** next to a type to edit it.
-- **Per-board configuration**, in two complementary spots on a board:
-    - **Configure view** (the Bases view options for the Kanban view) — settings for **this
-      board only**, grouped into **Columns**, **Swimlanes**, **Filters**, and **Calendar**.
-    - **Configure board** (the **gear** in the board's top-right) — a shortcut to edit the
-      **same** central note-type config (colors, card content, relationships, archiving, default
-      swimlane grouping) for the board's type, without leaving the board.
+- **Per-board configuration** (**Configure view** — the Bases view options for the Kanban view)
+  — settings for **this board only**, grouped into **Columns**, **Swimlanes**, **Filters**, and
+  **Calendar**.
 
-Precedence (most specific wins): a **view's** Configure-view setting → the **board/profile**
-default (gear, or a Starter Kit note type) → the **global** default. For example, swimlane
-grouping has a shared default in **Configure board**, and any single view can override it in
-**Configure view → Swimlanes** (which defaults to "Use board default").
+The **gear** in the board's top-right is a shortcut that opens the plugin's **Note types**
+settings (note-type config — colors, cards, relationships, archiving, default swimlane grouping —
+lives there, not on the board).
+
+Precedence (most specific wins): a **view's** Configure-view setting → the **note type's** shared
+config (Settings → Note types) → the **global** default. For example, swimlane grouping has a
+shared default per note type, and any single view can override it in **Configure view →
+Swimlanes** (which defaults to "Use board default").
 
 ## Property names
 
