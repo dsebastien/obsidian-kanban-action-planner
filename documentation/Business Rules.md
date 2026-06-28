@@ -115,7 +115,13 @@ See `documentation/plans/kanban-action-planner-implementation-plan.md` for full 
     persists per-view in `this.config.filterQuery`; it ANDs with the blocked filter and keeps
     existing column/lane visibility rules. Parsing is best-effort (never throws). This subsumes
     and replaces the old per-view `calendarFilter` option.
-17. **Overdue emphasis (issue #22).** The card display carries a pure `dueState`
+17. **WIP limits (issue #16).** Soft per-status work-in-progress limits live on the note-type
+    profile (`wipLimits`: status value → positive integer), edited in Configure board → **WIP
+    limits**. A column with a limit shows `count / limit` in its header and turns the count red
+    when over; the limit is **advisory only** and never blocks a drop. `columnsFromValues`
+    attaches the limit to each `ColumnDef`. Per-view overrides are out of scope (Bases flat
+    options can't express per-status limits).
+18. **Overdue emphasis (issue #22).** The card display carries a pure `dueState`
     (`overdue`/`today`/`none`) computed from the configured due-date property vs. today. Overdue
     cards get a red background wash, due-today an amber wash. This uses the **background**
     channel so it stays distinct from a blocked card's red **left accent** — both can show at

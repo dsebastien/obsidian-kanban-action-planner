@@ -21,18 +21,20 @@ import {
     setCardPresentation,
     setColorOverride,
     setLaneGrouping,
-    setRelationships
+    setRelationships,
+    setWipLimit
 } from '../services/profile-service'
 
 const AUTO = '__auto__'
 const NONE = '__none__'
 const NOTE_NAME = '__note_name__'
 
-type SectionId = 'cards' | 'colors' | 'swimlanes' | 'relationships' | 'archiving'
+type SectionId = 'cards' | 'colors' | 'swimlanes' | 'relationships' | 'archiving' | 'limits'
 
 const SECTIONS: ReadonlyArray<{ id: SectionId; label: string; icon: string }> = [
     { id: 'cards', label: 'Cards', icon: 'gallery-horizontal-end' },
     { id: 'colors', label: 'Colors', icon: 'palette' },
+    { id: 'limits', label: 'WIP limits', icon: 'gauge' },
     { id: 'swimlanes', label: 'Swimlanes', icon: 'rows-3' },
     { id: 'relationships', label: 'Relationships', icon: 'git-fork' },
     { id: 'archiving', label: 'Archiving', icon: 'archive' }
@@ -142,7 +144,50 @@ export class ConfigureBoardModal extends Modal {
             case 'archiving':
                 this.renderArchiving(profile)
                 return
+            case 'limits':
+                this.renderLimits(profile)
+                return
         }
+    }
+
+    // ── WIP limits ────────────────────────────────────────────
+
+    private renderLimits(profile: Profile): void {
+        new Setting(this.body).setName('WIP limits').setHeading()
+        this.body.createEl('p', {
+            cls: 'kap-modal-subtitle',
+            text: 'Soft per-column limits. A column over its limit turns its count red; drops are never blocked. Leave blank for no limit.'
+        })
+
+        if (this.statusValues.length === 0) {
+            this.body.createDiv({
+                cls: 'kap-modal-empty',
+                text: 'WIP limits appear here once this board has status values.'
+            })
+            return
+        }
+
+        for (const statusValue of this.statusValues) {
+            const current = profile.wipLimits[statusValue]
+            new Setting(this.body).setName(splitStatusValue(statusValue).label).addText((input) => {
+                input.inputEl.type = 'number'
+                input.inputEl.min = '1'
+                input.inputEl.addClass('kap-wip-input')
+                input
+                    .setPlaceholder('No limit')
+                    .setValue(current ? String(current) : '')
+                    .onChange((value) => {
+                        const n = Number.parseInt(value, 10)
+                        // Persist without re-rendering so the number input keeps focus.
+                        void this.patchWipLimit(statusValue, Number.isFinite(n) && n > 0 ? n : null)
+                    })
+            })
+        }
+    }
+
+    private async patchWipLimit(statusValue: string, limit: number | null): Promise<void> {
+        await setWipLimit(this.plugin, this.profileId, statusValue, limit)
+        this.onChange()
     }
 
     // ── Archiving ─────────────────────────────────────────────

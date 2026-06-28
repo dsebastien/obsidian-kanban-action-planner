@@ -60,4 +60,12 @@ describe('columnsFromValues', () => {
         const cols = columnsFromValues(['a', 'a', 'b'], profile, true)
         expect(cols.map((c) => c.statusValue)).toEqual(['a', 'b'])
     })
+
+    it('attaches WIP limits from the profile, omitting unset/zero ones (issue #16)', () => {
+        const withLimits = { ...profile, wipLimits: { '10 Todo': 3, '20 Doing': 0 } }
+        const cols = columnsFromValues(['10 Todo', '20 Doing', '30 Done'], withLimits, true)
+        expect(cols.find((c) => c.statusValue === '10 Todo')?.wipLimit).toBe(3)
+        expect(cols.find((c) => c.statusValue === '20 Doing')?.wipLimit).toBeUndefined()
+        expect(cols.find((c) => c.statusValue === '30 Done')?.wipLimit).toBeUndefined()
+    })
 })

@@ -273,9 +273,14 @@ date **property names** are set globally in plugin settings.)
 
 A note type's shared config lives **centrally** in **Settings → Community plugins → Kanban
 Action Planner → Note types**. Pick a type and click **Configure** to open a dialog with sections
-on the left — **Cards**, **Colors**, **Swimlanes**, **Relationships**, **Archiving** — that apply
-to **every** board showing that type. The **gear** in the board's top-right is a shortcut that
-jumps straight to these settings.
+on the left — **Cards**, **Colors**, **WIP limits**, **Swimlanes**, **Relationships**,
+**Archiving** — that apply to **every** board showing that type. The **gear** in the board's
+top-right is a shortcut that jumps straight to these settings.
+
+In the **WIP limits** section, set a soft per-column limit for any status (leave blank for no
+limit). The column header then shows **`count / limit`**, and a column over its limit turns its
+count **red** — a gentle nudge toward classic Kanban flow. Limits are a warning only: they
+**never block** moving a card into a full column.
 
 In the **Colors** section:
 

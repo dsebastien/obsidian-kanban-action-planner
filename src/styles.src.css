@@ -320,6 +320,16 @@
         font-weight: var(--font-normal, 400);
     }
 
+    /* Over its soft WIP limit (issue #16): red, bold count + a red header rule. */
+    .kap-column-over-limit .kap-column-count {
+        color: var(--text-error);
+        font-weight: var(--font-semibold, 600);
+    }
+
+    .kap-column-over-limit .kap-column-header {
+        box-shadow: inset 0 -2px 0 0 var(--text-error);
+    }
+
     /* A collapsed column shrinks to a full-height vertical bar (cards hidden). */
     .kap-column-collapsed {
         @apply flex-none self-stretch w-11 max-w-none;

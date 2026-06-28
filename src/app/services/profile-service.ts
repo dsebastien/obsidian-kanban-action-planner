@@ -83,6 +83,7 @@ export function createDefaultProfile(
             wrapPropertyValues: false
         },
         archive: { archiveFolder: '', triggerStatuses: [] },
+        wipLimits: {},
         relationships: [
             { role: 'parent', linkProperty: DEFAULT_PARENT_PROPERTY },
             { role: 'sibling', linkProperty: DEFAULT_SIBLING_PROPERTY },
@@ -229,6 +230,24 @@ export async function setArchiveConfig(
     )
 }
 
+/** Set or clear a status's soft WIP limit (issue #16); `null`/≤0 removes it. */
+export async function setWipLimit(
+    plugin: KanbanActionPlannerPlugin,
+    profileId: string,
+    statusValue: string,
+    limit: number | null
+): Promise<void> {
+    const profile = findProfile(plugin, profileId)
+    if (!profile) return
+    await upsertProfile(
+        plugin,
+        produce(profile, (draft) => {
+            if (limit && limit > 0) draft.wipLimits[statusValue] = Math.floor(limit)
+            else delete draft.wipLimits[statusValue]
+        })
+    )
+}
+
 /** Replace a profile's card-presentation config. */
 export async function setCardPresentation(
     plugin: KanbanActionPlannerPlugin,
@@ -268,12 +287,14 @@ export function columnsFromValues(
     const ordered = preserveOrder ? unique : unique.sort(compareStatusValues)
     return ordered.map((statusValue) => {
         const { sortKey, label } = splitStatusValue(statusValue)
+        const wipLimit = profile.wipLimits[statusValue]
         return {
             id: statusValue,
             statusValue,
             label,
             sortKey,
-            color: colorForStatus(profile, statusValue)
+            color: colorForStatus(profile, statusValue),
+            ...(wipLimit && wipLimit > 0 ? { wipLimit } : {})
         }
     })
 }

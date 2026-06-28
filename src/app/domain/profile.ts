@@ -28,7 +28,9 @@ export const columnDefSchema = z.object({
     statusValue: z.string(),
     label: z.string(),
     sortKey: z.string(),
-    color: colorSpecSchema
+    color: colorSpecSchema,
+    /** Soft WIP limit for this column (issue #16); absent = no limit. */
+    wipLimit: z.number().int().positive().optional()
 })
 export type ColumnDef = z.infer<typeof columnDefSchema>
 
@@ -128,7 +130,9 @@ export const profileOverridableSchema = z.object({
     card: cardPresentationSchema,
     archive: archiveConfigSchema,
     relationships: z.array(relationshipRuleSchema),
-    calendar: calendarConfigSchema
+    calendar: calendarConfigSchema,
+    /** Soft per-status WIP limits (issue #16): status value → positive limit. */
+    wipLimits: z.record(z.string(), z.number().int().positive()).default({})
 })
 
 /** A reusable note-type profile. */

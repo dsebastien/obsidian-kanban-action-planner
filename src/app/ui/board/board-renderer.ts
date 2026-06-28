@@ -176,7 +176,8 @@ function renderColumns(
             callbacks.onToggleColumn?.(column.id)
         })
         header.createSpan({ cls: 'kap-column-title', text: column.label })
-        header.createSpan({ cls: 'kap-column-count', text: String(cards.length) })
+        const countEl = header.createSpan({ cls: 'kap-column-count' })
+        setColumnCount(colEl, countEl, cards.length, column.wipLimit)
 
         const listEl = colEl.createDiv({ cls: 'kap-column-cards' })
         listEl.setAttribute('role', 'list')
@@ -199,7 +200,8 @@ function patchColumns(
         if (!colEl || !listEl) continue
         const accent = resolveColor(column.color)
         patchColumnCards(listEl, cards, accent, callbacks)
-        colEl.querySelector('.kap-column-count')?.setText(String(cards.length))
+        const countEl = colEl.querySelector<HTMLElement>('.kap-column-count')
+        if (countEl) setColumnCount(colEl, countEl, cards.length, column.wipLimit)
 
         const collapsed = collapsedColumns.has(column.id)
         colEl.toggleClass('kap-column-collapsed', collapsed)
@@ -280,6 +282,21 @@ function cardSignature(card: KanbanCard, accent: string): string {
     return [d.title, d.wrap ? 'w' : '', d.coverUrl ?? '', d.dueState, fields, rels, accent].join(
         '§'
     )
+}
+
+/**
+ * Render a column's count, showing `n / limit` when a soft WIP limit is set and
+ * flagging the column when it is over its limit (issue #16). The limit never
+ * blocks drops — it is a visual warning only.
+ */
+function setColumnCount(
+    colEl: HTMLElement,
+    countEl: HTMLElement,
+    count: number,
+    limit: number | undefined
+): void {
+    countEl.setText(limit !== undefined ? `${String(count)} / ${String(limit)}` : String(count))
+    colEl.toggleClass('kap-column-over-limit', limit !== undefined && count > limit)
 }
 
 /** Escape a value for use inside an attribute selector. */
