@@ -16,6 +16,19 @@ export interface CardMenuHost {
     setCardStatus(card: KanbanCard, statusValue: string | null, columnId: string): Promise<void>
     archivingConfigured(card: KanbanCard): boolean
     archiveCard(card: KanbanCard): Promise<void>
+    /**
+     * Enum properties (issue #52) the "Set <property>" submenu offers for this
+     * card — each with its allowed values and the card's current value. Empty
+     * when the card's note type has no known enum properties.
+     */
+    enumPropertiesFor(card: KanbanCard): Array<{
+        name: string
+        displayName: string
+        values: string[]
+        current: string | null
+    }>
+    /** Write (or clear, when `value` is null) an enum property on the card's note. */
+    setCardProperty(card: KanbanCard, propertyName: string, value: string | null): Promise<void>
     /** Read a card's scheduled/deadline date (null when unset). */
     cardDate(card: KanbanCard, dimension: DateDimension): Date | null
     /** Write (or clear, when `isoDate` is null) a card's scheduled date or deadline. */
@@ -72,6 +85,7 @@ export function buildCardMenu(card: KanbanCard, host: CardMenuHost): Menu {
                 .onClick(() => void host.setCardStatus(card, null, UNMAPPED_COLUMN_ID))
         )
     }
+    addEnumSetMenuItems(menu, card, host)
     addSchedulingMenuItems(menu, card, host)
     if (host.archivingConfigured(card)) {
         menu.addSeparator()
@@ -117,6 +131,41 @@ function addRelationshipEditItems(menu: Menu, card: KanbanCard, host: CardMenuHo
             )
         }
     })
+}
+
+/**
+ * "Set <property>" submenus for each configured enum property (issue #52),
+ * generalizing the "Set status" pattern: a submenu of allowed values with the
+ * current one checked, plus a Clear item. Nothing is added when the card's note
+ * type has no known enum properties.
+ */
+function addEnumSetMenuItems(menu: Menu, card: KanbanCard, host: CardMenuHost): void {
+    const props = host.enumPropertiesFor(card)
+    if (props.length === 0) return
+    menu.addSeparator()
+    for (const { name, displayName, values, current } of props) {
+        menu.addItem((item) => {
+            item.setTitle(`Set ${displayName.toLowerCase()}`).setIcon('list')
+            const submenu = item.setSubmenu()
+            for (const value of values) {
+                submenu.addItem((sub) =>
+                    sub
+                        .setTitle(value)
+                        .setChecked(current === value)
+                        .onClick(() => void host.setCardProperty(card, name, value))
+                )
+            }
+            if (current !== null) {
+                submenu.addSeparator()
+                submenu.addItem((sub) =>
+                    sub
+                        .setTitle('Clear')
+                        .setIcon('x')
+                        .onClick(() => void host.setCardProperty(card, name, null))
+                )
+            }
+        })
+    }
 }
 
 /** "Schedule" / "Set deadline" quick dates + precise picker + clear. */

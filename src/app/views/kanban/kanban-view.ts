@@ -50,6 +50,7 @@ import {
     resolveActiveNoteType
 } from '../../services/note-type.service'
 import { buildCardDisplay } from '../../services/card-display.service'
+import { listEnumProperties } from '../../services/enum.service'
 import { buildCardSearchRecord } from '../../services/card-search.service'
 import { archiveNote } from '../../services/archive.service'
 import {
@@ -1030,6 +1031,9 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             columns: () => this.columns,
             setCardStatus: (card, statusValue, columnId) =>
                 this.setCardStatus(card, statusValue, columnId),
+            enumPropertiesFor: (card) => this.enumPropertiesFor(card),
+            setCardProperty: (card, propertyName, value) =>
+                this.setCardProperty(card, propertyName, value),
             archivingConfigured: (card) => this.archivingConfigured(card),
             archiveCard: (card) => this.archiveCard(card),
             cardDate: (card, dimension) => this.cardDate(card, dimension),
@@ -1234,6 +1238,55 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         const laneId = this.laneIdOf(card)
         const destCards = this.columnCards(laneId, columnId).filter((c) => c.key !== card.key)
         await this.applyMove(card, statusValue, laneId, columnId, destCards.length)
+    }
+
+    // ── Enum quick-set (issue #52) ────────────────────────────
+
+    /** The note type id a card resolved to (its own type, else the active type). */
+    private noteTypeIdFor(card: KanbanCard): string {
+        return this.noteTypeByPath.get(card.file.path)?.id ?? this.noteType.id
+    }
+
+    /**
+     * Enum properties offered in the card's "Set <property>" menu (issue #52):
+     * the card's note type's known enums, minus the status property (it has its
+     * own menu), each with the card's current value.
+     */
+    private enumPropertiesFor(card: KanbanCard): Array<{
+        name: string
+        displayName: string
+        values: string[]
+        current: string | null
+    }> {
+        const statusName = this.statusProperty?.toLowerCase() ?? ''
+        const defs = listEnumProperties(this.app, this.plugin, this.noteTypeIdFor(card))
+        return defs
+            .filter((def) => def.name.toLowerCase() !== statusName)
+            .map((def) => {
+                const raw = getFrontmatterValue(this.app, card.file, def.name)
+                const current =
+                    typeof raw === 'string'
+                        ? raw
+                        : typeof raw === 'number' || typeof raw === 'boolean'
+                          ? String(raw)
+                          : null
+                return {
+                    name: def.name,
+                    displayName: def.displayName,
+                    values: def.values,
+                    current: current === '' ? null : current
+                }
+            })
+    }
+
+    /** Write (or clear) an enum property on a card's note (issue #52). */
+    private async setCardProperty(
+        card: KanbanCard,
+        propertyName: string,
+        value: string | null
+    ): Promise<void> {
+        if (value === null) await deleteProperty(this.app, card.file, propertyName)
+        else await setProperty(this.app, card.file, propertyName, value)
     }
 
     // ── Calendar mode ─────────────────────────────────────────

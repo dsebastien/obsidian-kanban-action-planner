@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'bun:test'
-import { findStatusProperty, recognitionMappings } from './starter-kit.service'
+import {
+    enumPropertyDefs,
+    findProperty,
+    findStatusProperty,
+    recognitionMappings
+} from './starter-kit.service'
 import type { SkNoteType } from './starter-kit.service'
 
 function noteType(partial: Partial<SkNoteType>): SkNoteType {
@@ -54,6 +59,39 @@ describe('findStatusProperty', () => {
 
     it('returns null when no candidate exists', () => {
         expect(findStatusProperty(noteType({ properties: [{ name: 'title' }] }))).toBeNull()
+    })
+})
+
+describe('findProperty (issue #52)', () => {
+    const nt = noteType({
+        properties: [
+            { name: 'priority', allowedValues: ['10 - Top', '99 - TBD'] },
+            { name: 'title' }
+        ]
+    })
+
+    it('returns allowed values for a property by case-insensitive name', () => {
+        expect(findProperty(nt, 'Priority')).toEqual(['10 - Top', '99 - TBD'])
+    })
+
+    it('returns [] for an unknown property or one without allowed values', () => {
+        expect(findProperty(nt, 'effort')).toEqual([])
+        expect(findProperty(nt, 'title')).toEqual([])
+    })
+})
+
+describe('enumPropertyDefs (issue #52)', () => {
+    it('lists only properties that have constrained values, using displayName', () => {
+        const nt = noteType({
+            properties: [
+                { name: 'priority', displayName: 'Priority', allowedValues: ['a', 'b'] },
+                { name: 'urgency', allowedValues: [] },
+                { name: 'title' }
+            ]
+        })
+        expect(enumPropertyDefs(nt)).toEqual([
+            { name: 'priority', displayName: 'Priority', values: ['a', 'b'] }
+        ])
     })
 })
 

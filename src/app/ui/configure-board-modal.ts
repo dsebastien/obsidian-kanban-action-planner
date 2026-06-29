@@ -21,19 +21,29 @@ import {
     setColorOverride,
     setLaneGrouping,
     setNoteTypeName,
+    setEnumProperty,
     setRecognitionMappings,
     setRelationships,
     setWipLimit
 } from '../services/note-type.service'
+import { listEnumProperties, resolveAllowedValues } from '../services/enum.service'
 
 const AUTO = '__auto__'
 const NONE = '__none__'
 
-type SectionId = 'recognition' | 'colors' | 'swimlanes' | 'relationships' | 'archiving' | 'limits'
+type SectionId =
+    | 'recognition'
+    | 'colors'
+    | 'enums'
+    | 'swimlanes'
+    | 'relationships'
+    | 'archiving'
+    | 'limits'
 
 const SECTIONS: ReadonlyArray<{ id: SectionId; label: string; icon: string }> = [
     { id: 'recognition', label: 'Note type', icon: 'scan-search' },
     { id: 'colors', label: 'Colors', icon: 'palette' },
+    { id: 'enums', label: 'Enums', icon: 'list' },
     { id: 'limits', label: 'WIP limits', icon: 'gauge' },
     { id: 'swimlanes', label: 'Swimlanes', icon: 'rows-3' },
     { id: 'relationships', label: 'Relationships', icon: 'git-fork' },
@@ -52,6 +62,8 @@ export class ConfigureBoardModal extends Modal {
     private readonly availableProperties: string[]
     private readonly onChange: () => void
     private activeSection: SectionId = 'colors'
+    /** Enum properties being defined in the UI that have no persisted values yet. */
+    private readonly draftEnums = new Set<string>()
     private body!: HTMLElement
 
     constructor(
@@ -149,6 +161,9 @@ export class ConfigureBoardModal extends Modal {
                 return
             case 'colors':
                 this.renderColors(noteType)
+                return
+            case 'enums':
+                this.renderEnums(noteType)
                 return
             case 'swimlanes':
                 this.renderSwimlanes(noteType)
@@ -300,6 +315,97 @@ export class ConfigureBoardModal extends Modal {
 
     private async patchWipLimit(statusValue: string, limit: number | null): Promise<void> {
         await setWipLimit(this.plugin, this.noteTypeId, statusValue, limit)
+        this.onChange()
+    }
+
+    // ── Enum allowed-values (issue #52) ───────────────────────
+
+    private renderEnums(noteType: NoteType): void {
+        new Setting(this.body).setName('Enums').setHeading()
+        this.body.createEl('p', {
+            cls: 'kap-modal-subtitle',
+            text: 'Allowed values for a property let you set it from a card (right-click → "Set <property>") and drive triage. Values are auto-detected from the Obsidian Starter Kit when present; define them here for local types or to override. One value per line, in order.'
+        })
+
+        // Property names with a manual list, plus any in-progress (empty) drafts.
+        const names = [...new Set([...Object.keys(noteType.enumProperties), ...this.draftEnums])]
+        if (names.length === 0) {
+            this.body.createDiv({
+                cls: 'kap-modal-empty',
+                text: 'No manual enum properties yet. Add one below; Starter Kit enums work without any entry here.'
+            })
+        }
+
+        for (const name of names) {
+            const values = noteType.enumProperties[name] ?? []
+            new Setting(this.body)
+                .setName(name)
+                .setClass('kap-enum-row')
+                .addTextArea((area) => {
+                    area.inputEl.rows = Math.max(3, values.length)
+                    area.inputEl.addClass('kap-enum-values')
+                    area.setPlaceholder('10 - Top\n20 - High\n…')
+                        .setValue(values.join('\n'))
+                        // Persist without re-rendering so the textarea keeps focus.
+                        .onChange((text) => void this.patchEnumProperty(name, splitLines(text)))
+                })
+                .addExtraButton((b) =>
+                    b
+                        .setIcon('trash')
+                        .setTooltip('Remove')
+                        .onClick(() => {
+                            this.draftEnums.delete(name)
+                            void this.mutate(() =>
+                                setEnumProperty(this.plugin, this.noteTypeId, name, [])
+                            )
+                        })
+                )
+        }
+
+        let draft = ''
+        new Setting(this.body)
+            .setName('Add enum property')
+            .setDesc('Frontmatter property name (e.g. priority, urgency, effort).')
+            .addText((input) => {
+                input.setPlaceholder('property name').onChange((v) => {
+                    draft = v
+                })
+            })
+            .addButton((btn) =>
+                btn
+                    .setButtonText('Add')
+                    .setCta()
+                    .onClick(() => {
+                        const property = draft.trim()
+                        if (!property) return
+                        this.draftEnums.add(property)
+                        // Seed from the Starter Kit's values when it knows this
+                        // property, so the manual list starts as an editable override.
+                        const seed = resolveAllowedValues(
+                            this.app,
+                            this.plugin,
+                            this.noteTypeId,
+                            property
+                        )
+                        void this.mutate(() =>
+                            setEnumProperty(this.plugin, this.noteTypeId, property, seed)
+                        )
+                    })
+            )
+
+        const detected = listEnumProperties(this.app, this.plugin, this.noteTypeId)
+            .map((d) => d.name)
+            .filter((n) => !names.includes(n))
+        if (detected.length > 0) {
+            this.body.createEl('p', {
+                cls: 'kap-modal-subtitle',
+                text: `Detected enum properties (no manual entry needed): ${detected.join(', ')}.`
+            })
+        }
+    }
+
+    private async patchEnumProperty(name: string, values: string[]): Promise<void> {
+        await setEnumProperty(this.plugin, this.noteTypeId, name, values)
         this.onChange()
     }
 
@@ -619,4 +725,12 @@ function currentHex(spec: ColorSpec | undefined): string {
 
 function capitalize(s: string): string {
     return s.length === 0 ? s : s.charAt(0).toUpperCase() + s.slice(1)
+}
+
+/** Split a textarea value into trimmed, non-empty lines (enum value entry). */
+function splitLines(text: string): string[] {
+    return text
+        .split('\n')
+        .map((line) => line.trim())
+        .filter((line) => line.length > 0)
 }

@@ -126,6 +126,14 @@ export const noteTypeSchema = z.object({
     relationships: z.array(relationshipRuleSchema),
     calendar: calendarConfigSchema,
     /** Soft per-status WIP limits (issue #16): status value → positive limit. */
-    wipLimits: z.record(z.string(), z.number().int().positive()).default({})
+    wipLimits: z.record(z.string(), z.number().int().positive()).default({}),
+    /**
+     * Manual enum allowed-values (issue #52): property name → ordered allowed
+     * values. The fallback/override for the Starter Kit's `allowedValues`; lets
+     * local note types (and props SK doesn't define) drive the card "Set
+     * <property>" quick-set menu. Defaults to `{}` so older stored note types
+     * degrade gracefully (no backfill).
+     */
+    enumProperties: z.record(z.string(), z.array(z.string())).default({})
 })
 export type NoteType = z.infer<typeof noteTypeSchema>

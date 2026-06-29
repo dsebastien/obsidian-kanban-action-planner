@@ -83,6 +83,7 @@ export function createDefaultNoteType(
         colors: { autoAssign: true, overrides: {} },
         archive: { archiveFolder: '', triggerStatuses: [] },
         wipLimits: {},
+        enumProperties: {},
         relationships: [
             { role: 'parent', linkProperty: DEFAULT_PARENT_PROPERTY },
             { role: 'sibling', linkProperty: DEFAULT_SIBLING_PROPERTY },
@@ -319,6 +320,28 @@ export async function setWipLimit(
         produce(noteType, (draft) => {
             if (limit && limit > 0) draft.wipLimits[statusValue] = Math.floor(limit)
             else delete draft.wipLimits[statusValue]
+        })
+    )
+}
+
+/**
+ * Set or clear a note type's manual enum allowed-values for a property (issue
+ * #52). An empty/blank list removes the entry (falls back to the Starter Kit).
+ */
+export async function setEnumProperty(
+    plugin: KanbanActionPlannerPlugin,
+    noteTypeId: string,
+    propertyName: string,
+    values: string[]
+): Promise<void> {
+    const noteType = requireNoteType(plugin, noteTypeId)
+    if (!noteType) return
+    const cleaned = values.map((v) => v.trim()).filter((v) => v.length > 0)
+    await upsertNoteType(
+        plugin,
+        produce(noteType, (draft) => {
+            if (cleaned.length > 0) draft.enumProperties[propertyName] = cleaned
+            else delete draft.enumProperties[propertyName]
         })
     )
 }

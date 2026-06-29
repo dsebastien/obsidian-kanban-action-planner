@@ -105,6 +105,31 @@ export function findStatusProperty(
     return { name: candidate.name, allowedValues: toStringValues(candidate.allowedValues) }
 }
 
+/**
+ * Find a note type's property by name (case-insensitive) and return its allowed
+ * values (issue #52). Unlike {@link findStatusProperty} this matches an exact
+ * property name, so any enum (priority/urgency/effort/…) can be resolved.
+ * Returns `[]` when the property is unknown or has no constrained values.
+ */
+export function findProperty(noteType: SkNoteType, name: string): string[] {
+    const lower = name.toLowerCase()
+    const prop = (noteType.properties ?? []).find((p) => p.name.toLowerCase() === lower)
+    return prop ? toStringValues(prop.allowedValues) : []
+}
+
+/** Every Starter Kit property that has constrained (enum) values (issue #52). */
+export function enumPropertyDefs(
+    noteType: SkNoteType
+): Array<{ name: string; displayName: string; values: string[] }> {
+    const out: Array<{ name: string; displayName: string; values: string[] }> = []
+    for (const p of noteType.properties ?? []) {
+        const values = toStringValues(p.allowedValues)
+        if (values.length > 0)
+            out.push({ name: p.name, displayName: p.displayName ?? p.name, values })
+    }
+    return out
+}
+
 function toStringValues(raw: unknown): string[] {
     if (!Array.isArray(raw)) return []
     return raw
