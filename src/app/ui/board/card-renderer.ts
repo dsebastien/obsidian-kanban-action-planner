@@ -56,6 +56,10 @@ export function renderCard(
             const chip = fieldsEl.createDiv({ cls: 'kap-card-field' })
             if (field.emphasis === 'due-red') chip.addClass('kap-card-field-due')
             if (field.progress !== null) chip.addClass('kap-card-field-progress')
+            else if (field.tone === 'badge') chip.addClass('kap-card-field-badge')
+            else if (field.tone === 'heat' && field.heat !== null) {
+                chip.addClass(`kap-card-field-heat-${String(field.heat)}`)
+            }
             if (field.label) {
                 chip.createSpan({ cls: 'kap-card-field-label', text: `${field.label}: ` })
             }

@@ -2,6 +2,15 @@ import type { TFile } from 'obsidian'
 import type { BoardCardBase } from '../../domain/board-model'
 import type { CardRelationships } from '../../services/relationships.service'
 
+/**
+ * A field's visual tone (issue: card scannability):
+ * - `neutral` — default chip (no semantic signal).
+ * - `badge` — a numeric formula/score, rendered as a filled accent badge.
+ * - `heat` — an enum value colored by its rank in the property's allowed values
+ *   (warm = top/most-urgent, cool = bottom/least), via {@link CardFieldView.heat}.
+ */
+export type FieldTone = 'neutral' | 'badge' | 'heat'
+
 /** A single rendered field on a card. */
 export interface CardFieldView {
     label: string | null
@@ -12,6 +21,10 @@ export interface CardFieldView {
      * progress bar (with `text` as the `%` caption) instead of plain text.
      */
     progress: number | null
+    /** Visual tone for color-coding (see {@link FieldTone}). */
+    tone: FieldTone
+    /** Heat bucket `0` (warmest) … `4` (coolest) when `tone === 'heat'`, else null. */
+    heat: number | null
 }
 
 /** A card's due-date urgency, derived from the due property vs. today (issue #22). */

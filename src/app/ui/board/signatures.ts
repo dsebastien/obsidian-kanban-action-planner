@@ -30,7 +30,9 @@ export function cardSignature(
     accent: string
 ): string {
     const d = card.display
-    const fields = d.fields.map((f) => `${f.label ?? ''}|${f.text}|${f.emphasis ?? ''}`).join('~')
+    const fields = d.fields
+        .map((f) => `${f.label ?? ''}|${f.text}|${f.emphasis ?? ''}|${f.tone}|${String(f.heat)}`)
+        .join('~')
     const roles: RelationshipRole[] = ['blocked_by', 'parent', 'child', 'sibling']
     const rels = roles
         .map((r) => `${r}:${card.relationships[r].map((x) => x.key).join(',')}`)

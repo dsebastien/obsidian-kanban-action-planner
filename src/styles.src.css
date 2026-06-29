@@ -605,6 +605,63 @@
         color: var(--text-normal);
     }
 
+    /* Numeric formula "score" → a filled accent badge that pops when scanning. */
+    .kap-card-field-badge {
+        background: var(--interactive-accent);
+    }
+
+    .kap-card-field-badge .kap-card-field-label,
+    .kap-card-field-badge .kap-card-field-value {
+        color: var(--text-on-accent);
+    }
+
+    .kap-card-field-badge .kap-card-field-value {
+        @apply font-semibold;
+    }
+
+    /* Heat scale (0 = warmest … 4 = coolest): enum value colored by its rank in
+       the property's allowed values, so the board reads like a heatmap. Each chip
+       gets a translucent tint of an Obsidian theme color + a matching value color
+       and a thin tinted border, legible in both light and dark themes. */
+    .kap-card-field-heat-0 {
+        background: color-mix(in srgb, var(--color-red) 16%, var(--background-primary));
+        box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-red) 35%, transparent);
+    }
+    .kap-card-field-heat-0 .kap-card-field-value {
+        color: var(--color-red);
+    }
+
+    .kap-card-field-heat-1 {
+        background: color-mix(in srgb, var(--color-orange) 16%, var(--background-primary));
+        box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-orange) 32%, transparent);
+    }
+    .kap-card-field-heat-1 .kap-card-field-value {
+        color: var(--color-orange);
+    }
+
+    .kap-card-field-heat-2 {
+        background: color-mix(in srgb, var(--color-yellow) 16%, var(--background-primary));
+        box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-yellow) 30%, transparent);
+    }
+    .kap-card-field-heat-2 .kap-card-field-value {
+        color: color-mix(in srgb, var(--color-yellow) 80%, var(--text-normal));
+    }
+
+    .kap-card-field-heat-3 {
+        background: color-mix(in srgb, var(--color-blue) 14%, var(--background-primary));
+        box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-blue) 28%, transparent);
+    }
+    .kap-card-field-heat-3 .kap-card-field-value {
+        color: var(--color-blue);
+    }
+
+    .kap-card-field-heat-4 {
+        background: var(--background-modifier-hover);
+    }
+    .kap-card-field-heat-4 .kap-card-field-value {
+        color: var(--text-muted);
+    }
+
     .kap-card-field-due {
         color: var(--text-error);
         background: transparent;

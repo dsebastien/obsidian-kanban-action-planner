@@ -174,6 +174,9 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
     // Per-note-type property-name sets (lowercased), cached per triage render so
     // gating can be type-aware on mixed boards (#53). Cleared each renderTriage.
     private readonly triageTypeProps = new Map<string, Set<string>>()
+    // Allowed-values per `${noteTypeId}|${prop}`, cached per rebuild so card-field
+    // heat coloring doesn't re-resolve for every card. Cleared each rebuild().
+    private readonly cardFieldAllowedCache = new Map<string, string[]>()
     // Bases entries by file path, rebuilt each rebuild() so computed columns
     // (formula.*/file.*) can be read per card via getValue (issue #50). The
     // BasesQueryResult is replaced on every update, so this is never cached across one.
@@ -527,6 +530,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         if (!this.boardEl) return
         const files = this.files()
         this.refreshEntries()
+        this.cardFieldAllowedCache.clear() // allowed-values may have changed since last build
 
         this.availableProperties = this.collectPropertyNames(files)
         this.statusProperty = this.resolveStatusProperty(files)
@@ -899,7 +903,8 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             this.entriesByPath.get(file.path),
             this.config,
             this.dueDateProperty,
-            startOfDay(new Date())
+            startOfDay(new Date()),
+            (id) => this.allowedValuesForCardField(file, id)
         )
         const laneValue =
             this.laneGrouping.kind === 'none' ? null : (this.laneValueByPath.get(file.path) ?? null)
@@ -1515,6 +1520,23 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
     private allowedValuesForRef(card: KanbanCard, ref: PropertyRef): string[] {
         if (ref.kind !== 'note') return []
         return resolveAllowedValues(this.app, this.plugin, this.noteTypeIdFor(card), ref.name)
+    }
+
+    /**
+     * Allowed values for a card field's property id, for heat coloring — note
+     * props only (formulas/file have none), resolved against the card's note type
+     * and cached per rebuild.
+     */
+    private allowedValuesForCardField(file: TFile, id: BasesPropertyId): string[] {
+        const ref = parsePropertyRef(id)
+        if (!ref || ref.kind !== 'note') return []
+        const typeId = this.noteTypeByPath.get(file.path)?.id ?? this.noteType.id
+        const cacheKey = `${typeId}|${ref.name.toLowerCase()}`
+        const cached = this.cardFieldAllowedCache.get(cacheKey)
+        if (cached) return cached
+        const values = resolveAllowedValues(this.app, this.plugin, typeId, ref.name)
+        this.cardFieldAllowedCache.set(cacheKey, values)
+        return values
     }
 
     /**
