@@ -381,9 +381,11 @@ computed value shows on the card with no extra setup. The field label is the pro
 name from the base. Empty/unset values are skipped. Add, remove, or reorder card fields the same
 way you would for any Bases view — change the view's properties and every card updates.
 
-Field rendering is tuned for scanning: the property **label is faded** so the **value stands
-out**, and a **percentage** field (its display name contains `%` or "progress", with a numeric
-value) renders as a small **progress bar** with a `%` caption instead of a bare number.
+Field rendering is tuned for scanning: the **value is emphasized** (normal color, medium weight)
+while the **label stays clearly legible** — different properties can share the same value set
+(e.g. priority vs priority override both reading `30 - High`), so the label is what tells them
+apart. A **percentage** field (its display name contains `%` or "progress", with a numeric value)
+renders as a small **progress bar** with a `%` caption instead of a bare number.
 
 A note's **due date** is always shown in red when set, regardless of which properties you've
 added.

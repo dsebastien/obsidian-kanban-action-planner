@@ -591,16 +591,18 @@
         text-overflow: ellipsis;
     }
 
-    /* De-emphasize the repeated property label so the value reads first: the
-       label is faint + lighter, the value carries the normal text color/weight. */
+    /* Make the value the visual anchor while keeping the label clearly legible:
+       different properties can share the same value set (e.g. priority vs
+       priority override both "30 - High"), so the label must stay readable to
+       disambiguate. Label = muted; value = normal color + medium weight. */
     .kap-card-field-label {
-        color: var(--text-faint);
-        font-weight: var(--font-normal, 400);
+        @apply font-normal;
+        color: var(--text-muted);
     }
 
     .kap-card-field-value {
+        @apply font-medium;
         color: var(--text-normal);
-        font-weight: var(--font-medium, 500);
     }
 
     .kap-card-field-due {
@@ -618,22 +620,17 @@
 
     /* Percentage fields render as a mini progress bar + a small % caption. */
     .kap-card-field-progress {
-        @apply inline-flex items-center;
-        gap: var(--size-4-1, 0.25rem);
+        @apply inline-flex items-center gap-1;
     }
 
     .kap-card-progress {
-        width: 3rem;
-        height: 0.4rem;
-        overflow: hidden;
+        @apply h-1.5 w-12 overflow-hidden rounded;
         background: var(--background-modifier-border);
-        border-radius: var(--radius-s, 6px);
     }
 
     .kap-card-progress-fill {
-        height: 100%;
+        @apply h-full rounded;
         background: var(--interactive-accent);
-        border-radius: inherit;
     }
 
     /* Wrap mode: let field values span multiple lines, but cap growth at a few
