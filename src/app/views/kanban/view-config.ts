@@ -1,6 +1,7 @@
 import type { TabSortMode } from '../../domain/calendar-tabs'
 import type { LaneGrouping } from '../../domain/note-type'
 import { parsePropertyRef } from './property-access'
+import type { TriageScope } from './triage'
 
 /** A read-only view onto the per-view Bases config (`this.config`). */
 interface ConfigReader {
@@ -53,6 +54,36 @@ export function readLaneGroupingOverride(config: ConfigReader): LaneGrouping | n
         return parsePropertyRef(stored) ? { kind: 'property', property: String(stored) } : null
     }
     return null
+}
+
+/** Resolved per-view triage config (issue #53), with the smart defaults applied. */
+export interface TriageConfig {
+    scope: TriageScope
+    /** Editable enum property ids (`note.*` bare names). */
+    updateProps: string[]
+    /** Gating property ids — defaults to {@link updateProps} when none configured. */
+    gateProps: string[]
+    /** Context property ids (formulas allowed); empty ⇒ caller uses the view's properties. */
+    seeProps: string[]
+    /** Needs-triage tokens (values that count as unset). */
+    tokens: string[]
+}
+
+/**
+ * Read the per-view triage config (issue #53). Gating defaults to the editable
+ * set when unset; context is left empty so the view can default it to its
+ * displayed properties (`getOrder()`); scope defaults to "needs clarification".
+ */
+export function readTriageConfig(config: ConfigReader): TriageConfig {
+    const updateProps = readIdArray(config.get('triageUpdateProps'))
+    const gate = readIdArray(config.get('triageGateProps'))
+    return {
+        scope: config.get('triageScope') === 'all' ? 'all' : 'clarify',
+        updateProps,
+        gateProps: gate.length > 0 ? gate : updateProps,
+        seeProps: readIdArray(config.get('triageSeeProps')),
+        tokens: readStringArray(config.get('triageTokens'))
+    }
 }
 
 /** Normalize a raw frontmatter value into a swimlane key, or `null` (→ Ungrouped). */

@@ -1266,6 +1266,150 @@
         @apply mb-5;
     }
 
+    /* ========================================
+       TRIAGE MODE (issue #53)
+       ======================================== */
+    .kap-root .kap-triage {
+        @apply flex flex-col gap-4 p-4 mx-auto w-full;
+        max-width: 40rem;
+    }
+
+    .kap-root .kap-triage-header {
+        @apply flex items-center gap-3;
+    }
+
+    .kap-root .kap-triage-count {
+        @apply text-sm font-medium;
+        color: var(--text-muted);
+    }
+
+    .kap-root .kap-triage-scope {
+        @apply flex gap-1 ml-auto;
+    }
+
+    .kap-root .kap-triage-scope-btn {
+        @apply px-2 py-1 text-xs rounded cursor-pointer border-0;
+        background: var(--background-modifier-hover);
+        color: var(--text-muted);
+    }
+
+    .kap-root .kap-triage-scope-btn-active,
+    .kap-root .kap-triage-scope-btn-active:hover {
+        background: var(--interactive-accent);
+        color: var(--text-on-accent);
+    }
+
+    .kap-root .kap-triage-exit {
+        @apply inline-flex items-center justify-center w-7 h-7 rounded cursor-pointer border-0;
+        background: var(--background-modifier-hover);
+        color: var(--text-muted);
+    }
+
+    .kap-root .kap-triage-card {
+        @apply flex flex-col gap-4 p-4 rounded border;
+        background: var(--background-primary);
+        border-color: var(--background-modifier-border);
+        box-shadow: var(--shadow-s);
+    }
+
+    .kap-root .kap-triage-title {
+        @apply text-lg font-semibold text-left cursor-pointer border-0 bg-transparent p-0;
+        color: var(--text-normal);
+    }
+
+    .kap-root .kap-triage-title:hover {
+        color: var(--text-accent);
+    }
+
+    .kap-root .kap-triage-context {
+        @apply flex flex-wrap gap-2;
+    }
+
+    .kap-root .kap-triage-context-field {
+        @apply inline-flex items-center gap-1 px-2 py-1 rounded text-sm;
+        background: var(--background-secondary);
+    }
+
+    .kap-root .kap-triage-context-label {
+        color: var(--text-muted);
+    }
+
+    .kap-root .kap-triage-context-value {
+        @apply font-medium;
+        color: var(--text-normal);
+    }
+
+    .kap-root .kap-triage-edit {
+        @apply flex flex-col gap-3;
+    }
+
+    .kap-root .kap-triage-prop {
+        @apply flex flex-col gap-1.5;
+    }
+
+    .kap-root .kap-triage-prop-label {
+        @apply text-sm font-medium;
+        color: var(--text-normal);
+    }
+
+    .kap-root .kap-triage-prop-flag {
+        @apply text-xs font-normal;
+        color: var(--text-accent);
+    }
+
+    .kap-root .kap-triage-options {
+        @apply flex flex-wrap gap-1.5;
+    }
+
+    .kap-root .kap-triage-option {
+        @apply px-2.5 py-1 text-sm rounded cursor-pointer border;
+        background: var(--background-primary);
+        border-color: var(--background-modifier-border);
+        color: var(--text-normal);
+    }
+
+    .kap-root .kap-triage-option:hover {
+        background: var(--background-modifier-hover);
+    }
+
+    .kap-root .kap-triage-option-active,
+    .kap-root .kap-triage-option-active:hover {
+        background: var(--interactive-accent);
+        border-color: var(--interactive-accent);
+        color: var(--text-on-accent);
+    }
+
+    .kap-root .kap-triage-option-clear {
+        @apply px-2.5 py-1 text-sm rounded cursor-pointer border-0 bg-transparent;
+        color: var(--text-muted);
+    }
+
+    .kap-root .kap-triage-footer {
+        @apply flex justify-end gap-2;
+    }
+
+    .kap-root .kap-triage-skip {
+        @apply px-3 py-1.5 rounded cursor-pointer border-0;
+        background: var(--background-modifier-hover);
+        color: var(--text-muted);
+    }
+
+    .kap-root .kap-triage-next {
+        @apply px-3 py-1.5 rounded cursor-pointer border-0 font-medium;
+        background: var(--interactive-accent);
+        color: var(--text-on-accent);
+    }
+
+    .kap-root .kap-triage-empty {
+        @apply flex flex-col items-center gap-3 p-8 text-center;
+        color: var(--text-muted);
+    }
+
+    .kap-root .kap-triage-empty-icon {
+        @apply flex items-center justify-center;
+        color: var(--text-accent);
+    }
+
     /* Respect prefers-reduced-motion: every transition/animation duration in
        this layer is driven by the --kap-transition* variables, so zeroing them
        here disables all motion without per-rule overrides or !important. */

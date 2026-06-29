@@ -1,9 +1,12 @@
 import { setIcon } from 'obsidian'
 import { renderGearButton } from './gear-button'
 
+/** The three mutually-exclusive view modes (Board / Calendar / Triage). */
+export type ViewMode = 'board' | 'calendar' | 'triage'
+
 export interface ViewToolbarState {
-    /** Whether the view is in calendar mode (vs board mode). */
-    calendarMode: boolean
+    /** The active view mode. */
+    mode: ViewMode
     /** Whether to show the up/down swimlane navigation (board mode, >1 lane). */
     showLaneNav: boolean
     /** Whether multi-select mode is active (board mode only). */
@@ -11,8 +14,8 @@ export interface ViewToolbarState {
 }
 
 export interface ViewToolbarCallbacks {
-    /** Switch between board and calendar mode (persists to the view config). */
-    onSetCalendarMode: (calendar: boolean) => void
+    /** Switch the view mode (persists to the view config). */
+    onSetMode: (mode: ViewMode) => void
     /** Open the shared (note-type) settings modal. */
     onConfigure: () => void
     /** Scroll to the previous swimlane. */
@@ -42,11 +45,12 @@ export function renderViewToolbar(
         cls: 'kap-mode-switch',
         attr: { 'role': 'tablist', 'aria-label': 'View mode' }
     })
-    addModeButton(modeSwitch, 'Board', !state.calendarMode, () =>
-        callbacks.onSetCalendarMode(false)
+    addModeButton(modeSwitch, 'Board', state.mode === 'board', () => callbacks.onSetMode('board'))
+    addModeButton(modeSwitch, 'Calendar', state.mode === 'calendar', () =>
+        callbacks.onSetMode('calendar')
     )
-    addModeButton(modeSwitch, 'Calendar', state.calendarMode, () =>
-        callbacks.onSetCalendarMode(true)
+    addModeButton(modeSwitch, 'Triage', state.mode === 'triage', () =>
+        callbacks.onSetMode('triage')
     )
 
     rightEl.empty()
@@ -54,7 +58,7 @@ export function renderViewToolbar(
         addIconButton(rightEl, 'chevron-up', 'Previous swimlane', callbacks.onLanePrev)
         addIconButton(rightEl, 'chevron-down', 'Next swimlane', callbacks.onLaneNext)
     }
-    if (!state.calendarMode) {
+    if (state.mode === 'board') {
         const selectBtn = addIconButton(
             rightEl,
             'list-checks',

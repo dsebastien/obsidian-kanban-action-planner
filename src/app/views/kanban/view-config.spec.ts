@@ -5,13 +5,41 @@ import {
     readIdArray,
     readLaneGroupingOverride,
     readSortMode,
-    readStringArray
+    readStringArray,
+    readTriageConfig
 } from './view-config'
 
 /** A config whose `get` returns values from a plain record. */
 function config(values: Record<string, unknown>): { get(key: string): unknown } {
     return { get: (key: string): unknown => values[key] }
 }
+
+describe('readTriageConfig (issue #53)', () => {
+    it('defaults gating to the editable set and scope to clarify', () => {
+        const c = readTriageConfig(config({ triageUpdateProps: ['priority', 'urgency'] }))
+        expect(c.scope).toBe('clarify')
+        expect(c.updateProps).toEqual(['priority', 'urgency'])
+        expect(c.gateProps).toEqual(['priority', 'urgency'])
+        expect(c.seeProps).toEqual([])
+        expect(c.tokens).toEqual([])
+    })
+
+    it('keeps an explicit gating set and reads scope/tokens', () => {
+        const c = readTriageConfig(
+            config({
+                triageScope: 'all',
+                triageUpdateProps: ['priority'],
+                triageGateProps: ['priority', 'effort'],
+                triageSeeProps: ['formula.priority_score'],
+                triageTokens: ['TBD', 'No Target']
+            })
+        )
+        expect(c.scope).toBe('all')
+        expect(c.gateProps).toEqual(['priority', 'effort'])
+        expect(c.seeProps).toEqual(['formula.priority_score'])
+        expect(c.tokens).toEqual(['TBD', 'No Target'])
+    })
+})
 
 describe('readSortMode', () => {
     it('accepts name/property and defaults everything else to order', () => {

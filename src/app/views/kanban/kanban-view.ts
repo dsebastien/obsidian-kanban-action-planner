@@ -1,5 +1,12 @@
 import { BasesView, debounce, Menu, Notice, TFile } from 'obsidian'
-import type { BasesEntry, Debouncer, HoverParent, HoverPopover, QueryController } from 'obsidian'
+import type {
+    BasesEntry,
+    BasesPropertyId,
+    Debouncer,
+    HoverParent,
+    HoverPopover,
+    QueryController
+} from 'obsidian'
 import type { KanbanActionPlannerPlugin } from '../../plugin'
 import {
     CSS_ROOT_CLASS,
@@ -49,7 +56,7 @@ import {
     recognizeNoteTypeFor,
     resolveActiveNoteType
 } from '../../services/note-type.service'
-import { buildCardDisplay } from '../../services/card-display.service'
+import { buildCardDisplay, parseProgressField } from '../../services/card-display.service'
 import { listEnumProperties } from '../../services/enum.service'
 import { buildCardSearchRecord } from '../../services/card-search.service'
 import { archiveNote } from '../../services/archive.service'
@@ -72,6 +79,15 @@ import type { DropTarget } from '../../ui/board/dnd-controller'
 import { ColumnDnd } from '../../ui/board/column-dnd'
 import type { KanbanCard } from '../../ui/board/types'
 import { renderViewToolbar } from '../../ui/view-toolbar'
+import type { ViewMode } from '../../ui/view-toolbar'
+import { renderTriageView } from '../../ui/triage/triage-view'
+import type {
+    TriageCardData,
+    TriageContextField,
+    TriageEditableProp
+} from '../../ui/triage/triage-view'
+import { buildTriageQueue, isPropUnset, unsetCount } from './triage'
+import { resolveAllowedValues } from '../../services/enum.service'
 import { FilterBar } from '../../ui/filter-bar'
 import { BoardSelection } from './board-selection'
 import { buildCardMenu, isNewTabEvent } from './card-menu'
@@ -84,8 +100,10 @@ import {
     readIdArray,
     readLaneGroupingOverride,
     readSortMode,
-    readStringArray
+    readStringArray,
+    readTriageConfig
 } from './view-config'
+import type { TriageConfig } from './view-config'
 import { parsePropertyRef, unwrapValue } from './property-access'
 import type { PropertyRef } from './property-access'
 import { cssEscapeAttr } from '../../utils/css-escape'
@@ -145,6 +163,10 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
     private collapseInitialized = false
     private board: Board<KanbanCard> = { lanes: [], isMultiLane: false }
     private cardsByKey = new Map<string, KanbanCard>()
+    // Triage (issue #53): a stable ordered queue snapshot (card keys) captured on
+    // entering triage, and the cursor into it. Null = needs (re)building.
+    private triageQueueKeys: string[] | null = null
+    private triageCursor = 0
     // Bases entries by file path, rebuilt each rebuild() so computed columns
     // (formula.*/file.*) can be read per card via getValue (issue #50). The
     // BasesQueryResult is replaced on every update, so this is never cached across one.
@@ -351,9 +373,14 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
 
     // ── Public command surface (issue #27) ───────────────────
 
-    /** Switch between board and calendar mode. */
+    /** Toggle calendar mode (returns to board when already in calendar). */
     toggleMode(): void {
-        this.setCalendarMode(!this.calendarMode())
+        this.setViewMode(this.calendarMode() ? 'board' : 'calendar')
+    }
+
+    /** Toggle triage mode (returns to board when already in triage). */
+    toggleTriage(): void {
+        this.setViewMode(this.triageMode() ? 'board' : 'triage')
     }
 
     /** Put the cursor in the filter box. */
@@ -543,6 +570,12 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         this.cardsByKey = new Map(cards.map((c) => [c.key, c]))
         this.filterBar?.setCount(active ? cards.length : null)
         this.filterEmptyEl?.toggleClass('kap-hidden', !(active && cards.length === 0))
+
+        if (this.triageMode()) {
+            this.renderToolbar(false)
+            this.renderTriage()
+            return
+        }
 
         if (this.calendarMode()) {
             this.renderToolbar(false)
@@ -1292,7 +1325,183 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
     // ── Calendar mode ─────────────────────────────────────────
 
     private calendarMode(): boolean {
-        return this.config.get('calendarMode') === true
+        return this.viewMode() === 'calendar'
+    }
+
+    private triageMode(): boolean {
+        return this.viewMode() === 'triage'
+    }
+
+    /** The active view mode (triage wins, else calendar, else board). */
+    private viewMode(): ViewMode {
+        if (this.config.get('triageMode') === true) return 'triage'
+        if (this.config.get('calendarMode') === true) return 'calendar'
+        return 'board'
+    }
+
+    /** Switch the view mode, persisting the two flags and rebuilding. */
+    private setViewMode(mode: ViewMode): void {
+        if (this.viewMode() === mode) return
+        this.config.set('calendarMode', mode === 'calendar')
+        this.config.set('triageMode', mode === 'triage')
+        if (mode === 'triage') {
+            // Fresh queue snapshot each time triage is (re)entered.
+            this.triageQueueKeys = null
+            this.triageCursor = 0
+        }
+        this.rebuild()
+        if (mode === 'calendar') {
+            this.calendar?.resetNarrow()
+            this.calendar?.evaluatePanelAutoCollapse()
+        }
+    }
+
+    // ── Triage mode (issue #53) ───────────────────────────────
+
+    /** Render the triage queue into the board host from a stable snapshot. */
+    private renderTriage(): void {
+        if (!this.boardEl) return
+        const cfg = readTriageConfig(this.config)
+        if (this.triageQueueKeys === null) {
+            // Fall back to a stable no-op order when the view sort is manual.
+            const compare = this.cardComparator() ?? ((): number => 0)
+            const queue = buildTriageQueue(
+                [...this.cardsByKey.values()],
+                cfg.scope,
+                (card) => this.cardUnsetCount(card, cfg),
+                compare
+            )
+            this.triageQueueKeys = queue.map((c) => c.key)
+            this.triageCursor = 0
+        } else {
+            // Drop cards no longer in the result set (filtered out / deleted).
+            this.triageQueueKeys = this.triageQueueKeys.filter((k) => this.cardsByKey.has(k))
+        }
+        if (this.triageCursor < 0) this.triageCursor = 0
+        const currentKey = this.triageQueueKeys[this.triageCursor]
+        const current = currentKey ? this.cardsByKey.get(currentKey) : undefined
+        const data = current
+            ? this.buildTriageData(current, cfg, this.triageCursor + 1, this.triageQueueKeys.length)
+            : null
+        renderTriageView(this.boardEl, data, {
+            onSetProperty: (name, value) => void this.triageSetProperty(current, name, value),
+            onNext: () => this.triageAdvance(),
+            onSkip: () => this.triageAdvance(),
+            onOpen: () => {
+                if (current) this.openCard(current, false)
+            },
+            onExit: () => this.setViewMode('board'),
+            onRefresh: () => {
+                this.triageQueueKeys = null
+                this.renderTriage()
+            },
+            onScopeChange: (scope) => this.setTriageScope(scope)
+        })
+    }
+
+    /** Advance the triage cursor (Next/Skip); past the end shows the done state. */
+    private triageAdvance(): void {
+        this.triageCursor += 1
+        this.renderTriage()
+    }
+
+    /** Persist the triage scope, reset the queue snapshot, and re-render. */
+    private setTriageScope(scope: TriageConfig['scope']): void {
+        this.config.set('triageScope', scope)
+        this.triageQueueKeys = null
+        this.triageCursor = 0
+        this.renderTriage()
+    }
+
+    /** Write a triage enum value, then re-render in place (no auto-advance). */
+    private async triageSetProperty(
+        card: KanbanCard | undefined,
+        name: string,
+        value: string | null
+    ): Promise<void> {
+        if (!card) return
+        await this.setCardProperty(card, name, value)
+        this.renderTriage()
+    }
+
+    /** Resolve a stored triage property id into a ref + Bases id + display label. */
+    private triageRef(
+        id: string
+    ): { ref: PropertyRef; basesId: BasesPropertyId; label: string } | null {
+        const ref = parsePropertyRef(id)
+        if (!ref) return null
+        const basesId: BasesPropertyId = ref.kind === 'note' ? `note.${ref.name}` : ref.id
+        return { ref, basesId, label: this.config.getDisplayName(basesId) }
+    }
+
+    /** Known allowed values for a property ref (note props only; computed → []). */
+    private allowedValuesForRef(card: KanbanCard, ref: PropertyRef): string[] {
+        if (ref.kind !== 'note') return []
+        return resolveAllowedValues(this.app, this.plugin, this.noteTypeIdFor(card), ref.name)
+    }
+
+    /** Count a card's unset gating properties for the active triage config. */
+    private cardUnsetCount(card: KanbanCard, cfg: TriageConfig): number {
+        const gates: Array<{ value: string | number | null; allowedValues: string[] | null }> = []
+        for (const id of cfg.gateProps) {
+            const parsed = this.triageRef(id)
+            if (!parsed) continue
+            const allowed =
+                parsed.ref.kind === 'note' ? this.allowedValuesForRef(card, parsed.ref) : []
+            gates.push({
+                value: this.readScalarProperty(card, parsed.ref),
+                allowedValues: allowed.length > 0 ? allowed : null
+            })
+        }
+        return unsetCount(gates, cfg.tokens)
+    }
+
+    /** Assemble the render data for one triage card. */
+    private buildTriageData(
+        card: KanbanCard,
+        cfg: TriageConfig,
+        position: number,
+        total: number
+    ): TriageCardData {
+        const context: TriageContextField[] =
+            cfg.seeProps.length > 0
+                ? cfg.seeProps
+                      .map((id) => this.triageContextField(card, id))
+                      .filter((f): f is TriageContextField => f !== null)
+                : card.display.fields.map((f) => ({
+                      label: f.label ?? '',
+                      text: f.text,
+                      progress: f.progress
+                  }))
+
+        const editable: TriageEditableProp[] = []
+        for (const id of cfg.updateProps) {
+            const parsed = this.triageRef(id)
+            if (!parsed || parsed.ref.kind !== 'note') continue
+            const values = this.allowedValuesForRef(card, parsed.ref)
+            if (values.length === 0) continue
+            const raw = this.readScalarProperty(card, parsed.ref)
+            const current = raw === null || raw === '' ? null : String(raw)
+            editable.push({
+                name: parsed.ref.name,
+                displayName: parsed.label,
+                values,
+                current,
+                needsTriage: isPropUnset(current, cfg.tokens, values)
+            })
+        }
+
+        return { title: card.display.title, context, editable, position, total, scope: cfg.scope }
+    }
+
+    /** Build one read-only context field from a stored property id, or null. */
+    private triageContextField(card: KanbanCard, id: string): TriageContextField | null {
+        const parsed = this.triageRef(id)
+        if (!parsed) return null
+        const scalar = this.readScalarProperty(card, parsed.ref)
+        if (scalar === null || scalar === '') return null
+        const text = String(scalar)
+        return { label: parsed.label, text, progress: parseProgressField(parsed.label, text) }
     }
 
     /** (Re)render the toolbar's mode + action slots (the filter slot is persistent). */
@@ -1302,12 +1511,12 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             this.toolbarLeftEl,
             this.toolbarRightEl,
             {
-                calendarMode: this.calendarMode(),
+                mode: this.viewMode(),
                 showLaneNav,
                 selectionMode: this.selection?.active ?? false
             },
             {
-                onSetCalendarMode: (calendar) => this.setCalendarMode(calendar),
+                onSetMode: (mode) => this.setViewMode(mode),
                 onConfigure: () => this.openSettings(),
                 onLanePrev: () => this.scrollLane(-1),
                 onLaneNext: () => this.scrollLane(1),
@@ -1384,14 +1593,6 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
     }
 
     /** Persist the board/calendar mode and re-render in place (rebuild() re-renders the toolbar). */
-    private setCalendarMode(calendar: boolean): void {
-        if (this.calendarMode() === calendar) return
-        this.config.set('calendarMode', calendar)
-        this.rebuild()
-        // Re-evaluate the auto-collapse for the (now visible) scheduling pane.
-        this.calendar?.resetNarrow()
-        this.calendar?.evaluatePanelAutoCollapse()
-    }
 
     /**
      * Container resized: re-evaluate the calendar pane auto-collapse and re-equalize
