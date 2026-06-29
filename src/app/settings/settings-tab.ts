@@ -195,11 +195,6 @@ export class KanbanActionPlannerSettingTab extends PluginSettingTab {
             for (const rule of noteType.relationships) {
                 if (rule.linkProperty) names.add(rule.linkProperty)
             }
-            for (const field of noteType.card.fields) names.add(field.property)
-            if (noteType.card.coverImageProperty) names.add(noteType.card.coverImageProperty)
-            if (noteType.card.titleSource.kind === 'property') {
-                names.add(noteType.card.titleSource.property)
-            }
             if (noteType.laneGrouping.kind === 'property') names.add(noteType.laneGrouping.property)
             names.add(noteType.statusProperty)
             names.add(noteType.orderProperty)

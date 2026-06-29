@@ -81,12 +81,6 @@ export function createDefaultNoteType(
         columns: [],
         laneGrouping: { kind: 'none' },
         colors: { autoAssign: true, overrides: {} },
-        card: {
-            titleSource: { kind: 'note-name' },
-            fields: [],
-            coverImageProperty: null,
-            wrapPropertyValues: false
-        },
         archive: { archiveFolder: '', triggerStatuses: [] },
         wipLimits: {},
         relationships: [
@@ -325,22 +319,6 @@ export async function setWipLimit(
         produce(noteType, (draft) => {
             if (limit && limit > 0) draft.wipLimits[statusValue] = Math.floor(limit)
             else delete draft.wipLimits[statusValue]
-        })
-    )
-}
-
-/** Replace a note type's card-presentation config. */
-export async function setCardPresentation(
-    plugin: KanbanActionPlannerPlugin,
-    noteTypeId: string,
-    card: NoteType['card']
-): Promise<void> {
-    const noteType = requireNoteType(plugin, noteTypeId)
-    if (!noteType) return
-    await upsertNoteType(
-        plugin,
-        produce(noteType, (draft) => {
-            draft.card = card
         })
     )
 }

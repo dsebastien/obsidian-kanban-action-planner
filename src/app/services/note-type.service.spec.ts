@@ -14,7 +14,6 @@ describe('createDefaultNoteType', () => {
         expect(() => noteTypeSchema.parse(noteType)).not.toThrow()
         expect(noteType.colors.autoAssign).toBe(true)
         expect(noteType.laneGrouping).toEqual({ kind: 'none' })
-        expect(noteType.card.titleSource).toEqual({ kind: 'note-name' })
     })
 })
 

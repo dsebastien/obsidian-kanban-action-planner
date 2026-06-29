@@ -3,7 +3,6 @@ import type { App } from 'obsidian'
 import type { KanbanActionPlannerPlugin } from '../plugin'
 import type {
     ArchiveConfig,
-    CardPresentation,
     ColorSpec,
     LaneGrouping,
     NoteType,
@@ -19,7 +18,6 @@ import {
     findNoteType,
     setArchiveConfig,
     setAutoAssign,
-    setCardPresentation,
     setColorOverride,
     setLaneGrouping,
     setNoteTypeName,
@@ -30,20 +28,11 @@ import {
 
 const AUTO = '__auto__'
 const NONE = '__none__'
-const NOTE_NAME = '__note_name__'
 
-type SectionId =
-    | 'recognition'
-    | 'cards'
-    | 'colors'
-    | 'swimlanes'
-    | 'relationships'
-    | 'archiving'
-    | 'limits'
+type SectionId = 'recognition' | 'colors' | 'swimlanes' | 'relationships' | 'archiving' | 'limits'
 
 const SECTIONS: ReadonlyArray<{ id: SectionId; label: string; icon: string }> = [
     { id: 'recognition', label: 'Note type', icon: 'scan-search' },
-    { id: 'cards', label: 'Cards', icon: 'gallery-horizontal-end' },
     { id: 'colors', label: 'Colors', icon: 'palette' },
     { id: 'limits', label: 'WIP limits', icon: 'gauge' },
     { id: 'swimlanes', label: 'Swimlanes', icon: 'rows-3' },
@@ -52,8 +41,8 @@ const SECTIONS: ReadonlyArray<{ id: SectionId; label: string; icon: string }> = 
 ]
 
 /**
- * "Configure board" modal. Edits the active note type's colors and card
- * presentation (title source, body fields, cover image, wrapping). Every change
+ * "Configure board" modal. Edits the active note type's shared settings
+ * (colors, WIP limits, swimlanes, relationships, archiving). Every change
  * persists to the note type immediately and re-renders the board.
  */
 export class ConfigureBoardModal extends Modal {
@@ -62,7 +51,7 @@ export class ConfigureBoardModal extends Modal {
     private readonly statusValues: string[]
     private readonly availableProperties: string[]
     private readonly onChange: () => void
-    private activeSection: SectionId = 'cards'
+    private activeSection: SectionId = 'colors'
     private body!: HTMLElement
 
     constructor(
@@ -156,10 +145,7 @@ export class ConfigureBoardModal extends Modal {
         switch (this.activeSection) {
             case 'recognition':
                 if (this.isLocalNoteType(noteType)) this.renderRecognition(noteType)
-                else this.renderCard(noteType)
-                return
-            case 'cards':
-                this.renderCard(noteType)
+                else this.renderColors(noteType)
                 return
             case 'colors':
                 this.renderColors(noteType)
@@ -584,140 +570,12 @@ export class ConfigureBoardModal extends Modal {
             })
     }
 
-    // ── Card presentation ─────────────────────────────────────
-
-    private renderCard(noteType: NoteType): void {
-        const card = noteType.card
-        new Setting(this.body).setName('Cards').setHeading()
-
-        new Setting(this.body)
-            .setName('Title')
-            .setDesc('Use the note name or a property as the card title.')
-            .addDropdown((dd) => {
-                dd.addOption(NOTE_NAME, 'Note name')
-                for (const prop of this.availableProperties) dd.addOption(prop, prop)
-                dd.setValue(
-                    card.titleSource.kind === 'property' ? card.titleSource.property : NOTE_NAME
-                )
-                dd.onChange((value) => {
-                    const titleSource: CardPresentation['titleSource'] =
-                        value === NOTE_NAME
-                            ? { kind: 'note-name' }
-                            : { kind: 'property', property: value }
-                    void this.mutateCard({ ...card, titleSource })
-                })
-            })
-
-        new Setting(this.body)
-            .setName('Cover image')
-            .setDesc('Property holding an image link, vault path, or URL.')
-            .addDropdown((dd) => {
-                dd.addOption(NONE, 'None')
-                for (const prop of this.availableProperties) dd.addOption(prop, prop)
-                dd.setValue(card.coverImageProperty ?? NONE)
-                dd.onChange((value) => {
-                    void this.mutateCard({
-                        ...card,
-                        coverImageProperty: value === NONE ? null : value
-                    })
-                })
-            })
-
-        new Setting(this.body)
-            .setName('Wrap long values')
-            .setDesc('Wrap field values onto multiple lines instead of truncating.')
-            .addToggle((toggle) =>
-                toggle.setValue(card.wrapPropertyValues).onChange((value) => {
-                    void this.mutateCard({ ...card, wrapPropertyValues: value })
-                })
-            )
-
-        this.renderFieldsEditor(card)
-    }
-
-    private renderFieldsEditor(card: CardPresentation): void {
-        new Setting(this.body).setName('Displayed fields').setHeading()
-
-        card.fields.forEach((field, index) => {
-            new Setting(this.body)
-                .setName(field.property)
-                .addToggle((toggle) =>
-                    toggle
-                        .setTooltip('Show label')
-                        .setValue(field.showLabel)
-                        .onChange((value) => {
-                            const fields = card.fields.slice()
-                            fields[index] = { ...field, showLabel: value }
-                            void this.mutateCard({ ...card, fields })
-                        })
-                )
-                .addExtraButton((b) =>
-                    b
-                        .setIcon('arrow-up')
-                        .setTooltip('Move up')
-                        .setDisabled(index === 0)
-                        .onClick(
-                            () =>
-                                void this.mutateCard({
-                                    ...card,
-                                    fields: move(card.fields, index, index - 1)
-                                })
-                        )
-                )
-                .addExtraButton((b) =>
-                    b
-                        .setIcon('arrow-down')
-                        .setTooltip('Move down')
-                        .setDisabled(index === card.fields.length - 1)
-                        .onClick(
-                            () =>
-                                void this.mutateCard({
-                                    ...card,
-                                    fields: move(card.fields, index, index + 1)
-                                })
-                        )
-                )
-                .addExtraButton((b) =>
-                    b
-                        .setIcon('trash')
-                        .setTooltip('Remove')
-                        .onClick(() => {
-                            const fields = card.fields.filter((_, i) => i !== index)
-                            void this.mutateCard({ ...card, fields })
-                        })
-                )
-        })
-
-        const remaining = this.availableProperties.filter(
-            (p) => !card.fields.some((f) => f.property === p)
-        )
-        if (remaining.length > 0) {
-            new Setting(this.body).setName('Add field').addDropdown((dd) => {
-                dd.addOption(NONE, 'Choose a property…')
-                for (const prop of remaining) dd.addOption(prop, prop)
-                dd.setValue(NONE)
-                dd.onChange((value) => {
-                    if (value === NONE) return
-                    const fields = [
-                        ...card.fields,
-                        { property: value, showLabel: false, emphasis: 'normal' as const }
-                    ]
-                    void this.mutateCard({ ...card, fields })
-                })
-            })
-        }
-    }
-
     // ── Persistence ───────────────────────────────────────────
 
     private async mutate(action: () => Promise<void>): Promise<void> {
         await action()
         this.onChange()
         this.render()
-    }
-
-    private async mutateCard(card: CardPresentation): Promise<void> {
-        await this.mutate(() => setCardPresentation(this.plugin, this.noteTypeId, card))
     }
 }
 
@@ -746,13 +604,6 @@ function recognitionPlaceholder(type: 'tag' | 'folder' | 'regex'): string {
     if (type === 'folder') return 'Areas/Work'
     if (type === 'regex') return '^Projects/'
     return 'type/task'
-}
-
-function move<T>(arr: ReadonlyArray<T>, from: number, to: number): T[] {
-    const next = arr.slice()
-    const [item] = next.splice(from, 1)
-    if (item !== undefined) next.splice(to, 0, item)
-    return next
 }
 
 function dropdownValueFor(spec: ColorSpec | undefined): string {

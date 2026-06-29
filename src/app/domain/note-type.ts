@@ -5,8 +5,8 @@ import { z } from 'zod'
  *
  * Note types are the reusable configuration unit. When the Starter Kit
  * plugin is present its note-type config is mirrored in (read-only source of
- * truth); the kanban-owned parts (colors, card presentation, swimlane grouping,
- * relationships, archiving, calendar) always live here. All stored config is
+ * truth); the kanban-owned parts (colors, swimlane grouping, relationships,
+ * archiving, calendar) always live here. All stored config is
  * validated with these schemas on load, so types are inferred from the schemas
  * to keep them in lockstep.
  *
@@ -61,27 +61,6 @@ export const laneGroupingSchema = z.discriminatedUnion('kind', [
     z.object({ kind: z.literal('property'), property: z.string() })
 ])
 export type LaneGrouping = z.infer<typeof laneGroupingSchema>
-
-/** A single configurable field shown on a card (issue #3). */
-export const cardFieldDisplaySchema = z.object({
-    property: z.string(),
-    showLabel: z.boolean(),
-    dateFormat: z.string().optional(),
-    emphasis: z.enum(['normal', 'due-red']).optional()
-})
-export type CardFieldDisplay = z.infer<typeof cardFieldDisplaySchema>
-
-/** Configurable card presentation (issues #3–#6). */
-export const cardPresentationSchema = z.object({
-    titleSource: z.discriminatedUnion('kind', [
-        z.object({ kind: z.literal('note-name') }),
-        z.object({ kind: z.literal('property'), property: z.string() })
-    ]),
-    fields: z.array(cardFieldDisplaySchema),
-    coverImageProperty: z.string().nullable(),
-    wrapPropertyValues: z.boolean()
-})
-export type CardPresentation = z.infer<typeof cardPresentationSchema>
 
 /**
  * Archiving config (issue #7). `archiveFolder` supports `{{year}}` etc.
@@ -143,7 +122,6 @@ export const noteTypeSchema = z.object({
         autoAssign: z.boolean(),
         overrides: z.record(z.string(), colorSpecSchema)
     }),
-    card: cardPresentationSchema,
     archive: archiveConfigSchema,
     relationships: z.array(relationshipRuleSchema),
     calendar: calendarConfigSchema,
