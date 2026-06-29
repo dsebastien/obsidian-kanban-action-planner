@@ -171,6 +171,9 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
     // entering triage, and the cursor into it. Null = needs (re)building.
     private triageQueueKeys: string[] | null = null
     private triageCursor = 0
+    // Per-note-type property-name sets (lowercased), cached per triage render so
+    // gating can be type-aware on mixed boards (#53). Cleared each renderTriage.
+    private readonly triageTypeProps = new Map<string, Set<string>>()
     // Bases entries by file path, rebuilt each rebuild() so computed columns
     // (formula.*/file.*) can be read per card via getValue (issue #50). The
     // BasesQueryResult is replaced on every update, so this is never cached across one.
@@ -1365,6 +1368,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
     /** Render the triage queue into the board host from a stable snapshot. */
     private renderTriage(): void {
         if (!this.boardEl) return
+        this.triageTypeProps.clear() // rebuild per-type property sets for this render
         const cfg = readTriageConfig(this.config)
         if (this.triageQueueKeys === null) {
             // Fall back to a stable no-op order when the view sort is manual.
@@ -1513,12 +1517,44 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         return resolveAllowedValues(this.app, this.plugin, this.noteTypeIdFor(card), ref.name)
     }
 
-    /** Count a card's unset gating properties for the active triage config. */
+    /**
+     * Lowercased property names a note type defines (Starter Kit `.properties` +
+     * local `enumProperties`), cached per render. Empty when the type is unknown
+     * — callers then treat all props as applicable (no false skips).
+     */
+    private noteTypePropertyNames(noteTypeId: string): Set<string> {
+        const cached = this.triageTypeProps.get(noteTypeId)
+        if (cached) return cached
+        const names = new Set<string>()
+        const sk = listNoteTypes(this.app).find((t) => t.id === noteTypeId)
+        for (const prop of sk?.properties ?? []) names.add(prop.name.toLowerCase())
+        const local = findNoteType(this.plugin, noteTypeId)
+        if (local)
+            for (const name of Object.keys(local.enumProperties)) names.add(name.toLowerCase())
+        this.triageTypeProps.set(noteTypeId, names)
+        return names
+    }
+
+    /**
+     * Count a card's unset gating properties (#53). **Type-aware (mixed boards):**
+     * a `note.*` gating prop that the card's note type doesn't define is skipped
+     * (not counted as unset), so a goal-only prop never flags a task. The skip
+     * only applies when the type's properties are known; an unknown type counts
+     * every gating prop (preserves single-type behavior).
+     */
     private cardUnsetCount(card: KanbanCard, cfg: TriageConfig): number {
+        const typeProps = this.noteTypePropertyNames(this.noteTypeIdFor(card))
         const gates: Array<{ value: string | number | null; allowedValues: string[] | null }> = []
         for (const id of cfg.gateProps) {
             const parsed = this.triageRef(id)
             if (!parsed) continue
+            if (
+                parsed.ref.kind === 'note' &&
+                typeProps.size > 0 &&
+                !typeProps.has(parsed.ref.name.toLowerCase())
+            ) {
+                continue // prop not defined by this card's type — irrelevant
+            }
             const allowed =
                 parsed.ref.kind === 'note' ? this.allowedValuesForRef(card, parsed.ref) : []
             gates.push({
