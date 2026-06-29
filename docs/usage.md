@@ -120,15 +120,19 @@ Each card shows:
 - **Due for review** — cards whose **review is overdue**, most-overdue first (see **Reviews** below).
   Here the action button is **Reviewed**, which stamps the review fields and advances.
 
-Configure triage per view in **Configure view → Triage**:
+Configure triage with the **gear** in the triage header (or the **Configure triage** command),
+which opens a dialog with proper **property pickers** — type to search, click to add, and each
+selection shows as a removable chip:
 
-- **Editable properties** — the enum props triage lets you set (one id per line; use a base
-  formula id like `formula.x` only for context, not editing).
+- **Editable properties** — the enum props triage lets you set (pick from your note properties).
 - **Gating properties** — what decides "unclarified"; leave empty to use the editable set.
-- **Context properties** — read-only props/formulas to show; leave empty to use the view's
-  displayed properties.
-- **Needs-triage values** — values that count as unset (e.g. `TBD`).
-- **Triage scope** — the default scope (also switchable live in the header).
+- **Context properties** — read-only props/formulas to show (formulas and file columns are
+  offered here); leave empty to use the view's displayed properties.
+- **Needs-triage values** — values that count as unset (e.g. `TBD`), added as free-text chips.
+- **Scope** — the default scope (also switchable live in the header).
+
+Everything is saved **per view** (in the `.base`), so each board has its own triage setup. (The
+**Triage scope** also appears in the standard **Configure view** panel for quick access.)
 
 On a **mixed-type** board each card resolves its properties and allowed values against its own note
 type, so a board of goals + projects + tasks triages each correctly.

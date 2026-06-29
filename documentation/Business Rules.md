@@ -225,7 +225,11 @@ See `documentation/plans/kanban-action-planner-implementation-plan.md` for full 
     it can reference note props **and** base formulas: **editable** props (writeable enums),
     **gating** props (decide "unclarified"; empty ⇒ defaults to editable), **context** props
     (read-only, formulas allowed; empty ⇒ the view's displayed properties), **needs-triage tokens**,
-    and a **scope**. A gating prop is **unset** (convention-agnostic) when empty/absent, OR its value
+    and a **scope**. The property lists + tokens are edited in the **Configure triage** modal
+    (`ui/triage/triage-config-modal.ts`; gear in the triage header or the `configure-triage` command)
+    with real property pickers sourced from `this.allProperties` (note for editable/gating, all incl.
+    formulas/file for context); the scope also has a Bases-panel dropdown. A gating prop is **unset**
+    (convention-agnostic) when empty/absent, OR its value
     contains a needs-triage token, OR — when allowed values are known — it isn't among them
     (`views/kanban/triage.ts`, pure). Queue order is **worst-first** (most unset props), tie-broken by
     the view's card comparator, held as a **stable per-session snapshot** (cursor by card key) so a

@@ -39,6 +39,8 @@ export interface TriageCallbacks {
     onOpen(): void
     onExit(): void
     onRefresh(): void
+    /** Open the "Configure triage" modal. */
+    onConfigure(): void
     onScopeChange(scope: TriageScope): void
 }
 
@@ -111,6 +113,13 @@ function renderHeader(
     addScopeButton(switcher, 'Due for review', scope === 'review', () =>
         callbacks.onScopeChange('review')
     )
+
+    const configure = header.createEl('button', {
+        cls: 'kap-triage-exit',
+        attr: { 'aria-label': 'Configure triage', 'title': 'Configure triage' }
+    })
+    setIcon(configure, 'settings')
+    configure.addEventListener('click', () => callbacks.onConfigure())
 
     const exit = header.createEl('button', {
         cls: 'kap-triage-exit',

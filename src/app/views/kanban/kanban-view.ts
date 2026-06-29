@@ -88,6 +88,8 @@ import type {
 } from '../../ui/triage/triage-view'
 import { buildTriageQueue, isPropUnset, reviewState, unsetCount } from './triage'
 import type { TriageRank } from './triage'
+import { TriageConfigModal } from '../../ui/triage/triage-config-modal'
+import type { TriageConfigData } from '../../ui/triage/triage-config-modal'
 import { resolveAllowedValues } from '../../services/enum.service'
 import { FilterBar } from '../../ui/filter-bar'
 import { BoardSelection } from './board-selection'
@@ -1396,6 +1398,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
                 this.triageQueueKeys = null
                 this.renderTriage()
             },
+            onConfigure: () => this.openTriageConfig(),
             onScopeChange: (scope) => this.setTriageScope(scope)
         })
     }
@@ -1412,6 +1415,49 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         this.triageQueueKeys = null
         this.triageCursor = 0
         this.renderTriage()
+    }
+
+    /** Open the "Configure triage" modal — real property pickers over `this.config`. */
+    openTriageConfig(): void {
+        const toBasesId = (id: string): string => {
+            const ref = parsePropertyRef(id)
+            if (!ref) return id
+            return ref.kind === 'note' ? `note.${ref.name}` : ref.id
+        }
+        new TriageConfigModal(this.app, {
+            properties: () =>
+                this.allProperties
+                    .map((id) => {
+                        const ref = parsePropertyRef(id)
+                        return ref
+                            ? {
+                                  id: String(id),
+                                  label: this.config.getDisplayName(id),
+                                  kind: ref.kind
+                              }
+                            : null
+                    })
+                    .filter(
+                        (p): p is { id: string; label: string; kind: 'note' | 'computed' } =>
+                            p !== null
+                    ),
+            current: (): TriageConfigData => ({
+                scope: readTriageConfig(this.config).scope,
+                editable: readIdArray(this.config.get('triageUpdateProps')).map(toBasesId),
+                gating: readIdArray(this.config.get('triageGateProps')).map(toBasesId),
+                context: readIdArray(this.config.get('triageSeeProps')).map(toBasesId),
+                tokens: readStringArray(this.config.get('triageTokens'))
+            }),
+            save: (data: TriageConfigData): void => {
+                this.config.set('triageScope', data.scope)
+                this.config.set('triageUpdateProps', data.editable)
+                this.config.set('triageGateProps', data.gating)
+                this.config.set('triageSeeProps', data.context)
+                this.config.set('triageTokens', data.tokens)
+                this.triageQueueKeys = null
+                if (this.triageMode()) this.renderTriage()
+            }
+        }).open()
     }
 
     /** Write a triage enum value, then re-render in place (no auto-advance). */

@@ -226,10 +226,10 @@ export function getKanbanViewOptions(app: App, settings: PluginSettings): BasesA
         {
             type: 'group',
             // Triage mode is entered via the in-view Board / Calendar / Triage
-            // switch (persisted to `triageMode`). These options say which props it
-            // edits, what counts as "unclarified", and the queue scope. Property
-            // lists are ids: a bare name for a frontmatter prop, `formula.X` for a
-            // base formula (so a computed `priority_score` can be shown in context).
+            // switch. The property lists (editable / gating / context) and
+            // needs-triage tokens are edited in the **Configure triage** modal (the
+            // gear in the triage header, or the "Configure triage" command), which
+            // offers real property pickers. Only the default scope lives here.
             displayName: 'Triage',
             items: [
                 {
@@ -242,36 +242,6 @@ export function getKanbanViewOptions(app: App, settings: PluginSettings): BasesA
                         all: 'All cards (re-prioritize)',
                         review: 'Due for review'
                     }
-                },
-                {
-                    type: 'multitext',
-                    key: 'triageUpdateProps',
-                    displayName: 'Editable properties',
-                    // Editable enum props (one id per line, e.g. priority, urgency).
-                    default: []
-                },
-                {
-                    type: 'multitext',
-                    key: 'triageGateProps',
-                    displayName: 'Gating properties',
-                    // Decides "unclarified"; empty ⇒ defaults to the editable set.
-                    default: []
-                },
-                {
-                    type: 'multitext',
-                    key: 'triageSeeProps',
-                    displayName: 'Context properties',
-                    // Read-only context (formulas allowed); empty ⇒ the view's
-                    // displayed Properties.
-                    default: []
-                },
-                {
-                    type: 'multitext',
-                    key: 'triageTokens',
-                    displayName: 'Needs-triage values',
-                    // Values that count as unset (e.g. TBD, No Target), in addition
-                    // to empty/absent and not-in-allowed-values.
-                    default: []
                 }
             ]
         }

@@ -1410,6 +1410,36 @@
         color: var(--text-accent);
     }
 
+    /* Configure-triage modal: removable property/value chips. */
+    .kap-triage-chips {
+        @apply flex flex-wrap items-center gap-1.5 mb-2;
+    }
+
+    .kap-triage-chips-empty {
+        @apply text-sm italic;
+        color: var(--text-muted);
+    }
+
+    .kap-triage-chip {
+        @apply inline-flex items-center gap-1 pl-2 pr-1 py-0.5 rounded text-sm;
+        background: var(--background-modifier-hover);
+        color: var(--text-normal);
+    }
+
+    .kap-triage-chip-remove {
+        @apply inline-flex items-center justify-center w-4 h-4 rounded-full border-0 cursor-pointer bg-transparent p-0;
+        color: var(--text-muted);
+    }
+
+    .kap-triage-chip-remove:hover {
+        background: var(--background-modifier-border);
+        color: var(--text-normal);
+    }
+
+    .kap-suggest-hint {
+        color: var(--text-faint);
+    }
+
     /* Respect prefers-reduced-motion: every transition/animation duration in
        this layer is driven by the --kap-transition* variables, so zeroing them
        here disables all motion without per-rule overrides or !important. */
