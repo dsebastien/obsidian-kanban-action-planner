@@ -91,6 +91,7 @@ import type { TriageRank } from './triage'
 import { TriageConfigModal } from '../../ui/triage/triage-config-modal'
 import type { TriageConfigData } from '../../ui/triage/triage-config-modal'
 import { resolveAllowedValues } from '../../services/enum.service'
+import { listNoteTypes } from '../../services/starter-kit.service'
 import { FilterBar } from '../../ui/filter-bar'
 import { BoardSelection } from './board-selection'
 import { buildCardMenu, isNewTabEvent } from './card-menu'
@@ -1417,6 +1418,46 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         this.renderTriage()
     }
 
+    /**
+     * Property options for the triage config modal. **Note** properties come from
+     * the **note types** present in this view (Starter Kit definitions + local
+     * `enumProperties`) — never the raw dataset, no fallback. **Formulas** come
+     * from the **base** (the `formula.*` columns). Labels use the base's display
+     * names so they match the rest of the UI.
+     */
+    private triagePropertyOptions(): Array<{
+        id: string
+        label: string
+        kind: 'note' | 'computed'
+    }> {
+        const out: Array<{ id: string; label: string; kind: 'note' | 'computed' }> = []
+        const seen = new Set<string>()
+        const add = (id: string, kind: 'note' | 'computed'): void => {
+            if (seen.has(id)) return
+            seen.add(id)
+            out.push({ id, label: this.config.getDisplayName(id as BasesPropertyId), kind })
+        }
+
+        // Note properties: the note types shown on this board (active + per-card).
+        const typeIds = new Set<string>([this.noteType.id])
+        for (const value of this.noteTypeByPath.values()) if (value) typeIds.add(value.id)
+        const skById = new Map(listNoteTypes(this.app).map((t) => [t.id, t]))
+        for (const typeId of typeIds) {
+            for (const prop of skById.get(typeId)?.properties ?? [])
+                add(`note.${prop.name}`, 'note')
+            const local = findNoteType(this.plugin, typeId)
+            if (local) {
+                for (const name of Object.keys(local.enumProperties)) add(`note.${name}`, 'note')
+            }
+        }
+
+        // Formulas: the base's computed columns (already evaluated in the dataset).
+        for (const id of this.allProperties) {
+            if (id.startsWith('formula.')) add(String(id), 'computed')
+        }
+        return out
+    }
+
     /** Open the "Configure triage" modal — real property pickers over `this.config`. */
     openTriageConfig(): void {
         const toBasesId = (id: string): string => {
@@ -1425,22 +1466,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             return ref.kind === 'note' ? `note.${ref.name}` : ref.id
         }
         new TriageConfigModal(this.app, {
-            properties: () =>
-                this.allProperties
-                    .map((id) => {
-                        const ref = parsePropertyRef(id)
-                        return ref
-                            ? {
-                                  id: String(id),
-                                  label: this.config.getDisplayName(id),
-                                  kind: ref.kind
-                              }
-                            : null
-                    })
-                    .filter(
-                        (p): p is { id: string; label: string; kind: 'note' | 'computed' } =>
-                            p !== null
-                    ),
+            properties: () => this.triagePropertyOptions(),
             current: (): TriageConfigData => ({
                 scope: readTriageConfig(this.config).scope,
                 editable: readIdArray(this.config.get('triageUpdateProps')).map(toBasesId),
