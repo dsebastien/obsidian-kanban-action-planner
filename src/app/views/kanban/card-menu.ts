@@ -1,12 +1,6 @@
 import { Menu } from 'obsidian'
-import type { TFile } from 'obsidian'
 import { UNMAPPED_COLUMN_ID } from '../../constants'
-import type {
-    CardPresentation,
-    ColumnDef,
-    NoteType,
-    RelationshipRole
-} from '../../domain/note-type'
+import type { ColumnDef, RelationshipRole } from '../../domain/note-type'
 import type { DateDimension } from '../../domain/calendar'
 import type { RelatedNote } from '../../services/relationships.service'
 import type { KanbanCard } from '../../ui/board/types'
@@ -28,12 +22,6 @@ export interface CardMenuHost {
     writeCardDate(card: KanbanCard, dimension: DateDimension, isoDate: string | null): Promise<void>
     /** Open the date picker for a card's scheduled date or deadline. */
     promptDate(card: KanbanCard, dimension: DateDimension, current: Date | null): void
-    /** The note type whose card config drives a file's display (its type, else active). */
-    cardDisplayNoteType(file: TFile): NoteType
-    /** Candidate property names for the card's "Show fields" menu. */
-    displayFieldCandidates(card: KanbanCard, presentation: CardPresentation): string[]
-    /** Add or remove a property from a note type's displayed card fields. */
-    toggleDisplayField(noteTypeId: string, property: string): Promise<void>
     openRelated(note: RelatedNote, newTab: boolean): void
     /** Quick "today"/"tomorrow" keys + the current new-tab modifier check. */
     todayKey(): string
@@ -94,7 +82,6 @@ export function buildCardMenu(card: KanbanCard, host: CardMenuHost): Menu {
                 .onClick(() => void host.archiveCard(card))
         )
     }
-    addDisplayFieldMenuItems(menu, card, host)
     addRelationshipMenuItems(menu, card, host)
     addRelationshipEditItems(menu, card, host)
     return menu
@@ -193,32 +180,6 @@ function addSchedulingMenuItems(menu: Menu, card: KanbanCard, host: CardMenuHost
                 .onClick(() => void host.writeCardDate(card, 'deadline', null))
         )
     }
-}
-
-/**
- * "Show fields" submenu: a checkable list of candidate properties for the
- * card's note type. Toggling one adds/removes it from that note type's card
- * config; the change persists and every open board refreshes.
- */
-function addDisplayFieldMenuItems(menu: Menu, card: KanbanCard, host: CardMenuHost): void {
-    const noteType = host.cardDisplayNoteType(card.file)
-    const candidates = host.displayFieldCandidates(card, noteType.card)
-    if (candidates.length === 0) return
-
-    menu.addSeparator()
-    menu.addItem((item) => {
-        item.setTitle('Show fields').setIcon('list')
-        const submenu = item.setSubmenu()
-        for (const property of candidates) {
-            const shown = noteType.card.fields.some((f) => f.property === property)
-            submenu.addItem((sub) =>
-                sub
-                    .setTitle(property)
-                    .setChecked(shown)
-                    .onClick(() => void host.toggleDisplayField(noteType.id, property))
-            )
-        }
-    })
 }
 
 /** Add "open related note" items (blockers first) when the card has any. */

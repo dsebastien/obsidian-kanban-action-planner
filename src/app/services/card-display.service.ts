@@ -1,8 +1,5 @@
-import { TFile, moment } from 'obsidian'
-import type { App } from 'obsidian'
-import type { CardPresentation } from '../domain/note-type'
+import type { App, BasesEntry, BasesPropertyId, TFile } from 'obsidian'
 import { getFrontmatterValue } from './frontmatter.service'
-import { formatScalar, stripWikiLink } from '../utils/format'
 import { parseFrontmatterDate, startOfDay } from '../domain/calendar'
 import type { CardDisplay, CardFieldView, DueState } from '../ui/board/types'
 
@@ -19,89 +16,48 @@ export function computeDueState(due: Date | null, today: Date): DueState {
     return 'none'
 }
 
-interface MomentLike {
-    isValid(): boolean
-    format(format: string): string
+/** The subset of `BasesViewConfig` the card display reads (issue #50). */
+interface CardFieldConfig {
+    getOrder(): BasesPropertyId[]
+    getDisplayName(propertyId: BasesPropertyId): string
 }
-const parseMoment = moment as unknown as (input?: unknown) => MomentLike
+
+/** The file/title property id — shown as the card's heading, never as a field. */
+const TITLE_PROPERTY_ID = 'file.name'
 
 /**
- * Build the presentation data for a card from a note type's card config:
- * the title (note name or a property), the configured body fields (type-aware),
- * an optional cover image, and the wrap setting. The due-date property is shown
- * in red by default when set and not already among the configured fields.
+ * Build a card's presentation from the **Bases view's configured properties**
+ * (issue #50): the title (note name) plus one field per property in the view's
+ * `getOrder()` (the standard Bases "Properties" toolbar), read per card via
+ * `BasesEntry.getValue` and labelled by `getDisplayName`. Works uniformly for
+ * `note.*` / `formula.*` / `file.*` columns — so a base formula (e.g. a
+ * `priority_score`) shows on the card with no special handling. Relationships
+ * are rendered separately from `KanbanCard.relationships`, not here.
  */
 export function buildCardDisplay(
     app: App,
     file: TFile,
-    presentation: CardPresentation,
+    entry: BasesEntry | undefined,
+    config: CardFieldConfig,
     dueDateProperty: string | null,
     today: Date
 ): CardDisplay {
-    const title = resolveTitle(app, file, presentation)
     const fields: CardFieldView[] = []
-    const seen = new Set<string>()
-
-    for (const field of presentation.fields) {
-        const text = formatValue(getFrontmatterValue(app, file, field.property), field.dateFormat)
-        if (!text) continue
-        seen.add(field.property.toLowerCase())
-        fields.push({
-            label: field.showLabel ? field.property : null,
-            text,
-            emphasis: field.emphasis ?? 'normal'
-        })
+    for (const id of config.getOrder()) {
+        if (id === TITLE_PROPERTY_ID) continue // shown as the title
+        const value = entry?.getValue(id)
+        const text = value == null ? '' : value.toString().trim()
+        // `NullValue.toString()` is "null"; skip empty/unset so cards don't show "Field: null".
+        if (!text || text === 'null') continue
+        fields.push({ label: config.getDisplayName(id), text, emphasis: 'normal' })
     }
 
     const dueRaw = dueDateProperty ? getFrontmatterValue(app, file, dueDateProperty) : null
-    if (dueDateProperty && !seen.has(dueDateProperty.toLowerCase())) {
-        const dueText = formatValue(dueRaw, undefined)
-        if (dueText) fields.push({ label: null, text: dueText, emphasis: 'due-red' })
-    }
-
-    const coverUrl = presentation.coverImageProperty
-        ? resolveCover(app, file, getFrontmatterValue(app, file, presentation.coverImageProperty))
-        : null
-
     return {
-        title,
+        title: file.basename,
         fields,
-        coverUrl,
-        wrap: presentation.wrapPropertyValues,
+        coverUrl: null,
+        wrap: true,
         dueState: computeDueState(parseFrontmatterDate(dueRaw), today)
     }
-}
-
-function resolveTitle(app: App, file: TFile, presentation: CardPresentation): string {
-    if (presentation.titleSource.kind === 'property') {
-        const raw = getFrontmatterValue(app, file, presentation.titleSource.property)
-        const text = formatScalar(raw)
-        if (text) return text
-    }
-    return file.basename
-}
-
-function formatValue(raw: unknown, dateFormat: string | undefined): string {
-    if (dateFormat && typeof raw === 'string' && raw.trim() !== '') {
-        const m = parseMoment(raw)
-        if (m.isValid()) return m.format(dateFormat)
-    }
-    return formatScalar(raw)
-}
-
-function resolveCover(app: App, file: TFile, raw: unknown): string | null {
-    const first = Array.isArray(raw) ? raw[0] : raw
-    if (typeof first !== 'string' || first.trim() === '') return null
-    const value = first.trim()
-
-    if (/^https?:\/\//i.test(value)) return value
-
-    const linkpath = stripWikiLink(value)
-    const dest = app.metadataCache.getFirstLinkpathDest(linkpath, file.path)
-    if (dest) return app.vault.getResourcePath(dest)
-
-    const byPath = app.vault.getAbstractFileByPath(linkpath)
-    if (byPath instanceof TFile) return app.vault.getResourcePath(byPath)
-
-    return null
 }

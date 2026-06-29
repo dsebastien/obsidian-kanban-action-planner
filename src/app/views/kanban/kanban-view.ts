@@ -9,7 +9,6 @@ import {
 } from '../../constants'
 import type {
     ArchiveConfig,
-    CardPresentation,
     ColumnDef,
     LaneGrouping,
     NoteType,
@@ -48,8 +47,7 @@ import {
     createDefaultNoteType,
     findNoteType,
     recognizeNoteTypeFor,
-    resolveActiveNoteType,
-    setCardPresentation
+    resolveActiveNoteType
 } from '../../services/note-type.service'
 import { buildCardDisplay } from '../../services/card-display.service'
 import { buildCardSearchRecord } from '../../services/card-search.service'
@@ -857,7 +855,8 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         const display = buildCardDisplay(
             this.app,
             file,
-            this.cardPresentationFor(file),
+            this.entriesByPath.get(file.path),
+            this.config,
             this.dueDateProperty,
             startOfDay(new Date())
         )
@@ -874,45 +873,6 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             display,
             relationships
         }
-    }
-
-    /**
-     * The noteType whose card config drives a file's display: its recognized
-     * note-type noteType when available, else the board's active note type. This is
-     * what makes a mixed board show each note type's own fields, and what the
-     * card's "Show fields" menu edits.
-     */
-    private cardDisplayNoteType(file: TFile): NoteType {
-        const type = this.noteTypeByPath.get(file.path)
-        if (type) {
-            const typeNoteType = findNoteType(this.plugin, type.id)
-            if (typeNoteType) return typeNoteType
-        }
-        return this.noteType
-    }
-
-    /** The card-presentation config for a file (by its note type). */
-    private cardPresentationFor(file: TFile): CardPresentation {
-        return this.cardDisplayNoteType(file).card
-    }
-
-    /**
-     * Candidate property names for a card's "Show fields" menu: every frontmatter
-     * key found on notes of the same recognized note type (so the list is
-     * type-relevant), plus any already-displayed field (so it can be unchecked).
-     */
-    private displayFieldCandidates(card: KanbanCard, presentation: CardPresentation): string[] {
-        const type = this.noteTypeByPath.get(card.key) ?? null
-        const names = new Set<string>()
-        for (const file of this.files()) {
-            if (type && this.noteTypeByPath.get(file.path)?.id !== type.id) continue
-            const fm = this.app.metadataCache.getFileCache(file)?.frontmatter
-            if (fm) for (const key of Object.keys(fm)) names.add(key)
-        }
-        for (const field of presentation.fields) names.add(field.property)
-        return Array.from(names)
-            .filter((n) => n.length > 0)
-            .sort((a, b) => a.localeCompare(b))
     }
 
     private collectPropertyNames(files: TFile[]): string[] {
@@ -1075,11 +1035,6 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             cardDate: (card, dimension) => this.cardDate(card, dimension),
             writeCardDate: (card, dimension, iso) => this.writeCardDate(card, dimension, iso),
             promptDate: (card, dimension, current) => this.promptDate(card, dimension, current),
-            cardDisplayNoteType: (file) => this.cardDisplayNoteType(file),
-            displayFieldCandidates: (card, presentation) =>
-                this.displayFieldCandidates(card, presentation),
-            toggleDisplayField: (noteTypeId, property) =>
-                this.toggleDisplayField(noteTypeId, property),
             openRelated: (note, newTab) => this.openRelated(note, newTab),
             todayKey: () => toDateKey(startOfDay(new Date())),
             tomorrowKey: () => toDateKey(addDays(startOfDay(new Date()), 1)),
@@ -1200,20 +1155,9 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         void this.applyMove(card, card.statusValue, loc.laneId, column.column.id, target)
     }
 
-    /** Add or remove a property from a note type's displayed card fields. */
-    private async toggleDisplayField(noteTypeId: string, property: string): Promise<void> {
-        const noteType = findNoteType(this.plugin, noteTypeId)
-        if (!noteType) return
-        const exists = noteType.card.fields.some((f) => f.property === property)
-        const fields = exists
-            ? noteType.card.fields.filter((f) => f.property !== property)
-            : [...noteType.card.fields, { property, showLabel: false, emphasis: 'normal' as const }]
-        await setCardPresentation(this.plugin, noteTypeId, { ...noteType.card, fields })
-    }
-
     /**
-     * A noteType/settings change landed (from this board's menus or the settings
-     * tab): re-resolve and re-render so card display reflects the new config.
+     * A note-type/settings change landed (from the settings tab): re-resolve and
+     * re-render so colors / relationships / etc. reflect the new config.
      */
     onSettingsChanged(): void {
         this.debouncedRebuild()
