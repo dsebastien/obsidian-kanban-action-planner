@@ -239,7 +239,8 @@ export function getKanbanViewOptions(app: App, settings: PluginSettings): BasesA
                     default: 'clarify',
                     options: {
                         clarify: 'Needs clarification',
-                        all: 'All cards (re-prioritize)'
+                        all: 'All cards (re-prioritize)',
+                        review: 'Due for review'
                     }
                 },
                 {

@@ -28,6 +28,13 @@ export const DEFAULT_BLOCKED_BY_PROPERTY = 'blocked_by'
 export const DEFAULT_SCHEDULED_DATE_PROPERTY = 'date_scheduled'
 export const DEFAULT_DUE_DATE_PROPERTY = 'date_due'
 
+/** Default review (spaced-repetition) property names (issue #57; configurable). */
+export const DEFAULT_REVIEWED_DATE_PROPERTY = 'last_reviewed'
+export const DEFAULT_REVIEW_INTERVAL_PROPERTY = 'review_interval'
+export const DEFAULT_REVIEW_COUNT_PROPERTY = 'review_count'
+/** Fallback review interval (days) when a note has no `review_interval`. */
+export const DEFAULT_REVIEW_INTERVAL_DAYS = 30
+
 /** Default link-property names per relationship role (configurable per note type). */
 export const DEFAULT_PARENT_PROPERTY = 'parent'
 export const DEFAULT_CHILD_PROPERTY = 'children'

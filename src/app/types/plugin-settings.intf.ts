@@ -6,6 +6,10 @@ import {
     DEFAULT_DUE_DATE_PROPERTY,
     DEFAULT_FIRST_DAY_OF_WEEK,
     DEFAULT_ORDER_PROPERTY,
+    DEFAULT_REVIEW_COUNT_PROPERTY,
+    DEFAULT_REVIEW_INTERVAL_DAYS,
+    DEFAULT_REVIEW_INTERVAL_PROPERTY,
+    DEFAULT_REVIEWED_DATE_PROPERTY,
     DEFAULT_SCHEDULED_DATE_PROPERTY,
     DEFAULT_STATUS_PROPERTY
 } from '../constants'
@@ -29,6 +33,12 @@ export const pluginSettingsSchema = z.object({
     defaultBlockedByProperty: z.string(),
     defaultScheduledDateProperty: z.string(),
     defaultDueDateProperty: z.string(),
+    /** Review (spaced-repetition) property names (issue #57). */
+    reviewedDateProperty: z.string(),
+    reviewIntervalProperty: z.string(),
+    reviewCountProperty: z.string(),
+    /** Fallback review interval (days) when a note has no `review_interval`. */
+    defaultReviewIntervalDays: z.number().int().positive(),
     /** Default momentjs format for scheduling dates written to notes. */
     defaultDateFormat: z.string(),
     /** First day of the calendar week (0 = Sunday … 6 = Saturday). */
@@ -51,6 +61,10 @@ export const DEFAULT_SETTINGS: PluginSettings = {
     defaultBlockedByProperty: DEFAULT_BLOCKED_BY_PROPERTY,
     defaultScheduledDateProperty: DEFAULT_SCHEDULED_DATE_PROPERTY,
     defaultDueDateProperty: DEFAULT_DUE_DATE_PROPERTY,
+    reviewedDateProperty: DEFAULT_REVIEWED_DATE_PROPERTY,
+    reviewIntervalProperty: DEFAULT_REVIEW_INTERVAL_PROPERTY,
+    reviewCountProperty: DEFAULT_REVIEW_COUNT_PROPERTY,
+    defaultReviewIntervalDays: DEFAULT_REVIEW_INTERVAL_DAYS,
     defaultDateFormat: DEFAULT_DATE_FORMAT,
     firstDayOfWeek: DEFAULT_FIRST_DAY_OF_WEEK,
     defaultStatuses: [],

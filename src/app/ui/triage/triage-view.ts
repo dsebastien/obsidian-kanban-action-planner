@@ -34,6 +34,8 @@ export interface TriageCallbacks {
     onSetProperty(name: string, value: string | null): void
     onNext(): void
     onSkip(): void
+    /** Stamp the review fields and advance (review scope only, issue #57). */
+    onMarkReviewed(): void
     onOpen(): void
     onExit(): void
     onRefresh(): void
@@ -59,7 +61,7 @@ export function renderTriageView(
         setIcon(empty.createDiv({ cls: 'kap-triage-empty-icon' }), 'check-check')
         empty.createDiv({
             cls: 'kap-triage-empty-text',
-            text: 'Nothing to triage — every card matches your clarify rules. Switch scope to “All cards” to re-prioritize, or exit.'
+            text: 'Nothing to triage in this scope. Switch scope (clarify / all cards / due for review), or exit.'
         })
         return
     }
@@ -88,7 +90,7 @@ export function renderTriageView(
         renderEditableProp(edit, prop, callbacks)
     }
 
-    renderFooter(root, callbacks)
+    renderFooter(root, data, callbacks)
 }
 
 function renderHeader(
@@ -106,6 +108,9 @@ function renderHeader(
         callbacks.onScopeChange('clarify')
     )
     addScopeButton(switcher, 'All cards', scope === 'all', () => callbacks.onScopeChange('all'))
+    addScopeButton(switcher, 'Due for review', scope === 'review', () =>
+        callbacks.onScopeChange('review')
+    )
 
     const exit = header.createEl('button', {
         cls: 'kap-triage-exit',
@@ -142,12 +147,20 @@ function renderEditableProp(
     }
 }
 
-function renderFooter(root: HTMLElement, callbacks: TriageCallbacks): void {
+function renderFooter(root: HTMLElement, data: TriageCardData, callbacks: TriageCallbacks): void {
     const footer = root.createDiv({ cls: 'kap-triage-footer' })
     const skip = footer.createEl('button', { cls: 'kap-triage-skip', text: 'Skip' })
     skip.addEventListener('click', () => callbacks.onSkip())
-    const next = footer.createEl('button', { cls: 'kap-triage-next', text: 'Next' })
-    next.addEventListener('click', () => callbacks.onNext())
+    if (data.scope === 'review') {
+        const reviewed = footer.createEl('button', {
+            cls: 'kap-triage-next',
+            text: 'Reviewed'
+        })
+        reviewed.addEventListener('click', () => callbacks.onMarkReviewed())
+    } else {
+        const next = footer.createEl('button', { cls: 'kap-triage-next', text: 'Next' })
+        next.addEventListener('click', () => callbacks.onNext())
+    }
 }
 
 function addScopeButton(

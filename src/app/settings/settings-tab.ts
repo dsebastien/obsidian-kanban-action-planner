@@ -269,6 +269,40 @@ export class KanbanActionPlannerSettingTab extends PluginSettingTab {
             'YYYY-MM-DD'
         )
 
+        new Setting(containerEl).setName('Review (triage)').setHeading()
+        text(
+            'Last-reviewed property',
+            'Date a note was last reviewed (triage “Due for review”).',
+            'reviewedDateProperty',
+            'last_reviewed'
+        )
+        text(
+            'Review-interval property',
+            'Days between reviews, read per note.',
+            'reviewIntervalProperty',
+            'review_interval'
+        )
+        text(
+            'Review-count property',
+            'Number of times a note has been reviewed (incremented on “Reviewed”).',
+            'reviewCountProperty',
+            'review_count'
+        )
+        new Setting(containerEl)
+            .setName('Default review interval (days)')
+            .setDesc('Used when a note has no review-interval value.')
+            .addText((input) => {
+                input.inputEl.type = 'number'
+                input.inputEl.min = '1'
+                input
+                    .setPlaceholder('30')
+                    .setValue(String(this.plugin.settings.defaultReviewIntervalDays))
+                    .onChange((value) => {
+                        const n = Number.parseInt(value, 10)
+                        if (Number.isFinite(n) && n > 0) void this.updateReviewIntervalDays(n)
+                    })
+            })
+
         new Setting(containerEl)
             .setName('First day of the week')
             .setDesc('Which day calendar weeks start on.')
@@ -322,6 +356,13 @@ export class KanbanActionPlannerSettingTab extends PluginSettingTab {
     private async updateFirstDayOfWeek(day: number): Promise<void> {
         this.plugin.settings = produce(this.plugin.settings, (draft) => {
             draft.firstDayOfWeek = day
+        })
+        await this.plugin.saveSettings()
+    }
+
+    private async updateReviewIntervalDays(days: number): Promise<void> {
+        this.plugin.settings = produce(this.plugin.settings, (draft) => {
+            draft.defaultReviewIntervalDays = days
         })
         await this.plugin.saveSettings()
     }

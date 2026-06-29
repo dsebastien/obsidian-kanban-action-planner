@@ -1,12 +1,40 @@
 /**
- * Pure triage logic (issue #53): deciding which cards are "unclarified" and the
- * order of the triage queue. No Obsidian dependencies — callers resolve each
- * gating property's value + allowed-values and pass them in, so this is fully
+ * Pure triage logic (issues #53, #57): deciding which cards are "unclarified" /
+ * "due for review" and the order of the triage queue. No Obsidian dependencies —
+ * callers resolve each property's value and pass it in, so this is fully
  * unit-testable.
  */
+import { startOfDay } from '../../domain/calendar'
 
 /** Which cards make up the triage queue. */
-export type TriageScope = 'clarify' | 'all'
+export type TriageScope = 'clarify' | 'all' | 'review'
+
+const DAY_MS = 24 * 60 * 60 * 1000
+
+/** A card's review weight + whether it's due (issue #57). */
+export interface ReviewState {
+    /** Worst-first weight: days overdue, or a max sentinel when never reviewed. */
+    weight: number
+    /** Whether the card is due for review (overdue ≥ 0, or never reviewed). */
+    due: boolean
+}
+
+/**
+ * Compute a card's review state (issue #57): due when `lastReviewed +
+ * intervalDays` is on/before `today`, or when it was never reviewed (the most
+ * due). The weight is whole days overdue (never-reviewed → a max sentinel so it
+ * sorts first). Pure.
+ */
+export function reviewState(
+    lastReviewed: Date | null,
+    intervalDays: number,
+    today: Date
+): ReviewState {
+    if (!lastReviewed) return { weight: Number.MAX_SAFE_INTEGER, due: true }
+    const dueTime = startOfDay(lastReviewed).getTime() + intervalDays * DAY_MS
+    const overdueDays = Math.floor((startOfDay(today).getTime() - dueTime) / DAY_MS)
+    return { weight: overdueDays, due: overdueDays >= 0 }
+}
 
 /** A single gating property's resolved state for one card. */
 export interface TriageGateInput {
@@ -47,21 +75,24 @@ export function unsetCount(gates: TriageGateInput[], tokens: string[]): number {
     return count
 }
 
+/** A card's queue ranking: whether to include it, and its worst-first weight. */
+export interface TriageRank {
+    include: boolean
+    weight: number
+}
+
 /**
- * Build the ordered triage queue from an already text-filtered card list:
- * - `clarify` scope keeps only cards with ≥1 unset gating prop; `all` keeps every
- *   card (re-prioritization).
- * - Order is **worst-first** (most unset props), ties broken by the view's own
- *   card comparator (`viewCompare`). Stable for equal keys.
+ * Build the ordered triage queue from an already text-filtered card list. Each
+ * card is ranked (scope-specific, computed by the caller): `include` decides
+ * membership, `weight` orders **worst-first** (higher first), ties broken by the
+ * view's own card comparator (`viewCompare`). Stable for equal keys.
  */
 export function buildTriageQueue<T>(
     cards: ReadonlyArray<T>,
-    scope: TriageScope,
-    unsetOf: (card: T) => number,
+    rankOf: (card: T) => TriageRank,
     viewCompare: (a: T, b: T) => number
 ): T[] {
-    const items = cards.map((card) => ({ card, unset: unsetOf(card) }))
-    const kept = scope === 'all' ? items : items.filter((i) => i.unset > 0)
-    kept.sort((a, b) => b.unset - a.unset || viewCompare(a.card, b.card))
+    const kept = cards.map((card) => ({ card, rank: rankOf(card) })).filter((i) => i.rank.include)
+    kept.sort((a, b) => b.rank.weight - a.rank.weight || viewCompare(a.card, b.card))
     return kept.map((i) => i.card)
 }

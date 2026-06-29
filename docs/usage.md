@@ -109,7 +109,7 @@ Each card shows:
 - **Skip** / **Next** to move through the queue, with a **remaining count**. Setting a value does
   **not** auto-advance, so you can see the recomputed score before moving on.
 
-**Two scopes**, switched in the header:
+**Three scopes**, switched in the header:
 
 - **Needs clarification** — only cards with an **unset** gating property; a card leaves the queue
   once it's complete. A property counts as unset when it's **empty/absent**, matches one of your
@@ -117,6 +117,8 @@ Each card shows:
   a value that **isn't one of them** (stale/invalid).
 - **All cards** — every card, **worst-first** (most unset properties first), for a re-prioritization
   pass even when nothing is strictly missing.
+- **Due for review** — cards whose **review is overdue**, most-overdue first (see **Reviews** below).
+  Here the action button is **Reviewed**, which stamps the review fields and advances.
 
 Configure triage per view in **Configure view → Triage**:
 
@@ -130,6 +132,26 @@ Configure triage per view in **Configure view → Triage**:
 
 On a **mixed-type** board each card resolves its properties and allowed values against its own note
 type, so a board of goals + projects + tasks triages each correctly.
+
+### Reviews (spaced repetition)
+
+The **Due for review** triage scope turns the queue into a periodic review ritual so the backlog
+never silently rots. It uses three note properties:
+
+- **last reviewed** (a date) — when you last reviewed the note,
+- **review interval** (a number of days) — how often it should be reviewed,
+- **review count** (a number) — how many times it's been reviewed.
+
+A card is **due** when `last reviewed + review interval` is on or before today, or when it was
+**never reviewed** (which sorts first). The queue is ordered **most-overdue first**, and each card
+shows its review status (last reviewed, count, how overdue) on top. Clicking **Reviewed** sets
+**last reviewed = today** and **increments review count**, then advances — so the card drops out
+until it's next due. You can still adjust the enum values while reviewing.
+
+The property names are **configurable** in **Settings → Community plugins → Kanban Action Planner**
+under **Review (triage)** — they default to `last_reviewed`, `review_interval`, and `review_count`.
+A **Default review interval (days)** (default **30**) is used for notes that don't set their own
+interval. Review works on **any** Kanban view via the scope switch — no per-view setup needed.
 
 ## Swimlanes (grouping)
 

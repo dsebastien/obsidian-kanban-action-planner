@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test'
-import { buildTriageQueue, isPropUnset, unsetCount } from './triage'
+import { buildTriageQueue, isPropUnset, reviewState, unsetCount } from './triage'
 
 describe('isPropUnset (issue #53)', () => {
     const tokens = ['TBD', 'No Target']
@@ -42,32 +42,58 @@ describe('unsetCount', () => {
     })
 })
 
-describe('buildTriageQueue (issue #53)', () => {
-    type Card = { id: string; unset: number; sort: number }
+describe('reviewState (issue #57)', () => {
+    const today = new Date(2026, 5, 29)
+
+    it('is due (max weight) when never reviewed', () => {
+        const s = reviewState(null, 30, today)
+        expect(s.due).toBe(true)
+        expect(s.weight).toBe(Number.MAX_SAFE_INTEGER)
+    })
+
+    it('is due with positive overdue days when interval has elapsed', () => {
+        // reviewed 40 days ago, interval 30 → 10 days overdue.
+        const s = reviewState(new Date(2026, 4, 20), 30, today)
+        expect(s.due).toBe(true)
+        expect(s.weight).toBe(10)
+    })
+
+    it('is not due before the interval elapses', () => {
+        const s = reviewState(new Date(2026, 5, 25), 30, today) // 4 days ago
+        expect(s.due).toBe(false)
+        expect(s.weight).toBeLessThan(0)
+    })
+
+    it('is due exactly on the interval boundary', () => {
+        const s = reviewState(new Date(2026, 4, 30), 30, today) // 30 days ago
+        expect(s.due).toBe(true)
+        expect(s.weight).toBe(0)
+    })
+})
+
+describe('buildTriageQueue (issues #53, #57)', () => {
+    type Card = { id: string; weight: number; include: boolean; sort: number }
     const cards: Card[] = [
-        { id: 'a', unset: 0, sort: 3 },
-        { id: 'b', unset: 2, sort: 1 },
-        { id: 'c', unset: 1, sort: 2 },
-        { id: 'd', unset: 2, sort: 2 }
+        { id: 'a', weight: 0, include: false, sort: 3 },
+        { id: 'b', weight: 2, include: true, sort: 1 },
+        { id: 'c', weight: 1, include: true, sort: 2 },
+        { id: 'd', weight: 2, include: true, sort: 2 }
     ]
-    const unsetOf = (c: Card): number => c.unset
+    const rankOf = (c: Card): { include: boolean; weight: number } => ({
+        include: c.include,
+        weight: c.weight
+    })
     const viewCompare = (a: Card, b: Card): number => a.sort - b.sort
 
-    it('clarify scope keeps only unclarified cards, worst-first then view sort', () => {
-        const queue = buildTriageQueue(cards, 'clarify', unsetOf, viewCompare)
-        // unset desc: b(2,sort1), d(2,sort2), c(1); a(0) dropped.
+    it('keeps included cards, worst-first then view sort', () => {
+        const queue = buildTriageQueue(cards, rankOf, viewCompare)
+        // weight desc: b(2,sort1), d(2,sort2), c(1); a excluded.
         expect(queue.map((c) => c.id)).toEqual(['b', 'd', 'c'])
     })
 
-    it('all scope keeps every card, worst-first then view sort', () => {
-        const queue = buildTriageQueue(cards, 'all', unsetOf, viewCompare)
-        // unset desc then sort asc: b(2,1), d(2,2), c(1,2), a(0,3)
-        expect(queue.map((c) => c.id)).toEqual(['b', 'd', 'c', 'a'])
-    })
-
-    it('falls through to the view sort when nothing is unset (all scope)', () => {
-        const flat = cards.map((c) => ({ ...c, unset: 0 }))
-        const queue = buildTriageQueue(flat, 'all', unsetOf, viewCompare)
+    it('falls through to the view sort when weights tie', () => {
+        const flat = cards.map((c) => ({ ...c, weight: 0, include: true }))
+        const queue = buildTriageQueue(flat, rankOf, viewCompare)
         expect(queue.map((c) => c.id)).toEqual(['b', 'c', 'd', 'a'])
     })
 })

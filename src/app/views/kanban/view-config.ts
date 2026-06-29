@@ -77,8 +77,9 @@ export interface TriageConfig {
 export function readTriageConfig(config: ConfigReader): TriageConfig {
     const updateProps = readIdArray(config.get('triageUpdateProps'))
     const gate = readIdArray(config.get('triageGateProps'))
+    const rawScope = config.get('triageScope')
     return {
-        scope: config.get('triageScope') === 'all' ? 'all' : 'clarify',
+        scope: rawScope === 'all' || rawScope === 'review' ? rawScope : 'clarify',
         updateProps,
         gateProps: gate.length > 0 ? gate : updateProps,
         seeProps: readIdArray(config.get('triageSeeProps')),

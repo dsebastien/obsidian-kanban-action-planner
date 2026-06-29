@@ -86,7 +86,8 @@ import type {
     TriageContextField,
     TriageEditableProp
 } from '../../ui/triage/triage-view'
-import { buildTriageQueue, isPropUnset, unsetCount } from './triage'
+import { buildTriageQueue, isPropUnset, reviewState, unsetCount } from './triage'
+import type { TriageRank } from './triage'
 import { resolveAllowedValues } from '../../services/enum.service'
 import { FilterBar } from '../../ui/filter-bar'
 import { BoardSelection } from './board-selection'
@@ -1367,8 +1368,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             const compare = this.cardComparator() ?? ((): number => 0)
             const queue = buildTriageQueue(
                 [...this.cardsByKey.values()],
-                cfg.scope,
-                (card) => this.cardUnsetCount(card, cfg),
+                (card) => this.triageRank(card, cfg),
                 compare
             )
             this.triageQueueKeys = queue.map((c) => c.key)
@@ -1387,6 +1387,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             onSetProperty: (name, value) => void this.triageSetProperty(current, name, value),
             onNext: () => this.triageAdvance(),
             onSkip: () => this.triageAdvance(),
+            onMarkReviewed: () => void this.triageMarkReviewed(current),
             onOpen: () => {
                 if (current) this.openCard(current, false)
             },
@@ -1456,6 +1457,63 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         return unsetCount(gates, cfg.tokens)
     }
 
+    /** Rank a card for the active scope: membership + worst-first weight. */
+    private triageRank(card: KanbanCard, cfg: TriageConfig): TriageRank {
+        if (cfg.scope === 'review') {
+            const state = this.cardReviewState(card)
+            return { include: state.due, weight: state.weight }
+        }
+        const n = this.cardUnsetCount(card, cfg)
+        return { include: cfg.scope === 'all' ? true : n > 0, weight: n }
+    }
+
+    /** A card's review due-state from its review properties (issue #57). */
+    private cardReviewState(card: KanbanCard): { due: boolean; weight: number } {
+        const s = this.plugin.settings
+        const last = parseFrontmatterDate(
+            getFrontmatterValue(this.app, card.file, s.reviewedDateProperty)
+        )
+        const interval =
+            coerceOrder(getFrontmatterValue(this.app, card.file, s.reviewIntervalProperty)) ??
+            s.defaultReviewIntervalDays
+        return reviewState(last, interval, startOfDay(new Date()))
+    }
+
+    /** Stamp `last_reviewed` = today and increment `review_count`, then advance. */
+    private async triageMarkReviewed(card: KanbanCard | undefined): Promise<void> {
+        if (!card) return
+        const s = this.plugin.settings
+        const count = coerceOrder(getFrontmatterValue(this.app, card.file, s.reviewCountProperty))
+        await setProperty(
+            this.app,
+            card.file,
+            s.reviewedDateProperty,
+            toDateKey(startOfDay(new Date()))
+        )
+        await setProperty(this.app, card.file, s.reviewCountProperty, (count ?? 0) + 1)
+        this.triageAdvance()
+    }
+
+    /** Read-only review context fields (Last reviewed / Reviews / Due) for review scope. */
+    private reviewContextFields(card: KanbanCard): TriageContextField[] {
+        const s = this.plugin.settings
+        const last = parseFrontmatterDate(
+            getFrontmatterValue(this.app, card.file, s.reviewedDateProperty)
+        )
+        const count = coerceOrder(getFrontmatterValue(this.app, card.file, s.reviewCountProperty))
+        const { weight, due } = this.cardReviewState(card)
+        const dueText = !last
+            ? 'never reviewed'
+            : due
+              ? `overdue ${String(weight)}d`
+              : `in ${String(-weight)}d`
+        return [
+            { label: 'Last reviewed', text: last ? toDateKey(last) : 'never', progress: null },
+            { label: 'Reviews', text: String(count ?? 0), progress: null },
+            { label: 'Due', text: dueText, progress: null }
+        ]
+    }
+
     /** Assemble the render data for one triage card. */
     private buildTriageData(
         card: KanbanCard,
@@ -1463,7 +1521,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         position: number,
         total: number
     ): TriageCardData {
-        const context: TriageContextField[] =
+        const baseContext: TriageContextField[] =
             cfg.seeProps.length > 0
                 ? cfg.seeProps
                       .map((id) => this.triageContextField(card, id))
@@ -1473,6 +1531,11 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
                       text: f.text,
                       progress: f.progress
                   }))
+        // Review scope leads with the review status (last reviewed / count / due).
+        const context =
+            cfg.scope === 'review'
+                ? [...this.reviewContextFields(card), ...baseContext]
+                : baseContext
 
         const editable: TriageEditableProp[] = []
         for (const id of cfg.updateProps) {

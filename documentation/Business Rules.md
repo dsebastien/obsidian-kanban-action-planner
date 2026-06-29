@@ -230,7 +230,16 @@ See `documentation/plans/kanban-action-planner-implementation-plan.md` for full 
     (`views/kanban/triage.ts`, pure). Queue order is **worst-first** (most unset props), tie-broken by
     the view's card comparator, held as a **stable per-session snapshot** (cursor by card key) so a
     write doesn't reshuffle it. **Scopes:** `clarify` (only unclarified cards; a card drops as it's
-    completed) or `all` (every card, re-prioritize). **No auto-advance** after a write (the recomputed
-    score stays visible); explicit Skip/Next. Editing reuses the #52 allowed-values + frontmatter
-    writes; **mixed-type** boards resolve props + allowed values **per card** via its recognized note
-    type. Room reserved for a `review` scope (#57). Command: `toggle-triage-mode`.
+    completed), `all` (every card, re-prioritize), or `review` (#57; see rule 29). **No auto-advance**
+    after a write (the recomputed score stays visible); explicit Skip/Next. Editing reuses the #52
+    allowed-values + frontmatter writes; **mixed-type** boards resolve props + allowed values **per
+    card** via its recognized note type. Command: `toggle-triage-mode`.
+29. **Reviews / spaced repetition (issue #57).** The triage `review` scope queues cards **due for
+    review**: due when `last_reviewed + review_interval` ≤ today, or **never reviewed** (sorts first);
+    ordered **most-overdue first** (`reviewState` in `views/kanban/triage.ts`, pure). The card shows
+    its review status (last reviewed / count / overdue) on top; **Reviewed** stamps `last_reviewed` =
+    today (ISO) and **increments** `review_count`, then advances. The three property names are
+    **global plugin settings** (`reviewedDateProperty` / `reviewIntervalProperty` /
+    `reviewCountProperty`) defaulting to `last_reviewed` / `review_interval` / `review_count`, plus a
+    `defaultReviewIntervalDays` (30) fallback for notes without their own interval. Review needs **no
+    per-view config** — it works on any Kanban view via the scope switch.
