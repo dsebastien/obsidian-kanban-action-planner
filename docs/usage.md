@@ -124,10 +124,11 @@ Configure triage with the **gear** in the triage header (or the **Configure tria
 which opens a dialog with proper **property pickers** — type to search, click to add, and each
 selection shows as a removable chip:
 
-- **Editable properties** — the enum props triage lets you set (pick from your note properties).
+- **Editable properties** — the enum props triage lets you set, picked from your **note types'**
+  properties (the Starter Kit definitions, or the properties you've given allowed values).
 - **Gating properties** — what decides "unclarified"; leave empty to use the editable set.
-- **Context properties** — read-only props/formulas to show (formulas and file columns are
-  offered here); leave empty to use the view's displayed properties.
+- **Context properties** — read-only info to show; here you can also pick the base's **formulas**
+  (e.g. `priority_score`); leave empty to use the view's displayed properties.
 - **Needs-triage values** — values that count as unset (e.g. `TBD`), added as free-text chips.
 - **Scope** — the default scope (also switchable live in the header).
 
