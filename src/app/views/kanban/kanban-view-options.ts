@@ -3,13 +3,12 @@ import type { PluginSettings } from '../../types/plugin-settings.intf'
 import { isStarterKitAvailable, listNoteTypes } from '../../services/starter-kit.service'
 
 /**
- * Keep the Bases property dropdowns clean (issue #8): only real frontmatter
- * (`note.*`) properties are offered — `file.*`/`formula.*` are both noise and
- * non-functional here (the plugin reads/writes status, order, grouping and sort
- * via frontmatter). When the Obsidian Starter Kit is enabled, the list is further
- * limited to its note types' known property names (union across types, since the
- * options panel has no single-note-type context); an empty known set falls back
- * to all `note.*` so the dropdowns never go blank.
+ * Keep the Bases property dropdowns clean (issue #8): for **writeable** settings
+ * (status, order, drag-grouping) only real frontmatter (`note.*`) properties are
+ * offered — `file.*`/`formula.*` can't be written. When the Obsidian Starter Kit
+ * is enabled, the list is further limited to its note types' known property names
+ * (union across types); an empty known set falls back to all `note.*` so the
+ * dropdowns never go blank.
  */
 export function isSelectableProperty(prop: string, known: ReadonlySet<string> | null): boolean {
     const dot = prop.indexOf('.')
@@ -17,16 +16,39 @@ export function isSelectableProperty(prop: string, known: ReadonlySet<string> | 
     return known ? known.has(prop.slice(dot + 1).toLowerCase()) : true
 }
 
-function buildPropertyFilter(app: App): (prop: BasesPropertyId) => boolean {
-    let known: Set<string> | null = null
-    if (isStarterKitAvailable(app)) {
-        const set = new Set<string>()
-        for (const type of listNoteTypes(app)) {
-            for (const prop of type.properties ?? []) set.add(prop.name.toLowerCase())
-        }
-        known = set.size > 0 ? set : null
+/**
+ * For **read-only** settings (card sort, panel sort — issue #50): also offer
+ * `formula.*` and `file.*` columns, so a view can sort by a base's computed
+ * values (e.g. a `priority_score` formula). `note.*` is still narrowed to the
+ * Starter Kit's known props; computed columns are always allowed.
+ */
+export function isSelectableReadOnlyProperty(
+    prop: string,
+    known: ReadonlySet<string> | null
+): boolean {
+    const dot = prop.indexOf('.')
+    const prefix = dot < 0 ? '' : prop.slice(0, dot)
+    if (prefix === 'formula' || prefix === 'file') return true
+    return isSelectableProperty(prop, known)
+}
+
+function knownNoteProps(app: App): Set<string> | null {
+    if (!isStarterKitAvailable(app)) return null
+    const set = new Set<string>()
+    for (const type of listNoteTypes(app)) {
+        for (const prop of type.properties ?? []) set.add(prop.name.toLowerCase())
     }
+    return set.size > 0 ? set : null
+}
+
+function buildPropertyFilter(app: App): (prop: BasesPropertyId) => boolean {
+    const known = knownNoteProps(app)
     return (prop) => isSelectableProperty(prop, known)
+}
+
+function buildReadOnlyPropertyFilter(app: App): (prop: BasesPropertyId) => boolean {
+    const known = knownNoteProps(app)
+    return (prop) => isSelectableReadOnlyProperty(prop, known)
 }
 
 /**
@@ -51,6 +73,7 @@ function buildPropertyFilter(app: App): (prop: BasesPropertyId) => boolean {
  */
 export function getKanbanViewOptions(app: App, settings: PluginSettings): BasesAllOptions[] {
     const propertyFilter = buildPropertyFilter(app)
+    const readOnlyPropertyFilter = buildReadOnlyPropertyFilter(app)
     return [
         {
             type: 'group',
@@ -91,8 +114,8 @@ export function getKanbanViewOptions(app: App, settings: PluginSettings): BasesA
                     type: 'property',
                     key: 'cardSortProperty',
                     displayName: 'Card sort property',
-                    placeholder: 'Used when card sort is "By property"',
-                    filter: propertyFilter
+                    placeholder: 'Used when card sort is "By property" (formulas allowed)',
+                    filter: readOnlyPropertyFilter
                 },
                 {
                     type: 'dropdown',
@@ -195,8 +218,8 @@ export function getKanbanViewOptions(app: App, settings: PluginSettings): BasesA
                     type: 'property',
                     key: 'calendarSortProperty',
                     displayName: 'Scheduling panel sort property',
-                    placeholder: 'Used when sort is "By property"',
-                    filter: propertyFilter
+                    placeholder: 'Used when sort is "By property" (formulas allowed)',
+                    filter: readOnlyPropertyFilter
                 }
             ]
         }

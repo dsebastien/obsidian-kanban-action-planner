@@ -1,5 +1,5 @@
 import { BasesView, debounce, Menu, Notice, TFile } from 'obsidian'
-import type { Debouncer, HoverParent, HoverPopover, QueryController } from 'obsidian'
+import type { BasesEntry, Debouncer, HoverParent, HoverPopover, QueryController } from 'obsidian'
 import type { KanbanActionPlannerPlugin } from '../../plugin'
 import {
     CSS_ROOT_CLASS,
@@ -87,6 +87,8 @@ import {
     readSortMode,
     readStringArray
 } from './view-config'
+import { parsePropertyRef, unwrapValue } from './property-access'
+import type { PropertyRef } from './property-access'
 import { cssEscapeAttr } from '../../utils/css-escape'
 import { DatePromptModal } from '../../ui/date-prompt-modal'
 import { log } from '../../../utils/log'
@@ -144,6 +146,10 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
     private collapseInitialized = false
     private board: Board<KanbanCard> = { lanes: [], isMultiLane: false }
     private cardsByKey = new Map<string, KanbanCard>()
+    // Bases entries by file path, rebuilt each rebuild() so computed columns
+    // (formula.*/file.*) can be read per card via getValue (issue #50). The
+    // BasesQueryResult is replaced on every update, so this is never cached across one.
+    private entriesByPath = new Map<string, BasesEntry>()
     // After a keyboard move/reorder rebuild, refocus this card so focus follows it.
     private refocusCardKey: string | null = null
 
@@ -233,7 +239,10 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             firstDayOfWeek: () => this.plugin.settings.firstDayOfWeek,
             configuredRange: () => this.config.get('calendarRange'),
             sortMode: () => readSortMode(this.config.get('calendarTabSort')),
-            sortProperty: () => basesPropToName(this.config.get('calendarSortProperty')),
+            sortValue: (card) => {
+                const ref = parsePropertyRef(this.config.get('calendarSortProperty'))
+                return ref ? this.readScalarProperty(card, ref) : null
+            },
             restoreState: () => this.restoreCalendarState(),
             persistState: (state) => this.persistCalendarState(state)
         })
@@ -471,6 +480,11 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
     private rebuild(): void {
         if (!this.boardEl) return
         const files = this.files()
+        this.entriesByPath = new Map(
+            (this.data?.data ?? [])
+                .filter((e) => e.file instanceof TFile)
+                .map((e) => [e.file.path, e])
+        )
 
         this.availableProperties = this.collectPropertyNames(files)
         this.statusProperty = this.resolveStatusProperty(files)
@@ -793,15 +807,13 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         const mode = this.cardSortMode()
         if (mode === 'order') return undefined
         const direction = this.cardSortDirection()
-        const sortProperty =
-            mode === 'property' ? basesPropToName(this.config.get('cardSortProperty')) : null
+        const sortRef =
+            mode === 'property' ? parsePropertyRef(this.config.get('cardSortProperty')) : null
         const cache = new Map<string, TabSortKey>()
         const keyOf = (card: KanbanCard): TabSortKey => {
             const cached = cache.get(card.key)
             if (cached) return cached
-            const sortValue = sortProperty
-                ? coerceSortValue(getFrontmatterValue(this.app, card.file, sortProperty))
-                : null
+            const sortValue = sortRef ? this.readScalarProperty(card, sortRef) : null
             const key: TabSortKey = {
                 title: card.display.title,
                 order: card.order,
@@ -812,6 +824,19 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             return key
         }
         return (a, b) => compareTabCards(keyOf(a), keyOf(b), mode, direction)
+    }
+
+    /**
+     * Read a property as a sortable/groupable scalar (issue #50). A `note`
+     * property comes from frontmatter (writeable); a `computed` column
+     * (`formula.*`/`file.*`) is read from the card's Bases entry via `getValue`
+     * and is read-only.
+     */
+    private readScalarProperty(card: KanbanCard, ref: PropertyRef): number | string | null {
+        if (ref.kind === 'note') {
+            return coerceSortValue(getFrontmatterValue(this.app, card.file, ref.name))
+        }
+        return unwrapValue(this.entriesByPath.get(card.key)?.getValue(ref.id) ?? null)
     }
 
     private toCard(file: TFile): KanbanCard {

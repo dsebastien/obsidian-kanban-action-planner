@@ -11,7 +11,7 @@ import {
     weekdayLabels
 } from '../../domain/calendar'
 import type { CalendarRange, DateDimension } from '../../domain/calendar'
-import { compareTabCards, coerceSortValue } from '../../domain/calendar-tabs'
+import { compareTabCards } from '../../domain/calendar-tabs'
 import type { TabSortKey, TabSortMode } from '../../domain/calendar-tabs'
 import { renderCalendar } from '../../ui/calendar/calendar-renderer'
 import type { CalendarEntry } from '../../ui/calendar/calendar-renderer'
@@ -61,7 +61,8 @@ export interface CalendarHost {
     configuredRange(): unknown
     /** Resolved scheduling-panel sort mode + optional sort property. */
     sortMode(): TabSortMode
-    sortProperty(): string | null
+    /** The panel sort value for a card in `property` mode (note or computed) — issue #50. */
+    sortValue(card: KanbanCard): number | string | null
     /** Read the persisted durable calendar state (defaults when unset) — issue #19. */
     restoreState(): CalendarViewState
     /** Persist the durable calendar state per-view — issue #19. */
@@ -294,18 +295,16 @@ export class CalendarController {
     /** Sort the scheduling-panel cards (the toolbar filter already narrowed them). */
     private sortFilterPanel(cards: KanbanCard[]): KanbanCard[] {
         const mode = this.host.sortMode()
-        const sortProperty = mode === 'property' ? this.host.sortProperty() : null
+        const byProperty = mode === 'property'
         return cards
-            .map((card) => ({ card, key: this.tabSortKey(card, sortProperty) }))
+            .map((card) => ({ card, key: this.tabSortKey(card, byProperty) }))
             .sort((a, b) => compareTabCards(a.key, b.key, mode))
             .map((e) => e.card)
     }
 
-    private tabSortKey(card: KanbanCard, sortProperty: string | null): TabSortKey {
+    private tabSortKey(card: KanbanCard, byProperty: boolean): TabSortKey {
         const tags = this.cardTags(card.file)
-        const sortValue = sortProperty
-            ? coerceSortValue(getFrontmatterValue(this.host.app, card.file, sortProperty))
-            : null
+        const sortValue = byProperty ? this.host.sortValue(card) : null
         return {
             title: card.display.title,
             order: card.order,
