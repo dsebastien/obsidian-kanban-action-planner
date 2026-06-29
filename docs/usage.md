@@ -280,8 +280,14 @@ auto-archive, so you never mass-archive by accident.
   under **Settings → Core plugins → Page preview** (the source is listed as "Kanban Action Planner").
 - **Click** a card to open the note; **Ctrl/Cmd-click** opens it in a new tab.
 - **Right-click** (or long-press on touch) a card for a menu: open the note (or in a new
-  tab), set its status, clear the status, schedule it / set a deadline, **archive** the note,
-  open or edit a related note.
+  tab), set its status, clear the status, **set an enum property** (see below), schedule it /
+  set a deadline, **archive** the note, open or edit a related note.
+- **Set a property in one click.** For any property with known allowed values, the card menu
+  shows a **Set <property>** submenu (e.g. **Set priority → 10 - Top**) with the current value
+  checked and a **Clear** option — just like **Set status**, but for `priority`, `urgency`,
+  `effort`, and any other enum. Allowed values are detected from the **Obsidian Starter Kit**
+  when present, or defined per note type under **Configure board → Enums** (see below). The note
+  is written and the board updates immediately.
 
 ## Remembered view state
 
@@ -339,14 +345,14 @@ changing your notes. They're grouped:
 (Calendar mode itself is toggled by the in-view **Board / Calendar** switch; the scheduled/due
 date **property names** are set globally in plugin settings.)
 
-## Note type configuration (colors, relationships, archiving)
+## Note type configuration (colors, enums, relationships, archiving)
 
 A note type's shared config lives **centrally** in **Settings → Community plugins → Kanban
 Action Planner → Note types**. Pick a type and click **Configure** to open a dialog with sections
-on the left — **Colors**, **WIP limits**, **Swimlanes**, **Relationships**, **Archiving** — that
-apply to **every** board showing that type. The **gear** in the board's top-right is a shortcut
-that jumps straight to these settings. (What each card _shows_ is set per view via the Bases
-**Properties** selection — see **Card content** above.)
+on the left — **Colors**, **Enums**, **WIP limits**, **Swimlanes**, **Relationships**,
+**Archiving** — that apply to **every** board showing that type. The **gear** in the board's
+top-right is a shortcut that jumps straight to these settings. (What each card _shows_ is set per
+view via the Bases **Properties** selection — see **Card content** above.)
 
 **Define your own note types — no Starter Kit needed.** Click **Add note type** to create a
 **local** type. Its **Note type** section lets you name it and add **recognition rules**: a note
@@ -369,6 +375,13 @@ In the **Colors** section:
   **Auto** to reset.
 
 Card accents and column shades follow the status color and adapt to your light/dark theme.
+
+In the **Enums** section, define the **allowed values** for any property (e.g. `priority`,
+`urgency`, `effort`) — one per line, in order. These power the card menu's **Set <property>**
+quick-set and the triage flow. When the **Obsidian Starter Kit** is installed, a type's enum
+properties are detected automatically and listed as a hint; entries here **override** them and
+are the only source for **local** note types. Leave a property out to fall back to the Starter
+Kit (or to a free-text value when neither knows it).
 
 ## Card content
 

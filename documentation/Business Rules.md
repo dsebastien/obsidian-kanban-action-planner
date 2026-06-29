@@ -211,3 +211,12 @@ See `documentation/plans/kanban-action-planner-implementation-plan.md` for full 
     drag-grouping) stay `note.*`-only — their pickers reject computed columns. The plugin depends on
     the Bases _formula feature_, never on any specific base's formulas (defined at base level). Card
     **display** of computed columns works the same way via the view's property selection (rule 8).
+27. **Enum allowed-values + quick-set (issue #52).** Any property can have **known allowed values**,
+    resolved per the card's note type with precedence **manual note-type `enumProperties` →
+    Starter Kit `allowedValues` → none** (`services/enum.service.ts`). The card menu offers a
+    generic **Set <property>** submenu (values, current checked, Clear) for every known enum,
+    generalizing "Set status" (which keeps its own path and is excluded from the generic list).
+    Writes go through `setProperty`/`deleteProperty`; the #13 metadata listener re-renders live.
+    Manual values are defined per note type (Configure board → **Enums**) and are the only source
+    for **local** types; a property with no known values is free-text (no quick-set). The plugin
+    never hardcodes specific value conventions.
