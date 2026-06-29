@@ -1,5 +1,6 @@
 import type { TabSortMode } from '../../domain/calendar-tabs'
 import type { LaneGrouping } from '../../domain/note-type'
+import { parsePropertyRef } from './property-access'
 
 /** A read-only view onto the per-view Bases config (`this.config`). */
 interface ConfigReader {
@@ -45,8 +46,11 @@ export function readLaneGroupingOverride(config: ConfigReader): LaneGrouping | n
     if (kind === 'none') return { kind: 'none' }
     if (kind === 'note-type') return { kind: 'note-type' }
     if (kind === 'property') {
-        const property = basesPropToName(config.get('laneGroupingProperty'))
-        return property ? { kind: 'property', property } : null
+        // Keep the raw Bases property id (`note.*` / `formula.*` / `file.*`); the
+        // view parses it (parsePropertyRef) — a `formula.*`/`file.*` grouping is
+        // read-only (no cross-lane drag). Issue #50 / #8.
+        const stored = config.get('laneGroupingProperty')
+        return parsePropertyRef(stored) ? { kind: 'property', property: String(stored) } : null
     }
     return null
 }

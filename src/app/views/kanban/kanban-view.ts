@@ -380,9 +380,19 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         return entries.map((e) => e.file).filter((f): f is TFile => f instanceof TFile)
     }
 
+    /** Index the current Bases entries by path so computed columns can be read per card (#50). */
+    private refreshEntries(): void {
+        this.entriesByPath = new Map(
+            (this.data?.data ?? [])
+                .filter((e) => e.file instanceof TFile)
+                .map((e) => [e.file.path, e])
+        )
+    }
+
     /** Resolve the note type + lane values (may hit the async Starter Kit API), then render. */
     private async resolveAndRebuild(): Promise<void> {
         const files = this.files()
+        this.refreshEntries() // computeLaneValues below may read computed columns (#50)
         const resolved = await resolveActiveNoteType(this.app, this.plugin, files)
         this.noteType = resolved.noteType
         this.noteTypeStatusValues = resolved.statusValues
@@ -462,11 +472,14 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         const map = new Map<string, string | null>()
         if (grouping.kind === 'none') return map
         if (grouping.kind === 'property') {
+            const ref = parsePropertyRef(grouping.property)
             for (const file of files) {
-                map.set(
-                    file.path,
-                    normalizeLaneValue(getFrontmatterValue(this.app, file, grouping.property))
-                )
+                const raw = !ref
+                    ? null
+                    : ref.kind === 'note'
+                      ? getFrontmatterValue(this.app, file, ref.name)
+                      : unwrapValue(this.entriesByPath.get(file.path)?.getValue(ref.id) ?? null)
+                map.set(file.path, normalizeLaneValue(raw))
             }
             return map
         }
@@ -480,11 +493,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
     private rebuild(): void {
         if (!this.boardEl) return
         const files = this.files()
-        this.entriesByPath = new Map(
-            (this.data?.data ?? [])
-                .filter((e) => e.file instanceof TFile)
-                .map((e) => [e.file.path, e])
-        )
+        this.refreshEntries()
 
         this.availableProperties = this.collectPropertyNames(files)
         this.statusProperty = this.resolveStatusProperty(files)
@@ -962,7 +971,14 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             log('Cross-lane drag is only supported for property swimlanes; ignoring.', 'warn')
             return false
         }
-        const property = this.laneGrouping.property
+        // A `formula.*`/`file.*` grouping is read-only — there's no property to
+        // write — so cross-lane drag is ignored, like note-type lanes (#50).
+        const ref = parsePropertyRef(this.laneGrouping.property)
+        if (!ref || ref.kind !== 'note') {
+            log('Cross-lane drag is not supported for computed swimlanes; ignoring.', 'warn')
+            return false
+        }
+        const property = ref.name
         if (targetLaneId === UNGROUPED_LANE_ID) {
             await deleteProperty(this.app, card.file, property)
         } else {

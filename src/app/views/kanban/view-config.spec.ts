@@ -63,12 +63,18 @@ describe('readLaneGroupingOverride', () => {
         })
     })
 
-    it('resolves a property grouping via the (Bases-id) property', () => {
+    it('keeps the raw Bases property id (note or formula) for property grouping (#50)', () => {
+        // The view parses it (parsePropertyRef); a formula grouping is read-only.
         expect(
             readLaneGroupingOverride(
                 config({ laneGrouping: 'property', laneGroupingProperty: 'note.area' })
             )
-        ).toEqual({ kind: 'property', property: 'area' })
+        ).toEqual({ kind: 'property', property: 'note.area' })
+        expect(
+            readLaneGroupingOverride(
+                config({ laneGrouping: 'property', laneGroupingProperty: 'formula.action_type' })
+            )
+        ).toEqual({ kind: 'property', property: 'formula.action_type' })
     })
 
     it('defers (null) for an unset kind or a property grouping with no property', () => {

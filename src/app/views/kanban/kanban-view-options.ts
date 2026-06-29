@@ -162,8 +162,8 @@ export function getKanbanViewOptions(app: App, settings: PluginSettings): BasesA
                     type: 'property',
                     key: 'laneGroupingProperty',
                     displayName: 'Grouping property',
-                    placeholder: 'Property to group lanes by',
-                    filter: propertyFilter
+                    placeholder: 'Property to group lanes by (formulas allowed; read-only)',
+                    filter: readOnlyPropertyFilter
                 }
             ]
         },
