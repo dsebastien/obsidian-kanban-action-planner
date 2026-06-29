@@ -117,8 +117,12 @@ a blocked filter), per-view options, a tabbed Configure-board modal, and global 
 (scheduling panel + grid, deadline highlighting, responsive auto-collapse) are also implemented.
 **Enum quick-set** (#52 — a generic "Set <property>" card menu driven by `services/enum.service.ts`,
 allowed values from manual note-type config or the Starter Kit) and **triage mode** (#53 — a third
-Board/Calendar/Triage view mode; a worst-first one-card-at-a-time clarify/re-prioritize queue,
-pure logic in `views/kanban/triage.ts`, UI in `ui/triage/`, per-view config) round out the set.
+Board/Calendar/Triage view mode; a worst-first one-card-at-a-time clarify / re-prioritize / **due-for-
+review** (#57) queue, pure logic in `views/kanban/triage.ts`, UI in `ui/triage/`, per-view config
+edited via the **Configure triage** modal with note-type-sourced property pickers) round out the set.
+Triage gating is **type-aware** for mixed boards: a gating prop only flags a card whose note type
+defines it. Review property names (`last_reviewed`/`review_interval`/`review_count`) are global
+settings; the "Reviewed" action stamps the date + bumps the count.
 
 The board pipeline: `domain/board-model.ts` `buildBoard()` is pure and unit-tested (buckets
 cards into `BoardLane[] → BoardColumn[]`, `isMultiLane` flag; an optional `compare` comparator

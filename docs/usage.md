@@ -134,8 +134,16 @@ selection shows as a removable chip:
 Everything is saved **per view** (in the `.base`), so each board has its own triage setup. (The
 **Triage scope** also appears in the standard **Configure view** panel for quick access.)
 
-On a **mixed-type** board each card resolves its properties and allowed values against its own note
-type, so a board of goals + projects + tasks triages each correctly.
+On a **mixed-type** board (e.g. an "All actions" board of goals + plans + projects + tasks) triage
+and review keep working, resolving each card against **its own note type**:
+
+- Editable controls and their values come from the card's type — a control only appears for a card
+  whose type defines that property.
+- **Gating is type-aware**: a gating property only flags a card when that card's type actually
+  defines it. So a task-only property (e.g. `time_estimate`) never marks goals/plans/projects as
+  needing a value, and vice-versa. (This is why a board of _shared_ planning properties like
+  priority/urgency/effort triages cleanly across every type.)
+- Review uses the global review properties, so it's the same on every card regardless of type.
 
 ### Reviews (spaced repetition)
 

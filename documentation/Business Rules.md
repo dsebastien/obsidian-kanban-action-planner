@@ -227,8 +227,10 @@ See `documentation/plans/kanban-action-planner-implementation-plan.md` for full 
     (read-only, formulas allowed; empty ⇒ the view's displayed properties), **needs-triage tokens**,
     and a **scope**. The property lists + tokens are edited in the **Configure triage** modal
     (`ui/triage/triage-config-modal.ts`; gear in the triage header or the `configure-triage` command)
-    with real property pickers sourced from `this.allProperties` (note for editable/gating, all incl.
-    formulas/file for context); the scope also has a Bases-panel dropdown. A gating prop is **unset**
+    with real property pickers: **note** properties come from the **note types** on the board (Starter
+    Kit `.properties` + local `enumProperties`, scoped to active + per-card types — no dataset
+    fallback), **formulas** from the **base** (`formula.*`); file columns are not offered. Labels use
+    the base display names. The scope also has a Bases-panel dropdown. A gating prop is **unset**
     (convention-agnostic) when empty/absent, OR its value
     contains a needs-triage token, OR — when allowed values are known — it isn't among them
     (`views/kanban/triage.ts`, pure). Queue order is **worst-first** (most unset props), tie-broken by
@@ -236,8 +238,11 @@ See `documentation/plans/kanban-action-planner-implementation-plan.md` for full 
     write doesn't reshuffle it. **Scopes:** `clarify` (only unclarified cards; a card drops as it's
     completed), `all` (every card, re-prioritize), or `review` (#57; see rule 29). **No auto-advance**
     after a write (the recomputed score stays visible); explicit Skip/Next. Editing reuses the #52
-    allowed-values + frontmatter writes; **mixed-type** boards resolve props + allowed values **per
-    card** via its recognized note type. Command: `toggle-triage-mode`.
+    allowed-values + frontmatter writes. **Mixed-type** boards resolve props + allowed values **per
+    card** via its recognized note type, and gating is **type-aware**: a `note.*` gating prop only
+    counts against a card when that card's type **defines** it (so a task-only prop never flags goals,
+    and vice-versa); the skip applies only when the type's properties are known, leaving single-type
+    boards unchanged. Command: `toggle-triage-mode`.
 29. **Reviews / spaced repetition (issue #57).** The triage `review` scope queues cards **due for
     review**: due when `last_reviewed + review_interval` ≤ today, or **never reviewed** (sorts first);
     ordered **most-overdue first** (`reviewState` in `views/kanban/triage.ts`, pure). The card shows
