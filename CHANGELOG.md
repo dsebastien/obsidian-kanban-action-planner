@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.6.0](https://github.com/dsebastien/obsidian-kanban-action-planner/compare/0.5.0...0.6.0) (2026-06-29)
+
+### Features
+
+* **plugin:** card fields from the Bases view's properties ([#50](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/50), part 3) ([c2f3ab6](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/c2f3ab661db115581791ceb0abb50f0a5cd76d66))
+* **plugin:** de-emphasize card field labels, render progress as a bar ([f406303](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/f406303f435ee0313ba4e531bae80cdfe9974e3b))
+* **plugin:** enum quick-set — "Set <property>" card menu ([#52](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/52)) ([d0fe74b](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/d0fe74b4c5ea1f98cf5fdedd754af84ac9b7e9f0)), closes [#53](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/53) [#13](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/13)
+* **plugin:** group swimlanes by a Bases formula/file column ([#50](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/50), part 2) ([480754b](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/480754b82449360a6b3f676756c3d51f05c6c856))
+* **plugin:** sort by Bases formula/file columns ([#50](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/50), part 1) ([b514368](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/b5143684b57439c5434f99782ccc5e60e0506f08))
+* **plugin:** triage "Due for review" scope — spaced repetition ([#57](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/57)) ([6fcec69](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/6fcec69ec541b7812bac03cd561ae033b787f090))
+* **plugin:** triage config modal with property pickers, not free-text ([#53](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/53)) ([c554e4b](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/c554e4b9399852ec233bab997ae52a3319280986))
+* **plugin:** triage mode — focused clarify / re-prioritize queue ([#53](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/53)) ([9112c70](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/9112c70d7c8b5eeaa1e88cfd683d5e7d49be01bf)), closes [#52](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/52)
+* **plugin:** type-aware triage gating for mixed-type boards ([#53](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/53)) ([6a4578d](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/6a4578d1bde2259972a895385d417919f4695221))
+
+### Bug Fixes
+
+* **plugin:** source triage props from note types + base formulas, no fallback ([#53](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/53)) ([bd10487](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/bd10487149b3e2aa623e3f2d22178c0e55120670))
+
 ## [0.5.0](https://github.com/dsebastien/obsidian-kanban-action-planner/compare/0.4.1...0.5.0) (2026-06-28)
 
 ### Features
@@ -123,6 +141,7 @@ All notable changes to this project will be documented in this file.
 
 * **plugin:** match Starter Kit's {{quarter}} placeholder format (Q2, not 2) ([4fde618](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/4fde6185c5956e3f6fd2ca3a9b03e70cf5e16840))
 * **plugin:** persist discovered statuses so Show empty columns works ([cf91b81](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/cf91b81a1b0786e35c73f4885882e2dc33564c62))
+
 
 
 
