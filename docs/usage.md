@@ -313,7 +313,9 @@ changing your notes. They're grouped:
 - **Card sort** — how cards are ordered inside each column: **Manual order** (default, drag to
   arrange), **Name (A–Z)**, or **By property**. **Card sort property** picks the property for the
   last option, and **Card sort direction** sets ascending/descending. A non-manual sort disables
-  in-column drag/keyboard reorder (missing values sort last).
+  in-column drag/keyboard reorder (missing values sort last). The sort property can be a **base
+  formula** (e.g. a `priority_score` you define in the base's formulas) — pick a `formula.…` (or
+  `file.…`) entry to sort by a computed value. Same for **Grouping property** below.
 - **Show empty columns** — keep columns with no cards visible (useful when columns come from a
   note type's defined statuses).
 - **Unmapped column position** — show the Unmapped column first (left, the default) or last
@@ -324,6 +326,9 @@ changing your notes. They're grouped:
 - **Grouping** — override lane grouping for this view: **Use note type default**, **None**,
   **By note type**, or **By property**. (The default is set per note type in Settings.)
 - **Grouping property** — when grouping **By property**, the property whose values become lanes.
+  This can also be a **base formula** (`formula.…`) or `file.…` column — grouping by a computed
+  column is **read-only**, so cross-lane drag is disabled for those lanes (there's no property to
+  write back).
 
 **Filters**
 

@@ -67,6 +67,16 @@ Three layers resolved by the note-type service, in precedence order:
 When the Starter Kit plugin is present, its note-type config is the read-only source of
 truth, mirrored into a local snapshot in plugin settings so it survives SK being disabled.
 
+**Property access (issue #50).** A `type:'property'` option stores a `BasesPropertyId`
+(`note.*`/`formula.*`/`file.*`). `views/kanban/property-access.ts#parsePropertyRef` splits these
+into **note** (frontmatter, read via the metadata cache, **writeable**) vs **computed**
+(`formula.*`/`file.*`, read per card via `BasesEntry.getValue` — the view keeps a per-`rebuild()`
+`entriesByPath` map since `this.data` is replaced each update — **read-only**). `unwrapValue` turns
+a Bases `Value` into a sortable/groupable scalar. **Sort** and **swimlane grouping** accept computed
+columns (their pickers use a read-only filter); writeable settings (status, order, drag-grouping)
+stay `note.*`-only. So the plugin can leverage a base's own formulas (e.g. a `priority_score`)
+without depending on any specific base.
+
 **Note-type recognition (issue #31).** A file's type is resolved by `recognizeNoteTypeFor`:
 Starter Kit recognition first (when present), then **local mapping rules** — the pure
 `domain/note-type-recognition.ts` matches a file (path + tags) against each non-Default note type's

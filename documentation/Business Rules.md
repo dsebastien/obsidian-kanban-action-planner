@@ -198,3 +198,13 @@ See `documentation/plans/kanban-action-planner-implementation-plan.md` for full 
     suppressed** — in-column drag and the keyboard reorder are no-ops (status changes via
     cross-column drag still work); switching back to Manual order restores `manual_order` ordering
     and re-enables reordering.
+26. **Computed columns are read-only inputs (issue #50).** The view can **sort** and **group** by a
+    base's computed columns (`formula.*` / `file.*`), not just frontmatter (`note.*`) — read per card
+    via `BasesEntry.getValue` (the `BasesQueryResult` already has formulas evaluated; the plugin
+    stores/maintains nothing). `views/kanban/property-access.ts` (`parsePropertyRef` note=writeable
+    vs computed=read-only, `unwrapValue` `Value`→scalar) + a per-rebuild `entriesByPath` map back
+    this. Computed columns are **read-only everywhere**: a `formula.*`/`file.*` swimlane grouping
+    ignores cross-lane drag (no property to write), and **writeable** settings (status, manual order,
+    drag-grouping) stay `note.*`-only — their pickers reject computed columns. The plugin depends on
+    the Bases _formula feature_, never on any specific base's formulas (defined at base level). Card
+    **display** of computed columns is a follow-up.
