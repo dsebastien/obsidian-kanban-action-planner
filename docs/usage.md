@@ -469,11 +469,21 @@ computed value shows on the card with no extra setup. The field label is the pro
 name from the base. Empty/unset values are skipped. Add, remove, or reorder card fields the same
 way you would for any Bases view — change the view's properties and every card updates.
 
-Field rendering is tuned for scanning: the **value is emphasized** (normal color, medium weight)
-while the **label stays clearly legible** — different properties can share the same value set
-(e.g. priority vs priority override both reading `30 - High`), so the label is what tells them
-apart. A **percentage** field (its display name contains `%` or "progress", with a numeric value)
-renders as a small **progress bar** with a `%` caption instead of a bare number.
+Field rendering is tuned for **scanning the whole board at a glance**:
+
+- **Enum values are color-coded** by where they rank in the property's allowed values — a warm
+  (red/orange) tint for the top/most-urgent values down to a cool (blue/muted) tint for the
+  bottom ones — so the board reads like a heatmap. Ranking uses the numeric `NN -` prefix, so it
+  doesn't matter what order the allowed values come back in; a `99 - …` "not decided" value lands
+  coolest. Properties with no known allowed values stay neutral.
+- The **`NN -` sort prefix is stripped** from display — `30 - High` shows as **High**,
+  `99 - ⏰ No Target` as **⏰ No Target**. (Dates like `2026-01-15` are never touched.)
+- A **numeric formula** value (e.g. a `priority_score`) renders as a **filled accent badge**, so
+  the score stands out.
+- A **percentage** field (display name contains `%` or "progress", numeric value) renders as a
+  small **progress bar** with a `%` caption.
+- Labels stay legible (different properties can share a value set, e.g. priority vs priority
+  override both reading `High`), so the label still tells them apart.
 
 A note's **due date** is always shown in red when set, regardless of which properties you've
 added.

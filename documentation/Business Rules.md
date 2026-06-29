@@ -63,6 +63,16 @@ See `documentation/plans/kanban-action-planner-implementation-plan.md` for full 
    **separately** from `KanbanCard.relationships`, not as view-property fields. (The old
    per-note-type card-presentation config — title source, body fields, cover image, value
    wrapping — was removed with #50 part 3; no back-compat.)
+   8c. **Scannable field rendering (`card-display.service.ts`, pure helpers).** Enum values are
+   **heat-colored** by rank: `heatLevel(value, allowedValues)` ranks by the numeric `NN -` prefix
+   (robust to allowed-list order; highest prefix = coolest, e.g. a `99 - TBD` sentinel) into
+   buckets 0 (warm) … 4 (cool) → `kap-card-field-heat-N` (Obsidian `--color-*` tints, theme-aware).
+   The `NN -` prefix is **stripped** for display (`stripEnumPrefix`, requires whitespace before the
+   dash so ISO dates are untouched). A **numeric formula** value → a filled accent **badge**
+   (`kap-card-field-badge`). Percentages → progress bar. Allowed values are resolved per card's note
+   type and cached per rebuild (`cardFieldAllowedCache`); a property with no known allowed values
+   stays neutral. The field tone/heat is part of the card signature so reconciliation re-renders on
+   change.
    8a. **Uniform card size.** All cards are the same height board-wide, sized to the
    content-tallest card's natural height (recomputed on every rebuild and on container
    resize; published as the `--kap-card-height` CSS var, applied as `min-height`). No card

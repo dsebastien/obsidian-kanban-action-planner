@@ -75,20 +75,19 @@ export function heatLevel(value: string, allowedValues: ReadonlyArray<string>): 
     return Math.min(4, Math.round(frac * 4))
 }
 
-/**
- * Build a card's presentation from the **Bases view's configured properties**
- * (issue #50): the title (note name) plus one field per property in the view's
- * `getOrder()` (the standard Bases "Properties" toolbar), read per card via
- * `BasesEntry.getValue` and labelled by `getDisplayName`. Works uniformly for
- * `note.*` / `formula.*` / `file.*` columns — so a base formula (e.g. a
- * `priority_score`) shows on the card with no special handling. Relationships
- * are rendered separately from `KanbanCard.relationships`, not here.
- */
 /** A pure number (integer or decimal), used to flag a numeric formula "score". */
 function isNumeric(text: string): boolean {
     return text !== '' && Number.isFinite(Number(text))
 }
 
+/**
+ * Build a card's presentation from the **Bases view's configured properties**
+ * (issue #50): the title (note name) plus one field per property in the view's
+ * `getOrder()` (the standard Bases "Properties" toolbar), read per card via
+ * `BasesEntry.getValue` and labelled by `getDisplayName`. Enum values are
+ * prefix-stripped + heat-colored, numeric formulas become accent badges (card
+ * scannability). Relationships are rendered separately, not here.
+ */
 export function buildCardDisplay(
     app: App,
     file: TFile,
