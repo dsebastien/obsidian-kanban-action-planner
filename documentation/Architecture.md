@@ -37,10 +37,9 @@ The core is a custom Obsidian **Bases view** (Obsidian ≥ 1.13.0 API):
 - **Live config propagation.** The plugin tracks open views in a `Set` (`trackKanbanView` /
   `untrackKanbanView`, wired in the view's load/unload). `saveSettings()` — the single sink for
   every note-type/settings write — calls `view.onSettingsChanged()` (debounced rebuild) on each,
-  so a card-field edit from the right-click "Show fields" menu **or** the settings tab refreshes
-  every open board immediately. Card display is resolved **per note type** (`cardPresentationFor`
-  → the file's note-type config, else the active note type), so a mixed board shows each type's
-  own fields.
+  so a note-type edit (colors, swimlanes, relationships, archiving) refreshes every open board
+  immediately. Card **fields** come from the Bases view's property selection (#50), not the note
+  type, so they update through the normal Bases view update when you change the view's properties.
 
 ## Layering (target)
 
@@ -108,7 +107,8 @@ Edit only `src/styles.src.css`; the root `styles.css` is generated.
 Through Milestone 4: a working board with columns from a status property, an Unmapped column,
 pointer-event drag/drop and reorder persisted to notes, a right-click menu, note-type
 **note types** (mirrored from the Obsidian Starter Kit when present), a **color** system applied
-to cards/columns, **config-driven card presentation** (title/fields/cover/wrap), **configurable
+to cards/columns, **card fields from the Bases view's property selection** (#50 — note props,
+`formula.*`, and `file.*` alike), **configurable
 swimlanes** (group by note type or a property, with collapsible lanes and an Ungrouped lane;
 cross-lane drag rewrites the grouping property), **relationships** (parent/sibling/child/
 blocked_by detection with inverse lookup + a tag+link heuristic, blocked-by flag/navigation, and

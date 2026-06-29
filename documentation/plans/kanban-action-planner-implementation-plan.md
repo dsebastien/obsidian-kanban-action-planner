@@ -762,7 +762,13 @@ validation + migration hook in place; DoD green; manual checklist flagged.
 
 ---
 
-### Milestone 2b — Card presentation (title, fields, cover, wrapping) — ✅ done (2026-06-26) — tracks [#3]–[#6]
+### Milestone 2b — Card presentation (title, fields, cover, wrapping) — ✅ done (2026-06-26), ⚠️ superseded by #50 (2026-06-29) — tracks [#3]–[#6]
+
+> **Superseded:** the bespoke per-note-type card-presentation config (title source, body
+> fields, cover image, value wrapping) described below was **removed** in #50 part 3. Card
+> fields now come from the Bases view's own **Properties** selection (`config.getOrder()`),
+> covering `note.*`/`formula.*`/`file.*` uniformly. See Business Rule 8 and
+> `services/card-display.service.ts`. The historical record below is kept for context.
 
 **Outcome:** `utils/format.ts` (pure wikilink/scalar formatting — tested). `services/card-display.service.ts`
 builds a `CardDisplay` per card: title (note name or property, [#4]), ordered type-aware body

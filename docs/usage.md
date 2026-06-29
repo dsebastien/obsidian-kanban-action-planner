@@ -280,12 +280,8 @@ auto-archive, so you never mass-archive by accident.
   under **Settings → Core plugins → Page preview** (the source is listed as "Kanban Action Planner").
 - **Click** a card to open the note; **Ctrl/Cmd-click** opens it in a new tab.
 - **Right-click** (or long-press on touch) a card for a menu: open the note (or in a new
-  tab), set its status, clear the status, **archive** the note, open a related note, or use
-  **Show fields** to tick which properties appear on cards.
-- **Show fields** lists the properties found on notes of that card's note type, each with a
-  checkmark. Ticking or unticking one adds or removes it from the note type's card display, and
-  **every open board updates immediately** (the same as editing **Displayed fields** in
-  settings).
+  tab), set its status, clear the status, schedule it / set a deadline, **archive** the note,
+  open or edit a related note.
 
 ## Remembered view state
 
@@ -343,19 +339,20 @@ changing your notes. They're grouped:
 (Calendar mode itself is toggled by the in-view **Board / Calendar** switch; the scheduled/due
 date **property names** are set globally in plugin settings.)
 
-## Note type configuration (colors, cards, relationships, archiving)
+## Note type configuration (colors, relationships, archiving)
 
 A note type's shared config lives **centrally** in **Settings → Community plugins → Kanban
 Action Planner → Note types**. Pick a type and click **Configure** to open a dialog with sections
-on the left — **Cards**, **Colors**, **WIP limits**, **Swimlanes**, **Relationships**,
-**Archiving** — that apply to **every** board showing that type. The **gear** in the board's
-top-right is a shortcut that jumps straight to these settings.
+on the left — **Colors**, **WIP limits**, **Swimlanes**, **Relationships**, **Archiving** — that
+apply to **every** board showing that type. The **gear** in the board's top-right is a shortcut
+that jumps straight to these settings. (What each card _shows_ is set per view via the Bases
+**Properties** selection — see **Card content** above.)
 
 **Define your own note types — no Starter Kit needed.** Click **Add note type** to create a
 **local** type. Its **Note type** section lets you name it and add **recognition rules**: a note
 is recognized as this type when **any** rule matches — by **tag** (including nested tags, so
 `type` matches `type/task`), by **folder** (the note is in that folder or a subfolder), or by a
-**regex** on the note path. Recognized notes then pick up that type's colors, cards,
+**regex** on the note path. Recognized notes then pick up that type's colors,
 relationships, and archiving, and can drive **By note type** swimlanes — all without the Obsidian
 Starter Kit. Delete a local type with the trash icon (your notes are untouched). When the Starter
 Kit _is_ installed, its recognition is tried first and your local rules act as a fallback.
@@ -375,19 +372,17 @@ Card accents and column shades follow the status color and adapt to your light/d
 
 ## Card content
 
-The note type's **Cards** section controls what each card shows:
+Cards show **the properties you've added to the view** — the same **Properties** selection you
+set with the Bases toolbar (the **Properties** menu / "Configure view"). Each property in that
+list (other than the note name, which is the card heading) renders as a labelled field on the
+card, in the order you arranged them. This works for ordinary note properties **and base
+formulas** (a `formula.…` column like a `priority_score`) and file columns (`file.…`), so a
+computed value shows on the card with no extra setup. The field label is the property's display
+name from the base. Empty/unset values are skipped. Add, remove, or reorder card fields the same
+way you would for any Bases view — change the view's properties and every card updates.
 
-- **Title** — use the note name (default) or any property as the card heading. Clicking the
-  card still opens the note.
-- **Displayed fields** — add properties to show on the card, reorder them, and toggle a label
-  for each. Values render by type (dates, numbers, lists, links). For a quick add/remove without
-  opening settings, **right-click a card → Show fields**. Edits here apply to every board
-  showing that note type and update open boards immediately.
-- **Cover image** — pick a property holding an image link, vault path, or URL to show a cover
-  at the top of the card.
-- **Wrap long values** — wrap field values onto multiple lines instead of truncating them.
-
-A note's **due date** is always shown in red when set, even without configuring fields.
+A note's **due date** is always shown in red when set, regardless of which properties you've
+added.
 
 **Overdue emphasis.** Cards with a past due date get a red background wash so overdue work pops
 at a glance, and cards due **today** get a softer amber wash. This uses the card background, so

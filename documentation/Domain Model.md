@@ -27,7 +27,8 @@ column rule.
 - **Note type** — the reusable note-type configuration unit. Identifies how a note type is
   recognized (`typeRecognition.mappings`: tag/folder/regex) and carries everything needed to
   render and operate a board for that type: status/order property names, derived `columns`,
-  swimlane grouping, colors, card presentation, archiving, relationships, calendar config.
+  swimlane grouping, colors, archiving, relationships, calendar config. (Card field content is
+  not part of the note type — it comes from the Bases view's property selection, see #50.)
   `source` is `starter-kit` (mirrored, read-only origin) or `local`. `overrides` is a partial
   local override layer applied on top of a mirrored snapshot.
 - **ColumnDef** — a board column derived from a status value: stable `id`, raw `statusValue`,
@@ -36,8 +37,10 @@ column rule.
   `{ kind: 'hex', value }`.
 - **LaneGrouping** (issue #2) — `none` | `note-type` | `property:<name>`; the dimension used
   for horizontal swimlanes.
-- **CardPresentation** (issues #3–#6) — `titleSource` (note name or a property), ordered
-  `fields` (`CardFieldDisplay`), optional `coverImageProperty`, and `wrapPropertyValues`.
+- **CardDisplay** (issue #50) — built per card by `services/card-display.service.ts` from the
+  Bases view's configured properties (`config.getOrder()`): the note name as `title`, one
+  labelled `CardFieldView` per property (read via `BasesEntry.getValue`, labelled via
+  `getDisplayName`, empty/`null` skipped), plus the `dueState`. No stored per-type config.
 - **RelationshipRule** — a `role` (`parent`/`sibling`/`child`/`blocked_by`), a primary
   `linkProperty`, and an optional secondary tag+link `heuristic`. Resolved at runtime by
   `domain/relationships.ts` into a **RelationshipSet** per note (`Record<role, string[]>`):

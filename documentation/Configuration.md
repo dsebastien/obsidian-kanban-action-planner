@@ -8,11 +8,12 @@ in `docs/`; this file is the technical reference.)
 Effective value for any setting resolves in this order (first match wins):
 
 1. **Per-view** — `BasesViewConfig` (`this.config`) on the individual Kanban view in a
-   `.base` file: selected status/order/date properties, calendar toggle, range, sort,
-   relational filters, panel state.
+   `.base` file: selected status/order/date properties, the **Properties** selection that
+   drives card fields (`getOrder()`, #50), calendar toggle, range, sort, relational filters,
+   panel state.
 2. **Local note types** — the `noteTypes` store in plugin settings, edited via the
-   Configure-board modal: colors, card presentation, swimlane grouping, relationships,
-   archiving, calendar mappings, plus local overrides of mirrored fields.
+   Configure-board modal: colors, swimlane grouping, relationships, archiving, calendar
+   mappings, plus local overrides of mirrored fields.
 3. **Starter Kit mirror** — when `obsidian-starter-kit` is installed and enabled, its
    note-type config (status `allowedValues` → columns, property names, recognition mappings)
    is the read-only source of truth, mirrored into the local snapshot.

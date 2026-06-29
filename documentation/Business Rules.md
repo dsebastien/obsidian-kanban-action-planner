@@ -45,21 +45,24 @@ See `documentation/plans/kanban-action-planner-implementation-plan.md` for full 
    survive SK being disabled/removed and support local overrides. When SK is absent,
    note types are fully local read/write. SK is feature-detected (no API versioning).
 6. **Kanban-owned presentation.** Colors (theme-aware palette + custom hex; column bg =
-   translucent shade of card color), relationships, calendar mappings, swimlane grouping,
-   and card presentation are owned by this plugin (SK does not define them).
+   translucent shade of card color), relationships, calendar mappings, and swimlane grouping
+   are owned by this plugin (SK does not define them). Card _field_ content is **not** owned —
+   it comes from the Bases view's own property selection (rule 8).
 7. **Configurable swimlanes (issue #2).** Lanes are grouped by a configurable key: none /
    note type / an arbitrary property; an **Ungrouped** lane collects missing values and is
    hidden when empty.
-8. **Config-driven cards (issues #3–#6).** Card title source, displayed body fields, optional
-   cover image, and property text-wrapping are all configurable; note name + red due-date are
-   defaults. Clicking a card opens the note.
-   8b. **Per-note-type card display, live.** A card's displayed fields come from its **note
-   type** (a mixed board shows each type's own config; untyped cards fall back to the
-   board's active note type). Display fields are toggled either in settings or by **right-clicking
-   a card → "Show fields"** (a checked list of candidate properties for that note type). Any
-   change to a note type's card config — from the menu or the settings tab — **immediately
-   re-renders every open board** (all note type/settings writes flow through `saveSettings`, which
-   notifies live views). New display fields default to no label.
+8. **Cards show the Bases view's properties (issue #50).** Each card renders the view's
+   configured properties (`config.getOrder()` — the standard Bases **Properties** selection),
+   one labelled field per property, in order, read per card via `BasesEntry.getValue` and
+   labelled by `getDisplayName`. Works uniformly for `note.*` / `formula.*` / `file.*` columns,
+   so a base **formula** (e.g. a `priority_score`) shows on the card with no special handling.
+   The `file.name` property is the card **title** (never a field); empty/unset values
+   (including `NullValue` → `"null"`) are skipped. Clicking a card opens the note. The note's
+   **red due-date** still shows regardless of the property selection. Changing the view's
+   properties re-renders cards through the normal Bases update. Relationships are rendered
+   **separately** from `KanbanCard.relationships`, not as view-property fields. (The old
+   per-note-type card-presentation config — title source, body fields, cover image, value
+   wrapping — was removed with #50 part 3; no back-compat.)
    8a. **Uniform card size.** All cards are the same height board-wide, sized to the
    content-tallest card's natural height (recomputed on every rebuild and on container
    resize; published as the `--kap-card-height` CSS var, applied as `min-height`). No card
@@ -207,4 +210,4 @@ See `documentation/plans/kanban-action-planner-implementation-plan.md` for full 
     ignores cross-lane drag (no property to write), and **writeable** settings (status, manual order,
     drag-grouping) stay `note.*`-only — their pickers reject computed columns. The plugin depends on
     the Bases _formula feature_, never on any specific base's formulas (defined at base level). Card
-    **display** of computed columns is a follow-up.
+    **display** of computed columns works the same way via the view's property selection (rule 8).
