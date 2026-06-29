@@ -91,6 +91,46 @@ Click the **?** for an in-app cheat-sheet.
 
 Example: `book parent:"PKM" status:active OR due:overdue`.
 
+## Triage mode
+
+When a backlog feels overwhelming, **Triage** mode replaces the board with a **focused, one-card-
+at-a-time queue** so you clarify items in short passes instead of facing the whole wall at once.
+Switch to it with the **Triage** button next to **Board** / **Calendar** (or the **Toggle triage
+mode** command).
+
+Each card shows:
+
+- **Read-only context** on top — the properties you chose to see, **including base formulas** (e.g.
+  a `priority_score` or a horizon formula), so you decide with the computed values in view.
+- **One-click editable controls** — each editable enum property (priority, urgency, effort, …)
+  as a row of its allowed values; click one to set it. Properties that still need a value are
+  flagged **• needs value**. (Allowed values come from the **Enums** config / Starter Kit — see
+  Card content → enums.)
+- **Skip** / **Next** to move through the queue, with a **remaining count**. Setting a value does
+  **not** auto-advance, so you can see the recomputed score before moving on.
+
+**Two scopes**, switched in the header:
+
+- **Needs clarification** — only cards with an **unset** gating property; a card leaves the queue
+  once it's complete. A property counts as unset when it's **empty/absent**, matches one of your
+  **needs-triage values** (e.g. `TBD`, `No Target`), or — when its allowed values are known — holds
+  a value that **isn't one of them** (stale/invalid).
+- **All cards** — every card, **worst-first** (most unset properties first), for a re-prioritization
+  pass even when nothing is strictly missing.
+
+Configure triage per view in **Configure view → Triage**:
+
+- **Editable properties** — the enum props triage lets you set (one id per line; use a base
+  formula id like `formula.x` only for context, not editing).
+- **Gating properties** — what decides "unclarified"; leave empty to use the editable set.
+- **Context properties** — read-only props/formulas to show; leave empty to use the view's
+  displayed properties.
+- **Needs-triage values** — values that count as unset (e.g. `TBD`).
+- **Triage scope** — the default scope (also switchable live in the header).
+
+On a **mixed-type** board each card resolves its properties and allowed values against its own note
+type, so a board of goals + projects + tasks triages each correctly.
+
 ## Swimlanes (grouping)
 
 Split the board into horizontal **lanes**, each with its own columns. Choose how to group in the

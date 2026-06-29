@@ -220,3 +220,17 @@ See `documentation/plans/kanban-action-planner-implementation-plan.md` for full 
     Manual values are defined per note type (Configure board → **Enums**) and are the only source
     for **local** types; a property with no known values is free-text (no quick-set). The plugin
     never hardcodes specific value conventions.
+28. **Triage mode (issue #53).** A third view mode (Board / Calendar / **Triage**) renders a
+    focused **one-card-at-a-time queue**. Config is **per-view** (the `.base`, via `this.config`) so
+    it can reference note props **and** base formulas: **editable** props (writeable enums),
+    **gating** props (decide "unclarified"; empty ⇒ defaults to editable), **context** props
+    (read-only, formulas allowed; empty ⇒ the view's displayed properties), **needs-triage tokens**,
+    and a **scope**. A gating prop is **unset** (convention-agnostic) when empty/absent, OR its value
+    contains a needs-triage token, OR — when allowed values are known — it isn't among them
+    (`views/kanban/triage.ts`, pure). Queue order is **worst-first** (most unset props), tie-broken by
+    the view's card comparator, held as a **stable per-session snapshot** (cursor by card key) so a
+    write doesn't reshuffle it. **Scopes:** `clarify` (only unclarified cards; a card drops as it's
+    completed) or `all` (every card, re-prioritize). **No auto-advance** after a write (the recomputed
+    score stays visible); explicit Skip/Next. Editing reuses the #52 allowed-values + frontmatter
+    writes; **mixed-type** boards resolve props + allowed values **per card** via its recognized note
+    type. Room reserved for a `review` scope (#57). Command: `toggle-triage-mode`.

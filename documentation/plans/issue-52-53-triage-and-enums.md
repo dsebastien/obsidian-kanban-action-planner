@@ -1,7 +1,13 @@
 # Triage mode + enum quick-set (#53 + #52)
 
-Status: **planned**. Drives two issues, in order: **#52 enum quick-set** (foundation),
-then **#53 triage mode** (consumes it).
+Status: **shipped** (both parts). **#52 enum quick-set** (d0fe74b) and **#53 triage mode**
+(9112c70) are implemented, tested, and live-verified. This document is kept as the design
+record; the as-built notes match it except where noted below.
+
+**As-built deltas:** triage role lists use `multitext` (no multi-property Bases option exists),
+so props are entered as ids (`priority`, `formula.x`); the unset rule also treats a value that
+**isn't among known allowed values** as unset (added during design); the triage queue is a
+**stable per-session snapshot** (cursor by card key) rather than rebuilt each render.
 
 ## Goal
 
