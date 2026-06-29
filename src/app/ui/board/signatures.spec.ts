@@ -72,7 +72,9 @@ describe('cardSignature', () => {
             cardSignature(
                 {
                     ...base,
-                    display: display({ fields: [{ label: null, text: 'x', emphasis: 'normal' }] })
+                    display: display({
+                        fields: [{ label: null, text: 'x', emphasis: 'normal', progress: null }]
+                    })
                 },
                 '#abc'
             )

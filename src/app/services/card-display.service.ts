@@ -26,6 +26,21 @@ interface CardFieldConfig {
 const TITLE_PROPERTY_ID = 'file.name'
 
 /**
+ * Detect a percentage field so it can render as a progress bar: the label must
+ * read like a percentage/progress (`%` or "progress", case-insensitive) and the
+ * value must be a finite number, clamped to 0–100. Returns `null` otherwise.
+ * Pure + unit-tested.
+ */
+export function parseProgressField(label: string | null, text: string): number | null {
+    if (!label || !/%|progress/i.test(label)) return null
+    const raw = text.replace('%', '').trim()
+    if (raw === '') return null // `Number('')` is 0 — guard so a blank value isn't a 0% bar
+    const n = Number(raw)
+    if (!Number.isFinite(n)) return null
+    return Math.max(0, Math.min(100, n))
+}
+
+/**
  * Build a card's presentation from the **Bases view's configured properties**
  * (issue #50): the title (note name) plus one field per property in the view's
  * `getOrder()` (the standard Bases "Properties" toolbar), read per card via
@@ -49,7 +64,14 @@ export function buildCardDisplay(
         const text = value == null ? '' : value.toString().trim()
         // `NullValue.toString()` is "null"; skip empty/unset so cards don't show "Field: null".
         if (!text || text === 'null') continue
-        fields.push({ label: config.getDisplayName(id), text, emphasis: 'normal' })
+        const label = config.getDisplayName(id)
+        const progress = parseProgressField(label, text)
+        fields.push({
+            label,
+            text: progress == null ? text : `${progress}%`,
+            emphasis: 'normal',
+            progress
+        })
     }
 
     const dueRaw = dueDateProperty ? getFrontmatterValue(app, file, dueDateProperty) : null

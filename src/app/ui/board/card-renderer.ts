@@ -55,8 +55,13 @@ export function renderCard(
         for (const field of card.display.fields) {
             const chip = fieldsEl.createDiv({ cls: 'kap-card-field' })
             if (field.emphasis === 'due-red') chip.addClass('kap-card-field-due')
+            if (field.progress !== null) chip.addClass('kap-card-field-progress')
             if (field.label) {
                 chip.createSpan({ cls: 'kap-card-field-label', text: `${field.label}: ` })
+            }
+            if (field.progress !== null) {
+                const bar = chip.createDiv({ cls: 'kap-card-progress' })
+                bar.createDiv({ cls: 'kap-card-progress-fill' }).style.width = `${field.progress}%`
             }
             chip.createSpan({ cls: 'kap-card-field-value', text: field.text })
         }

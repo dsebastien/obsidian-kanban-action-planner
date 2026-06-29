@@ -7,6 +7,11 @@ export interface CardFieldView {
     label: string | null
     text: string
     emphasis: 'normal' | 'due-red'
+    /**
+     * When set (0–100), the field is a percentage and is rendered as a mini
+     * progress bar (with `text` as the `%` caption) instead of plain text.
+     */
+    progress: number | null
 }
 
 /** A card's due-date urgency, derived from the due property vs. today (issue #22). */

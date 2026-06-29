@@ -591,11 +591,49 @@
         text-overflow: ellipsis;
     }
 
+    /* De-emphasize the repeated property label so the value reads first: the
+       label is faint + lighter, the value carries the normal text color/weight. */
+    .kap-card-field-label {
+        color: var(--text-faint);
+        font-weight: var(--font-normal, 400);
+    }
+
+    .kap-card-field-value {
+        color: var(--text-normal);
+        font-weight: var(--font-medium, 500);
+    }
+
     .kap-card-field-due {
         color: var(--text-error);
         background: transparent;
         padding: 0;
         font-weight: var(--font-semibold, 600);
+    }
+
+    /* Due emphasis owns its color/weight — don't let the value override re-tint it. */
+    .kap-card-field-due .kap-card-field-value {
+        color: inherit;
+        font-weight: inherit;
+    }
+
+    /* Percentage fields render as a mini progress bar + a small % caption. */
+    .kap-card-field-progress {
+        @apply inline-flex items-center;
+        gap: var(--size-4-1, 0.25rem);
+    }
+
+    .kap-card-progress {
+        width: 3rem;
+        height: 0.4rem;
+        overflow: hidden;
+        background: var(--background-modifier-border);
+        border-radius: var(--radius-s, 6px);
+    }
+
+    .kap-card-progress-fill {
+        height: 100%;
+        background: var(--interactive-accent);
+        border-radius: inherit;
     }
 
     /* Wrap mode: let field values span multiple lines, but cap growth at a few
