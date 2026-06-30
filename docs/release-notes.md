@@ -1,5 +1,11 @@
 # Release Notes
 
+## 0.7.3 (2026-06-30)
+
+### Bug Fixes
+
+- **plugin:** highlight the select-mode toggle when active
+
 ## 0.7.2 (2026-06-30)
 
 ### Features
