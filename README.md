@@ -4,7 +4,7 @@ An Obsidian plugin that adds a **Kanban board view to [Obsidian Bases](https://h
 
 A status property you define becomes the columns. You drag cards between them, reorder them, color them, view and edit the relationships between notes, surface what's blocked, filter as you type, and flip the same board into a calendar to schedule the work. Everything is driven by your existing note properties, and every change is written straight back to your frontmatter. Define your note types yourself, or let the [Obsidian Starter Kit](https://store.dsebastien.net/) plugin configure them for you when it's installed.
 
-> Requires Obsidian 1.13+ (the Bases view API). Works on desktop and mobile.
+> Requires Obsidian 1.13+ (the Bases view API). Desktop only (mobile isn't supported yet).
 
 ## Screenshots
 
@@ -58,7 +58,7 @@ Then add a **Kanban** view to any [Base](https://help.obsidian.md/bases). See th
 - **Cards show your view's properties.** Each card renders the properties you've added to the Bases view (the standard **Properties** selection), labelled and in order. Ordinary properties and base formulas (`formula.…`) alike, so a computed value shows with no extra setup. Enum values are color-coded by rank (warm = top priority or urgency, cool = low) so the board reads like a heatmap, the `NN -` sort prefix is hidden, and a numeric score shows as an accent badge.
 - **Note types.** Reusable per-type config (statuses, colors, relationships, archiving, swimlanes). Define your own by tag, folder, or regex, or mirror them from the Obsidian Starter Kit when present.
 - **Productivity touches.** Soft per-column WIP limits, multi-select with bulk set-status / archive / open, overdue and due-today emphasis, an optional due countdown badge (`in 3d`, `2d overdue`, `today`, color-coded by urgency and positionable on the title, a chip, the corner, or a footer), native hover preview, and per-view state remembered across reloads.
-- **Your notes stay the source of truth.** Status, order, dates, relationships, and grouping are all written to frontmatter. Works on desktop and mobile, and respects reduced-motion settings.
+- **Your notes stay the source of truth.** Status, order, dates, relationships, and grouping are all written to frontmatter. Desktop only for now (mobile isn't supported yet), and respects reduced-motion settings.
 
 ## Development
 
