@@ -516,6 +516,11 @@
        is always the column width. See applyUniformCardHeight in card-equalize.ts. */
     .kap-card {
         box-sizing: border-box;
+        /* Flex column so the field chips can bottom-align (margin-top: auto on
+           .kap-card-fields) — the title stays at the top, chips drop to the
+           bottom of the (uniform-height) card. */
+        display: flex;
+        flex-direction: column;
         /* Never let flexbox shrink a card below its content — that clips text
            when the column fills up. Cards keep their natural height and the
            column body scrolls instead (see .kap-column-cards overflow-y). */
@@ -555,6 +560,9 @@
     .kap-card-title {
         color: var(--text-normal);
         word-break: break-word;
+        /* A bit of breathing room before the chips (the minimum gap when a card
+           is content-tall; grows when the card is padded to the shared height). */
+        margin-bottom: var(--size-4-2, 0.5rem);
     }
 
     .kap-card-cover {
@@ -576,7 +584,9 @@
         display: flex;
         flex-wrap: wrap;
         gap: var(--size-4-1, 0.25rem);
-        margin-top: var(--size-4-1, 0.25rem);
+        /* Push the chips to the bottom of the card (auto consumes the free space
+           between the title and the chips on padded, uniform-height cards). */
+        margin-top: auto;
     }
 
     .kap-card-field {
