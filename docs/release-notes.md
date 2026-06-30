@@ -1,5 +1,11 @@
 # Release Notes
 
+## 0.8.1 (2026-06-30)
+
+### Bug Fixes
+
+- **plugin:** resolve community-reviewer lint and deprecation warnings
+
 ## 0.8.0 (2026-06-30)
 
 ### Features
