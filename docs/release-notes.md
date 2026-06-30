@@ -1,5 +1,11 @@
 # Release Notes
 
+## 0.7.1 (2026-06-30)
+
+### Bug Fixes
+
+- **plugin:** triage queue populates on direct open + scope/value highlighting [#66](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/66)
+
 ## 0.7.0 (2026-06-30)
 
 ### Features
