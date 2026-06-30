@@ -306,6 +306,15 @@ export class KanbanActionPlannerSettingTab extends PluginSettingTab {
             })
 
         new Setting(containerEl)
+            .setName('Celebrate completed triage')
+            .setDesc('Play a short confetti burst when a note’s triage is completed.')
+            .addToggle((toggle) => {
+                toggle
+                    .setValue(this.plugin.settings.triageCelebrateOnComplete)
+                    .onChange((value) => void this.updateTriageCelebrate(value))
+            })
+
+        new Setting(containerEl)
             .setName('First day of the week')
             .setDesc('Which day calendar weeks start on.')
             .addDropdown((dd) => {
@@ -426,6 +435,14 @@ export class KanbanActionPlannerSettingTab extends PluginSettingTab {
             draft.defaultReviewIntervalDays = days
         })
         await this.plugin.saveSettings()
+    }
+
+    private async updateTriageCelebrate(enabled: boolean): Promise<void> {
+        this.plugin.settings = produce(this.plugin.settings, (draft) => {
+            draft.triageCelebrateOnComplete = enabled
+        })
+        // Read live when triage completes — no board re-render needed, so `chrome`.
+        await this.plugin.saveSettings('chrome')
     }
 
     private async updateChipStyle(style: PluginSettings['cardChipStyle']): Promise<void> {

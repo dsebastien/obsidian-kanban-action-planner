@@ -57,6 +57,11 @@ export function renderTriageView(
     activeScope: TriageScope,
     callbacks: TriageCallbacks
 ): void {
+    // Preserve the body's vertical scroll across the full teardown below. A write
+    // re-renders the whole view (the snapshot is rebuilt, not patched), so without
+    // this the body jumps back to the top after every value selection.
+    const prevScroll = container.querySelector<HTMLElement>('.kap-triage-body')?.scrollTop ?? 0
+
     container.empty()
     // The triage view fills the host and owns its own scroll: a fixed header above
     // a scrollable body, so nothing gets clipped however tall the card grows or how
@@ -113,6 +118,10 @@ export function renderTriageView(
     }
 
     renderActions(layout, data, callbacks)
+
+    // Restore the scroll the predecessor body had — done last, once the body has
+    // content (an empty body has no scroll range, so it would clamp to 0).
+    if (prevScroll > 0) body.scrollTop = prevScroll
 }
 
 function renderHeader(

@@ -125,6 +125,10 @@ Each card shows:
 - **Skip** / **Next** to move through the queue, with a **remaining count**. Setting a value does
   **not** auto-advance, so you can see the recomputed score before moving on.
 
+When a card's triage is **completed** (its last gating property filled, or a review marked done), a
+short **confetti** burst celebrates it. Turn this off with **Celebrate completed triage** in
+**Settings → Community plugins → Kanban Action Planner** (under **Review (triage)**).
+
 **Three scopes**, switched in the header (the active one is highlighted):
 
 - **Needs clarification**: only cards with an **unset** gating property. A card leaves the queue

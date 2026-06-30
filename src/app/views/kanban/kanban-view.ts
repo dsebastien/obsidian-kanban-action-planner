@@ -86,6 +86,7 @@ import type { CardDisplay, KanbanCard } from '../../ui/board/types'
 import { renderViewToolbar } from '../../ui/view-toolbar'
 import type { ViewMode } from '../../ui/view-toolbar'
 import { renderTriageView } from '../../ui/triage/triage-view'
+import { burstConfetti } from '../../ui/triage/confetti'
 import type {
     TriageCardData,
     TriageContextField,
@@ -176,6 +177,11 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
     // entering triage, and the cursor into it. Null = needs (re)building.
     private triageQueueKeys: string[] | null = null
     private triageCursor = 0
+    // Signature of the last triage render (card data + scope). When a write echoes
+    // back through the Base (onDataUpdated → debounced rebuild), the recomputed
+    // data is identical to what's already on screen — skip the teardown so the view
+    // doesn't flash/lose focus for a no-op. Reset on mode switch / view recreation.
+    private lastTriageSignature: string | null = null
     // Per-note-type property-name sets (lowercased), cached per triage render so
     // gating can be type-aware on mixed boards (#53). Cleared each renderTriage.
     private readonly triageTypeProps = new Map<string, Set<string>>()
@@ -1503,6 +1509,14 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         const data = current
             ? this.buildTriageData(current, cfg, this.triageCursor + 1, this.triageQueueKeys.length)
             : null
+        // Skip an identical re-render (optimistic UI): if the rendered card data and
+        // scope match what's already mounted, there's nothing to change on screen —
+        // re-tearing it down would only flash and steal focus. The DOM-presence check
+        // forces a render when the host currently shows something else (e.g. the board).
+        const signature = JSON.stringify({ data, scope: cfg.scope })
+        const mounted = this.boardEl.querySelector('.kap-triage-body') !== null
+        if (mounted && signature === this.lastTriageSignature) return
+        this.lastTriageSignature = signature
         renderTriageView(this.boardEl, data, cfg.scope, {
             onSetProperty: (name, value) => void this.triageSetProperty(current, name, value),
             onNext: () => this.triageAdvance(),
@@ -1610,8 +1624,23 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         value: string | null
     ): Promise<void> {
         if (!card) return
+        // Detect the moment a note's triage completes (last gating prop filled) so
+        // we can celebrate it. Read before/after the write; the metadata cache is
+        // fresh once the write resolves (same read the re-render below relies on).
+        const cfg = readTriageConfig(this.config)
+        const wasComplete = this.cardUnsetCount(card, cfg) === 0
         await this.setCardProperty(card, name, value)
+        // Use the value we just wrote for `nowComplete` — the metadata cache hasn't
+        // reparsed yet, so re-reading it here would still see the old value.
+        const nowComplete = this.cardUnsetCount(card, cfg, { name, value }) === 0
         this.renderTriage()
+        if (!wasComplete && nowComplete) this.celebrateTriageComplete()
+    }
+
+    /** Play the triage-complete confetti burst, when enabled in settings. */
+    private celebrateTriageComplete(): void {
+        if (!this.plugin.settings.triageCelebrateOnComplete) return
+        if (this.rootEl) burstConfetti(this.rootEl)
     }
 
     /** Resolve a stored triage property id into a ref + Bases id + display label. */
@@ -1697,7 +1726,18 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
      * only applies when the type's properties are known; an unknown type counts
      * every gating prop (preserves single-type behavior).
      */
-    private cardUnsetCount(card: KanbanCard, cfg: TriageConfig): number {
+    private cardUnsetCount(
+        card: KanbanCard,
+        cfg: TriageConfig,
+        /**
+         * Optional just-written value for one note property. Obsidian's metadata
+         * cache is stale right after `processFrontMatter` resolves, so a caller
+         * detecting completion immediately after a write supplies the new value
+         * here for the matching gate instead of re-reading the (stale) cache. The
+         * other gates didn't change, so reading them from cache stays correct.
+         */
+        override?: { name: string; value: string | null }
+    ): number {
         const typeProps = this.noteTypePropertyNames(this.noteTypeIdFor(card))
         const gates: Array<{ value: string | number | null; allowedValues: string[] | null }> = []
         for (const id of cfg.gateProps) {
@@ -1712,8 +1752,12 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             }
             const allowed =
                 parsed.ref.kind === 'note' ? this.allowedValuesForRef(card, parsed.ref) : []
+            const isOverridden =
+                override !== undefined &&
+                parsed.ref.kind === 'note' &&
+                parsed.ref.name.toLowerCase() === override.name.toLowerCase()
             gates.push({
-                value: this.readScalarProperty(card, parsed.ref),
+                value: isOverridden ? override.value : this.readScalarProperty(card, parsed.ref),
                 allowedValues: allowed.length > 0 ? allowed : null
             })
         }
@@ -1754,6 +1798,8 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             toDateKey(startOfDay(new Date()))
         )
         await setProperty(this.app, card.file, s.reviewCountProperty, (count ?? 0) + 1)
+        // Marking a note reviewed completes its triage for this scope — celebrate.
+        this.celebrateTriageComplete()
         this.triageAdvance()
     }
 

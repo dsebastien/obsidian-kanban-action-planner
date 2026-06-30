@@ -50,6 +50,8 @@ export const pluginSettingsSchema = z.object({
     dueSoonThresholdDays: z.number().int().positive(),
     /** Where the due-countdown badge renders: title row / chip / corner / footer. */
     dueCountdownStyle: z.enum(['title', 'chip', 'corner', 'footer']),
+    /** Play a confetti burst when a note's triage is completed in triage mode. */
+    triageCelebrateOnComplete: z.boolean(),
     /**
      * Global default status values (columns) used when neither the view nor a
      * Starter Kit note type defines them. Order is the column order.
@@ -89,6 +91,7 @@ export const DEFAULT_SETTINGS: PluginSettings = {
     cardChipStyle: 'minimal',
     dueSoonThresholdDays: DEFAULT_DUE_SOON_THRESHOLD_DAYS,
     dueCountdownStyle: 'title',
+    triageCelebrateOnComplete: true,
     defaultStatuses: [],
     noteTypes: []
 }

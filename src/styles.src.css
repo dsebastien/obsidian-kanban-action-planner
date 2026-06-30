@@ -1600,6 +1600,14 @@
         @apply flex-1 min-h-0 w-full overflow-y-auto p-4;
     }
 
+    /* Decorative confetti overlay played when a note's triage completes. Fills
+       the root (clipped by its overflow:hidden), never intercepts pointer events,
+       and is removed from the DOM once the burst settles (see confetti.ts). */
+    .kap-root .kap-confetti {
+        @apply absolute inset-0 w-full h-full pointer-events-none;
+        z-index: 50;
+    }
+
     /* Card (grows to its max) + the action column, centered as a group; wraps to
        a single column on narrow widths (issue #65). */
     .kap-root .kap-triage-layout {
