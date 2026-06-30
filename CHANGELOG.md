@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.7.0](https://github.com/dsebastien/obsidian-kanban-action-planner/compare/0.6.1...0.7.0) (2026-06-30)
+
+### Features
+
+* **plugin:** card chip style setting (minimal / tinted / rail) ([6aa9e82](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/6aa9e8285854f4cf1190a5350d4921227d008269))
+* **plugin:** due countdown badge with selectable position ([a258f4d](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/a258f4d12ffdf6e8e2a757442b835908308e1292)), closes [#67](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/67) [#62](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/62) [#67](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/67)
+
+### Bug Fixes
+
+* **plugin:** enlarge filter clear and help button icons ([#63](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/63)) ([0b929ee](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/0b929ee1c756f0b71d2385a9853d2eda3a3b7ec3))
+
 ## [0.6.1](https://github.com/dsebastien/obsidian-kanban-action-planner/compare/0.6.0...0.6.1) (2026-06-30)
 
 ### Features
@@ -147,6 +158,7 @@ All notable changes to this project will be documented in this file.
 
 * **plugin:** match Starter Kit's {{quarter}} placeholder format (Q2, not 2) ([4fde618](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/4fde6185c5956e3f6fd2ca3a9b03e70cf5e16840))
 * **plugin:** persist discovered statuses so Show empty columns works ([cf91b81](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/cf91b81a1b0786e35c73f4885882e2dc33564c62))
+
 
 
 

@@ -1,5 +1,16 @@
 # Release Notes
 
+## 0.7.0 (2026-06-30)
+
+### Features
+
+- **plugin:** card chip style setting (minimal / tinted / rail)
+- **plugin:** due countdown badge with selectable position [#62](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/62) [#67](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/67)
+
+### Bug Fixes
+
+- **plugin:** enlarge filter clear and help button icons ([#63](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/63))
+
 ## 0.6.1 (2026-06-30)
 
 ### Features
