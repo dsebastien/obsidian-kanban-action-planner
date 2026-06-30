@@ -1,5 +1,11 @@
 # Release Notes
 
+## 0.7.6 (2026-06-30)
+
+### Features
+
+- **plugin:** celebrate completed triage and stop the scroll jump
+
 ## 0.7.5 (2026-06-30)
 
 ### Bug Fixes
