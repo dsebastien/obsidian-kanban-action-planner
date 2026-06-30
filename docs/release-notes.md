@@ -1,5 +1,11 @@
 # Release Notes
 
+## 0.7.4 (2026-06-30)
+
+### Bug Fixes
+
+- **plugin:** remove empty bar under toolbar when nothing selected ([#60](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/60))
+
 ## 0.7.3 (2026-06-30)
 
 ### Bug Fixes
