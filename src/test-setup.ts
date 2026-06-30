@@ -5,8 +5,19 @@
  */
 import { mock } from 'bun:test'
 
+/**
+ * Minimal, precise type for `bun:test`'s `mock.module`. Under some lint
+ * configurations (the Obsidian community reviewer's among them) `mock` resolves
+ * to `any`, which flags the call below as unsafe. Narrowing through this typed
+ * handle keeps the call fully typed regardless of how `bun:test` resolves.
+ */
+interface BunMock {
+    module(id: string, factory: () => Record<string, unknown>): void | Promise<void>
+}
+const bunMock = mock as unknown as BunMock
+
 // Mock the obsidian module (fire-and-forget, no need to await)
-void mock.module('obsidian', () => ({
+void bunMock.module('obsidian', () => ({
     Notice: class Notice {
         constructor(_message: string, _timeout?: number) {
             // No-op for tests

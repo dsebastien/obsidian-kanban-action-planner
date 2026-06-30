@@ -42,6 +42,16 @@ export class KanbanActionPlannerSettingTab extends PluginSettingTab {
     }
 
     override display(): void {
+        this.render()
+    }
+
+    /**
+     * Re-render the whole tab. Internal callers use this instead of `display()`
+     * so they don't depend on the framework's deprecated `display()` entry point
+     * (deprecated since 1.13.0); `display()` is kept only as the override the
+     * framework itself calls.
+     */
+    private render(): void {
         const { containerEl } = this
         containerEl.empty()
 
@@ -154,21 +164,21 @@ export class KanbanActionPlannerSettingTab extends PluginSettingTab {
             noteType,
             type.statusValues,
             this.propertiesForType(type.id),
-            () => this.display()
+            () => this.render()
         ).open()
     }
 
     /** Create a local note type and open its config (recognition first). */
     private async addLocalNoteType(): Promise<void> {
         const noteType = await createLocalNoteType(this.plugin, 'New type')
-        this.display()
+        this.render()
         new ConfigureBoardModal(
             this.app,
             this.plugin,
             noteType,
             this.plugin.settings.defaultStatuses,
             this.propertiesForType(noteType.id),
-            () => this.display(),
+            () => this.render(),
             'recognition'
         ).open()
     }
@@ -182,7 +192,7 @@ export class KanbanActionPlannerSettingTab extends PluginSettingTab {
                 'archiving, recognition rules). Your notes are not changed.',
             confirmText: 'Delete',
             onConfirm: () => {
-                void deleteNoteType(this.plugin, type.id).then(() => this.display())
+                void deleteNoteType(this.plugin, type.id).then(() => this.render())
             }
         }).open()
     }
