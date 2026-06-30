@@ -585,7 +585,7 @@
         flex-wrap: wrap;
         /* A touch more breathing room between chips (both within a row and
            between wrapped rows). */
-        gap: 0.375rem;
+        gap: var(--size-4-2, 0.5rem);
         /* Push the chips to the bottom of the card (auto consumes the free space
            between the title and the chips on padded, uniform-height cards). */
         margin-top: auto;
