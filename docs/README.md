@@ -36,6 +36,11 @@ every change written straight back into your notes.
   (`status:active OR due:overdue`, `parent:"PKM" -tag:archived`), saved per view.
 - **Relationships.** See, navigate, and edit parent, sibling, child, and blocked-by links from
   the card menu. A blocked card is flagged and filterable.
+- **Triage mode.** Work through an overwhelming backlog one card at a time, setting priority,
+  urgency, and effort from one-click controls. It doubles as a spaced-repetition review queue.
+
+![Triage mode]({{ '/images/triage.png' | relative_url }})
+
 - **Calendar mode.** Switch a board to a calendar that plots scheduled dates and deadlines
   together. Drag a card onto a day to schedule it.
 

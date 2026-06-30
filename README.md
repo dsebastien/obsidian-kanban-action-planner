@@ -28,6 +28,10 @@ Filter as you type with a compact query language:
 
 ![Filter as you type](docs/images/filter.png)
 
+When a backlog gets overwhelming, work through it one card at a time in Triage mode:
+
+![Triage mode](docs/images/triage.png)
+
 Configure statuses, colors, relationships, and archiving per note type, synced from the Obsidian Starter Kit when it's present:
 
 ![Note types](docs/images/note-types.png)
@@ -46,6 +50,7 @@ Then add a **Kanban** view to any [Base](https://help.obsidian.md/bases). See th
 - **Status to columns, defined not guessed.** A configurable status property places cards into columns you define (per view, from the Starter Kit, or in settings), so a typo can't create a stray column. Unmapped notes collect in an "Unmapped" column that hides itself when empty.
 - **Move, reorder, sort.** Drag a card to another column to change its status, or reorder within a column (written to a configurable `manual_order` property). Auto-sort each column by name or any property, including a base formula like a `priority_score`, ascending or descending. Full keyboard support (move, reorder, menu) and command-palette commands.
 - **Filter as you type.** A toolbar search box with a compact, Jira-like query (`status:active OR due:overdue`, `parent:"PKM" -tag:archived`), saved per view, in both board and calendar mode.
+- **Triage mode.** Work through an overwhelming backlog one card at a time, setting priority, urgency, effort, and the rest from one-click controls. It doubles as a spaced-repetition review queue, surfacing cards whose review is overdue.
 - **Relationships, viewable and editable.** Parent, sibling, child, and `blocked_by` via link-properties (plus an optional tag and link heuristic). Navigate them, add or remove them from the card menu, flag and filter blocked items. An archived blocker stops blocking.
 - **Swimlanes.** Split the board into collapsible lanes by note type or any property, with an Ungrouped lane. Cross-lane drag rewrites the grouping property.
 - **Calendar mode.** Flip a board into a scheduling calendar (day, week, month, quarter, year) that plots scheduled dates and deadlines together. Drag cards onto days to set `date_scheduled` or `date_due`, with an Unplanned / No-deadline panel and per-day zoom.

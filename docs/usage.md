@@ -106,6 +106,8 @@ one-card-at-a-time queue**, so you clarify items in short passes instead of faci
 at once. Switch to it with the **Triage** button next to **Board** / **Calendar** (or the **Toggle
 triage mode** command).
 
+![Triage mode, clarifying one card at a time]({{ '/images/triage.png' | relative_url }})
+
 The card scrolls on its own when it's tall (or the UI is zoomed), and the scope tabs and the
 **Skip** / **Next** actions stay pinned so they're always reachable.
 
