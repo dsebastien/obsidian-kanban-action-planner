@@ -43,6 +43,8 @@ export const pluginSettingsSchema = z.object({
     defaultDateFormat: z.string(),
     /** First day of the calendar week (0 = Sunday … 6 = Saturday). */
     firstDayOfWeek: z.number().int().min(0).max(6),
+    /** How card property chips are styled: `minimal` (no fills) / `tinted` / `rail`. */
+    cardChipStyle: z.enum(['minimal', 'tinted', 'rail']),
     /**
      * Global default status values (columns) used when neither the view nor a
      * Starter Kit note type defines them. Order is the column order.
@@ -67,6 +69,7 @@ export const DEFAULT_SETTINGS: PluginSettings = {
     defaultReviewIntervalDays: DEFAULT_REVIEW_INTERVAL_DAYS,
     defaultDateFormat: DEFAULT_DATE_FORMAT,
     firstDayOfWeek: DEFAULT_FIRST_DAY_OF_WEEK,
+    cardChipStyle: 'minimal',
     defaultStatuses: [],
     noteTypes: []
 }

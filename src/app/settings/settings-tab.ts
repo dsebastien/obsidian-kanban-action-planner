@@ -24,8 +24,10 @@ interface NoteTypeRow {
 }
 
 /** Settings keys whose value is a plain string (editable as text). */
+// Keys whose value is a *plain* string (accepts any string) — excludes literal
+// unions like `cardChipStyle`, which have their own dedicated updater.
 type StringSettingKey = {
-    [K in keyof PluginSettings]: PluginSettings[K] extends string ? K : never
+    [K in keyof PluginSettings]: string extends PluginSettings[K] ? K : never
 }[keyof PluginSettings]
 
 /** Full weekday names indexed by `Date.getDay()` (0 = Sunday). */
@@ -320,6 +322,24 @@ export class KanbanActionPlannerSettingTab extends PluginSettingTab {
             })
 
         new Setting(containerEl)
+            .setName('Card chip style')
+            .setDesc(
+                'How property values render on cards. Minimal: a clean stat list, no fills. ' +
+                    'Tinted: color-filled pills (a heatmap). Rail: neutral pills with a colored edge.'
+            )
+            .addDropdown((dd) => {
+                dd.addOption('minimal', 'Minimal (no fills)')
+                dd.addOption('tinted', 'Tinted (color-filled)')
+                dd.addOption('rail', 'Rail (colored edge)')
+                dd.setValue(this.plugin.settings.cardChipStyle)
+                dd.onChange((value) => {
+                    if (value === 'minimal' || value === 'tinted' || value === 'rail') {
+                        void this.updateChipStyle(value)
+                    }
+                })
+            })
+
+        new Setting(containerEl)
             .setName('Default statuses (columns)')
             .setDesc(
                 'One status value per line, in column order. Used when a board does not define ' +
@@ -363,6 +383,13 @@ export class KanbanActionPlannerSettingTab extends PluginSettingTab {
     private async updateReviewIntervalDays(days: number): Promise<void> {
         this.plugin.settings = produce(this.plugin.settings, (draft) => {
             draft.defaultReviewIntervalDays = days
+        })
+        await this.plugin.saveSettings()
+    }
+
+    private async updateChipStyle(style: PluginSettings['cardChipStyle']): Promise<void> {
+        this.plugin.settings = produce(this.plugin.settings, (draft) => {
+            draft.cardChipStyle = style
         })
         await this.plugin.saveSettings()
     }

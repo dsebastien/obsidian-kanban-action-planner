@@ -531,6 +531,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         const files = this.files()
         this.refreshEntries()
         this.cardFieldAllowedCache.clear() // allowed-values may have changed since last build
+        this.applyChipStyle()
 
         this.availableProperties = this.collectPropertyNames(files)
         this.statusProperty = this.resolveStatusProperty(files)
@@ -1522,19 +1523,44 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         return resolveAllowedValues(this.app, this.plugin, this.noteTypeIdFor(card), ref.name)
     }
 
+    /** Toggle the chip-style modifier class (Settings → Card chip style) on the root. */
+    private applyChipStyle(): void {
+        if (!this.rootEl) return
+        const style = this.plugin.settings.cardChipStyle
+        this.rootEl.classList.toggle('kap-chips-minimal', style === 'minimal')
+        this.rootEl.classList.toggle('kap-chips-tinted', style === 'tinted')
+        this.rootEl.classList.toggle('kap-chips-rail', style === 'rail')
+    }
+
     /**
-     * Allowed values for a card field's property id, for heat coloring — note
-     * props only (formulas/file have none), resolved against the card's note type
-     * and cached per rebuild.
+     * Allowed values for a card field's property id, for heat coloring (cached per
+     * rebuild). **Note** props → the note type's allowed values. **Formula** props
+     * → the distinct values observed on the board (so a formula enum like a
+     * horizon/bucket still gets a heat color). `file.*` → none.
      */
     private allowedValuesForCardField(file: TFile, id: BasesPropertyId): string[] {
         const ref = parsePropertyRef(id)
-        if (!ref || ref.kind !== 'note') return []
-        const typeId = this.noteTypeByPath.get(file.path)?.id ?? this.noteType.id
-        const cacheKey = `${typeId}|${ref.name.toLowerCase()}`
+        if (!ref) return []
+        if (ref.kind === 'note') {
+            const typeId = this.noteTypeByPath.get(file.path)?.id ?? this.noteType.id
+            const cacheKey = `${typeId}|${ref.name.toLowerCase()}`
+            const cached = this.cardFieldAllowedCache.get(cacheKey)
+            if (cached) return cached
+            const values = resolveAllowedValues(this.app, this.plugin, typeId, ref.name)
+            this.cardFieldAllowedCache.set(cacheKey, values)
+            return values
+        }
+        if (!ref.id.startsWith('formula.')) return []
+        const cacheKey = `computed|${ref.id}`
         const cached = this.cardFieldAllowedCache.get(cacheKey)
         if (cached) return cached
-        const values = resolveAllowedValues(this.app, this.plugin, typeId, ref.name)
+        const set = new Set<string>()
+        for (const entry of this.entriesByPath.values()) {
+            const v = entry.getValue(ref.id)
+            const s = v == null ? '' : v.toString().trim()
+            if (s && s !== 'null') set.add(s)
+        }
+        const values = [...set]
         this.cardFieldAllowedCache.set(cacheKey, values)
         return values
     }

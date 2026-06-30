@@ -600,23 +600,23 @@
         margin-top: auto;
     }
 
+    /* Shared chip frame. The look (fills / tints / rail / none) is chosen by the
+       `.kap-chips-{minimal|tinted|rail}` modifier on `.kap-root` (Settings → Card
+       chip style). The data classes (`heat-N`, `badge`, `progress`) are the same
+       across styles — only the styling below differs. */
     .kap-card-field {
         max-width: 100%;
-        /* Comfortable pill padding — vertical room so chips don't read as dense. */
         padding: var(--size-4-1, 0.25rem) var(--size-4-2, 0.5rem);
         font-size: var(--font-smaller, 0.85em);
         color: var(--text-muted);
-        background: var(--background-modifier-hover);
         border-radius: var(--radius-s, 6px);
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
     }
 
-    /* Make the value the visual anchor while keeping the label clearly legible:
-       different properties can share the same value set (e.g. priority vs
-       priority override both "30 - High"), so the label must stay readable to
-       disambiguate. Label = muted; value = normal color + medium weight. */
+    /* Label = muted (disambiguates props that share a value set); value = the
+       anchor (normal color + medium weight). Heat recolors the value per style. */
     .kap-card-field-label {
         @apply font-normal;
         color: var(--text-muted);
@@ -627,61 +627,120 @@
         color: var(--text-normal);
     }
 
-    /* Numeric formula "score" → a filled accent badge that pops when scanning. */
-    .kap-card-field-badge {
-        background: var(--interactive-accent);
+    /* ── Minimal (default): no fills — a faint label + a heat-colored value, as a
+       tidy vertical stat list. ── */
+    .kap-chips-minimal .kap-card-fields {
+        flex-direction: column;
+        align-items: stretch;
+        gap: var(--size-4-1, 0.25rem);
     }
-
-    .kap-card-field-badge .kap-card-field-label,
-    .kap-card-field-badge .kap-card-field-value {
-        color: var(--text-on-accent);
+    .kap-chips-minimal .kap-card-field {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: var(--size-4-2, 0.5rem);
+        width: 100%;
+        padding: 0;
+        background: none;
     }
-
-    .kap-card-field-badge .kap-card-field-value {
-        @apply font-semibold;
+    .kap-chips-minimal .kap-card-field-label {
+        color: var(--text-faint);
     }
-
-    /* Heat scale (0 = warmest … 4 = coolest): enum value colored by its rank in
-       the property's allowed values, so the board reads like a heatmap. Each chip
-       gets a translucent tint of an Obsidian theme color + a matching value color
-       and a thin tinted border, legible in both light and dark themes. */
-    .kap-card-field-heat-0 {
-        background: color-mix(in srgb, var(--color-red) 16%, var(--background-primary));
-        box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-red) 35%, transparent);
+    .kap-chips-minimal .kap-card-field-progress {
+        justify-content: flex-start;
     }
-    .kap-card-field-heat-0 .kap-card-field-value {
+    .kap-chips-minimal .kap-card-field-progress .kap-card-progress {
+        margin-left: auto;
+    }
+    .kap-chips-minimal .kap-card-field-badge .kap-card-field-value {
+        @apply font-bold;
+        color: var(--interactive-accent);
+    }
+    .kap-chips-minimal .kap-card-field-heat-0 .kap-card-field-value {
         color: var(--color-red);
     }
-
-    .kap-card-field-heat-1 {
-        background: color-mix(in srgb, var(--color-orange) 16%, var(--background-primary));
-        box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-orange) 32%, transparent);
-    }
-    .kap-card-field-heat-1 .kap-card-field-value {
+    .kap-chips-minimal .kap-card-field-heat-1 .kap-card-field-value {
         color: var(--color-orange);
     }
-
-    .kap-card-field-heat-2 {
-        background: color-mix(in srgb, var(--color-yellow) 16%, var(--background-primary));
-        box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-yellow) 30%, transparent);
-    }
-    .kap-card-field-heat-2 .kap-card-field-value {
+    .kap-chips-minimal .kap-card-field-heat-2 .kap-card-field-value {
         color: color-mix(in srgb, var(--color-yellow) 80%, var(--text-normal));
     }
-
-    .kap-card-field-heat-3 {
-        background: color-mix(in srgb, var(--color-blue) 14%, var(--background-primary));
-        box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-blue) 28%, transparent);
-    }
-    .kap-card-field-heat-3 .kap-card-field-value {
+    .kap-chips-minimal .kap-card-field-heat-3 .kap-card-field-value {
         color: var(--color-blue);
     }
+    .kap-chips-minimal .kap-card-field-heat-4 .kap-card-field-value {
+        color: var(--text-muted);
+    }
 
-    .kap-card-field-heat-4 {
+    /* ── Tinted: one flat tinted pill per chip; the hue alone encodes heat. ── */
+    .kap-chips-tinted .kap-card-field {
         background: var(--background-modifier-hover);
     }
-    .kap-card-field-heat-4 .kap-card-field-value {
+    .kap-chips-tinted .kap-card-field-badge {
+        background: color-mix(in srgb, var(--interactive-accent) 22%, var(--background-primary));
+    }
+    .kap-chips-tinted .kap-card-field-badge .kap-card-field-value {
+        @apply font-bold;
+    }
+    .kap-chips-tinted .kap-card-field-heat-0 {
+        background: color-mix(in srgb, var(--color-red) 18%, var(--background-primary));
+    }
+    .kap-chips-tinted .kap-card-field-heat-0 .kap-card-field-value {
+        color: var(--color-red);
+    }
+    .kap-chips-tinted .kap-card-field-heat-1 {
+        background: color-mix(in srgb, var(--color-orange) 18%, var(--background-primary));
+    }
+    .kap-chips-tinted .kap-card-field-heat-1 .kap-card-field-value {
+        color: var(--color-orange);
+    }
+    .kap-chips-tinted .kap-card-field-heat-2 {
+        background: color-mix(in srgb, var(--color-yellow) 18%, var(--background-primary));
+    }
+    .kap-chips-tinted .kap-card-field-heat-2 .kap-card-field-value {
+        color: color-mix(in srgb, var(--color-yellow) 80%, var(--text-normal));
+    }
+    .kap-chips-tinted .kap-card-field-heat-3 {
+        background: color-mix(in srgb, var(--color-blue) 16%, var(--background-primary));
+    }
+    .kap-chips-tinted .kap-card-field-heat-3 .kap-card-field-value {
+        color: var(--color-blue);
+    }
+    .kap-chips-tinted .kap-card-field-heat-4 {
+        background: color-mix(in srgb, var(--text-muted) 14%, var(--background-primary));
+    }
+    .kap-chips-tinted .kap-card-field-heat-4 .kap-card-field-value {
         color: var(--text-muted);
+    }
+
+    /* ── Rail: uniform neutral pill + a colored left edge = heat. ── */
+    .kap-chips-rail .kap-card-field {
+        background: var(--background-modifier-hover);
+        border-left: 3px solid var(--background-modifier-border);
+    }
+    .kap-chips-rail .kap-card-field-value {
+        color: var(--text-normal);
+    }
+    .kap-chips-rail .kap-card-field-badge {
+        border-left-color: var(--interactive-accent);
+    }
+    .kap-chips-rail .kap-card-field-badge .kap-card-field-value {
+        @apply font-bold;
+    }
+    .kap-chips-rail .kap-card-field-heat-0 {
+        border-left-color: var(--color-red);
+    }
+    .kap-chips-rail .kap-card-field-heat-1 {
+        border-left-color: var(--color-orange);
+    }
+    .kap-chips-rail .kap-card-field-heat-2 {
+        border-left-color: var(--color-yellow);
+    }
+    .kap-chips-rail .kap-card-field-heat-3 {
+        border-left-color: var(--color-blue);
+    }
+    .kap-chips-rail .kap-card-field-heat-4 {
+        border-left-color: var(--text-faint);
     }
 
     .kap-card-field-due {
