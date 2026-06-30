@@ -198,12 +198,17 @@
     }
 
     /* Active toggle (multi-select mode) on a toolbar icon button. */
+    /* stylelint-disable declaration-no-important -- the active accent must beat
+       Obsidian's unlayered <button> styles (which outrank our @layer rules
+       regardless of specificity), like .kap-mode-btn-active. Without it the Select
+       toggle never highlighted when on. */
     .kap-root .kap-nav-btn-active,
     .kap-root .kap-nav-btn-active:hover {
-        color: var(--text-on-accent);
-        background: var(--interactive-accent);
-        border-color: var(--interactive-accent);
+        color: var(--text-on-accent) !important;
+        background: var(--interactive-accent) !important;
+        border-color: var(--interactive-accent) !important;
     }
+    /* stylelint-enable declaration-no-important */
 
     /* Multi-select action bar (issue #18) — under the toolbar when ≥1 selected. */
     .kap-root .kap-selection-bar {
