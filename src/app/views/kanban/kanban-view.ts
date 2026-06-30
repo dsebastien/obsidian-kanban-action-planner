@@ -1035,43 +1035,69 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         destColumnId: string,
         index: number
     ): Promise<void> {
-        if (this.statusProperty && newStatus !== card.statusValue) {
+        const statusChanged = this.statusProperty !== null && newStatus !== card.statusValue
+
+        // Status-triggered archiving is terminal — the note leaves the board and its
+        // file moves — so it stays on the write-then-rebuild path (the archived note
+        // must also carry the new status). No optimistic shortcut here.
+        if (statusChanged && this.willAutoArchive(card, newStatus) && this.statusProperty) {
             if (newStatus === null) await deleteProperty(this.app, card.file, this.statusProperty)
             else await setProperty(this.app, card.file, this.statusProperty, newStatus)
+            await this.maybeAutoArchive(card, newStatus)
+            return
         }
 
-        // Status-triggered archiving: once the status is written, if this is a
-        // transition INTO the configured trigger status, archive and stop (the
-        // note leaves the board, so there's no order to persist).
-        if (await this.maybeAutoArchive(card, newStatus)) return
-
         // Manual order is only written under the default (manual) sort; a
-        // name/property sort owns the in-column order, so a reorder is a no-op
-        // (the status change above still applies) — issue #17.
-        if (this.cardSortMode() !== 'order') return
+        // name/property sort owns the in-column order (issue #17).
+        const manualOrder = this.cardSortMode() === 'order'
 
-        const destCards = this.columnCards(destLaneId, destColumnId).filter(
-            (c) => c.key !== card.key
-        )
-        const clamped = Math.max(0, Math.min(index, destCards.length))
-        const plan = planInsertion(
-            destCards.map((c) => c.order),
-            clamped
-        )
-
-        if (plan.kind === 'single') {
-            await setProperty(this.app, card.file, this.orderProperty, plan.order)
-        } else {
-            const arrangement = [...destCards.slice(0, clamped), card, ...destCards.slice(clamped)]
-            for (let i = 0; i < arrangement.length; i++) {
-                const c = arrangement[i]
-                const o = plan.orders[i]
-                if (c && o !== undefined && c.order !== o) {
-                    await setProperty(this.app, c.file, this.orderProperty, o)
+        // Plan the order writes from the CURRENT board (before any mutation), then
+        // apply status + order to the in-memory model and re-render immediately, so
+        // the card lands in its new column/position at once — no snap-back while the
+        // file write round-trips (issue #64). The frontmatter writes follow; the
+        // rebuild they trigger re-derives the same state, so the reconciler no-ops.
+        const orderWrites: Array<{ file: TFile; order: number }> = []
+        if (manualOrder) {
+            const destCards = this.columnCards(destLaneId, destColumnId).filter(
+                (c) => c.key !== card.key
+            )
+            const clamped = Math.max(0, Math.min(index, destCards.length))
+            const plan = planInsertion(
+                destCards.map((c) => c.order),
+                clamped
+            )
+            if (plan.kind === 'single') {
+                card.order = plan.order
+                orderWrites.push({ file: card.file, order: plan.order })
+            } else {
+                const arrangement = [
+                    ...destCards.slice(0, clamped),
+                    card,
+                    ...destCards.slice(clamped)
+                ]
+                for (let i = 0; i < arrangement.length; i++) {
+                    const c = arrangement[i]
+                    const o = plan.orders[i]
+                    if (c && o !== undefined && c.order !== o) {
+                        c.order = o
+                        orderWrites.push({ file: c.file, order: o })
+                    }
                 }
             }
         }
-        // Frontmatter writes trigger onDataUpdated -> debounced rebuild.
+
+        if (statusChanged) card.statusValue = newStatus
+        this.applyFilterAndRender()
+
+        // Persist. Each write triggers onDataUpdated → a debounced rebuild that
+        // re-derives this exact state, so there is no visual change (issue #64).
+        if (statusChanged && this.statusProperty) {
+            if (newStatus === null) await deleteProperty(this.app, card.file, this.statusProperty)
+            else await setProperty(this.app, card.file, this.statusProperty, newStatus)
+        }
+        for (const write of orderWrites) {
+            await setProperty(this.app, write.file, this.orderProperty, write.order)
+        }
     }
 
     private columnCards(laneId: string, columnId: string): KanbanCard[] {
@@ -1157,6 +1183,14 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             exclude.add(target.path)
         }
         new RelationshipTargetModal(this.app, role, exclude, (target) => {
+            // Optimistic: show the new badge at once, then write (issue #64).
+            if (!card.relationships[role].some((r) => r.key === target.path)) {
+                card.relationships[role] = [
+                    ...card.relationships[role],
+                    { key: target.path, label: target.basename }
+                ]
+                this.applyFilterAndRender()
+            }
             void addRelationshipLink(this.app, card.file, property, target).then((added) => {
                 new Notice(
                     added
@@ -1175,6 +1209,10 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
     ): Promise<void> {
         const property = this.relationshipProperties()[role]
         if (property.length === 0) return
+        // Optimistic: drop the badge immediately, then write (issue #64).
+        const before = card.relationships[role]
+        card.relationships[role] = before.filter((r) => r.key !== targetPath)
+        if (card.relationships[role].length !== before.length) this.applyFilterAndRender()
         await removeRelationshipLink(this.app, card.file, property, targetPath)
     }
 
@@ -1903,11 +1941,23 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
      * Returns true when the note was archived (caller then skips order writes).
      * Opt-in: no trigger status, no archive folder, or a non-transition is a no-op.
      */
-    private async maybeAutoArchive(card: KanbanCard, newStatus: string | null): Promise<boolean> {
+    /**
+     * Whether moving `card` to `newStatus` would trigger auto-archiving (a
+     * transition INTO a configured trigger status, with an archive folder set).
+     * Pure predicate, so {@link applyMove} can keep that case off the optimistic
+     * path (the note leaves the board).
+     */
+    private willAutoArchive(card: KanbanCard, newStatus: string | null): boolean {
+        if (newStatus === null || card.statusValue === newStatus) return false
         const archive = this.archiveConfigFor(card)
-        if (newStatus === null || !archive.triggerStatuses.includes(newStatus)) return false
-        if (card.statusValue === newStatus) return false // already there — not a transition
-        if (archive.archiveFolder.trim().length === 0) return false
+        return (
+            archive.triggerStatuses.includes(newStatus) && archive.archiveFolder.trim().length > 0
+        )
+    }
+
+    private async maybeAutoArchive(card: KanbanCard, newStatus: string | null): Promise<boolean> {
+        if (!this.willAutoArchive(card, newStatus)) return false
+        const archive = this.archiveConfigFor(card)
         const result = await archiveNote(this.app, card.file, archive)
         if (result.ok) {
             new Notice(`Archived "${card.title}" to ${result.destPath}`)

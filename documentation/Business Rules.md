@@ -289,3 +289,15 @@ See `documentation/plans/kanban-action-planner-implementation-plan.md` for full 
     → debounced `resolveAndRebuild` (property names, note types, statuses, swimlanes). The settings
     tab picks the scope: chip style = `chrome`, due-countdown position / soon-threshold = `cards`,
     everything else = `full`. `full` stays debounced so per-keystroke text edits coalesce.
+32. **Optimistic UI updates (issue #64).** Board mutations apply to the in-memory model and
+    re-render **before** the frontmatter write, so the card reflects the change at once (no
+    snap-back / round-trip lag). The frontmatter write follows; the `onDataUpdated`→debounced
+    rebuild it triggers re-derives the **same** state, so the reconciler no-ops (positions live in
+    the board structure, not the card signature, so a reused node simply moves). Covered:
+    **status + manual order** (`applyMove` — the single chokepoint for drag, keyboard move/reorder,
+    and the menu set-status) mutates `card.statusValue`/`card.order` then `applyFilterAndRender()`;
+    **relationship add/remove** mutates `card.relationships[role]` then re-renders. **Excluded:**
+    status-triggered **auto-archive** transitions stay on the write-then-rebuild path (terminal —
+    the note leaves the board and its file moves; the archived note must carry the new status).
+    Property-chip / triage-value edits (derived from the Bases entry, not the in-memory model) are
+    not yet optimistic.
