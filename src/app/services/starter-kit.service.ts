@@ -52,7 +52,7 @@ function getStarterKitApi(app: App): SkApiLike | null {
     const plugin = pm?.plugins?.[STARTER_KIT_PLUGIN_ID] as { api?: unknown } | undefined
     const api = plugin?.api
     if (api && typeof (api as SkApiLike).listNoteTypes === 'function') {
-        return api as SkApiLike
+        return api
     }
     return null
 }

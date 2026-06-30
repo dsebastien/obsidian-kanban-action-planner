@@ -1,4 +1,4 @@
-import { Plugin } from 'obsidian'
+import { Plugin, View } from 'obsidian'
 import { DEFAULT_SETTINGS, pluginSettingsSchema } from './types/plugin-settings.intf'
 import type { PluginSettings, SettingsRefreshScope } from './types/plugin-settings.intf'
 import { KanbanActionPlannerSettingTab } from './settings/settings-tab'
@@ -58,10 +58,11 @@ export class KanbanActionPlannerPlugin extends Plugin {
      * directly and `instanceof`-check, so background Kanban leaves never match.
      */
     private activeKanbanView(): KanbanActionPlannerView | null {
-        const leaf = this.app.workspace.activeLeaf
-        if (!leaf || leaf.view.getViewType() !== 'bases') return null
-        const subView = (leaf.view as unknown as { controller?: { view?: unknown } }).controller
-            ?.view
+        // `getActiveViewOfType(View)` returns the active leaf's view (every view
+        // extends View) without the deprecated `workspace.activeLeaf` accessor.
+        const view = this.app.workspace.getActiveViewOfType(View)
+        if (!view || view.getViewType() !== 'bases') return null
+        const subView = (view as unknown as { controller?: { view?: unknown } }).controller?.view
         return subView instanceof KanbanActionPlannerView ? subView : null
     }
 
