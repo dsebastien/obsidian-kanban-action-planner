@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.7.2](https://github.com/dsebastien/obsidian-kanban-action-planner/compare/0.7.1...0.7.2) (2026-06-30)
+
+### Features
+
+* **plugin:** optimistic UI updates for moves and relationships ([9e29cb5](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/9e29cb53aabca350160e8b92e76ad78718cb06c4)), closes [#64](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/64) [#64](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/64)
+
+### Bug Fixes
+
+* **plugin:** redesign triage UI — scrollable, sticky actions, bolder card ([1a9a92e](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/1a9a92e09c59e47c9313da578a5e9b13fda0ff9c)), closes [#65](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/65) [#65](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/65)
+* **plugin:** selected-card highlight applies immediately ([#61](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/61)) ([b7e02de](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/b7e02de2d8b278192fdcbf3121c669a27cfaf1b9))
+
 ## [0.7.1](https://github.com/dsebastien/obsidian-kanban-action-planner/compare/0.7.0...0.7.1) (2026-06-30)
 
 ### Bug Fixes
@@ -164,6 +175,7 @@ All notable changes to this project will be documented in this file.
 
 * **plugin:** match Starter Kit's {{quarter}} placeholder format (Q2, not 2) ([4fde618](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/4fde6185c5956e3f6fd2ca3a9b03e70cf5e16840))
 * **plugin:** persist discovered statuses so Show empty columns works ([cf91b81](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/cf91b81a1b0786e35c73f4885882e2dc33564c62))
+
 
 
 

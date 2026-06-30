@@ -1,5 +1,16 @@
 # Release Notes
 
+## 0.7.2 (2026-06-30)
+
+### Features
+
+- **plugin:** optimistic UI updates for moves and relationships [#64](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/64)
+
+### Bug Fixes
+
+- **plugin:** redesign triage UI — scrollable, sticky actions, bolder card [#65](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/65)
+- **plugin:** selected-card highlight applies immediately ([#61](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/61))
+
 ## 0.7.1 (2026-06-30)
 
 ### Bug Fixes
