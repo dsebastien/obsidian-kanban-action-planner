@@ -1438,7 +1438,14 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         if (!this.boardEl) return
         this.triageTypeProps.clear() // rebuild per-type property sets for this render
         const cfg = readTriageConfig(this.config)
-        if (this.triageQueueKeys === null) {
+        // Build the snapshot when there's none yet — OR when the current one is
+        // empty. Opening a view straight into triage renders once before the Bases
+        // query has resolved (`cardsByKey` empty), which would otherwise freeze an
+        // empty `[]` snapshot that never refills (the `else` branch only drops
+        // cards, never adds) — so the queue stayed empty until you bounced through
+        // board mode (which resets it to null). An empty snapshot is never a valid
+        // "done" state (advancing keeps the keys), so rebuilding it is safe.
+        if (this.triageQueueKeys === null || this.triageQueueKeys.length === 0) {
             // Fall back to a stable no-op order when the view sort is manual.
             const compare = this.cardComparator() ?? ((): number => 0)
             const queue = buildTriageQueue(
@@ -1458,7 +1465,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         const data = current
             ? this.buildTriageData(current, cfg, this.triageCursor + 1, this.triageQueueKeys.length)
             : null
-        renderTriageView(this.boardEl, data, {
+        renderTriageView(this.boardEl, data, cfg.scope, {
             onSetProperty: (name, value) => void this.triageSetProperty(current, name, value),
             onNext: () => this.triageAdvance(),
             onSkip: () => this.triageAdvance(),

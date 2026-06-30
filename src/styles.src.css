@@ -1511,11 +1511,15 @@
         color: var(--text-muted);
     }
 
+    /* stylelint-disable declaration-no-important -- the active tab accent must beat
+       Obsidian's unlayered <button> styles (which win over our @layer rules
+       regardless of specificity), like .kap-mode-btn-active (issue #66). */
     .kap-root .kap-triage-scope-btn-active,
     .kap-root .kap-triage-scope-btn-active:hover {
-        background: var(--interactive-accent);
-        color: var(--text-on-accent);
+        background: var(--interactive-accent) !important;
+        color: var(--text-on-accent) !important;
     }
+    /* stylelint-enable declaration-no-important */
 
     .kap-root .kap-triage-exit {
         @apply inline-flex items-center justify-center w-7 h-7 rounded cursor-pointer border-0;
@@ -1566,8 +1570,18 @@
     }
 
     .kap-root .kap-triage-prop-label {
-        @apply text-sm font-medium;
+        @apply flex items-center gap-1 text-sm font-medium;
         color: var(--text-normal);
+    }
+
+    /* A green check on a property whose value is set (no longer needs triage). */
+    .kap-root .kap-triage-prop-check {
+        @apply inline-flex items-center justify-center;
+        color: var(--text-success, var(--color-green));
+    }
+
+    .kap-root .kap-triage-prop-check .svg-icon {
+        @apply w-4 h-4;
     }
 
     .kap-root .kap-triage-prop-flag {
@@ -1580,7 +1594,7 @@
     }
 
     .kap-root .kap-triage-option {
-        @apply px-2.5 py-1 text-sm rounded cursor-pointer border;
+        @apply inline-flex items-center gap-1 px-2.5 py-1 text-sm rounded cursor-pointer border;
         background: var(--background-primary);
         border-color: var(--background-modifier-border);
         color: var(--text-normal);
@@ -1590,11 +1604,22 @@
         background: var(--background-modifier-hover);
     }
 
+    /* stylelint-disable declaration-no-important -- the selected value's accent fill
+       must beat Obsidian's unlayered <button> styles, like .kap-mode-btn-active (#66). */
     .kap-root .kap-triage-option-active,
     .kap-root .kap-triage-option-active:hover {
-        background: var(--interactive-accent);
-        border-color: var(--interactive-accent);
-        color: var(--text-on-accent);
+        background: var(--interactive-accent) !important;
+        border-color: var(--interactive-accent) !important;
+        color: var(--text-on-accent) !important;
+    }
+    /* stylelint-enable declaration-no-important */
+
+    .kap-root .kap-triage-option-check {
+        @apply inline-flex items-center justify-center;
+    }
+
+    .kap-root .kap-triage-option-check .svg-icon {
+        @apply w-3.5 h-3.5;
     }
 
     .kap-root .kap-triage-option-clear {

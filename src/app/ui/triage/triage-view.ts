@@ -52,11 +52,14 @@ export interface TriageCallbacks {
 export function renderTriageView(
     container: HTMLElement,
     data: TriageCardData | null,
+    /** The active scope — passed explicitly so the header highlights the right
+     * tab even in the empty "all clear" state, where `data` is null (issue #66). */
+    activeScope: TriageScope,
     callbacks: TriageCallbacks
 ): void {
     container.empty()
     const root = container.createDiv({ cls: 'kap-triage' })
-    renderHeader(root, data, callbacks)
+    renderHeader(root, data, activeScope, callbacks)
 
     if (!data) {
         const empty = root.createDiv({ cls: 'kap-triage-empty' })
@@ -98,13 +101,13 @@ export function renderTriageView(
 function renderHeader(
     root: HTMLElement,
     data: TriageCardData | null,
+    scope: TriageScope,
     callbacks: TriageCallbacks
 ): void {
     const header = root.createDiv({ cls: 'kap-triage-header' })
     const count = header.createDiv({ cls: 'kap-triage-count' })
     count.setText(data ? `${String(data.position)} of ${String(data.total)}` : 'All clear')
 
-    const scope = data?.scope ?? 'clarify'
     const switcher = header.createDiv({ cls: 'kap-triage-scope', attr: { role: 'tablist' } })
     addScopeButton(switcher, 'Needs clarification', scope === 'clarify', () =>
         callbacks.onScopeChange('clarify')
@@ -135,9 +138,14 @@ function renderEditableProp(
     callbacks: TriageCallbacks
 ): void {
     const row = parent.createDiv({ cls: 'kap-triage-prop' })
+    // A property is "handled" when it has a value that no longer needs triage.
+    const handled = prop.current !== null && !prop.needsTriage
     if (prop.needsTriage) row.addClass('kap-triage-prop-unset')
+    if (handled) row.addClass('kap-triage-prop-done')
     const label = row.createDiv({ cls: 'kap-triage-prop-label' })
-    label.setText(prop.displayName)
+    // A leading check marks a handled property at a glance (issue #66).
+    if (handled) setIcon(label.createSpan({ cls: 'kap-triage-prop-check' }), 'check')
+    label.createSpan({ text: prop.displayName })
     if (prop.needsTriage) label.createSpan({ cls: 'kap-triage-prop-flag', text: ' • needs value' })
 
     const options = row.createDiv({ cls: 'kap-triage-options' })
@@ -145,9 +153,12 @@ function renderEditableProp(
         const active = prop.current === value
         const btn = options.createEl('button', {
             cls: active ? 'kap-triage-option kap-triage-option-active' : 'kap-triage-option',
-            text: value,
             attr: { 'aria-pressed': String(active) }
         })
+        // The selected value gets accent fill; a check is added only when it's a
+        // real, handled value (not a still-needs-triage selection like TBD).
+        if (active && handled) setIcon(btn.createSpan({ cls: 'kap-triage-option-check' }), 'check')
+        btn.createSpan({ text: value })
         btn.addEventListener('click', () => callbacks.onSetProperty(prop.name, value))
     }
     if (prop.current !== null) {
