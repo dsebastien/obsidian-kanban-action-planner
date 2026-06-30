@@ -593,7 +593,8 @@
 
     .kap-card-field {
         max-width: 100%;
-        padding: 0 var(--size-4-1, 0.25rem);
+        /* Comfortable pill padding — vertical room so chips don't read as dense. */
+        padding: var(--size-4-1, 0.25rem) var(--size-4-2, 0.5rem);
         font-size: var(--font-smaller, 0.85em);
         color: var(--text-muted);
         background: var(--background-modifier-hover);
