@@ -1,5 +1,11 @@
 # Release Notes
 
+## 0.7.5 (2026-06-30)
+
+### Bug Fixes
+
+- **plugin:** clear scorecard warnings (activeDocument, activeLeaf, redundant cast)
+
 ## 0.7.4 (2026-06-30)
 
 ### Bug Fixes
