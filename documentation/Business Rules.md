@@ -269,3 +269,23 @@ See `documentation/plans/kanban-action-planner-implementation-plan.md` for full 
     `reviewCountProperty`) defaulting to `last_reviewed` / `review_interval` / `review_count`, plus a
     `defaultReviewIntervalDays` (30) fallback for notes without their own interval. Review needs **no
     per-view config** — it works on any Kanban view via the scope switch.
+30. **Due countdown (issue #62).** The card display carries an optional pure `countdown`
+    (`{ text, tone, placement }`) from `formatCountdown(due, today, soonDays, placement)` (in
+    `card-display.service.ts`, unit-tested): `today` / `in 3d` / `2d overdue` / `in 2w` / `in 3mo` —
+    **auto granularity** (days under 2 weeks, then weeks under ~2 months, then months). `tone`
+    extends the #22 `dueState` scale — `overdue` (red) / `today` (amber) / `soon` (orange, within the
+    threshold) / `future` (muted) — and drives **color, not visibility**. Reuses the already-resolved
+    `dueDateProperty` (no new property config). **Visibility is per-view** (`showDueCountdown`
+    toggle, default **off**). **Position and color threshold are global plugin settings**:
+    `dueCountdownStyle` (`title` right-aligned title-row pill [default] / `chip` field chip / `corner`
+    absolute top-right / `footer` full-width row) and `dueSoonThresholdDays` (default **7**). Rendered
+    in `card-renderer.ts` and part of the card signature (re-renders on change); the title-row
+    placement is the only one kept out of the height-affecting bottom chips.
+31. **Scoped settings refresh (issue #67).** `saveSettings(scope)` notifies open boards **before**
+    the async disk write and passes a refresh **scope** so a cosmetic change applies at once instead
+    of running the full (~seconds on large boards) re-derivation: `chrome` → toggle the chip-style
+    class only (`applyChipStyle`, O(1)); `cards` → recompute just each card's **due countdown** and
+    re-render (`refreshCardDisplay`), reusing relationships/search/note-type/order; `full` (default)
+    → debounced `resolveAndRebuild` (property names, note types, statuses, swimlanes). The settings
+    tab picks the scope: chip style = `chrome`, due-countdown position / soon-threshold = `cards`,
+    everything else = `full`. `full` stays debounced so per-keystroke text edits coalesce.

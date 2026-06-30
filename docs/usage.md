@@ -502,6 +502,22 @@ it stays distinct from a blocked card's red **left edge** — a card that is bot
 overdue shows both signals. The state updates whenever the board refreshes (e.g. as the date
 rolls over).
 
+**Due countdown.** Turn on **Show due countdown** in a board's view options (**Configure view →
+Cards**) to add a compact badge that says **how soon** a card is due — `today`, `in 3d`,
+`2d overdue`, `in 2w`, `in 3mo` (the unit scales automatically: days, then weeks, then months).
+The badge is color-coded by urgency: **red** overdue, **amber** today, **orange** soon, and a
+**muted** tone further out. The toggle is **per board** (off by default), reusing the same due
+date the red emphasis uses.
+
+Two global settings (**Settings → Community plugins → Kanban Action Planner**) tune it for every
+board:
+
+- **Due countdown position** — where the badge sits: **Title row** _(default)_ a right-aligned
+  pill on the title, **Field chip** among the bottom chips, **Top-right corner** a pill in the
+  card corner, or **Footer row** a strip at the bottom.
+- **Due "soon" threshold (days)** — within how many days the badge turns warm (orange). Default
+  **7**. This changes the **color**, not whether the badge shows.
+
 The dialog also has **Swimlanes** (group the board into lanes) and **Archiving** (move
 finished cards into a folder) sections — see Swimlanes and Archiving above.
 

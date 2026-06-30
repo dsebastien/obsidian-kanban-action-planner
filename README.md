@@ -26,7 +26,7 @@ Then add a **Kanban** view to any [Base](https://help.obsidian.md/bases) — see
 - **Archiving** — move finished cards into a placeholder-driven folder (`Archive/{{year}}` and more), manually or auto-triggered by a status; links are preserved.
 - **Cards show your view's properties** — each card renders the properties you've added to the Bases view (the standard **Properties** selection), labelled and in order — ordinary properties **and base formulas** (`formula.…`) alike, so a computed value shows with no extra setup. Enum values are **color-coded by rank** (warm = top priority/urgency, cool = low) so the board reads like a heatmap, the `NN -` sort prefix is hidden, and a numeric score shows as an accent badge.
 - **Note types** — reusable per-type config (statuses, colors, relationships, archiving, swimlanes). Define your own by tag/folder/regex, or mirror them from the Obsidian Starter Kit when present.
-- **Productivity touches** — soft per-column **WIP limits**, **multi-select** with bulk set-status / archive / open, **overdue/due-today** card emphasis, native **hover preview**, and per-view state remembered across reloads.
+- **Productivity touches** — soft per-column **WIP limits**, **multi-select** with bulk set-status / archive / open, **overdue/due-today** card emphasis, an optional **due countdown** badge (`in 3d`, `2d overdue`, `today` — color-coded by urgency, positionable on the title / a chip / the corner / a footer), native **hover preview**, and per-view state remembered across reloads.
 - **Your notes stay the source of truth** — status, order, dates, relationships, and grouping are all written to frontmatter. Works on desktop and mobile, reduced-motion-aware.
 
 ## Development

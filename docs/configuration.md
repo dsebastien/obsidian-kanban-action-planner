@@ -17,8 +17,9 @@ Settings live in three places, by scope:
   synchronized into this list automatically; the **Default** entry covers notes with no
   recognized type. Click **Configure** next to a type to edit it.
 - **Per-board configuration** (**Configure view** — the Bases view options for the Kanban view)
-  — settings for **this board only**, grouped into **Columns**, **Swimlanes**, **Filters**, and
-  **Calendar**. The property pickers there list only your notes' **frontmatter** properties (not
+  — settings for **this board only**, grouped into **Columns**, **Cards**, **Swimlanes**,
+  **Filters**, and **Calendar**. The property pickers there list only your notes' **frontmatter**
+  properties (not
   `file.*` or formula columns, which the board can't read or write); when the Obsidian Starter
   Kit is enabled they're further limited to your note types' known properties.
 
@@ -170,3 +171,16 @@ toolbar **filter box** — see the usage guide's "Filtering" section.
 The week the calendar grid starts on is set by **First day of the week** in the plugin settings
 (default **Monday**). This only affects the calendar display; the `{{week}}` archive placeholder
 stays ISO week numbering.
+
+## Due countdown
+
+A card can show a compact **countdown to its due date** (`today`, `in 3d`, `2d overdue`,
+`in 2w`, `in 3mo` — the unit auto-scales from days to weeks to months), color-coded by urgency
+(red overdue, amber today, orange soon, muted further out). It reuses the same **Due date**
+property as the overdue emphasis — no extra property to configure.
+
+| Setting                         | Scope     | Default   | What it does                                                                                                       |
+| ------------------------------- | --------- | --------- | ------------------------------------------------------------------------------------------------------------------ |
+| **Show due countdown**          | Per board | Off       | Turns the badge on for this board (**Configure view → Cards**).                                                    |
+| **Due countdown position**      | Global    | Title row | Where the badge sits: **Title row** (right-aligned pill), **Field chip**, **Top-right corner**, or **Footer row**. |
+| **Due "soon" threshold (days)** | Global    | `7`       | Within how many days the badge turns warm (orange). Changes the **color**, not whether the badge shows.            |
