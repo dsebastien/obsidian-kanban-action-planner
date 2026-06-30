@@ -183,10 +183,14 @@
         background: var(--background-modifier-border);
     }
 
+    /* Square the icon and pin its size: Obsidian's unlayered default button
+       padding shrinks the flex content box, which otherwise squishes the svg
+       horizontally into a tiny sliver (issue #63). flex-none keeps it square. */
     .kap-root .kap-filter-clear svg,
     .kap-root .kap-filter-help svg {
-        width: 0.85em;
-        height: 0.85em;
+        @apply flex-none;
+        width: 1.05rem;
+        height: 1.05rem;
     }
 
     .kap-root .kap-hidden {
