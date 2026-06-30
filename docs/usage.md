@@ -98,9 +98,13 @@ at-a-time queue** so you clarify items in short passes instead of facing the who
 Switch to it with the **Triage** button next to **Board** / **Calendar** (or the **Toggle triage
 mode** command).
 
+The card scrolls on its own when it's tall (or the UI is zoomed), and the scope tabs and the
+**Skip** / **Next** actions stay pinned so they're always reachable.
+
 Each card shows:
 
-- **Read-only context** on top — the properties you chose to see, **including base formulas** (e.g.
+- **The note title** at the top, with an **Open** button beside it to jump to the note.
+- **Read-only context** below it — the properties you chose to see, **including base formulas** (e.g.
   a `priority_score` or a horizon formula), so you decide with the computed values in view.
 - **One-click editable controls** — each editable enum property (priority, urgency, effort, …)
   as a row of its allowed values; click one to set it. The **selected value is highlighted**, and a
