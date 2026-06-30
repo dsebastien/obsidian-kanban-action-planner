@@ -1487,28 +1487,69 @@
     /* ========================================
        TRIAGE MODE (issue #53)
        ======================================== */
+    /* The triage view fills the host: a fixed header + footer with a scrollable
+       body between them, so the action buttons never get clipped off-screen and
+       the body scrolls when the card is tall / the UI is zoomed (issue #65). */
     .kap-root .kap-triage {
-        @apply flex flex-col gap-4 p-4 mx-auto w-full;
-        max-width: 40rem;
+        @apply flex flex-col h-full min-h-0 w-full;
+        overflow: hidden;
     }
 
     .kap-root .kap-triage-header {
-        @apply flex items-center gap-3;
+        @apply flex flex-col flex-none gap-2 px-4 pt-3 pb-2;
+        background: var(--background-primary);
+        border-bottom: 1px solid var(--background-modifier-border);
+    }
+
+    .kap-root .kap-triage-header-main {
+        @apply flex flex-wrap items-center gap-2;
     }
 
     .kap-root .kap-triage-count {
-        @apply text-sm font-medium;
+        @apply text-sm;
         color: var(--text-muted);
+    }
+
+    .kap-root .kap-triage-count-pos {
+        @apply font-semibold;
+        color: var(--text-normal);
+    }
+
+    .kap-root .kap-triage-count-sep {
+        color: var(--text-faint);
+    }
+
+    /* Queue progress — a thin accent bar under the header. */
+    .kap-root .kap-triage-progress {
+        @apply w-full overflow-hidden;
+        height: 3px;
+        border-radius: 999px;
+        background: var(--background-modifier-border);
+    }
+
+    .kap-root .kap-triage-progress-fill {
+        @apply h-full;
+        border-radius: 999px;
+        background: var(--interactive-accent);
+        transition: width var(--kap-transition-slow) var(--kap-ease);
     }
 
     .kap-root .kap-triage-scope {
-        @apply flex gap-1 ml-auto;
+        @apply flex flex-wrap gap-1 ml-auto;
     }
 
     .kap-root .kap-triage-scope-btn {
-        @apply px-2 py-1 text-xs rounded cursor-pointer border-0;
+        @apply px-3 py-1 text-xs font-medium cursor-pointer border-0;
+        border-radius: 999px;
         background: var(--background-modifier-hover);
         color: var(--text-muted);
+        transition:
+            background var(--kap-transition) var(--kap-ease),
+            color var(--kap-transition) var(--kap-ease);
+    }
+
+    .kap-root .kap-triage-scope-btn:hover {
+        color: var(--text-normal);
     }
 
     /* stylelint-disable declaration-no-important -- the active tab accent must beat
@@ -1521,26 +1562,93 @@
     }
     /* stylelint-enable declaration-no-important */
 
-    .kap-root .kap-triage-exit {
+    .kap-root .kap-triage-icon-btn {
         @apply inline-flex items-center justify-center w-7 h-7 rounded cursor-pointer border-0;
         background: var(--background-modifier-hover);
         color: var(--text-muted);
+        transition:
+            background var(--kap-transition) var(--kap-ease),
+            color var(--kap-transition) var(--kap-ease);
     }
 
-    .kap-root .kap-triage-card {
-        @apply flex flex-col gap-4 p-4 rounded border;
-        background: var(--background-primary);
-        border-color: var(--background-modifier-border);
-        box-shadow: var(--shadow-s);
-    }
-
-    .kap-root .kap-triage-title {
-        @apply text-lg font-semibold text-left cursor-pointer border-0 bg-transparent p-0;
+    .kap-root .kap-triage-icon-btn:hover {
+        background: var(--background-modifier-active-hover, var(--background-modifier-hover));
         color: var(--text-normal);
     }
 
-    .kap-root .kap-triage-title:hover {
+    /* Scrollable body holding the card (or the empty state), centered. */
+    .kap-root .kap-triage-body {
+        @apply flex-1 min-h-0 w-full overflow-y-auto p-4;
+    }
+
+    /* Card (grows to its max) + the action column, centered as a group; wraps to
+       a single column on narrow widths (issue #65). */
+    .kap-root .kap-triage-layout {
+        @apply flex flex-wrap items-start justify-center gap-4 mx-auto w-full;
+        max-width: 52rem;
+    }
+
+    .kap-root .kap-triage-card {
+        @apply flex flex-col gap-5 p-5 rounded-lg;
+        flex: 1 1 28rem;
+        min-width: 0;
+        max-width: 40rem;
+        background: var(--background-primary);
+        border: 1px solid var(--background-modifier-border);
+        border-top: 3px solid var(--interactive-accent);
+        box-shadow: var(--shadow-m);
+    }
+
+    /* Action column to the card's right; sticks to the top of the scroll area so
+       Skip/Next stay reachable while you scroll a tall card. */
+    .kap-root .kap-triage-actions {
+        @apply flex flex-col gap-2 flex-none;
+        width: 8.5rem;
+        position: sticky;
+        top: 0;
+        align-self: flex-start;
+    }
+
+    .kap-root .kap-triage-action-icon {
+        @apply inline-flex;
+    }
+
+    .kap-root .kap-triage-action-icon .svg-icon {
+        @apply w-4 h-4;
+    }
+
+    /* Title stands out as a heading; the Open button sits beside it. */
+    .kap-root .kap-triage-title-row {
+        @apply flex items-start justify-between gap-3;
+    }
+
+    .kap-root .kap-triage-title {
+        @apply text-xl font-bold leading-tight m-0;
+        color: var(--text-normal);
+        overflow-wrap: anywhere;
+    }
+
+    .kap-root .kap-triage-open {
+        @apply inline-flex items-center gap-1.5 flex-none px-2.5 py-1 text-sm rounded cursor-pointer border;
+        background: var(--interactive-normal);
+        border-color: var(--background-modifier-border);
+        color: var(--text-muted);
+        transition:
+            color var(--kap-transition) var(--kap-ease),
+            border-color var(--kap-transition) var(--kap-ease);
+    }
+
+    .kap-root .kap-triage-open:hover {
         color: var(--text-accent);
+        border-color: var(--text-accent);
+    }
+
+    .kap-root .kap-triage-open-icon {
+        @apply inline-flex;
+    }
+
+    .kap-root .kap-triage-open-icon .svg-icon {
+        @apply w-4 h-4;
     }
 
     .kap-root .kap-triage-context {
@@ -1548,8 +1656,10 @@
     }
 
     .kap-root .kap-triage-context-field {
-        @apply inline-flex items-center gap-1 px-2 py-1 rounded text-sm;
+        @apply inline-flex items-center gap-1 px-2.5 py-1 text-sm;
+        border-radius: var(--radius-m, 8px);
         background: var(--background-secondary);
+        border: 1px solid var(--background-modifier-border);
     }
 
     .kap-root .kap-triage-context-label {
@@ -1565,12 +1675,26 @@
         @apply flex flex-col gap-3;
     }
 
+    /* Each editable property is a light field card with a status-colored left
+       edge (accent = needs a value, green = handled) for at-a-glance scanning. */
     .kap-root .kap-triage-prop {
-        @apply flex flex-col gap-1.5;
+        @apply flex flex-col gap-2 p-3;
+        border-radius: var(--radius-m, 8px);
+        background: var(--background-secondary);
+        border: 1px solid var(--background-modifier-border);
+        border-left: 3px solid var(--background-modifier-border);
+    }
+
+    .kap-root .kap-triage-prop-unset {
+        border-left-color: var(--text-accent);
+    }
+
+    .kap-root .kap-triage-prop-done {
+        border-left-color: var(--text-success, var(--color-green));
     }
 
     .kap-root .kap-triage-prop-label {
-        @apply flex items-center gap-1 text-sm font-medium;
+        @apply flex items-center gap-1 text-sm font-semibold;
         color: var(--text-normal);
     }
 
@@ -1598,10 +1722,14 @@
         background: var(--background-primary);
         border-color: var(--background-modifier-border);
         color: var(--text-normal);
+        transition:
+            background var(--kap-transition) var(--kap-ease),
+            border-color var(--kap-transition) var(--kap-ease);
     }
 
     .kap-root .kap-triage-option:hover {
         background: var(--background-modifier-hover);
+        border-color: var(--interactive-accent);
     }
 
     /* stylelint-disable declaration-no-important -- the selected value's accent fill
@@ -1627,30 +1755,56 @@
         color: var(--text-muted);
     }
 
-    .kap-root .kap-triage-footer {
-        @apply flex justify-end gap-2;
+    .kap-root .kap-triage-option-clear:hover {
+        color: var(--text-error);
+    }
+
+    /* Big, full-width action buttons stacked in the side column. */
+    .kap-root .kap-triage-skip,
+    .kap-root .kap-triage-next {
+        @apply inline-flex items-center justify-center gap-2 w-full px-4 py-3 text-base font-semibold cursor-pointer border-0;
+        border-radius: var(--radius-m, 8px);
     }
 
     .kap-root .kap-triage-skip {
-        @apply px-3 py-1.5 rounded cursor-pointer border-0;
         background: var(--background-modifier-hover);
         color: var(--text-muted);
     }
 
-    .kap-root .kap-triage-next {
-        @apply px-3 py-1.5 rounded cursor-pointer border-0 font-medium;
-        background: var(--interactive-accent);
-        color: var(--text-on-accent);
+    .kap-root .kap-triage-skip:hover {
+        color: var(--text-normal);
     }
 
+    /* stylelint-disable declaration-no-important -- the primary action must show the
+       accent fill, beating Obsidian's unlayered <button> styles (#65). */
+    .kap-root .kap-triage-next,
+    .kap-root .kap-triage-next:hover {
+        background: var(--interactive-accent) !important;
+        color: var(--text-on-accent) !important;
+    }
+
+    .kap-root .kap-triage-next:hover {
+        background: var(--interactive-accent-hover, var(--interactive-accent)) !important;
+    }
+    /* stylelint-enable declaration-no-important */
+
     .kap-root .kap-triage-empty {
-        @apply flex flex-col items-center gap-3 p-8 text-center;
+        @apply flex flex-col items-center justify-center gap-2 h-full p-8 text-center;
         color: var(--text-muted);
+    }
+
+    .kap-root .kap-triage-empty-title {
+        @apply text-lg font-semibold;
+        color: var(--text-normal);
     }
 
     .kap-root .kap-triage-empty-icon {
         @apply flex items-center justify-center;
-        color: var(--text-accent);
+        color: var(--color-green, var(--text-accent));
+    }
+
+    .kap-root .kap-triage-empty-icon .svg-icon {
+        @apply w-10 h-10;
     }
 
     /* Configure-triage modal: removable property/value chips. */

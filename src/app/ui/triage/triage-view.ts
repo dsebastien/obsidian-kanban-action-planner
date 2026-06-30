@@ -58,24 +58,41 @@ export function renderTriageView(
     callbacks: TriageCallbacks
 ): void {
     container.empty()
+    // The triage view fills the host and owns its own scroll: a fixed header above
+    // a scrollable body, so nothing gets clipped however tall the card grows or how
+    // far the UI is zoomed (#65). The Skip/Next actions live in a sticky side
+    // column (see renderActions), not a full-width footer.
     const root = container.createDiv({ cls: 'kap-triage' })
     renderHeader(root, data, activeScope, callbacks)
 
+    const body = root.createDiv({ cls: 'kap-triage-body' })
+
     if (!data) {
-        const empty = root.createDiv({ cls: 'kap-triage-empty' })
+        const empty = body.createDiv({ cls: 'kap-triage-empty' })
         setIcon(empty.createDiv({ cls: 'kap-triage-empty-icon' }), 'check-check')
+        empty.createDiv({ cls: 'kap-triage-empty-title', text: 'All clear' })
         empty.createDiv({
             cls: 'kap-triage-empty-text',
-            text: 'Nothing to triage in this scope. Switch scope (clarify / all cards / due for review), or exit.'
+            text: 'Nothing to triage in this scope. Switch scope above, or exit triage.'
         })
         return
     }
 
-    const card = root.createDiv({ cls: 'kap-triage-card' })
+    // Card on the left, the Skip/Next actions in a sticky column to its right —
+    // so the actions stay beside the card (no wasted full-width footer) and stay
+    // put while you scroll a tall card (#65). Wraps below on narrow widths.
+    const layout = body.createDiv({ cls: 'kap-triage-layout' })
+    const card = layout.createDiv({ cls: 'kap-triage-card' })
 
     const titleRow = card.createDiv({ cls: 'kap-triage-title-row' })
-    const title = titleRow.createEl('button', { cls: 'kap-triage-title', text: data.title })
-    title.addEventListener('click', () => callbacks.onOpen())
+    titleRow.createEl('h2', { cls: 'kap-triage-title', text: data.title })
+    const open = titleRow.createEl('button', {
+        cls: 'kap-triage-open',
+        attr: { 'aria-label': 'Open note', 'title': 'Open note' }
+    })
+    setIcon(open.createSpan({ cls: 'kap-triage-open-icon' }), 'square-arrow-out-up-right')
+    open.createSpan({ text: 'Open' })
+    open.addEventListener('click', () => callbacks.onOpen())
 
     if (data.context.length > 0) {
         const ctx = card.createDiv({ cls: 'kap-triage-context' })
@@ -95,7 +112,7 @@ export function renderTriageView(
         renderEditableProp(edit, prop, callbacks)
     }
 
-    renderFooter(root, data, callbacks)
+    renderActions(layout, data, callbacks)
 }
 
 function renderHeader(
@@ -105,10 +122,18 @@ function renderHeader(
     callbacks: TriageCallbacks
 ): void {
     const header = root.createDiv({ cls: 'kap-triage-header' })
-    const count = header.createDiv({ cls: 'kap-triage-count' })
-    count.setText(data ? `${String(data.position)} of ${String(data.total)}` : 'All clear')
+    const main = header.createDiv({ cls: 'kap-triage-header-main' })
 
-    const switcher = header.createDiv({ cls: 'kap-triage-scope', attr: { role: 'tablist' } })
+    const count = main.createDiv({ cls: 'kap-triage-count' })
+    if (data) {
+        count.createSpan({ cls: 'kap-triage-count-pos', text: String(data.position) })
+        count.createSpan({ cls: 'kap-triage-count-sep', text: ' / ' })
+        count.createSpan({ text: String(data.total) })
+    } else {
+        count.setText('All clear')
+    }
+
+    const switcher = main.createDiv({ cls: 'kap-triage-scope', attr: { role: 'tablist' } })
     addScopeButton(switcher, 'Needs clarification', scope === 'clarify', () =>
         callbacks.onScopeChange('clarify')
     )
@@ -117,19 +142,24 @@ function renderHeader(
         callbacks.onScopeChange('review')
     )
 
-    const configure = header.createEl('button', {
-        cls: 'kap-triage-exit',
+    const configure = main.createEl('button', {
+        cls: 'kap-triage-icon-btn',
         attr: { 'aria-label': 'Configure triage', 'title': 'Configure triage' }
     })
     setIcon(configure, 'settings')
     configure.addEventListener('click', () => callbacks.onConfigure())
 
-    const exit = header.createEl('button', {
-        cls: 'kap-triage-exit',
+    const exit = main.createEl('button', {
+        cls: 'kap-triage-icon-btn',
         attr: { 'aria-label': 'Exit triage', 'title': 'Exit triage' }
     })
     setIcon(exit, 'x')
     exit.addEventListener('click', () => callbacks.onExit())
+
+    // A thin progress bar shows how far through the queue you are (#65).
+    const pct = data && data.total > 0 ? Math.round((data.position / data.total) * 100) : 0
+    const bar = header.createDiv({ cls: 'kap-triage-progress' })
+    bar.createDiv({ cls: 'kap-triage-progress-fill' }).style.width = `${String(pct)}%`
 }
 
 function renderEditableProp(
@@ -167,20 +197,36 @@ function renderEditableProp(
     }
 }
 
-function renderFooter(root: HTMLElement, data: TriageCardData, callbacks: TriageCallbacks): void {
-    const footer = root.createDiv({ cls: 'kap-triage-footer' })
-    const skip = footer.createEl('button', { cls: 'kap-triage-skip', text: 'Skip' })
-    skip.addEventListener('click', () => callbacks.onSkip())
+/** Build a labelled action button with a leading icon. */
+function actionButton(parent: HTMLElement, cls: string, icon: string, label: string): HTMLElement {
+    const btn = parent.createEl('button', { cls })
+    setIcon(btn.createSpan({ cls: 'kap-triage-action-icon' }), icon)
+    btn.createSpan({ text: label })
+    return btn
+}
+
+function renderActions(
+    layout: HTMLElement,
+    data: TriageCardData,
+    callbacks: TriageCallbacks
+): void {
+    const actions = layout.createDiv({ cls: 'kap-triage-actions' })
+    // Primary action on top: advance to the next card (review scope stamps first).
     if (data.scope === 'review') {
-        const reviewed = footer.createEl('button', {
-            cls: 'kap-triage-next',
-            text: 'Reviewed'
-        })
-        reviewed.addEventListener('click', () => callbacks.onMarkReviewed())
+        actionButton(actions, 'kap-triage-next', 'check', 'Reviewed').addEventListener(
+            'click',
+            () => callbacks.onMarkReviewed()
+        )
     } else {
-        const next = footer.createEl('button', { cls: 'kap-triage-next', text: 'Next' })
-        next.addEventListener('click', () => callbacks.onNext())
+        actionButton(actions, 'kap-triage-next', 'arrow-right', 'Next').addEventListener(
+            'click',
+            () => callbacks.onNext()
+        )
     }
+    actionButton(actions, 'kap-triage-skip', 'chevrons-right', 'Skip').addEventListener(
+        'click',
+        () => callbacks.onSkip()
+    )
 }
 
 function addScopeButton(
