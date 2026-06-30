@@ -559,9 +559,14 @@
 
     .kap-card-title {
         color: var(--text-normal);
+        /* Anchor the top of the card: heavier than the field values below. */
+        font-weight: var(--font-semibold, 600);
         word-break: break-word;
-        /* A bit of breathing room before the chips (the minimum gap when a card
-           is content-tall; grows when the card is padded to the shared height). */
+        /* A header rule visually separates the title (top) from the chips
+           (bottom). padding-bottom spaces the rule from the text; margin-bottom
+           is the minimum gap to the chips (grows on padded, uniform-height cards). */
+        padding-bottom: var(--size-4-2, 0.5rem);
+        border-bottom: 1px solid var(--background-modifier-border);
         margin-bottom: var(--size-4-2, 0.5rem);
     }
 
