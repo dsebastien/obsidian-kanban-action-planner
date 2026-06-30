@@ -193,7 +193,11 @@
         height: 1.05rem;
     }
 
-    .kap-root .kap-hidden {
+    /* Doubled class (0,3,0) so `display: none` beats component rules that
+       declare their own display later in source order — e.g. `.kap-selection-bar`
+       (`@apply flex`, 0,2,0) otherwise re-showed an empty bar under the toolbar
+       (issue #60). */
+    .kap-root .kap-hidden.kap-hidden {
         @apply hidden;
     }
 
