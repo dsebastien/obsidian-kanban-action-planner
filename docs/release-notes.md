@@ -1,5 +1,11 @@
 # Release Notes
 
+## 0.8.0 (2026-06-30)
+
+### Features
+
+- **plugin:** auto-advance and scroll-reset in triage mode
+
 ## 0.7.6 (2026-06-30)
 
 ### Features
