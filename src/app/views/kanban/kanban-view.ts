@@ -177,6 +177,11 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
     // entering triage, and the cursor into it. Null = needs (re)building.
     private triageQueueKeys: string[] | null = null
     private triageCursor = 0
+    // Set by Next/Skip (and completion auto-advance) so the next render scrolls the
+    // body back to the top — a new card should start at its title, not inherit the
+    // scroll of the one you just left. Plain in-place writes leave it false so the
+    // body keeps its position (a value selection re-renders the whole view).
+    private triageResetScroll = false
     // Signature of the last triage render (card data + scope). When a write echoes
     // back through the Base (onDataUpdated → debounced rebuild), the recomputed
     // data is identical to what's already on screen — skip the teardown so the view
@@ -1517,27 +1522,41 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         const mounted = this.boardEl.querySelector('.kap-triage-body') !== null
         if (mounted && signature === this.lastTriageSignature) return
         this.lastTriageSignature = signature
-        renderTriageView(this.boardEl, data, cfg.scope, {
-            onSetProperty: (name, value) => void this.triageSetProperty(current, name, value),
-            onNext: () => this.triageAdvance(),
-            onSkip: () => this.triageAdvance(),
-            onMarkReviewed: () => void this.triageMarkReviewed(current),
-            onOpen: () => {
-                if (current) this.openCard(current, false)
+        // A null card with a non-empty queue means the cursor ran off the end —
+        // i.e. the user worked through every card. Distinguish that "all done"
+        // celebration from a scope that simply had nothing to triage (empty queue).
+        const completedAll = data === null && this.triageQueueKeys.length > 0
+        const scrollToTop = this.triageResetScroll
+        this.triageResetScroll = false
+        renderTriageView(
+            this.boardEl,
+            data,
+            cfg.scope,
+            {
+                onSetProperty: (name, value) => void this.triageSetProperty(current, name, value),
+                onNext: () => this.triageAdvance(),
+                onSkip: () => this.triageAdvance(),
+                onMarkReviewed: () => void this.triageMarkReviewed(current),
+                onOpen: () => {
+                    if (current) this.openCard(current, false)
+                },
+                onExit: () => this.setViewMode('board'),
+                onRefresh: () => {
+                    this.triageQueueKeys = null
+                    this.renderTriage()
+                },
+                onConfigure: () => this.openTriageConfig(),
+                onScopeChange: (scope) => this.setTriageScope(scope)
             },
-            onExit: () => this.setViewMode('board'),
-            onRefresh: () => {
-                this.triageQueueKeys = null
-                this.renderTriage()
-            },
-            onConfigure: () => this.openTriageConfig(),
-            onScopeChange: (scope) => this.setTriageScope(scope)
-        })
+            { scrollToTop, completedAll }
+        )
     }
 
     /** Advance the triage cursor (Next/Skip); past the end shows the done state. */
     private triageAdvance(): void {
         this.triageCursor += 1
+        // A new card starts at the top — don't inherit the scroll of the last one.
+        this.triageResetScroll = true
         this.renderTriage()
     }
 
@@ -1617,7 +1636,12 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         }).open()
     }
 
-    /** Write a triage enum value, then re-render in place (no auto-advance). */
+    /**
+     * Write a triage enum value. While the card still has unset gating props, the
+     * view re-renders in place (so you can keep filling fields). The moment the last
+     * one is filled, celebrate and auto-advance to the next card — or the "all done"
+     * state when this was the last card in the queue.
+     */
     private async triageSetProperty(
         card: KanbanCard | undefined,
         name: string,
@@ -1633,8 +1657,14 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         // Use the value we just wrote for `nowComplete` — the metadata cache hasn't
         // reparsed yet, so re-reading it here would still see the old value.
         const nowComplete = this.cardUnsetCount(card, cfg, { name, value }) === 0
-        this.renderTriage()
-        if (!wasComplete && nowComplete) this.celebrateTriageComplete()
+        if (!wasComplete && nowComplete) {
+            // Card fully clarified — celebrate, then jump to the next card (or the
+            // done state when this was the last one).
+            this.celebrateTriageComplete()
+            this.triageAdvance()
+        } else {
+            this.renderTriage()
+        }
     }
 
     /** Play the triage-complete confetti burst, when enabled in settings. */

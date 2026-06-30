@@ -253,8 +253,13 @@ See `documentation/plans/kanban-action-planner-implementation-plan.md` for full 
     (`views/kanban/triage.ts`, pure). Queue order is **worst-first** (most unset props), tie-broken by
     the view's card comparator, held as a **stable per-session snapshot** (cursor by card key) so a
     write doesn't reshuffle it. **Scopes:** `clarify` (only unclarified cards; a card drops as it's
-    completed), `all` (every card, re-prioritize), or `review` (#57; see rule 29). **No auto-advance**
-    after a write (the recomputed score stays visible); explicit Skip/Next. Editing reuses the #52
+    completed), `all` (every card, re-prioritize), or `review` (#57; see rule 29). A write **re-renders
+    in place** (recomputed score stays visible, body scroll preserved) **while the card still has
+    unset gating props**; the moment the **last** one is filled the card is fully clarified, so it
+    **celebrates and auto-advances** to the next card — or the **"All done" state** when it was the
+    last in the queue. **Skip/Next** advance explicitly and **scroll the body back to the top** (a new
+    card starts at its title). The empty state distinguishes **"All done"** (finished the whole queue,
+    celebratory) from **"All clear"** (the scope had nothing to triage). Editing reuses the #52
     allowed-values + frontmatter writes. **Mixed-type** boards resolve props + allowed values **per
     card** via its recognized note type, and gating is **type-aware**: a `note.*` gating prop only
     counts against a card when that card's type **defines** it (so a task-only prop never flags goals,

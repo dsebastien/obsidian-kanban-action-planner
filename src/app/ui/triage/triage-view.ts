@@ -44,10 +44,21 @@ export interface TriageCallbacks {
     onScopeChange(scope: TriageScope): void
 }
 
+/** Render-time options that don't belong to the card data itself. */
+export interface TriageRenderOptions {
+    /** Start the body at the top instead of preserving the previous scroll —
+     * set when moving to a new card (Next/Skip/auto-advance), not on in-place writes. */
+    scrollToTop?: boolean
+    /** When `data` is null, whether the queue was finished (true → celebratory "all
+     * done") versus simply empty for this scope (false → neutral "all clear"). */
+    completedAll?: boolean
+}
+
 /**
  * Render the triage queue UI (issue #53) into `container`. `data` is the current
- * card, or `null` for the "all clear" empty state. Pure DOM from the passed data
- * — the caller assembles it and handles the callbacks (writes, navigation).
+ * card, or `null` for the empty state ("all done" when `completedAll`, else "all
+ * clear"). Pure DOM from the passed data — the caller assembles it and handles the
+ * callbacks (writes, navigation).
  */
 export function renderTriageView(
     container: HTMLElement,
@@ -55,12 +66,16 @@ export function renderTriageView(
     /** The active scope — passed explicitly so the header highlights the right
      * tab even in the empty "all clear" state, where `data` is null (issue #66). */
     activeScope: TriageScope,
-    callbacks: TriageCallbacks
+    callbacks: TriageCallbacks,
+    options: TriageRenderOptions = {}
 ): void {
     // Preserve the body's vertical scroll across the full teardown below. A write
     // re-renders the whole view (the snapshot is rebuilt, not patched), so without
-    // this the body jumps back to the top after every value selection.
-    const prevScroll = container.querySelector<HTMLElement>('.kap-triage-body')?.scrollTop ?? 0
+    // this the body jumps back to the top after every value selection. On a move to
+    // a new card the caller asks to reset, so the next card starts at its title.
+    const prevScroll = options.scrollToTop
+        ? 0
+        : (container.querySelector<HTMLElement>('.kap-triage-body')?.scrollTop ?? 0)
 
     container.empty()
     // The triage view fills the host and owns its own scroll: a fixed header above
@@ -73,13 +88,7 @@ export function renderTriageView(
     const body = root.createDiv({ cls: 'kap-triage-body' })
 
     if (!data) {
-        const empty = body.createDiv({ cls: 'kap-triage-empty' })
-        setIcon(empty.createDiv({ cls: 'kap-triage-empty-icon' }), 'check-check')
-        empty.createDiv({ cls: 'kap-triage-empty-title', text: 'All clear' })
-        empty.createDiv({
-            cls: 'kap-triage-empty-text',
-            text: 'Nothing to triage in this scope. Switch scope above, or exit triage.'
-        })
+        renderEmptyState(body, options.completedAll ?? false)
         return
     }
 
@@ -122,6 +131,29 @@ export function renderTriageView(
     // Restore the scroll the predecessor body had — done last, once the body has
     // content (an empty body has no scroll range, so it would clamp to 0).
     if (prevScroll > 0) body.scrollTop = prevScroll
+}
+
+/**
+ * The empty state. `completedAll` ⇒ a celebratory "all done" (the user cleared the
+ * whole queue); otherwise a neutral "all clear" (the scope had nothing to triage).
+ */
+function renderEmptyState(body: HTMLElement, completedAll: boolean): void {
+    const empty = body.createDiv({ cls: 'kap-triage-empty' })
+    if (completedAll) {
+        setIcon(empty.createDiv({ cls: 'kap-triage-empty-icon' }), 'party-popper')
+        empty.createDiv({ cls: 'kap-triage-empty-title', text: 'All done! 🎉' })
+        empty.createDiv({
+            cls: 'kap-triage-empty-text',
+            text: 'Inbox zero, triage hero — every card in this scope is sorted. Switch scope above, or exit triage.'
+        })
+        return
+    }
+    setIcon(empty.createDiv({ cls: 'kap-triage-empty-icon' }), 'check-check')
+    empty.createDiv({ cls: 'kap-triage-empty-title', text: 'All clear' })
+    empty.createDiv({
+        cls: 'kap-triage-empty-text',
+        text: 'Nothing to triage in this scope. Switch scope above, or exit triage.'
+    })
 }
 
 function renderHeader(

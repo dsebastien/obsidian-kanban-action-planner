@@ -122,12 +122,15 @@ Each card shows:
   its name so you can see at a glance what's left, and properties that still need a value are
   flagged **• needs value**. (Allowed values come from the **Enums** config / Starter Kit, see
   Card content → enums.)
-- **Skip** / **Next** to move through the queue, with a **remaining count**. Setting a value does
-  **not** auto-advance, so you can see the recomputed score before moving on.
+- **Skip** / **Next** to move through the queue, with a **remaining count**. Both **scroll the card
+  back to the top** so the next one starts at its title. While a card still has values left to set,
+  picking one **stays put** (the view re-renders in place, keeping your scroll) so you can see the
+  recomputed score; the moment you fill the **last** one, triage **jumps straight to the next card**.
 
 When a card's triage is **completed** (its last gating property filled, or a review marked done), a
-short **confetti** burst celebrates it. Turn this off with **Celebrate completed triage** in
-**Settings → Community plugins → Kanban Action Planner** (under **Review (triage)**).
+short **confetti** burst celebrates it before advancing. Turn this off with **Celebrate completed
+triage** in **Settings → Community plugins → Kanban Action Planner** (under **Review (triage)**).
+Once the **whole queue** is sorted, an **"All done! 🎉"** message takes over.
 
 **Three scopes**, switched in the header (the active one is highlighted):
 
