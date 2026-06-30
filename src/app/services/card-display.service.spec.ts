@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 import {
     computeDueState,
+    formatCountdown,
     heatLevel,
     parseEnumPrefix,
     parseProgressField,
@@ -8,6 +9,76 @@ import {
 } from './card-display.service'
 
 const TODAY = new Date(2026, 5, 28)
+
+describe('formatCountdown (issue #62)', () => {
+    const SOON = 7
+    const at = (offsetDays: number): Date => {
+        const d = new Date(TODAY)
+        d.setDate(d.getDate() + offsetDays)
+        return d
+    }
+
+    it('is null without a due date', () => {
+        expect(formatCountdown(null, TODAY, SOON, 'title')).toBeNull()
+    })
+
+    it('is "today" (amber) on the due day', () => {
+        expect(formatCountdown(TODAY, TODAY, SOON, 'title')).toEqual({
+            text: 'today',
+            tone: 'today',
+            placement: 'title'
+        })
+    })
+
+    it('counts overdue days in the past (red)', () => {
+        expect(formatCountdown(at(-1), TODAY, SOON, 'title')).toEqual({
+            text: '1d overdue',
+            tone: 'overdue',
+            placement: 'title'
+        })
+        expect(formatCountdown(at(-2), TODAY, SOON, 'chip')).toEqual({
+            text: '2d overdue',
+            tone: 'overdue',
+            placement: 'chip'
+        })
+    })
+
+    it('is "soon" within the threshold, "future" beyond it', () => {
+        expect(formatCountdown(at(3), TODAY, SOON, 'title')).toEqual({
+            text: 'in 3d',
+            tone: 'soon',
+            placement: 'title'
+        })
+        // Boundary: exactly the threshold is still "soon"; one day past is "future".
+        expect(formatCountdown(at(7), TODAY, SOON, 'title')).toEqual({
+            text: 'in 7d',
+            tone: 'soon',
+            placement: 'title'
+        })
+        expect(formatCountdown(at(8), TODAY, SOON, 'title')).toEqual({
+            text: 'in 8d',
+            tone: 'future',
+            placement: 'title'
+        })
+    })
+
+    it('auto-scales granularity: days → weeks → months', () => {
+        const text = (offset: number): string | undefined =>
+            formatCountdown(at(offset), TODAY, SOON, 'title')?.text
+        expect(text(13)).toBe('in 13d')
+        expect(text(14)).toBe('in 2w')
+        expect(text(21)).toBe('in 3w')
+        expect(text(60)).toBe('in 2mo')
+        expect(text(90)).toBe('in 3mo')
+    })
+
+    it('carries the placement through unchanged', () => {
+        const placement = (p: 'corner' | 'footer'): string | undefined =>
+            formatCountdown(at(3), TODAY, SOON, p)?.placement
+        expect(placement('corner')).toBe('corner')
+        expect(placement('footer')).toBe('footer')
+    })
+})
 
 describe('computeDueState (issue #22)', () => {
     it('is "none" with no due date', () => {

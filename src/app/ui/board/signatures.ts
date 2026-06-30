@@ -37,7 +37,15 @@ export function cardSignature(
     const rels = roles
         .map((r) => `${r}:${card.relationships[r].map((x) => x.key).join(',')}`)
         .join(';')
-    return [d.title, d.wrap ? 'w' : '', d.coverUrl ?? '', d.dueState, fields, rels, accent].join(
-        '§'
-    )
+    const cd = d.countdown ? `${d.countdown.text}|${d.countdown.tone}|${d.countdown.placement}` : ''
+    return [
+        d.title,
+        d.wrap ? 'w' : '',
+        d.coverUrl ?? '',
+        d.dueState,
+        cd,
+        fields,
+        rels,
+        accent
+    ].join('§')
 }

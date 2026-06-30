@@ -340,6 +340,47 @@ export class KanbanActionPlannerSettingTab extends PluginSettingTab {
             })
 
         new Setting(containerEl)
+            .setName('Due countdown position')
+            .setDesc(
+                'Where the due-countdown badge renders on cards (enable it per board in the ' +
+                    'view options). Title row: a right-aligned pill on the title. Chip: among the ' +
+                    'bottom field chips. Corner: a pill in the top-right corner. Footer: a row at ' +
+                    'the bottom.'
+            )
+            .addDropdown((dd) => {
+                dd.addOption('title', 'Title row (right-aligned)')
+                dd.addOption('chip', 'Field chip')
+                dd.addOption('corner', 'Top-right corner')
+                dd.addOption('footer', 'Footer row')
+                dd.setValue(this.plugin.settings.dueCountdownStyle)
+                dd.onChange((value) => {
+                    if (
+                        value === 'title' ||
+                        value === 'chip' ||
+                        value === 'corner' ||
+                        value === 'footer'
+                    ) {
+                        void this.updateCountdownStyle(value)
+                    }
+                })
+            })
+
+        new Setting(containerEl)
+            .setName('Due "soon" threshold (days)')
+            .setDesc('Within how many days the due countdown turns warm (orange).')
+            .addText((input) => {
+                input.inputEl.type = 'number'
+                input.inputEl.min = '1'
+                input
+                    .setPlaceholder('7')
+                    .setValue(String(this.plugin.settings.dueSoonThresholdDays))
+                    .onChange((value) => {
+                        const n = Number.parseInt(value, 10)
+                        if (Number.isFinite(n) && n > 0) void this.updateSoonThreshold(n)
+                    })
+            })
+
+        new Setting(containerEl)
             .setName('Default statuses (columns)')
             .setDesc(
                 'One status value per line, in column order. Used when a board does not define ' +
@@ -391,7 +432,23 @@ export class KanbanActionPlannerSettingTab extends PluginSettingTab {
         this.plugin.settings = produce(this.plugin.settings, (draft) => {
             draft.cardChipStyle = style
         })
-        await this.plugin.saveSettings()
+        // Chip style is a CSS class toggle — `chrome` applies it instantly (#67).
+        await this.plugin.saveSettings('chrome')
+    }
+
+    private async updateCountdownStyle(style: PluginSettings['dueCountdownStyle']): Promise<void> {
+        this.plugin.settings = produce(this.plugin.settings, (draft) => {
+            draft.dueCountdownStyle = style
+        })
+        // Position is baked into card display — `cards` re-renders just the cards (#67).
+        await this.plugin.saveSettings('cards')
+    }
+
+    private async updateSoonThreshold(days: number): Promise<void> {
+        this.plugin.settings = produce(this.plugin.settings, (draft) => {
+            draft.dueSoonThresholdDays = days
+        })
+        await this.plugin.saveSettings('cards')
     }
 
     private renderFollowButton(containerEl: HTMLElement): void {

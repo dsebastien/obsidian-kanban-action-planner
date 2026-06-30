@@ -4,6 +4,7 @@ import {
     DEFAULT_BLOCKED_BY_PROPERTY,
     DEFAULT_DATE_FORMAT,
     DEFAULT_DUE_DATE_PROPERTY,
+    DEFAULT_DUE_SOON_THRESHOLD_DAYS,
     DEFAULT_FIRST_DAY_OF_WEEK,
     DEFAULT_ORDER_PROPERTY,
     DEFAULT_REVIEW_COUNT_PROPERTY,
@@ -45,6 +46,10 @@ export const pluginSettingsSchema = z.object({
     firstDayOfWeek: z.number().int().min(0).max(6),
     /** How card property chips are styled: `minimal` (no fills) / `tinted` / `rail`. */
     cardChipStyle: z.enum(['minimal', 'tinted', 'rail']),
+    /** "Soon" threshold (days) for the due-countdown color ramp (issue #62). */
+    dueSoonThresholdDays: z.number().int().positive(),
+    /** Where the due-countdown badge renders: title row / chip / corner / footer. */
+    dueCountdownStyle: z.enum(['title', 'chip', 'corner', 'footer']),
     /**
      * Global default status values (columns) used when neither the view nor a
      * Starter Kit note type defines them. Order is the column order.
@@ -55,6 +60,18 @@ export const pluginSettingsSchema = z.object({
 })
 
 export type PluginSettings = z.infer<typeof pluginSettingsSchema>
+
+/**
+ * How much of an open board to refresh after a settings change (issue #67), so a
+ * purely cosmetic change applies instantly instead of running the heavy full
+ * re-derivation (note-type recognition + relationships + search index, ~seconds
+ * on large boards):
+ * - `chrome` — CSS chrome only (chip style); a class toggle, no re-render.
+ * - `cards` — re-derive each card's display + re-render (due countdown position /
+ *   "soon" threshold); skips relationships, search, note-type recognition.
+ * - `full` — full re-resolution (property names, note types, statuses, swimlanes).
+ */
+export type SettingsRefreshScope = 'chrome' | 'cards' | 'full'
 
 export const DEFAULT_SETTINGS: PluginSettings = {
     schemaVersion: SETTINGS_SCHEMA_VERSION,
@@ -70,6 +87,8 @@ export const DEFAULT_SETTINGS: PluginSettings = {
     defaultDateFormat: DEFAULT_DATE_FORMAT,
     firstDayOfWeek: DEFAULT_FIRST_DAY_OF_WEEK,
     cardChipStyle: 'minimal',
+    dueSoonThresholdDays: DEFAULT_DUE_SOON_THRESHOLD_DAYS,
+    dueCountdownStyle: 'title',
     defaultStatuses: [],
     noteTypes: []
 }

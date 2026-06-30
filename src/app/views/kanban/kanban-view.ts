@@ -8,6 +8,7 @@ import type {
     QueryController
 } from 'obsidian'
 import type { KanbanActionPlannerPlugin } from '../../plugin'
+import type { SettingsRefreshScope } from '../../types/plugin-settings.intf'
 import {
     CSS_ROOT_CLASS,
     KANBAN_VIEW_TYPE,
@@ -56,7 +57,11 @@ import {
     recognizeNoteTypeFor,
     resolveActiveNoteType
 } from '../../services/note-type.service'
-import { buildCardDisplay, parseProgressField } from '../../services/card-display.service'
+import {
+    buildCardDisplay,
+    formatCountdown,
+    parseProgressField
+} from '../../services/card-display.service'
 import { listEnumProperties } from '../../services/enum.service'
 import { buildCardSearchRecord } from '../../services/card-search.service'
 import { archiveNote } from '../../services/archive.service'
@@ -77,7 +82,7 @@ import { applyUniformCardHeight } from '../../ui/board/card-equalize'
 import { BoardDnd } from '../../ui/board/dnd-controller'
 import type { DropTarget } from '../../ui/board/dnd-controller'
 import { ColumnDnd } from '../../ui/board/column-dnd'
-import type { KanbanCard } from '../../ui/board/types'
+import type { CardDisplay, KanbanCard } from '../../ui/board/types'
 import { renderViewToolbar } from '../../ui/view-toolbar'
 import type { ViewMode } from '../../ui/view-toolbar'
 import { renderTriageView } from '../../ui/triage/triage-view'
@@ -892,21 +897,35 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         return unwrapValue(this.entriesByPath.get(card.key)?.getValue(ref.id) ?? null)
     }
 
-    private toCard(file: TFile): KanbanCard {
-        const statusValue =
-            this.statusProperty === null
-                ? null
-                : normalizeStatusValue(getFrontmatterValue(this.app, file, this.statusProperty))
-        const order = coerceOrder(getFrontmatterValue(this.app, file, this.orderProperty))
-        const display = buildCardDisplay(
+    /**
+     * Build a card's display from the current config + settings (issue #50/#62).
+     * Extracted so a lightweight presentational refresh ({@link refreshCardDisplay})
+     * can recompute just the display without re-deriving the whole card.
+     */
+    private cardDisplayFor(file: TFile): CardDisplay {
+        return buildCardDisplay(
             this.app,
             file,
             this.entriesByPath.get(file.path),
             this.config,
             this.dueDateProperty,
             startOfDay(new Date()),
+            {
+                show: this.config.get('showDueCountdown') === true,
+                soonDays: this.plugin.settings.dueSoonThresholdDays,
+                placement: this.plugin.settings.dueCountdownStyle
+            },
             (id) => this.allowedValuesForCardField(file, id)
         )
+    }
+
+    private toCard(file: TFile): KanbanCard {
+        const statusValue =
+            this.statusProperty === null
+                ? null
+                : normalizeStatusValue(getFrontmatterValue(this.app, file, this.statusProperty))
+        const order = coerceOrder(getFrontmatterValue(this.app, file, this.orderProperty))
+        const display = this.cardDisplayFor(file)
         const laneValue =
             this.laneGrouping.kind === 'none' ? null : (this.laneValueByPath.get(file.path) ?? null)
         const relationships = toCardRelationships(this.relationshipsByPath.get(file.path))
@@ -1206,11 +1225,54 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
     }
 
     /**
-     * A note-type/settings change landed (from the settings tab): re-resolve and
-     * re-render so colors / relationships / etc. reflect the new config.
+     * A settings change landed (from the settings tab). `scope` keeps cosmetic
+     * changes off the heavy rebuild path so they apply instantly (issue #67):
+     * - `chrome` — toggle the chip-style class only (no re-render).
+     * - `cards` — recompute each card's display + re-render (due countdown,
+     *   "soon" threshold); reuses relationships/order/lanes already resolved.
+     * - `full` — re-resolve everything (property names, note types, swimlanes),
+     *   debounced so rapid edits (e.g. typing a property name) coalesce.
      */
-    onSettingsChanged(): void {
+    onSettingsChanged(scope: SettingsRefreshScope = 'full'): void {
+        if (scope === 'chrome') {
+            this.applyChipStyle()
+            return
+        }
+        if (scope === 'cards') {
+            this.refreshCardDisplay()
+            return
+        }
         this.debouncedRebuild()
+    }
+
+    /**
+     * Lightweight presentational refresh (issue #67): recompute only each card's
+     * **due countdown** (the sole card-display output the `cards`-scope settings —
+     * position + "soon" threshold — affect) and re-render. The chips/heat/cover
+     * are untouched, and relationships, the search index, note-type recognition,
+     * and ordering are all reused — so it applies at once even on large boards,
+     * where the full {@link rebuild} is ~seconds with thousands of cards.
+     */
+    private refreshCardDisplay(): void {
+        if (!this.boardEl) return
+        const show = this.config.get('showDueCountdown') === true
+        const soonDays = this.plugin.settings.dueSoonThresholdDays
+        const placement = this.plugin.settings.dueCountdownStyle
+        const today = startOfDay(new Date())
+        for (const card of this.allCards) {
+            const countdown = show
+                ? formatCountdown(
+                      parseFrontmatterDate(
+                          getFrontmatterValue(this.app, card.file, this.dueDateProperty)
+                      ),
+                      today,
+                      soonDays,
+                      placement
+                  )
+                : null
+            card.display = { ...card.display, countdown }
+        }
+        this.applyFilterAndRender()
     }
 
     /** Read a card's scheduled/deadline date (null when unset). */

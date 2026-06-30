@@ -520,6 +520,8 @@
        is always the column width. See applyUniformCardHeight in card-equalize.ts. */
     .kap-card {
         box-sizing: border-box;
+        /* Anchor for the absolute due-countdown corner badge (issue #62). */
+        position: relative;
         /* Flex column so the field chips can bottom-align (margin-top: auto on
            .kap-card-fields) — the title stays at the top, chips drop to the
            bottom of the (uniform-height) card. */
@@ -565,13 +567,25 @@
         color: var(--text-normal);
         /* Anchor the top of the card: heavier than the field values below. */
         font-weight: var(--font-semibold, 600);
-        word-break: break-word;
+        /* Flex row so a title-row due-countdown badge (issue #62) sits right-
+           aligned while the title text takes the slack and ellipsises. */
+        display: flex;
+        align-items: baseline;
+        gap: var(--size-4-2, 0.5rem);
         /* A header rule visually separates the title (top) from the chips
            (bottom). padding-bottom spaces the rule from the text; margin-bottom
            is the minimum gap to the chips (grows on padded, uniform-height cards). */
         padding-bottom: var(--size-4-2, 0.5rem);
         border-bottom: 1px solid var(--background-modifier-border);
         margin-bottom: var(--size-4-2, 0.5rem);
+    }
+
+    /* The title text takes the remaining width and wraps/ellipsises so the
+       title-row badge keeps its natural width (issue #62). */
+    .kap-card-title-text {
+        flex: 1 1 auto;
+        min-width: 0;
+        word-break: break-word;
     }
 
     .kap-card-cover {
@@ -838,6 +852,72 @@
             var(--color-orange, var(--text-warning, var(--text-accent))) 12%,
             var(--background-primary)
         );
+    }
+
+    /* ── Due countdown badge (issue #62). Visibility is per-view; the position
+       (title / chip / corner / footer) and the "soon" color threshold are global
+       settings. The badge is a compact tinted pill; `--kap-countdown-color` is the
+       tone color, set by the tone modifier and consumed by every placement. ── */
+    .kap-card-countdown {
+        flex: none;
+        align-self: center;
+        font-size: var(--font-smaller, 0.85em);
+        font-weight: var(--font-medium, 500);
+        line-height: 1.2;
+        white-space: nowrap;
+        padding: 0 var(--size-4-2, 0.5rem);
+        border-radius: var(--radius-s, 6px);
+        color: var(--kap-countdown-color, var(--text-muted));
+        background: color-mix(
+            in srgb,
+            var(--kap-countdown-color, var(--text-muted)) 14%,
+            transparent
+        );
+    }
+
+    /* Tone → color ramp: overdue (red) → today (amber) → soon (orange) → future
+       (muted/neutral), extending the #22 due wash. */
+    .kap-card-countdown-overdue {
+        --kap-countdown-color: var(--color-red, var(--text-error));
+    }
+
+    .kap-card-countdown-today {
+        --kap-countdown-color: var(--color-yellow, var(--text-warning, var(--text-accent)));
+    }
+
+    .kap-card-countdown-soon {
+        --kap-countdown-color: var(--color-orange, var(--text-warning, var(--text-accent)));
+    }
+
+    .kap-card-countdown-future {
+        --kap-countdown-color: var(--text-muted);
+        background: var(--background-modifier-hover);
+    }
+
+    /* Corner placement: absolute, anchored to the card's top-right (issue #62). */
+    .kap-card-countdown-corner {
+        position: absolute;
+        top: var(--size-4-2, 0.5rem);
+        right: var(--size-4-2, 0.5rem);
+        z-index: 1;
+    }
+
+    /* Chip + footer placements prefix a clock glyph so the badge reads as a
+       countdown when it isn't on the title row. */
+    .kap-card-countdown-chip::before,
+    .kap-card-countdown-footer::before {
+        content: '⏳ ';
+    }
+
+    /* Footer placement: a thin full-width row at the very bottom of the card. */
+    .kap-card-footer {
+        display: flex;
+        margin-top: var(--size-4-2, 0.5rem);
+    }
+
+    .kap-card-countdown-footer {
+        flex: 1 1 auto;
+        text-align: center;
     }
 
     .kap-card-dragging {

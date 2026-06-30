@@ -141,6 +141,20 @@ export function getKanbanViewOptions(app: App, settings: PluginSettings): BasesA
         },
         {
             type: 'group',
+            displayName: 'Cards',
+            items: [
+                {
+                    type: 'toggle',
+                    // Visibility is per-view (issue #62); the badge position and the
+                    // "soon" color threshold are global (plugin settings).
+                    key: 'showDueCountdown',
+                    displayName: 'Show due countdown',
+                    default: false
+                }
+            ]
+        },
+        {
+            type: 'group',
             displayName: 'Swimlanes',
             items: [
                 {

@@ -32,7 +32,15 @@ function board(
 const emptyRels: CardRelationships = { parent: [], sibling: [], child: [], blocked_by: [] }
 
 function display(over: Partial<CardDisplay> = {}): CardDisplay {
-    return { title: 'Card', fields: [], coverUrl: null, wrap: false, dueState: 'none', ...over }
+    return {
+        title: 'Card',
+        fields: [],
+        coverUrl: null,
+        wrap: false,
+        dueState: 'none',
+        countdown: null,
+        ...over
+    }
 }
 
 describe('structureSignature', () => {
@@ -97,5 +105,32 @@ describe('cardSignature', () => {
                 '#abc'
             )
         ).not.toBe(sig)
+    })
+
+    it('changes when the due countdown changes (issue #62)', () => {
+        const base = { display: display(), relationships: emptyRels }
+        const sig = cardSignature(base, '#abc')
+        const withCountdown = cardSignature(
+            {
+                ...base,
+                display: display({
+                    countdown: { text: 'in 3d', tone: 'soon', placement: 'title' }
+                })
+            },
+            '#abc'
+        )
+        expect(withCountdown).not.toBe(sig)
+        // Tone/text/placement are all part of the signature.
+        expect(
+            cardSignature(
+                {
+                    ...base,
+                    display: display({
+                        countdown: { text: 'in 3d', tone: 'future', placement: 'title' }
+                    })
+                },
+                '#abc'
+            )
+        ).not.toBe(withCountdown)
     })
 })

@@ -1,6 +1,6 @@
 import { Plugin } from 'obsidian'
 import { DEFAULT_SETTINGS, pluginSettingsSchema } from './types/plugin-settings.intf'
-import type { PluginSettings } from './types/plugin-settings.intf'
+import type { PluginSettings, SettingsRefreshScope } from './types/plugin-settings.intf'
 import { KanbanActionPlannerSettingTab } from './settings/settings-tab'
 import { KanbanActionPlannerView } from './views/kanban/kanban-view'
 import { getKanbanViewOptions } from './views/kanban/kanban-view-options'
@@ -169,14 +169,17 @@ export class KanbanActionPlannerPlugin extends Plugin {
     }
 
     /**
-     * Save the plugin settings
+     * Save the plugin settings.
+     *
+     * `scope` controls how much of each open board refreshes (issue #67): a
+     * cosmetic change (`chrome`/`cards`) applies instantly instead of running the
+     * heavy full re-derivation. Views are notified **before** the async disk write
+     * so the change is visible at once, not gated on `saveData`.
      */
-    async saveSettings() {
+    async saveSettings(scope: SettingsRefreshScope = 'full') {
         log('Saving settings', 'debug', this.settings)
+        for (const view of this.openKanbanViews) view.onSettingsChanged(scope)
         await this.saveData(this.settings)
         log('Settings saved', 'debug', this.settings)
-        // Refresh every open board so card display reflects the new config
-        // immediately (debounced per view).
-        for (const view of this.openKanbanViews) view.onSettingsChanged()
     }
 }

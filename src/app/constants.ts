@@ -35,6 +35,9 @@ export const DEFAULT_REVIEW_COUNT_PROPERTY = 'review_count'
 /** Fallback review interval (days) when a note has no `review_interval`. */
 export const DEFAULT_REVIEW_INTERVAL_DAYS = 30
 
+/** Default "soon" threshold (days) for the due-countdown color ramp (issue #62). */
+export const DEFAULT_DUE_SOON_THRESHOLD_DAYS = 7
+
 /** Default link-property names per relationship role (configurable per note type). */
 export const DEFAULT_PARENT_PROPERTY = 'parent'
 export const DEFAULT_CHILD_PROPERTY = 'children'

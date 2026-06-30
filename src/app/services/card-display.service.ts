@@ -1,7 +1,13 @@
 import type { App, BasesEntry, BasesPropertyId, TFile } from 'obsidian'
 import { getFrontmatterValue } from './frontmatter.service'
 import { parseFrontmatterDate, startOfDay } from '../domain/calendar'
-import type { CardDisplay, CardFieldView, DueState } from '../ui/board/types'
+import type {
+    CardCountdown,
+    CardDisplay,
+    CardFieldView,
+    CountdownPlacement,
+    DueState
+} from '../ui/board/types'
 
 /**
  * Classify a due date against `today` (issue #22): `overdue` when strictly
@@ -14,6 +20,43 @@ export function computeDueState(due: Date | null, today: Date): DueState {
     if (d < t) return 'overdue'
     if (d === t) return 'today'
     return 'none'
+}
+
+const DAY_MS = 86_400_000
+
+/**
+ * Format a span of `n` whole days (n > 0) at auto granularity: days under ~2
+ * weeks, then weeks (under ~2 months), then months. E.g. `3` → `3d`, `14` →
+ * `2w`, `90` → `3mo`.
+ */
+function formatDaySpan(n: number): string {
+    if (n < 14) return `${String(n)}d`
+    if (n < 60) return `${String(Math.round(n / 7))}w`
+    return `${String(Math.round(n / 30))}mo`
+}
+
+/**
+ * Build a human-readable due countdown (issue #62) from a due date vs `today`:
+ * `today`, `in 3d` / `in 2w` / `in 3mo` (future), or `2d overdue` (past). The
+ * `tone` extends the {@link computeDueState} scale — `overdue` / `today` / `soon`
+ * (within `soonDays`) / `future` — and drives **color, not visibility**. Returns
+ * null when there's no due date. Pure + unit-tested.
+ */
+export function formatCountdown(
+    due: Date | null,
+    today: Date,
+    soonDays: number,
+    placement: CountdownPlacement
+): CardCountdown | null {
+    if (!due) return null
+    const days = Math.round((startOfDay(due).getTime() - startOfDay(today).getTime()) / DAY_MS)
+    if (days === 0) return { text: 'today', tone: 'today', placement }
+    if (days < 0) return { text: `${formatDaySpan(-days)} overdue`, tone: 'overdue', placement }
+    return {
+        text: `in ${formatDaySpan(days)}`,
+        tone: days <= soonDays ? 'soon' : 'future',
+        placement
+    }
 }
 
 /** The subset of `BasesViewConfig` the card display reads (issue #50). */
@@ -95,6 +138,8 @@ export function buildCardDisplay(
     config: CardFieldConfig,
     dueDateProperty: string | null,
     today: Date,
+    /** Due-countdown config (issue #62): show flag, soon-threshold, placement. */
+    countdown: { show: boolean; soonDays: number; placement: CountdownPlacement },
     /** Allowed values for a property id (for heat ranking); defaults to none. */
     allowedValuesFor: (id: BasesPropertyId) => ReadonlyArray<string> = () => []
 ): CardDisplay {
@@ -143,11 +188,15 @@ export function buildCardDisplay(
     }
 
     const dueRaw = dueDateProperty ? getFrontmatterValue(app, file, dueDateProperty) : null
+    const due = parseFrontmatterDate(dueRaw)
     return {
         title: file.basename,
         fields,
         coverUrl: null,
         wrap: true,
-        dueState: computeDueState(parseFrontmatterDate(dueRaw), today)
+        dueState: computeDueState(due, today),
+        countdown: countdown.show
+            ? formatCountdown(due, today, countdown.soonDays, countdown.placement)
+            : null
     }
 }
