@@ -69,10 +69,17 @@ See `documentation/plans/kanban-action-planner-implementation-plan.md` for full 
    buckets 0 (warm) … 4 (cool) → `kap-card-field-heat-N` (Obsidian `--color-*` tints, theme-aware).
    The `NN -` prefix is **stripped** for display (`stripEnumPrefix`, requires whitespace before the
    dash so ISO dates are untouched). A **numeric formula** value → a filled accent **badge**
-   (`kap-card-field-badge`). Percentages → progress bar. Allowed values are resolved per card's note
-   type and cached per rebuild (`cardFieldAllowedCache`); a property with no known allowed values
-   stays neutral. The field tone/heat is part of the card signature so reconciliation re-renders on
-   change.
+   (`kap-card-field-badge`). Percentages → progress bar. Ranking scale: **note** props use the note
+   type's allowed values; **formula** props use the distinct values observed on the board (so a
+   formula enum isn't arbitrarily neutral) — resolved per card and cached per rebuild
+   (`cardFieldAllowedCache`); no rankable scale ⇒ neutral. The field tone/heat is part of the card
+   signature so reconciliation re-renders on change.
+   8d. **Chip style is a global setting (`cardChipStyle`).** One look-and-feel preference for all
+   boards: `minimal` (default — no fills, a faint label + heat-colored value as a vertical stat
+   list), `tinted` (flat color-filled pills), or `rail` (neutral pills + a colored left edge). The
+   data classes are identical; the view toggles a `.kap-chips-{style}` modifier on `.kap-root`
+   (`applyChipStyle`) and the stylesheet does the rest. Set in the plugin settings tab; **not** a
+   per-view option.
    8a. **Uniform card size.** All cards are the same height board-wide, sized to the
    content-tallest card's natural height (recomputed on every rebuild and on container
    resize; published as the `--kap-card-height` CSS var, applied as `min-height`). No card

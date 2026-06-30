@@ -471,19 +471,27 @@ way you would for any Bases view — change the view's properties and every card
 
 Field rendering is tuned for **scanning the whole board at a glance**:
 
-- **Enum values are color-coded** by where they rank in the property's allowed values — a warm
-  (red/orange) tint for the top/most-urgent values down to a cool (blue/muted) tint for the
-  bottom ones — so the board reads like a heatmap. Ranking uses the numeric `NN -` prefix, so it
-  doesn't matter what order the allowed values come back in; a `99 - …` "not decided" value lands
-  coolest. Properties with no known allowed values stay neutral.
+- **Enum values are color-coded** by where they rank — a warm (red/orange) signal for the
+  top/most-urgent values down to cool (blue/muted) for the bottom ones — so the board reads at a
+  glance. Ranking uses the numeric `NN -` prefix, so it doesn't matter what order the allowed
+  values come in; a `99 - …` "not decided" value lands coolest. Note properties rank against their
+  allowed values; **base-formula** values rank against the distinct values present on the board.
+  A value with no rankable scale stays neutral.
 - The **`NN -` sort prefix is stripped** from display — `30 - High` shows as **High**,
   `99 - ⏰ No Target` as **⏰ No Target**. (Dates like `2026-01-15` are never touched.)
-- A **numeric formula** value (e.g. a `priority_score`) renders as a **filled accent badge**, so
-  the score stands out.
+- A **numeric formula** value (e.g. a `priority_score`) is the standout **score**.
 - A **percentage** field (display name contains `%` or "progress", numeric value) renders as a
   small **progress bar** with a `%` caption.
 - Labels stay legible (different properties can share a value set, e.g. priority vs priority
   override both reading `High`), so the label still tells them apart.
+
+**Choose the chip style** in **Settings → Community plugins → Kanban Action Planner → Card chip
+style** (applies to every board):
+
+- **Minimal** _(default)_ — no fills: a faint label + a heat-colored value, laid out as a clean
+  vertical stat list. The calmest, most consistent look.
+- **Tinted** — each value is a flat color-filled pill, so the board reads like a heatmap.
+- **Rail** — uniform neutral pills, each with a colored left edge for the heat signal.
 
 A note's **due date** is always shown in red when set, regardless of which properties you've
 added.
