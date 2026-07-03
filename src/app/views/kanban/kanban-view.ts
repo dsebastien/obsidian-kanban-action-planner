@@ -303,6 +303,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             cardForKey: (key) => this.cardsByKey.get(key),
             scheduledProperty: () => this.scheduledDateProperty,
             deadlineProperty: () => this.dueDateProperty,
+            estimateProperty: () => this.resolveTimelineEstimateProperty(),
             dateFormat: () =>
                 this.noteType.calendar.dateFormat || this.plugin.settings.defaultDateFormat,
             firstDayOfWeek: () => this.plugin.settings.firstDayOfWeek,
@@ -927,24 +928,22 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         this.config.set('timelineHiddenTypes', ids)
     }
 
-    /** Timeline bar start date property (per-view, else the scheduled property). */
+    // Timeline properties are GLOBAL (plugin settings) — no per-view overrides
+    // (owner decision; old per-view keys in .base files are simply ignored).
+
+    /** Timeline bar start date property: the resolved scheduled property. */
     private resolveTimelineStartProperty(): string {
-        return (
-            basesPropToName(this.config.get('timelineStartProperty')) ?? this.scheduledDateProperty
-        )
+        return this.scheduledDateProperty
     }
 
-    /** Timeline estimate property, in days (per-view, else the global default). */
+    /** Timeline estimate property, in days (global plugin setting). */
     private resolveTimelineEstimateProperty(): string {
-        return (
-            basesPropToName(this.config.get('timelineEstimateProperty')) ??
-            this.plugin.settings.defaultEstimateProperty
-        )
+        return this.plugin.settings.defaultEstimateProperty
     }
 
-    /** Milestone list property (per-view, default `milestones`). */
+    /** Milestone list property (global plugin setting). */
     private resolveTimelineMilestoneProperty(): string {
-        return basesPropToName(this.config.get('timelineMilestoneProperty')) ?? 'milestones'
+        return this.plugin.settings.defaultMilestonesProperty
     }
 
     /**

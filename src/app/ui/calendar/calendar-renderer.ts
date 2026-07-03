@@ -3,9 +3,11 @@ import type { KanbanCard } from '../board/types'
 
 /**
  * How a chip sits on a day: by its `scheduled` date (blue), its `deadline`
- * (orange), or `both` when the two land on the same day (split edge).
+ * (orange), `both` when the two land on the same day (split edge), or `span`
+ * — a dimmed continuation of a multi-day start + estimate span (issue #86;
+ * not draggable, the start-day chip moves the card).
  */
-export type CalendarEntryKind = 'scheduled' | 'deadline' | 'both'
+export type CalendarEntryKind = 'scheduled' | 'deadline' | 'both' | 'span'
 
 /** One card placed on a day by one (or both) of its dates. */
 export interface CalendarEntry {
@@ -13,6 +15,8 @@ export interface CalendarEntry {
     kind: CalendarEntryKind
     /** A deadline that's already in the past (drawn red). */
     overdue: boolean
+    /** Span continuations only: `day 2 of 5` (tooltip suffix). */
+    spanLabel?: string
 }
 
 /** Everything the calendar view needs to render one frame. */
@@ -325,17 +329,26 @@ function renderChip(parent: HTMLElement, entry: CalendarEntry, callbacks: Calend
     const { card, kind, overdue } = entry
     const chip = parent.createDiv({ cls: 'kap-cal-card' })
     // Color-code by placement: scheduled = blue (default), deadline = orange,
-    // both-same-day = split edge; an overdue deadline goes red.
+    // both-same-day = split edge, span continuation = dimmed; an overdue
+    // deadline goes red.
     if (kind === 'deadline') chip.addClass('kap-cal-card-deadline')
     else if (kind === 'both') chip.addClass('kap-cal-card-both')
+    else if (kind === 'span') chip.addClass('kap-cal-card-span')
     if (overdue) chip.addClass('kap-cal-card-overdue')
-    chip.dataset['cardKey'] = card.key
-    // Which date a drag of THIS chip moves (the DnD controller reads it).
-    chip.dataset['dimension'] = kind
+    // Span continuations carry NO cardKey/dimension: the DnD controller then
+    // ignores them (dragging a middle day is ambiguous — move the start chip).
+    if (kind !== 'span') {
+        chip.dataset['cardKey'] = card.key
+        // Which date a drag of THIS chip moves (the DnD controller reads it).
+        chip.dataset['dimension'] = kind
+    }
     chip.setAttribute('role', 'listitem')
     chip.setAttribute('tabindex', '0')
     // Full title on hover — chips can clamp/truncate, so keep the text reachable.
-    chip.setAttribute('title', card.display.title)
+    chip.setAttribute(
+        'title',
+        entry.spanLabel ? `${card.display.title} — ${entry.spanLabel}` : card.display.title
+    )
     chip.createSpan({ cls: 'kap-cal-card-title', text: card.display.title })
     chip.addEventListener('click', (e) => callbacks.onOpen(card, e.ctrlKey || e.metaKey))
     chip.addEventListener('keydown', (e) => {

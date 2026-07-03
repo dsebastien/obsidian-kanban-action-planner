@@ -255,31 +255,10 @@ export function getKanbanViewOptions(app: App, settings: PluginSettings): BasesA
             displayName: 'Timeline',
             items: [
                 // Timeline mode is toggled by the in-view mode switch (persisted
-                // to `timelineMode`). The start defaults to the resolved
-                // scheduled date property and the estimate (days) to the global
-                // default, so an already-configured board gets a working
-                // timeline with zero setup (issue #77 / #80 rework).
-                {
-                    type: 'property',
-                    key: 'timelineStartProperty',
-                    displayName: 'Start date property',
-                    placeholder: 'Scheduled date property (default)',
-                    filter: propertyFilter
-                },
-                {
-                    type: 'property',
-                    key: 'timelineEstimateProperty',
-                    displayName: 'Estimate property (days)',
-                    placeholder: settings.defaultEstimateProperty,
-                    filter: propertyFilter
-                },
-                {
-                    type: 'property',
-                    key: 'timelineMilestoneProperty',
-                    displayName: 'Milestones list property',
-                    placeholder: 'milestones (default)',
-                    filter: propertyFilter
-                },
+                // to `timelineMode`). The start/estimate/milestone properties
+                // are GLOBAL plugin settings (owner decision) — a board only
+                // chooses its default range here; stale per-view property keys
+                // in older .base files are ignored.
                 {
                     type: 'dropdown',
                     key: 'timelineRange',

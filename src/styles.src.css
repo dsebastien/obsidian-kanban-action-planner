@@ -1315,6 +1315,13 @@
         border-left-color: var(--text-error);
     }
 
+    /* Span continuation (issue #86): a dimmed, non-draggable echo of the card
+       on every covered day after the start (dashed edge marks "continues"). */
+    .kap-cal-card-span {
+        @apply cursor-pointer opacity-60;
+        border-left-style: dashed;
+    }
+
     .kap-cal-card-both.kap-cal-card-overdue {
         border-image: linear-gradient(
                 to bottom,
@@ -1653,14 +1660,11 @@
         border: 1px solid var(--interactive-accent);
     }
 
-    /* Bar text is a flex row (issue #80): title truncates, duration tag stays. */
+    /* Inside the bar only the duration tag renders (the row label already
+       names the card); it hugs the bar's right edge. */
     .kap-root .kap-tl-bartext {
-        @apply flex items-center gap-1.5 px-1.5 text-[0.75em] leading-[1.4rem] pointer-events-none;
+        @apply flex items-center px-1.5 text-[0.75em] leading-[1.4rem] pointer-events-none;
         color: var(--text-normal);
-    }
-
-    .kap-root .kap-tl-bartitle {
-        @apply truncate pointer-events-none;
     }
 
     .kap-root .kap-tl-barduration {

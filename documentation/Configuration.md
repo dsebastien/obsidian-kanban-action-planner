@@ -54,16 +54,17 @@ the precedence below made visible, not a duplicated control.
 
 Defined in `src/app/types/plugin-settings.intf.ts`, seeded from `src/app/constants.ts`:
 
-| Setting                        | Default          | Purpose                                                 |
-| ------------------------------ | ---------------- | ------------------------------------------------------- |
-| `defaultStatusProperty`        | `status`         | Status property used to build columns                   |
-| `defaultOrderProperty`         | `manual_order`   | Property storing per-column manual order                |
-| `defaultBlockedByProperty`     | `blocked_by`     | Property listing blockers                               |
-| `defaultScheduledDateProperty` | `date_scheduled` | "Unplanned" tab / scheduling date                       |
-| `defaultDueDateProperty`       | `date_due`       | "No Deadline" tab / due date                            |
-| `defaultEstimateProperty`      | `estimate`       | Timeline estimate in days (span = start + estimate − 1) |
-| `defaultDateFormat`            | `YYYY-MM-DD`     | momentjs format for dates written to notes              |
-| `firstDayOfWeek`               | `1` (Monday)     | Day calendar weeks start on (0 = Sunday … 6 = Saturday) |
+| Setting                        | Default          | Purpose                                                                 |
+| ------------------------------ | ---------------- | ----------------------------------------------------------------------- |
+| `defaultStatusProperty`        | `status`         | Status property used to build columns                                   |
+| `defaultOrderProperty`         | `manual_order`   | Property storing per-column manual order                                |
+| `defaultBlockedByProperty`     | `blocked_by`     | Property listing blockers                                               |
+| `defaultScheduledDateProperty` | `date_scheduled` | "Unplanned" tab / scheduling date                                       |
+| `defaultDueDateProperty`       | `date_due`       | "No Deadline" tab / due date                                            |
+| `defaultEstimateProperty`      | `estimate`       | Timeline estimate in days (span = start + estimate − 1)                 |
+| `defaultMilestonesProperty`    | `milestones`     | Milestone list property (`<date> [label]` entries → timeline diamonds). |
+| `defaultDateFormat`            | `YYYY-MM-DD`     | momentjs format for dates written to notes                              |
+| `firstDayOfWeek`               | `1` (Monday)     | Day calendar weeks start on (0 = Sunday … 6 = Saturday)                 |
 
 `schemaVersion` tracks the settings shape for migrations. On load, stored data is
 shallow-merged onto the defaults and validated with Zod; invalid data falls back to defaults

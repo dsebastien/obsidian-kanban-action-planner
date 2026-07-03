@@ -127,7 +127,11 @@ See `documentation/plans/kanban-action-planner-implementation-plan.md` for full 
 10. **Calendar mode.** A toggle adds a collapsible "Scheduling" panel (Unplanned /
     No-Deadline tabs; title always visible, vertical when collapsed) + a week/month/quarter/
     year calendar. Dragging a card to a day sets the relevant date property (momentjs format,
-    default `YYYY-MM-DD`); dragging back clears it.
+    default `YYYY-MM-DD`); dragging back clears it. **Multi-day spans (issue #86):** a
+    scheduled card with an estimate also renders a dimmed, dashed-edge continuation chip on
+    every covered day (offsets 1…estimate−1, tooltip `— day i of N`); continuation chips carry
+    no `cardKey`/`dimension` dataset so the calendar DnD ignores them — only the start-day
+    chip moves the span.
 11. **Archiving (issue #7).** A card's note can be archived by **moving** it to a
     configurable archive folder that supports Starter-Kit-style placeholders (`{{year}}`,
     `{{month}}`, `{{week}}`, `{{quarter}}`, `{{day}}`, `{{date}}`, `{{datetime}}`,
@@ -357,17 +361,17 @@ See `documentation/plans/kanban-action-planner-implementation-plan.md` for full 
     **Timeline** / Triage; `timelineMode` config flag, `toggle-timeline-mode` command): one row
     per card, placed by **start date + estimate** on a shared week/month/quarter/year axis (the
     calendar's range vocabulary; per-view `timelineRange` default + persisted
-    `timelineRangeOverride`; the anchor is transient → today). The start is a **per-view
-    configurable property** (`timelineStartProperty`, `note.*` only — drag writes it) defaulting
-    to the resolved scheduled date property; the estimate is a **number of days** in
-    `timelineEstimateProperty` (replaces `timelineEndProperty`, whose old `.base` key is
-    ignored), defaulting to the global `defaultEstimateProperty` (`estimate`). **There is no
+    `timelineRangeOverride`; the anchor is transient → today). The timeline's properties are **global plugin
+    settings, not per-view options** (owner decision; stale per-view keys in old `.base` files
+    are ignored): the start is the resolved **scheduled date property**, the estimate a
+    **number of days** in `defaultEstimateProperty` (`estimate`), the milestones list in
+    `defaultMilestonesProperty` (`milestones`). **There is no
     end-date property.** `parseEstimate` accepts numbers or numeric strings, `Math.ceil`s, and
     yields ≥ 1 or null; estimates are always **written as numbers**; derived end =
     start + estimate − 1 (inclusive). Start without estimate → **square**; start + estimate →
-    **rectangle**; **squares are never overdue**, rectangles get the overdue wash when the
-    derived end < today. **Deadline line (issue #85):** each row also renders its resolved due-date property as a vertical red line in its own lane (`kap-tl-deadline`, pointer-inert, above the bar), omitted when the date is unset or outside the window; the row tooltip carries `· due <date>` either way. **Milestones** come from a configurable **list property**
-    (`timelineMilestoneProperty`, default `milestones`); each entry is
+    **rectangle** (no title inside the bar — the row label names the card; only the duration
+    tag renders, given ≥ 32px); **squares are never overdue**, rectangles get the overdue wash when the
+    derived end < today. **Deadline line (issue #85):** each row also renders its resolved due-date property as a vertical red line in its own lane (`kap-tl-deadline`, pointer-inert, above the bar), omitted when the date is unset or outside the window; the row tooltip carries `· due <date>` either way. **Milestones** come from the global milestones **list property**; each entry is
     `"<date> [label…]"` (wikilink brackets tolerated, `parseFrontmatterDate` semantics,
     non-parseable entries skipped) → diamond markers on the row. Bars crossing the window edge
     are clamped with a dashed clipped edge; dates all outside the window → "out of view" hint;

@@ -281,6 +281,12 @@ export class KanbanActionPlannerSettingTab extends PluginSettingTab {
             'estimate'
         )
         text(
+            'Milestones property',
+            'List of "<date> [label]" entries shown as timeline diamonds.',
+            'defaultMilestonesProperty',
+            'milestones'
+        )
+        text(
             'Date format',
             'Moment.js format used when writing scheduling dates to notes.',
             'defaultDateFormat',

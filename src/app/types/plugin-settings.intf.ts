@@ -6,6 +6,7 @@ import {
     DEFAULT_DUE_DATE_PROPERTY,
     DEFAULT_DUE_SOON_THRESHOLD_DAYS,
     DEFAULT_ESTIMATE_PROPERTY,
+    DEFAULT_MILESTONES_PROPERTY,
     DEFAULT_FIRST_DAY_OF_WEEK,
     DEFAULT_ORDER_PROPERTY,
     DEFAULT_REVIEW_COUNT_PROPERTY,
@@ -37,6 +38,8 @@ export const pluginSettingsSchema = z.object({
     defaultDueDateProperty: z.string(),
     /** Days a note is expected to take (timeline bar length; issue #80 rework). */
     defaultEstimateProperty: z.string(),
+    /** Milestone list property (`<date> [label]` entries; timeline diamonds). */
+    defaultMilestonesProperty: z.string(),
     /** Review (spaced-repetition) property names (issue #57). */
     reviewedDateProperty: z.string(),
     reviewIntervalProperty: z.string(),
@@ -86,6 +89,7 @@ export const DEFAULT_SETTINGS: PluginSettings = {
     defaultScheduledDateProperty: DEFAULT_SCHEDULED_DATE_PROPERTY,
     defaultDueDateProperty: DEFAULT_DUE_DATE_PROPERTY,
     defaultEstimateProperty: DEFAULT_ESTIMATE_PROPERTY,
+    defaultMilestonesProperty: DEFAULT_MILESTONES_PROPERTY,
     reviewedDateProperty: DEFAULT_REVIEWED_DATE_PROPERTY,
     reviewIntervalProperty: DEFAULT_REVIEW_INTERVAL_PROPERTY,
     reviewCountProperty: DEFAULT_REVIEW_COUNT_PROPERTY,

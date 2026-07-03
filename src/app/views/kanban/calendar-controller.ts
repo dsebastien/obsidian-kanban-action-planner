@@ -13,6 +13,7 @@ import {
 import type { CalendarRange, DateDimension } from '../../domain/calendar'
 import { compareTabCards } from '../../domain/calendar-tabs'
 import type { TabSortKey, TabSortMode } from '../../domain/calendar-tabs'
+import { parseEstimate } from '../../domain/timeline'
 import { renderCalendar } from '../../ui/calendar/calendar-renderer'
 import type { CalendarEntry } from '../../ui/calendar/calendar-renderer'
 import type { CalendarDropTarget } from '../../ui/calendar/calendar-dnd'
@@ -54,6 +55,8 @@ export interface CalendarHost {
     cardForKey(key: string): KanbanCard | undefined
     scheduledProperty(): string
     deadlineProperty(): string
+    /** Resolved estimate property (issue #86): spans render on every covered day. */
+    estimateProperty(): string
     /** The momentjs date format dates are written with. */
     dateFormat(): string
     firstDayOfWeek(): number
@@ -202,6 +205,7 @@ export class CalendarController {
             if (arr) arr.push(entry)
             else cardsByDay.set(key, [entry])
         }
+        const estimateProperty = this.host.estimateProperty()
         for (const card of cards) {
             const sched = this.showScheduled ? dateFor(card, 'scheduled') : null
             const due = this.showDeadlines ? dateFor(card, 'deadline') : null
@@ -210,6 +214,22 @@ export class CalendarController {
             } else {
                 if (sched) place(toDateKey(sched), { card, kind: 'scheduled', overdue: false })
                 if (due) place(toDateKey(due), { card, kind: 'deadline', overdue: due < today })
+            }
+            // Multi-day span (issue #86): a scheduled card with an estimate
+            // continues across every covered day — dimmed continuation chips
+            // on offsets 1…estimate−1 (the start day already has its chip).
+            if (!sched) continue
+            const estimate = parseEstimate(
+                getFrontmatterValue(this.host.app, card.file, estimateProperty)
+            )
+            if (estimate === null) continue
+            for (let offset = 1; offset < estimate; offset++) {
+                place(toDateKey(addDays(sched, offset)), {
+                    card,
+                    kind: 'span',
+                    overdue: false,
+                    spanLabel: `day ${String(offset + 1)} of ${String(estimate)}`
+                })
             }
         }
         const firstDay = this.host.firstDayOfWeek()

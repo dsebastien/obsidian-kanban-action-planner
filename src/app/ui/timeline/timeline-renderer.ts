@@ -354,10 +354,10 @@ function renderRow(
         if (row.bar.clippedEnd) bar.addClass('kap-tl-clip-end')
         if (row.overdue) bar.addClass('kap-tl-overdue')
         const barWidthPx = (row.bar.widthPct / 100) * trackWidth
-        const text = bar.createDiv({ cls: 'kap-tl-bartext' })
-        text.createSpan({ cls: 'kap-tl-bartitle', text: row.card.display.title })
-        // The duration tag needs room; narrow bars keep it tooltip-only.
-        if (row.durationLabel !== null && barWidthPx >= 60) {
+        // No title inside the bar — the row label already names the card. Only
+        // the duration tag renders, and only when it has room (else tooltip).
+        if (row.durationLabel !== null && barWidthPx >= 32) {
+            const text = bar.createDiv({ cls: 'kap-tl-bartext' })
             text.createSpan({ cls: 'kap-tl-barduration', text: row.durationLabel })
         }
         makeDraggable(bar, track, row, model, callbacks)

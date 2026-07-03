@@ -383,6 +383,9 @@ see what's planned _and_ what's due in one view. Chips are color-coded by their 
 - **Orange**: a deadline.
 - **Split blue/orange**: both fall on the same day.
 - **Red**: an overdue deadline (its day is already in the past).
+- **Dimmed, dashed edge**: the continuation of a **multi-day span** — a card with a scheduled
+  date and an **estimate** appears on every day it covers (hover shows `day 2 of 5`). Only the
+  first day's chip is draggable; moving it moves the whole span.
 
 A card with a scheduled date _and_ a deadline therefore appears twice, once on each day, so a
 task planned for Monday and due Friday shows up on both. Use the **legend** in the calendar
@@ -438,12 +441,12 @@ and overlaps **over time**: one row per card on a shared axis, Gantt-style. Swit
 **Timeline** button next to **Board / Calendar / Triage** (or the **Toggle timeline mode**
 command).
 
-**A card is placed by its start date plus an estimate.** There is no end-date property:
+**A card is placed by its start date plus an estimate.** There is no end-date property. The
+properties are **global plugin settings** (no per-view overrides):
 
-- **Start date property** (per view, **Configure view → Timeline**) — defaults to your
-  scheduled-date property (`date_scheduled`).
-- **Estimate property** — a plain **number of days** (default `estimate`, set globally with
-  **Estimate property** in the plugin settings, overridable per view).
+- **Start date** — your scheduled-date property (`date_scheduled` by default).
+- **Estimate property** — a plain **number of days** (default `estimate`).
+- **Milestones property** — the list property holding milestone entries (default `milestones`).
 
 So a board already set up for calendar mode gets a working timeline with zero configuration.
 
@@ -455,9 +458,10 @@ So a board already set up for calendar mode gets a working timeline with zero co
 **What a row shows:**
 
 - **Start + estimate** → a **rectangle** spanning from the start to the derived end
-  (start + estimate − 1, inclusive — a 1-day estimate covers just the start day), with a small
-  **duration badge** at the end of the title (e.g. `5d`). The tooltip repeats it, so even a bar
-  too narrow to fit the badge still tells you. When the start or the derived end lies outside
+  (start + estimate − 1, inclusive — a 1-day estimate covers just the start day). The
+  rectangle carries no text except a small **duration badge** (e.g. `5d`) at its right edge —
+  the row label on the left already names the card, and the tooltip repeats the badge for bars
+  too narrow to fit it. When the start or the derived end lies outside
   the visible window, that edge is squared and dashed (the bar continues off-screen). A
   rectangle whose derived end is in the past gets a red **overdue** wash.
 - **Start only** (no estimate) → a **square** on the start day. Squares are **never marked
@@ -662,13 +666,8 @@ date **property names** are set globally in plugin settings.)
 
 **Timeline**
 
-- **Start date property**: where a card's placement starts (defaults to the scheduled date
-  property).
-- **Estimate property (days)**: the number-of-days property that gives a card its span
-  (defaults to the global **Estimate property** setting, `estimate`).
-- **Milestones list property**: the list property holding `<date> <label>` entries (default
-  `milestones`).
-- **Default range**: Week, Month, Quarter, or Year.
+- **Default range**: Week, Month, Quarter, or Year. (The start/estimate/milestones property
+  names are global plugin settings, not view options.)
 
 ## Note type configuration (colors, enums, relationships, archiving)
 
