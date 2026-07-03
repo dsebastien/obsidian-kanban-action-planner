@@ -171,3 +171,81 @@ describe('buildBoard', () => {
         expect(todo?.cards.map((c) => c.key)).toEqual(['b', 'c', 'a'])
     })
 })
+
+describe('buildBoard per-lane column sets (columnsForLane)', () => {
+    const actionColumns: ColumnDef[] = ['10 Todo', '20 Doing', '30 Done'].map(column)
+    const ideaColumns: ColumnDef[] = ['10 Raw', '20 Refined'].map(column)
+    const columnsForLane = (laneId: string): ReadonlyArray<ColumnDef> =>
+        laneId === 'Idea' ? ideaColumns : actionColumns
+
+    it('gives each grouped lane its own column set', () => {
+        const board = buildBoard(
+            [lcard('a', '10 Todo', 1, 'Action'), lcard('i', '10 Raw', 1, 'Idea')],
+            actionColumns,
+            { grouped: true, columnsForLane }
+        )
+        const action = board.lanes.find((l) => l.lane.id === 'Action')
+        const idea = board.lanes.find((l) => l.lane.id === 'Idea')
+        expect(action?.columns.map((c) => c.column.id)).toEqual(['10 Todo', '20 Doing', '30 Done'])
+        expect(idea?.columns.map((c) => c.column.id)).toEqual(['10 Raw', '20 Refined'])
+        expect(idea?.columns[0]?.cards.map((c) => c.key)).toEqual(['i'])
+    })
+
+    it('falls back to the shared columns when the hook is absent', () => {
+        const board = buildBoard(
+            [lcard('a', '10 Todo', 1, 'Action'), lcard('i', '10 Raw', 1, 'Idea')],
+            actionColumns,
+            { grouped: true }
+        )
+        for (const lane of board.lanes) {
+            expect(
+                lane.columns.map((c) => c.column.id).filter((id) => id !== UNMAPPED_COLUMN_ID)
+            ).toEqual(['10 Todo', '20 Doing', '30 Done'])
+        }
+        // 'i' has a status foreign to the shared set → Unmapped in its lane.
+        const idea = board.lanes.find((l) => l.lane.id === 'Idea')
+        expect(idea?.columns[0]?.column.id).toBe(UNMAPPED_COLUMN_ID)
+    })
+
+    it("buckets Unmapped against each lane's own column set", () => {
+        // '10 Todo' is a real column for Action but unknown to Idea, and vice versa.
+        const board = buildBoard(
+            [lcard('a', '10 Raw', 1, 'Action'), lcard('i', '10 Todo', 1, 'Idea')],
+            actionColumns,
+            { grouped: true, columnsForLane }
+        )
+        const action = board.lanes.find((l) => l.lane.id === 'Action')
+        const idea = board.lanes.find((l) => l.lane.id === 'Idea')
+        expect(action?.columns[0]?.column.id).toBe(UNMAPPED_COLUMN_ID)
+        expect(action?.columns[0]?.cards.map((c) => c.key)).toEqual(['a'])
+        expect(idea?.columns[0]?.column.id).toBe(UNMAPPED_COLUMN_ID)
+        expect(idea?.columns[0]?.cards.map((c) => c.key)).toEqual(['i'])
+    })
+
+    it('consults the hook for the Ungrouped lane via UNGROUPED_LANE_ID', () => {
+        const shared: ColumnDef[] = ['10 Shared'].map(column)
+        const board = buildBoard(
+            [lcard('a', '10 Raw', 1, 'Idea'), lcard('u', '10 Shared', 1, null)],
+            shared,
+            {
+                grouped: true,
+                columnsForLane: (laneId) => (laneId === UNGROUPED_LANE_ID ? shared : ideaColumns)
+            }
+        )
+        const ungrouped = board.lanes.find((l) => l.lane.id === UNGROUPED_LANE_ID)
+        expect(ungrouped?.columns.map((c) => c.column.id)).toEqual(['10 Shared'])
+        expect(ungrouped?.columns[0]?.cards.map((c) => c.key)).toEqual(['u'])
+    })
+
+    it('ignores the hook when grouping is off (single shared lane)', () => {
+        const board = buildBoard([card('a', '10 Todo', 1)], actionColumns, {
+            grouped: false,
+            columnsForLane: () => ideaColumns
+        })
+        expect(board.lanes[0]?.columns.map((c) => c.column.id)).toEqual([
+            '10 Todo',
+            '20 Doing',
+            '30 Done'
+        ])
+    })
+})

@@ -56,6 +56,25 @@ export function readLaneGroupingOverride(config: ConfigReader): LaneGrouping | n
     return null
 }
 
+/**
+ * Decide the effective swimlane grouping (mixed-type boards). Precedence:
+ *
+ * 1. A per-view override always wins — an explicit 'None' disables lanes.
+ * 2. No override + profile grouping `none` + more than one distinct recognized
+ *    note type on the board ⇒ auto note-type lanes (`{ kind: 'note-type' }`),
+ *    so each type's cards get their own lane (and own column set).
+ * 3. Otherwise the profile grouping applies.
+ */
+export function resolveEffectiveLaneGrouping(
+    override: LaneGrouping | null,
+    profileGrouping: LaneGrouping,
+    recognizedTypeCount: number
+): LaneGrouping {
+    if (override) return override
+    if (profileGrouping.kind === 'none' && recognizedTypeCount > 1) return { kind: 'note-type' }
+    return profileGrouping
+}
+
 /** Resolved per-view triage config (issue #53), with the smart defaults applied. */
 export interface TriageConfig {
     scope: TriageScope

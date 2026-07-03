@@ -12,7 +12,11 @@ import type { KanbanCard } from '../../ui/board/types'
  */
 export interface CardMenuHost {
     openCard(card: KanbanCard, newTab: boolean): void
-    columns(): ReadonlyArray<ColumnDef>
+    /**
+     * The column set that applies to THIS card — its own note type's vocabulary
+     * on mixed boards, so "Set status" never offers a foreign type's values.
+     */
+    columnsFor(card: KanbanCard): ReadonlyArray<ColumnDef>
     setCardStatus(card: KanbanCard, statusValue: string | null, columnId: string): Promise<void>
     archivingConfigured(card: KanbanCard): boolean
     archiveCard(card: KanbanCard): Promise<void>
@@ -106,7 +110,7 @@ export function buildCardMenu(card: KanbanCard, host: CardMenuHost): Menu {
         )
     }
     menu.addSeparator()
-    for (const col of host.columns()) {
+    for (const col of host.columnsFor(card)) {
         menu.addItem((item) =>
             item
                 .setTitle(`Set status: ${col.label}`)

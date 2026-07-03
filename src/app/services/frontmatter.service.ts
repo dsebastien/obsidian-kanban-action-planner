@@ -61,3 +61,43 @@ export async function deleteProperty(app: App, file: TFile, propertyName: string
         if (key !== null) delete fm[key]
     })
 }
+
+/**
+ * Append one entry to a list property (scalar values are promoted to a list;
+ * the entry is deduped). Used by the timeline's milestone creation (issue #77).
+ */
+export async function appendToListProperty(
+    app: App,
+    file: TFile,
+    propertyName: string,
+    entry: string
+): Promise<void> {
+    await app.fileManager.processFrontMatter(file, (fm: Record<string, unknown>) => {
+        const key = findKeyCaseInsensitive(fm, propertyName) ?? propertyName
+        const raw = fm[key]
+        const list = Array.isArray(raw) ? raw : raw === null || raw === undefined ? [] : [raw]
+        if (!list.includes(entry)) list.push(entry)
+        fm[key] = list
+    })
+}
+
+/**
+ * Remove one entry (exact match) from a list property; the property is deleted
+ * when the list empties. Scalars equal to `entry` are removed the same way.
+ */
+export async function removeFromListProperty(
+    app: App,
+    file: TFile,
+    propertyName: string,
+    entry: string
+): Promise<void> {
+    await app.fileManager.processFrontMatter(file, (fm: Record<string, unknown>) => {
+        const key = findKeyCaseInsensitive(fm, propertyName)
+        if (key === null) return
+        const raw = fm[key]
+        const list = Array.isArray(raw) ? raw : [raw]
+        const kept = list.filter((item) => item !== entry)
+        if (kept.length === 0) delete fm[key]
+        else fm[key] = kept
+    })
+}

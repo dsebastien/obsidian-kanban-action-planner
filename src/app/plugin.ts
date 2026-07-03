@@ -92,6 +92,11 @@ export class KanbanActionPlannerPlugin extends Plugin {
             checkCallback: onActiveView((view) => view.toggleTriage())
         })
         this.addCommand({
+            id: 'toggle-timeline-mode',
+            name: 'Toggle timeline mode',
+            checkCallback: onActiveView((view) => view.toggleTimeline())
+        })
+        this.addCommand({
             id: 'configure-triage',
             name: 'Configure triage',
             checkCallback: onActiveView((view) => view.openTriageConfig())

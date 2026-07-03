@@ -39,7 +39,7 @@ function makeCard(): KanbanCard {
 function makeHost(overrides: Partial<CardMenuHost> = {}): CardMenuHost {
     return {
         openCard: () => {},
-        columns: () => [],
+        columnsFor: () => [],
         setCardStatus: () => Promise.resolve(),
         archivingConfigured: () => false,
         archiveCard: () => Promise.resolve(),

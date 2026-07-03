@@ -26,13 +26,22 @@ See `documentation/plans/kanban-action-planner-implementation-plan.md` for full 
 2. **Status drives columns; columns come from a strong definition, never observed values.**
    The status property is auto-detected (prefer a field literally named `status`, else any
    field whose name contains `status`; configurable). The column **set** is defined
-   explicitly — precedence: per-view `statuses` list → Starter Kit note type allowed values →
-   global `defaultStatuses`. Columns are NEVER created from values observed in notes (avoids
-   stale columns from typos/invalid data). With no definition, all notes sit in a single
-   **Unmapped** column; notes with missing/undefined status also go there. **Unmapped is
-   hidden when empty** and sits **first** (left) by default — flow Unmapped → … → Done; a
-   per-view `unmappedPosition` option can move it last. "Show empty columns" controls
-   visibility of defined-but-empty columns.
+   explicitly — precedence: per-view `statuses` list (a **whole-board override** that forces one
+   shared set on every lane) → the note type's allowed values → global `defaultStatuses`. On a
+   **mixed board with note-type lanes**, the set is resolved **per lane**: each lane carries its
+   own type's vocabulary, colors, and WIP limits (Ungrouped lane = the board set); column
+   **drag-reorder is disabled** there (a Notice explains; order comes from each type). Columns
+   are NEVER created from values observed in notes (avoids stale columns from typos/invalid
+   data). With no definition, all notes sit in a single **Unmapped** column; notes with
+   missing/undefined status also go there. **Unmapped is hidden when empty** and sits **first**
+   (left) by default — flow Unmapped → … → Done; a per-view `unmappedPosition` option can move
+   it last. "Show empty columns" controls visibility of defined-but-empty columns.
+   **A card's own recognized note type is authoritative for every status write** (owner-approved):
+   a card is never assigned a status outside its own type's vocabulary, and every status
+   read/write uses the card's own type's status property (per-view `statusProperty` override
+   still wins for all cards). Consequences: the card menu's Set status lists the card's own
+   type's values; bulk multi-select Set status requires a single-type selection (mixed
+   selections get a Notice); drops resolve the value from the target lane's own column set.
 3. **No state machine (for now).** All status transitions are allowed (drag or right-click).
    The data model stays open to add an allowed-transitions layer later, but none is built.
 4. **Order persisted to the note, not plugin data.** Manual order is written to a
@@ -50,7 +59,11 @@ See `documentation/plans/kanban-action-planner-implementation-plan.md` for full 
    it comes from the Bases view's own property selection (rule 8).
 7. **Configurable swimlanes (issue #2).** Lanes are grouped by a configurable key: none /
    note type / an arbitrary property; an **Ungrouped** lane collects missing values and is
-   hidden when empty.
+   hidden when empty. **Mixed-board auto-grouping** (owner-approved): with no per-view override
+   and a `none` profile grouping, a board showing **more than one recognized note type**
+   auto-groups lanes **by note type** (`resolveEffectiveLaneGrouping`, pure) — each type gets
+   its own lane and, per rule 2, its own column set. An explicit per-view **None** keeps the
+   flat board.
 8. **Cards show the Bases view's properties (issue #50).** Each card renders the view's
    configured properties (`config.getOrder()` — the standard Bases **Properties** selection),
    one labelled field per property, in order, read per card via `BasesEntry.getValue` and
@@ -340,3 +353,30 @@ See `documentation/plans/kanban-action-planner-implementation-plan.md` for full 
     (`▼ Title ✕`) next to the filter box is **derived** from the query's zoom term: ✕ removes only
     that term, label click best-effort opens the focused note by title. The focused card itself is
     not shown. Breadcrumb history: out of scope (follow-up).
+35. **Timeline mode (issue #77).** A fourth view mode (Board / Calendar / **Timeline** / Triage;
+    `timelineMode` config flag, `toggle-timeline-mode` command): one row per card, a bar spanning
+    its **start → end** dates on a shared week/month/quarter/year axis (the calendar's range
+    vocabulary; per-view `timelineRange` default + persisted `timelineRangeOverride`; the anchor is
+    transient → today). Start/end are **per-view configurable properties**
+    (`timelineStartProperty`/`timelineEndProperty`, `note.*` only — drag writes them) defaulting to
+    the resolved scheduled/due date properties. **Milestones** come from a configurable **list
+    property** (`timelineMilestoneProperty`, default `milestones`); each entry is
+    `"<date> [label…]"` (wikilink brackets tolerated, `parseFrontmatterDate` semantics,
+    non-parseable entries skipped) → diamond markers on the row. Degrades gracefully: one date →
+    point dot; bars crossing the window edge are clamped with a dashed clipped edge; past end date
+    → overdue wash; dates all outside the window → "out of view" hint; no dates → collapsible
+    **Undated** strip **grouped by status value** (column order via `compareStatusValues`,
+    labels via `splitStatusValue`, no-status group last; the strip caps at 35% height and
+    scrolls itself so it never squeezes out the rows). **Scheduling from the timeline:**
+    dragging an undated chip onto any track writes the **start date** property for the day
+    under the pointer (`dayOffsetAtPct`). **Milestone editing:** double-click a row's track →
+    modal (pre-filled editable date + optional label) → appends `"<date> [label]"` to the
+    milestone list property (`appendToListProperty`, dedup, scalar promoted to list);
+    right-click a diamond removes its entry (keyed by the raw list entry; property deleted when
+    the list empties). **Drag a bar/point horizontally** to shift its existing date(s) by the
+    snapped whole-day delta (duration preserved; same frontmatter write path as calendar DnD).
+    Rows sort by start (then end/milestone/title); the toolbar filter and #74 zoom apply as in
+    every mode. Pure math in `domain/timeline.ts` (geometry in % of the window, inclusive days);
+    DOM in `ui/timeline/timeline-renderer.ts`; state/writes in
+    `views/kanban/timeline-controller.ts` (mirrors `CalendarController`). Out of scope
+    (follow-ups): bar resize handles, dependency arrows, hierarchy indentation, milestone notes.

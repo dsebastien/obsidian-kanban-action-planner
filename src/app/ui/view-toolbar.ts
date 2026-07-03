@@ -1,8 +1,8 @@
 import { setIcon } from 'obsidian'
 import { renderGearButton } from './gear-button'
 
-/** The three mutually-exclusive view modes (Board / Calendar / Triage). */
-export type ViewMode = 'board' | 'calendar' | 'triage'
+/** The four mutually-exclusive view modes (Board / Calendar / Timeline / Triage). */
+export type ViewMode = 'board' | 'calendar' | 'timeline' | 'triage'
 
 export interface ViewToolbarState {
     /** The active view mode. */
@@ -52,6 +52,9 @@ export function renderViewToolbar(
     addModeButton(modeSwitch, 'Board', state.mode === 'board', () => callbacks.onSetMode('board'))
     addModeButton(modeSwitch, 'Calendar', state.mode === 'calendar', () =>
         callbacks.onSetMode('calendar')
+    )
+    addModeButton(modeSwitch, 'Timeline', state.mode === 'timeline', () =>
+        callbacks.onSetMode('timeline')
     )
     addModeButton(modeSwitch, 'Triage', state.mode === 'triage', () =>
         callbacks.onSetMode('triage')

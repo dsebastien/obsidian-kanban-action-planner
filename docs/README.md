@@ -28,7 +28,8 @@ every change written straight back into your notes.
   column (saved to the note). Auto-sort each column by name or any property, ascending or
   descending. Full keyboard support too.
 - **Swimlanes.** Split the board into horizontal lanes by note type or any property, with
-  collapsible lanes and columns.
+  collapsible lanes and columns. A board mixing note types auto-groups by type, each lane with
+  its own type's columns — a card's own type is authoritative for its status.
 
 ![Swimlanes]({{ '/images/swimlanes.png' | relative_url }})
 
@@ -47,6 +48,8 @@ every change written straight back into your notes.
 
 - **Calendar mode.** Switch a board to a calendar that plots scheduled dates and deadlines
   together. Drag a card onto a day to schedule it.
+- **Timeline mode.** A Gantt-style view: one row per card, a bar spanning its start → end
+  dates, milestone diamonds from a configurable list property, and drag-to-reschedule.
 
 ![Calendar mode]({{ '/images/calendar.png' | relative_url }})
 

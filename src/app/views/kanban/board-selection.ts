@@ -18,8 +18,14 @@ export interface SelectionHost {
     visibleCards(): Map<string, KanbanCard>
     /** Visible card keys in board order (lane → column → card). */
     flatCardKeys(): string[]
-    columns(): ReadonlyArray<ColumnDef>
-    statusProperty(): string | null
+    /**
+     * Shared column set for a bulk selection, or `null` when the selection
+     * mixes note types (their status vocabularies differ, so bulk set-status
+     * is unavailable) — a card's own type is authoritative for status writes.
+     */
+    columnsForSelection(cards: KanbanCard[]): ReadonlyArray<ColumnDef> | null
+    /** The status property a write to THIS card must use (its own type's). */
+    statusPropertyFor(card: KanbanCard): string | null
     archiveConfigFor(card: KanbanCard): ArchiveConfig
     /** Re-render the toolbar so the Select toggle reflects the new mode. */
     onModeChanged(): void
@@ -135,8 +141,17 @@ export class BoardSelection {
     }
 
     private openBulkStatusMenu(event: MouseEvent): void {
+        // A card's own type is authoritative for status writes: a mixed-type
+        // selection has no shared vocabulary, so bulk set-status is refused.
+        const columns = this.host.columnsForSelection(this.selectedCards())
+        if (columns === null) {
+            new Notice(
+                'The selection mixes note types with different statuses — select cards of one type to set their status.'
+            )
+            return
+        }
         const menu = new Menu()
-        for (const col of this.host.columns()) {
+        for (const col of columns) {
             menu.addItem((item) =>
                 item.setTitle(col.label).onClick(() => void this.bulkSetStatus(col.statusValue))
             )
@@ -153,11 +168,14 @@ export class BoardSelection {
 
     /** Bulk-write the status on all selected cards (sequential; summary notice). */
     private async bulkSetStatus(statusValue: string | null): Promise<void> {
-        const property = this.host.statusProperty()
-        if (!property) return
         let ok = 0
         let failed = 0
         for (const card of this.selectedCards()) {
+            const property = this.host.statusPropertyFor(card)
+            if (!property) {
+                failed++
+                continue
+            }
             try {
                 if (statusValue === null) await deleteProperty(this.host.app, card.file, property)
                 else await setProperty(this.host.app, card.file, property, statusValue)
