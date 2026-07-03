@@ -423,15 +423,26 @@ export class TimelineController {
         }))
     }
 
-    /** Undated card dropped on the timeline: write the start date for that day. */
+    /**
+     * Unplanned card dropped on the timeline: write the start date for that
+     * day, seeding a **1-day estimate** ONLY when the estimate property is
+     * absent or empty — a fresh entry lands as a resizable one-day rectangle,
+     * not a handle-less square. One transaction; any present value (even one
+     * the timeline can't parse) is never touched.
+     */
     private async scheduleAt(card: KanbanCard, pct: number, window: TimelineRange): Promise<void> {
         const date = addDays(window.start, dayOffsetAtPct(pct, window))
-        await setProperty(
-            this.host.app,
-            card.file,
-            this.host.startProperty(),
-            formatDate(date, this.host.dateFormat())
-        )
+        const start = formatDate(date, this.host.dateFormat())
+        const estimateProperty = this.host.estimateProperty()
+        const raw = getFrontmatterValue(this.host.app, card.file, estimateProperty)
+        if (raw !== undefined && raw !== null && raw !== '') {
+            await setProperty(this.host.app, card.file, this.host.startProperty(), start)
+            return
+        }
+        await setProperties(this.host.app, card.file, {
+            [this.host.startProperty()]: start,
+            [estimateProperty]: 1
+        })
     }
 
     /** Track double-click: prompt for a label, then append `<date> <label>`. */

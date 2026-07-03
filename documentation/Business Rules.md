@@ -382,7 +382,9 @@ See `documentation/plans/kanban-action-planner-implementation-plan.md` for full 
     collapse state lives on the controller instance (survives rebuilds, not persisted); the
     panel scrolls itself so it never squeezes out the rows. **Scheduling from the
     timeline:** dragging an unplanned card anywhere over the chart writes the **start date** property for
-    the day under the pointer (`dayOffsetAtPct`). **Live feedback:** every drag, resize, and
+    the day under the pointer (`dayOffsetAtPct`), plus **estimate = 1** (one transaction) ONLY
+    when the estimate property is absent or empty — new entries land as resizable 1-day
+    rectangles; any present value (even unparseable) is never touched. **Live feedback:** every drag, resize, and
     drop shows the **to-be-written date** (right resize: `Nd → ends <date>`) via a body-level
     floating label (in a `.kap-root` wrapper) plus a day guide line; drop targets highlight;
     scheduling from the panel shows a striped **New entry** lane stuck to the top of the row
