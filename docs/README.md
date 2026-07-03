@@ -37,7 +37,8 @@ every change written straight back into your notes.
 - **Relationships.** See, navigate, and edit parent, sibling, child, and blocked-by links from
   the card menu. A blocked card is flagged and filterable.
 - **Focus on a card's children.** Zoom into a project (card menu or the ▼ children badge) and
-  the board re-filters to just its children. A dismissible chip next to the filter box shows the
+  the board re-filters to just its children — or zoom up from a task via its ▲ parents badge to
+  see the whole project's children at once. A dismissible chip next to the filter box shows the
   focus; zooming again drills down a level.
 - **Triage mode.** Work through an overwhelming backlog one card at a time, setting priority,
   urgency, and effort from one-click controls. It doubles as a spaced-repetition review queue.

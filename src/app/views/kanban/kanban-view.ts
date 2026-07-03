@@ -1402,9 +1402,10 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         const related = card.relationships[role]
         if (related.length === 0) return
         const newTab = isNewTabEvent(event)
-        // The ▼ children badge always opens a menu so the zoom action (issue
-        // #74) is reachable; other roles keep the open-directly shortcut.
-        if (role !== 'child' && related.length === 1 && related[0]) {
+        // The ▼ children and ▲ parents badges always open a menu so the zoom
+        // actions (issue #74) are reachable; other roles keep the
+        // open-directly shortcut.
+        if (role !== 'child' && role !== 'parent' && related.length === 1 && related[0]) {
             this.openRelated(related[0], newTab)
             return
         }
@@ -1416,6 +1417,19 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
                     .setIcon('zoom-in')
                     .onClick(() => this.focusOnChildren(card))
             )
+            menu.addSeparator()
+        }
+        if (role === 'parent') {
+            // Zoom up-and-across: focus a parent's children, i.e. this card
+            // and its siblings under that parent (issue #74 follow-up).
+            for (const note of related) {
+                menu.addItem((item) =>
+                    item
+                        .setTitle(`Focus on children of ${note.label}`)
+                        .setIcon('zoom-in')
+                        .onClick(() => this.focusOnParent(note.label))
+                )
+            }
             menu.addSeparator()
         }
         for (const note of related) {
@@ -2036,7 +2050,16 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
      * any previous one, so repeated zooms drill down one level at a time).
      */
     private focusOnChildren(card: KanbanCard): void {
-        this.setFilterQuery(setParentTerm(this.filterQuery, card.display.title))
+        this.focusOnParent(card.display.title)
+    }
+
+    /**
+     * Zoom to the children of the note titled `title` (from a card's ▲ parents
+     * badge: the card and its siblings under that parent). Same mechanism as
+     * {@link focusOnChildren} — only the source of the title differs.
+     */
+    private focusOnParent(title: string): void {
+        this.setFilterQuery(setParentTerm(this.filterQuery, title))
     }
 
     /** Chip ✕: remove only the `parent:` term; the rest of the query survives. */

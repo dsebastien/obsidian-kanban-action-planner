@@ -327,9 +327,11 @@ See `documentation/plans/kanban-action-planner-implementation-plan.md` for full 
     of "App Backend"; plain `:` keeps substring semantics. **Direct children only** (the resolved
     parent/child edges, inverse/heuristic included); zoom filters **within the Base's result set**
     (children excluded by the Base's own filters stay hidden — the empty state says so). Entry
-    points (shown only when the card has children): card context menu **Focus on children** and the
-    ▼ children badge menu **Focus on children on this board** (top item; the child badge therefore
-    always opens a menu, even for a single child). A dismissible **chip** (`▼ Title ✕`) next to the
+    points: card context menu **Focus on children** (only when the card has children), the
+    ▼ children badge menu **Focus on children on this board** (top item), and — zooming up from a
+    child — the ▲ parents badge menu **Focus on children of X** (one item per parent, focusing that
+    parent's children = the card and its siblings). The ▼ and ▲ badges therefore always open a
+    menu, even for a single related note. A dismissible **chip** (`▼ Title ✕`) next to the
     filter box is **derived** from the query's parent term: ✕ removes only that term, label click
     best-effort opens the parent note by title. The focused card itself is not shown. Recursive
     descendants and breadcrumbs: out of scope (follow-ups).

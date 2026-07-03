@@ -240,7 +240,8 @@ On each card:
   siblings), so a note with three children shows **▼ 3**, and hovering lists the names.
   **Click a badge** to open the related note. When there are several, you get a menu to pick
   one. **Ctrl/Cmd-click** (on the badge or a menu item) opens in a new tab. The **▼ children**
-  badge always opens a menu — its top item is **Focus on children on this board** (see
+  and **▲ parents** badges always open a menu — on top of it, **Focus on children on this
+  board** (▼) / **Focus on children of X** (▲) zoom the board (see
   [Focus on a card's children](#focus-on-a-cards-children-zoom)).
 - A note with a non-empty **blocked by** gets a red **⛔** badge (counted the same way, **⛔ 2**
   when blocked by two) and a red edge. Click it to jump to the blocker, or pick from the menu
@@ -271,10 +272,13 @@ Zoom into a card that has children: the board re-filters to show **only the note
 that card**, laid out in the usual status columns. Focus a project and you see just its tasks;
 focus an area and you see its projects.
 
-Two ways to trigger it (both appear only when the card **has children**):
+Three ways to trigger it:
 
-- The card's right-click menu → **Focus on children**.
+- The card's right-click menu → **Focus on children** (shown only when the card **has children**).
 - The **▼ children badge** menu → **Focus on children on this board** (top item).
+- **From a child, going up**: the **▲ parents badge** menu → **Focus on children of X**. On a
+  mixed board (e.g. an "All actions" view), click a task's ▲ badge and focus its project to see
+  **all of that project's children** — the task itself and its siblings — in one move.
 
 Under the hood, zooming simply writes a `parent:="Card Title"` term into the
 [filter box](#filtering-search-bar) — there is no separate mode. That means:
