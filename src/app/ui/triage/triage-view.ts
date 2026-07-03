@@ -30,6 +30,45 @@ export interface TriageCardData {
     scope: TriageScope
 }
 
+/** One selectable card in the triage queue pane. */
+export interface TriagePaneItem {
+    key: string
+    title: string
+    /** The card currently shown on the right. */
+    selected: boolean
+    /** Still needs triage in the active scope (else a muted, done look). */
+    needsTriage: boolean
+}
+
+/** One status subgroup of queue cards (collapse key `typeId::status`). */
+export interface TriagePaneStatusGroup {
+    key: string
+    label: string
+    collapsed: boolean
+    items: TriagePaneItem[]
+}
+
+/** One note-type group of queue cards (collapse key = the type id). */
+export interface TriagePaneTypeGroup {
+    key: string
+    label: string
+    count: number
+    collapsed: boolean
+    groups: TriagePaneStatusGroup[]
+}
+
+/**
+ * The left navigation pane: the whole triage queue grouped by note type →
+ * status; clicking an item shows it on the right. Type headers render only on
+ * multi-type boards; groups default expanded (it's a navigation list).
+ */
+export interface TriagePaneModel {
+    collapsed: boolean
+    grouped: boolean
+    groups: TriagePaneTypeGroup[]
+    total: number
+}
+
 export interface TriageCallbacks {
     onSetProperty(name: string, value: string | null): void
     onNext(): void
@@ -42,6 +81,12 @@ export interface TriageCallbacks {
     /** Open the "Configure triage" modal. */
     onConfigure(): void
     onScopeChange(scope: TriageScope): void
+    /** Show the queue card with this key on the right (left-pane click). */
+    onSelect(key: string): void
+    /** Collapse/expand the whole left queue pane. */
+    onTogglePane(): void
+    /** Toggle one pane group's collapse (key: `typeId` or `typeId::status`). */
+    onTogglePaneGroup(key: string): void
 }
 
 /** Render-time options that don't belong to the card data itself. */
@@ -66,6 +111,8 @@ export function renderTriageView(
     /** The active scope — passed explicitly so the header highlights the right
      * tab even in the empty "all clear" state, where `data` is null (issue #66). */
     activeScope: TriageScope,
+    /** The left navigation pane (the whole queue, grouped) — always rendered. */
+    pane: TriagePaneModel,
     callbacks: TriageCallbacks,
     options: TriageRenderOptions = {}
 ): void {
@@ -85,7 +132,12 @@ export function renderTriageView(
     const root = container.createDiv({ cls: 'kap-triage' })
     renderHeader(root, data, activeScope, callbacks)
 
-    const body = root.createDiv({ cls: 'kap-triage-body' })
+    // A flex row below the header: the queue navigation pane (left) + the card
+    // body (right). The pane always renders so you can jump between cards even
+    // in the empty / all-done state.
+    const main = root.createDiv({ cls: 'kap-triage-main' })
+    renderQueuePane(main, pane, callbacks)
+    const body = main.createDiv({ cls: 'kap-triage-body' })
 
     if (!data) {
         renderEmptyState(body, options.completedAll ?? false)
@@ -131,6 +183,93 @@ export function renderTriageView(
     // Restore the scroll the predecessor body had — done last, once the body has
     // content (an empty body has no scroll range, so it would clamp to 0).
     if (prevScroll > 0) body.scrollTop = prevScroll
+}
+
+/**
+ * The left queue pane: a collapsible panel (reusing the calendar's scheduling-
+ * panel shell) listing every card in the queue grouped by note type → status.
+ * Clicking a card shows it on the right; the current card is highlighted.
+ * Groups default expanded (this is the navigation list, not a drag-backlog);
+ * type headers only render on multi-type boards.
+ */
+function renderQueuePane(
+    parent: HTMLElement,
+    pane: TriagePaneModel,
+    callbacks: TriageCallbacks
+): void {
+    const panel = parent.createDiv({ cls: 'kap-scheduling-panel kap-triage-panel' })
+    if (pane.collapsed) panel.addClass('kap-scheduling-panel-collapsed')
+
+    const header = panel.createDiv({ cls: 'kap-panel-header' })
+    const toggle = header.createEl('button', {
+        cls: 'kap-panel-toggle',
+        text: pane.collapsed ? '»' : '«',
+        attr: { 'aria-label': pane.collapsed ? 'Expand queue' : 'Collapse queue' }
+    })
+    toggle.addEventListener('click', () => callbacks.onTogglePane())
+    header.createSpan({ cls: 'kap-panel-title', text: `Queue (${String(pane.total)})` })
+    if (pane.collapsed) return
+
+    const list = panel.createDiv({ cls: 'kap-panel-list' })
+    if (pane.total === 0) {
+        list.createDiv({ cls: 'kap-panel-empty', text: 'Nothing in this scope.' })
+        return
+    }
+    for (const group of pane.groups) {
+        let host = list
+        if (pane.grouped) {
+            renderPaneHeader(
+                list,
+                'kap-cal-ugroup',
+                group.label,
+                group.count,
+                group.collapsed,
+                () => callbacks.onTogglePaneGroup(group.key)
+            )
+            if (group.collapsed) continue
+            host = list.createDiv({ cls: 'kap-cal-ugroup-body' })
+        }
+        for (const sub of group.groups) {
+            renderPaneHeader(
+                host,
+                'kap-cal-usubgroup',
+                sub.label,
+                sub.items.length,
+                sub.collapsed,
+                () => callbacks.onTogglePaneGroup(sub.key)
+            )
+            if (sub.collapsed) continue
+            for (const item of sub.items) {
+                const row = host.createEl('button', {
+                    cls: 'kap-triage-queue-item',
+                    attr: { type: 'button', title: item.title }
+                })
+                if (item.selected) row.addClass('kap-triage-queue-item-active')
+                if (!item.needsTriage) row.addClass('kap-triage-queue-item-done')
+                row.createSpan({ cls: 'kap-triage-queue-item-title', text: item.title })
+                row.addEventListener('click', () => callbacks.onSelect(item.key))
+            }
+        }
+    }
+}
+
+/** A full-width collapsible pane group header: chevron + label + count badge. */
+function renderPaneHeader(
+    parent: HTMLElement,
+    cls: string,
+    label: string,
+    count: number,
+    collapsed: boolean,
+    onToggle: () => void
+): void {
+    const header = parent.createEl('button', {
+        cls: collapsed ? cls : `${cls} ${cls}-open`,
+        attr: { 'type': 'button', 'aria-expanded': String(!collapsed) }
+    })
+    header.createSpan({ cls: 'kap-cal-ugroup-chevron', text: collapsed ? '▸' : '▾' })
+    header.createSpan({ cls: 'kap-cal-ugroup-label', text: label })
+    header.createSpan({ cls: 'kap-cal-ugroup-count', text: String(count) })
+    header.addEventListener('click', onToggle)
 }
 
 /**

@@ -289,7 +289,15 @@ See `documentation/plans/kanban-action-planner-implementation-plan.md` for full 
     card** via its recognized note type, and gating is **type-aware**: a `note.*` gating prop only
     counts against a card when that card's type **defines** it (so a task-only prop never flags goals,
     and vice-versa); the skip applies only when the type's properties are known, leaving single-type
-    boards unchanged. Command: `toggle-triage-mode`.
+    boards unchanged. **Left queue pane:** a collapsible panel (the shared
+    `kap-scheduling-panel` shell) lists the whole queue snapshot grouped by note type → status
+    (`groupByTypeAndStatus`; type headers only on multi-type boards); clicking a card moves the
+    cursor to it (`onSelect` → index in the snapshot) and shows it on the right, the current
+    card highlighted and any card no longer needing triage in the scope muted. Groups default
+    **expanded** (it's a navigation list, unlike the calendar/timeline drag-backlogs); group
+    collapse is in-memory, the whole-pane collapse persists per view (`triagePaneCollapsed`).
+    The render-skip signature includes the pane, so a group/pane toggle re-renders. Command:
+    `toggle-triage-mode`.
 29. **Reviews / spaced repetition (issue #57).** The triage `review` scope queues cards **due for
     review**: due when `last_reviewed + review_interval` ≤ today, or **never reviewed** (sorts first);
     ordered **most-overdue first** (`reviewState` in `views/kanban/triage.ts`, pure). The card shows

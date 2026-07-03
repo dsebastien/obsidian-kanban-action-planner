@@ -119,7 +119,9 @@ a blocked filter), per-view options, a tabbed Configure-board modal, and global 
 allowed values from manual note-type config or the Starter Kit) and **triage mode** (#53 — a third
 Board/Calendar/Triage view mode; a worst-first one-card-at-a-time clarify / re-prioritize / **due-for-
 review** (#57) queue, pure logic in `views/kanban/triage.ts`, UI in `ui/triage/`, per-view config
-edited via the **Configure triage** modal with note-type-sourced property pickers) round out the set.
+edited via the **Configure triage** modal with note-type-sourced property pickers; a left queue
+pane — the shared `kap-scheduling-panel` shell — lists the snapshot grouped by note type → status
+(`groupByTypeAndStatus`), click-to-select moving the cursor) round out the set.
 Triage gating is **type-aware** for mixed boards: a gating prop only flags a card whose note type
 defines it. Review property names (`last_reviewed`/`review_interval`/`review_count`) are global
 settings; the "Reviewed" action stamps the date + bumps the count.

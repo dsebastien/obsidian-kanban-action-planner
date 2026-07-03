@@ -2126,8 +2126,55 @@
     }
 
     /* Scrollable body holding the card (or the empty state), centered. */
+    /* Below the header: the queue nav pane (left) + the card body (right). */
+    .kap-root .kap-triage-main {
+        @apply flex flex-1 min-h-0 w-full;
+    }
+
+    /* The queue pane reuses the calendar scheduling-panel shell; this list
+       scrolls its type → status groups of clickable cards. */
+    .kap-root .kap-triage-panel .kap-panel-list {
+        @apply flex flex-col gap-1 p-2 overflow-y-auto min-h-0;
+        flex: 1;
+    }
+
+    /* One clickable queue card: full-width, single-line, highlighted when it's
+       the card shown on the right; muted once it no longer needs triage. */
+    .kap-root .kap-triage-queue-item {
+        @apply flex w-full items-center h-8 px-2 border-0 rounded cursor-pointer bg-transparent text-left text-[0.82em];
+        color: var(--text-normal);
+        transition:
+            color var(--kap-transition) var(--kap-ease),
+            background-color var(--kap-transition) var(--kap-ease);
+    }
+
+    .kap-root .kap-triage-queue-item:hover {
+        background: var(--background-modifier-hover);
+    }
+
+    .kap-root .kap-triage-queue-item-title {
+        @apply flex-1 truncate;
+    }
+
+    .kap-root .kap-triage-queue-item-done .kap-triage-queue-item-title {
+        color: var(--text-muted);
+    }
+
+    /* stylelint-disable declaration-no-important -- beats Obsidian's unlayered
+       default <button> styles (see .kap-panel-tab-active for the rationale). */
+    .kap-root .kap-triage-queue-item-active,
+    .kap-root .kap-triage-queue-item-active:hover {
+        color: var(--text-on-accent) !important;
+        background: var(--interactive-accent) !important;
+    }
+    /* stylelint-enable declaration-no-important */
+
+    .kap-root .kap-triage-queue-item-active .kap-triage-queue-item-title {
+        color: var(--text-on-accent);
+    }
+
     .kap-root .kap-triage-body {
-        @apply flex-1 min-h-0 w-full overflow-y-auto p-4;
+        @apply flex-1 min-h-0 min-w-0 overflow-y-auto p-4;
     }
 
     /* Decorative confetti overlay played when a note's triage completes. Fills

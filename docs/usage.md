@@ -118,6 +118,12 @@ triage mode** command).
 The card scrolls on its own when it's tall (or the UI is zoomed), and the scope tabs and the
 **Skip** / **Next** actions stay pinned so they're always reachable.
 
+A **queue pane on the left** lists every card in the current scope, **grouped by note type
+then status** (the type level only appears on multi-type boards). **Click any card to jump
+straight to it** on the right — the current one is highlighted, and a card that no longer needs
+triage in this scope is muted. Collapse a group with its header, or the whole pane with the
+**«** toggle (remembered per view). It's the same panel used by the calendar and timeline.
+
 Each card shows:
 
 - **The note title** at the top, with an **Open** button beside it to jump to the note.

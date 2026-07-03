@@ -24,6 +24,7 @@ import type {
 } from '../../domain/note-type'
 import { archiveFolderPrefixes } from '../../domain/archive-paths'
 import { buildBoard } from '../../domain/board-model'
+import { groupByTypeAndStatus } from '../../domain/timeline'
 import { compareTabCards, coerceSortValue } from '../../domain/calendar-tabs'
 import type { SortDirection, TabSortKey, TabSortMode } from '../../domain/calendar-tabs'
 import type { Board, UnmappedPosition } from '../../domain/board-model'
@@ -98,7 +99,8 @@ import { burstConfetti } from '../../ui/triage/confetti'
 import type {
     TriageCardData,
     TriageContextField,
-    TriageEditableProp
+    TriageEditableProp,
+    TriagePaneModel
 } from '../../ui/triage/triage-view'
 import { buildTriageQueue, isPropUnset, reviewState, unsetCount } from './triage'
 import type { TriageRank } from './triage'
@@ -205,6 +207,10 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
     // data is identical to what's already on screen — skip the teardown so the view
     // doesn't flash/lose focus for a no-op. Reset on mode switch / view recreation.
     private lastTriageSignature: string | null = null
+    // Left-pane group collapse (issue: triage navigation pane), keyed
+    // `typeId` / `typeId::status`. In-memory; groups default EXPANDED (the pane
+    // is a navigation list, so the queue is visible without clicking to expand).
+    private readonly triagePaneCollapsedGroups = new Map<string, boolean>()
     // Per-note-type property-name sets (lowercased), cached per triage render so
     // gating can be type-aware on mixed boards (#53). Cleared each renderTriage.
     private readonly triageTypeProps = new Map<string, Set<string>>()
@@ -1865,11 +1871,12 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         const data = current
             ? this.buildTriageData(current, cfg, this.triageCursor + 1, this.triageQueueKeys.length)
             : null
-        // Skip an identical re-render (optimistic UI): if the rendered card data and
-        // scope match what's already mounted, there's nothing to change on screen —
-        // re-tearing it down would only flash and steal focus. The DOM-presence check
-        // forces a render when the host currently shows something else (e.g. the board).
-        const signature = JSON.stringify({ data, scope: cfg.scope })
+        const pane = this.buildTriagePane(cfg, currentKey ?? null)
+        // Skip an identical re-render (optimistic UI): if the rendered card data,
+        // scope and pane match what's already mounted, there's nothing to change on
+        // screen — re-tearing it down would only flash and steal focus. The
+        // DOM-presence check forces a render when the host shows something else.
+        const signature = JSON.stringify({ data, scope: cfg.scope, pane })
         const mounted = this.boardEl.querySelector('.kap-triage-body') !== null
         if (mounted && signature === this.lastTriageSignature) return
         this.lastTriageSignature = signature
@@ -1883,6 +1890,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             this.boardEl,
             data,
             cfg.scope,
+            pane,
             {
                 onSetProperty: (name, value) => void this.triageSetProperty(current, name, value),
                 onNext: () => this.triageAdvance(),
@@ -1897,10 +1905,76 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
                     this.renderTriage()
                 },
                 onConfigure: () => this.openTriageConfig(),
-                onScopeChange: (scope) => this.setTriageScope(scope)
+                onScopeChange: (scope) => this.setTriageScope(scope),
+                onSelect: (key) => this.triageSelect(key),
+                onTogglePane: () => {
+                    this.config.set('triagePaneCollapsed', !this.triagePaneCollapsed())
+                    this.renderTriage()
+                },
+                onTogglePaneGroup: (key) => {
+                    this.triagePaneCollapsedGroups.set(
+                        key,
+                        !(this.triagePaneCollapsedGroups.get(key) ?? false)
+                    )
+                    this.renderTriage()
+                }
             },
             { scrollToTop, completedAll }
         )
+    }
+
+    /** Whether the triage queue pane is collapsed (persisted per view). */
+    private triagePaneCollapsed(): boolean {
+        return this.config.get('triagePaneCollapsed') === true
+    }
+
+    /** Left-pane click: show the queue card `key` on the right (move the cursor). */
+    private triageSelect(key: string): void {
+        if (this.triageQueueKeys === null) return
+        const index = this.triageQueueKeys.indexOf(key)
+        if (index < 0) return
+        this.triageCursor = index
+        this.triageResetScroll = true
+        this.renderTriage()
+    }
+
+    /**
+     * The left navigation pane: the whole queue grouped by note type → status,
+     * the current card marked selected and any card that no longer needs triage
+     * in this scope muted. Type headers only on multi-type boards; group
+     * collapse lives on the instance (default expanded — it's a nav list).
+     */
+    private buildTriagePane(cfg: TriageConfig, currentKey: string | null): TriagePaneModel {
+        const collapsed = this.triagePaneCollapsed()
+        const keys = this.triageQueueKeys ?? []
+        const cards = keys.map((k) => this.cardsByKey.get(k)).filter((c): c is KanbanCard => !!c)
+        const grouped =
+            new Set(cards.map((c) => this.noteTypeByPath.get(c.key)?.id ?? '∅')).size > 1
+        const groups = groupByTypeAndStatus(
+            cards,
+            (card) => this.noteTypeByPath.get(card.key) ?? null,
+            (card) => card.statusValue
+        ).map((typeGroup) => ({
+            key: typeGroup.typeId,
+            label: typeGroup.typeName,
+            count: typeGroup.groups.reduce((sum, g) => sum + g.items.length, 0),
+            collapsed: this.triagePaneCollapsedGroups.get(typeGroup.typeId) ?? false,
+            groups: typeGroup.groups.map((statusGroup) => {
+                const groupKey = `${typeGroup.typeId}::${statusGroup.status}`
+                return {
+                    key: groupKey,
+                    label: statusGroup.label,
+                    collapsed: this.triagePaneCollapsedGroups.get(groupKey) ?? false,
+                    items: statusGroup.items.map((card) => ({
+                        key: card.key,
+                        title: card.display.title,
+                        selected: card.key === currentKey,
+                        needsTriage: this.triageRank(card, cfg).include
+                    }))
+                }
+            })
+        }))
+        return { collapsed, grouped, groups, total: cards.length }
     }
 
     /** Advance the triage cursor (Next/Skip); past the end shows the done state. */
