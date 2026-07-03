@@ -11,6 +11,8 @@ export interface ViewToolbarState {
     showLaneNav: boolean
     /** Whether multi-select mode is active (board mode only). */
     selectionMode: boolean
+    /** Whether compact cards (title only) are active (board mode only). */
+    compactMode: boolean
 }
 
 export interface ViewToolbarCallbacks {
@@ -24,6 +26,8 @@ export interface ViewToolbarCallbacks {
     onLaneNext: () => void
     /** Toggle multi-select mode. */
     onToggleSelectionMode: () => void
+    /** Toggle compact cards (persists to the view config). */
+    onToggleCompactMode: () => void
 }
 
 /**
@@ -66,6 +70,13 @@ export function renderViewToolbar(
             callbacks.onToggleSelectionMode
         )
         if (state.selectionMode) selectBtn.addClass('kap-nav-btn-active')
+        const compactBtn = addIconButton(
+            rightEl,
+            'rows-2',
+            state.compactMode ? 'Show card details' : 'Show titles only',
+            callbacks.onToggleCompactMode
+        )
+        if (state.compactMode) compactBtn.addClass('kap-nav-btn-active')
     }
     renderGearButton(rightEl, callbacks.onConfigure)
 }

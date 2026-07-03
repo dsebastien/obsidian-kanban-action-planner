@@ -2,6 +2,7 @@ import { describe, expect, it } from 'bun:test'
 import {
     basesPropToName,
     normalizeLaneValue,
+    readCompactMode,
     readIdArray,
     readLaneGroupingOverride,
     readSortMode,
@@ -109,6 +110,15 @@ describe('readLaneGroupingOverride', () => {
         expect(readLaneGroupingOverride(config({}))).toBeNull()
         expect(readLaneGroupingOverride(config({ laneGrouping: '__profile__' }))).toBeNull()
         expect(readLaneGroupingOverride(config({ laneGrouping: 'property' }))).toBeNull()
+    })
+})
+
+describe('readCompactMode', () => {
+    it('is on only for an explicit true (off by default / on missing)', () => {
+        expect(readCompactMode(config({ compactMode: true }))).toBe(true)
+        expect(readCompactMode(config({ compactMode: false }))).toBe(false)
+        expect(readCompactMode(config({}))).toBe(false)
+        expect(readCompactMode(config({ compactMode: 'true' }))).toBe(false)
     })
 })
 

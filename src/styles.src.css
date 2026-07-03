@@ -607,6 +607,22 @@
         word-break: break-word;
     }
 
+    /* ── Compact mode (board toolbar toggle): title-only cards ──
+       Hide every card section except the title row; the title row itself drops
+       its header rule + spacing so the card collapses to a single line. The
+       title-row countdown badge is hidden too (titles only). */
+    .kap-compact .kap-card > :not(.kap-card-title) {
+        display: none;
+    }
+    .kap-compact .kap-card-title {
+        padding-bottom: 0;
+        border-bottom: none;
+        margin-bottom: 0;
+    }
+    .kap-compact .kap-card-title .kap-card-countdown {
+        display: none;
+    }
+
     .kap-card-cover {
         margin: calc(-1 * var(--size-4-2, 0.5rem)) calc(-1 * var(--size-4-3, 0.75rem))
             var(--size-4-2, 0.5rem);

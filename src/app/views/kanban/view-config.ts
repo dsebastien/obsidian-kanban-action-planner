@@ -87,6 +87,14 @@ export function readTriageConfig(config: ConfigReader): TriageConfig {
     }
 }
 
+/**
+ * Read the persisted compact-cards toggle (board toolbar). Off by default and
+ * default-on-missing, so views saved before the option existed are unaffected.
+ */
+export function readCompactMode(config: ConfigReader): boolean {
+    return config.get('compactMode') === true
+}
+
 /** Normalize a raw frontmatter value into a swimlane key, or `null` (→ Ungrouped). */
 export function normalizeLaneValue(raw: unknown): string | null {
     if (typeof raw === 'string') {

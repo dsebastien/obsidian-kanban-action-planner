@@ -107,6 +107,7 @@ import type { CalendarViewState } from './calendar-controller'
 import {
     basesPropToName,
     normalizeLaneValue,
+    readCompactMode,
     readIdArray,
     readLaneGroupingOverride,
     readSortMode,
@@ -598,6 +599,10 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         this.cardsByKey = new Map(cards.map((c) => [c.key, c]))
         this.filterBar?.setCount(active ? cards.length : null)
         this.filterEmptyEl?.toggleClass('kap-hidden', !(active && cards.length === 0))
+
+        // Compact cards apply to the board only (the calendar's scheduling panel
+        // and the triage card keep their full layout).
+        this.boardEl.toggleClass('kap-compact', this.compactMode() && this.viewMode() === 'board')
 
         if (this.triageMode()) {
             this.renderToolbar(false)
@@ -1480,6 +1485,17 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         }
     }
 
+    /** Whether compact cards (title only) are active (board mode). */
+    private compactMode(): boolean {
+        return readCompactMode(this.config)
+    }
+
+    /** Toggle compact cards, persisting the flag (same mechanism as the mode flags). */
+    private toggleCompactMode(): void {
+        this.config.set('compactMode', !this.compactMode())
+        this.rebuild()
+    }
+
     // ── Triage mode (issue #53) ───────────────────────────────
 
     /** Render the triage queue into the board host from a stable snapshot. */
@@ -1915,14 +1931,16 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             {
                 mode: this.viewMode(),
                 showLaneNav,
-                selectionMode: this.selection?.active ?? false
+                selectionMode: this.selection?.active ?? false,
+                compactMode: this.compactMode()
             },
             {
                 onSetMode: (mode) => this.setViewMode(mode),
                 onConfigure: () => this.openSettings(),
                 onLanePrev: () => this.scrollLane(-1),
                 onLaneNext: () => this.scrollLane(1),
-                onToggleSelectionMode: () => this.selection?.toggleMode()
+                onToggleSelectionMode: () => this.selection?.toggleMode(),
+                onToggleCompactMode: () => this.toggleCompactMode()
             }
         )
     }

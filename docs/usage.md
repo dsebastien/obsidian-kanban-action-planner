@@ -380,6 +380,13 @@ Bulk writes are applied to each note and a summary notice reports how many succe
 that were skipped or failed). Bulk **Set status** changes only the status, so it doesn't trigger
 auto-archive and you never mass-archive by accident.
 
+## Compact cards
+
+Press the **compact** button (the rows icon next to **Select**) to show **titles only**: covers,
+fields, badges, and relationship chips are hidden so far more cards fit on screen. Press it again
+to bring the details back. The toggle is **off by default** and is remembered **per view** (it's
+saved into the `.base` file, like the Board/Calendar/Triage mode).
+
 ## Other interactions
 
 - **Hover a card to preview its note.** Obsidian's native page-preview popover, the same as
@@ -403,6 +410,7 @@ Each Kanban view remembers how you left it, **per view**, across reloads and reo
 - Board vs **Calendar** mode, and the calendar **range** (Week/Month/Quarter/Year), **active
   tab**, **panel collapsed** state, and the **Scheduled/Deadlines** legend toggles.
 - **Collapsed swimlanes** and **collapsed columns**.
+- **Compact cards** (titles only) on or off.
 - The toolbar **filter** query.
 
 Two calendar bits are deliberately **not** remembered, and reset every time you reopen the

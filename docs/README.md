@@ -48,9 +48,10 @@ every change written straight back into your notes.
 
 - **Archiving.** Move a finished note to a placeholder-driven archive folder, manually or
   automatically when it reaches a chosen status.
-- **WIP limits, multi-select and bulk actions, overdue emphasis, hover preview.** Soft per-column
-  limits, Shift-click selection with bulk set-status / archive / open, red and amber due-date
-  washes, and a native note popover on card hover.
+- **WIP limits, multi-select and bulk actions, compact mode, overdue emphasis, hover preview.**
+  Soft per-column limits, Shift-click selection with bulk set-status / archive / open, a
+  titles-only compact toggle, red and amber due-date washes, and a native note popover on card
+  hover.
 - **Colors and per-type card display.** Give each status a color (palette or custom, theme-aware),
   and choose which fields show on cards, per note type.
 - **Obsidian Starter Kit aware.** The plugin works fully on its own. The
