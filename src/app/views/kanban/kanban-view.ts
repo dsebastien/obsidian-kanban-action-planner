@@ -73,7 +73,14 @@ import {
     toDateKey
 } from '../../domain/calendar'
 import type { DateDimension } from '../../domain/calendar'
-import { isEmptyQuery, matchesFilterQuery, parseFilterQuery } from '../../domain/filter-query'
+import {
+    getParentTerm,
+    isEmptyQuery,
+    matchesFilterQuery,
+    parseFilterQuery,
+    removeParentTerm,
+    setParentTerm
+} from '../../domain/filter-query'
 import type { CardSearchRecord, FilterContext, FilterQuery } from '../../domain/filter-query'
 import { CalendarDnd } from '../../ui/calendar/calendar-dnd'
 import { formatDate } from '../../utils/momentjs'
@@ -243,7 +250,9 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         this.toolbarLeftEl = this.toolbarEl.createDiv({ cls: 'kap-toolbar-left' })
         this.filterBar = new FilterBar(this.toolbarEl, '', {
             onInput: (value) => this.onFilterInput(value),
-            onClear: () => this.onFilterClear()
+            onClear: () => this.onFilterClear(),
+            onZoomDismiss: () => this.clearChildFocus(),
+            onZoomOpen: (label) => this.openParentByTitle(label)
         })
         this.toolbarRightEl = this.toolbarEl.createDiv({ cls: 'kap-toolbar-right' })
         this.selectionBarEl = this.rootEl.createDiv({ cls: 'kap-selection-bar kap-hidden' })
@@ -598,6 +607,16 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             : this.allCards
         this.cardsByKey = new Map(cards.map((c) => [c.key, c]))
         this.filterBar?.setCount(active ? cards.length : null)
+        // Zoom chip (issue #74): derived from the query's `parent:` term — no
+        // separate zoom state. The empty message hints that the Base's own
+        // filters may exclude the children (e.g. tasks on a projects-only view).
+        const zoomTitle = getParentTerm(this.filterQuery)
+        this.filterBar?.setZoomChip(zoomTitle)
+        this.filterEmptyEl?.setText(
+            zoomTitle === null
+                ? 'No cards match the filter.'
+                : `No cards match the filter. Children of "${zoomTitle}" may be excluded by this view's own Base filters.`
+        )
         this.filterEmptyEl?.toggleClass('kap-hidden', !(active && cards.length === 0))
 
         // Compact cards apply to the board only (the calendar's scheduling panel
@@ -1158,6 +1177,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             writeCardDate: (card, dimension, iso) => this.writeCardDate(card, dimension, iso),
             promptDate: (card, dimension, current) => this.promptDate(card, dimension, current),
             openRelated: (note, newTab) => this.openRelated(note, newTab),
+            focusOnChildren: (card) => this.focusOnChildren(card),
             todayKey: () => toDateKey(startOfDay(new Date())),
             tomorrowKey: () => toDateKey(addDays(startOfDay(new Date()), 1)),
             addableRelationshipRoles: () => this.addableRelationshipRoles(),
@@ -1382,11 +1402,22 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         const related = card.relationships[role]
         if (related.length === 0) return
         const newTab = isNewTabEvent(event)
-        if (related.length === 1 && related[0]) {
+        // The ▼ children badge always opens a menu so the zoom action (issue
+        // #74) is reachable; other roles keep the open-directly shortcut.
+        if (role !== 'child' && related.length === 1 && related[0]) {
             this.openRelated(related[0], newTab)
             return
         }
         const menu = new Menu()
+        if (role === 'child') {
+            menu.addItem((item) =>
+                item
+                    .setTitle('Focus on children on this board')
+                    .setIcon('zoom-in')
+                    .onClick(() => this.focusOnChildren(card))
+            )
+            menu.addSeparator()
+        }
         for (const note of related) {
             menu.addItem((item) =>
                 item
@@ -1987,6 +2018,36 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
     private commitFilter(): void {
         this.config.set('filterQuery', this.filterQuery)
         this.applyFilterAndRender()
+    }
+
+    // ── Zoom / focus on children (issue #74) ──────────────────
+
+    /** Set the query (zoom set/swap/dismiss) through the normal filter path. */
+    private setFilterQuery(query: string): void {
+        this.filterQuery = query
+        this.parsedQuery = parseFilterQuery(query)
+        this.filterBar?.setValue(query)
+        this.commitFilter()
+    }
+
+    /**
+     * Zoom into `card`: re-filter the board to the notes whose parent it is, by
+     * writing a `parent:="Title"` exact term into the filter query (swapping
+     * any previous one, so repeated zooms drill down one level at a time).
+     */
+    private focusOnChildren(card: KanbanCard): void {
+        this.setFilterQuery(setParentTerm(this.filterQuery, card.display.title))
+    }
+
+    /** Chip ✕: remove only the `parent:` term; the rest of the query survives. */
+    private clearChildFocus(): void {
+        this.setFilterQuery(removeParentTerm(this.filterQuery))
+    }
+
+    /** Chip label click: best-effort resolve the focused parent note by title. */
+    private openParentByTitle(title: string): void {
+        const file = this.app.metadataCache.getFirstLinkpathDest(title, '')
+        if (file) void this.app.workspace.getLeaf(false).openFile(file)
     }
 
     /** The `due:` evaluation context (today + calendar period ranges). */

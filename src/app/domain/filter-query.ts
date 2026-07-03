@@ -15,6 +15,8 @@ import { parseFrontmatterDate, startOfDay, toDateKey } from './calendar'
  *   qualifier := name ':' value        # value may be quoted; comma = OR within the field
  *
  * - Case-insensitive **substring** matching everywhere except `due:` comparisons.
+ * - `name:=value` (exact operator) matches the **whole** value case-insensitively
+ *   instead of a substring — works for every qualifier (`due:=` = same-day `=`).
  * - Comma in a value = OR (`status:active,done`).
  * - Leading `-` or a standalone `NOT` negates the next clause.
  * - Reserved names (`title`, `status`, `parent`, `child`, `sibling`, `blocked`,
@@ -36,6 +38,8 @@ export interface FilterClause {
     op: CompareOp
     /** OR-ed candidate values, lowercased (empty values dropped). */
     values: string[]
+    /** `name:=value` — match the whole value, not a substring. */
+    exact: boolean
 }
 
 /** A parsed query: an OR of AND-groups. Empty `groups` matches everything. */
@@ -134,6 +138,7 @@ function parseDueOp(raw: string): { op: CompareOp; rest: string } {
     if (v.startsWith('<=')) return { op: '<=', rest: v.slice(2) }
     if (v.startsWith('>')) return { op: '>', rest: v.slice(1) }
     if (v.startsWith('<')) return { op: '<', rest: v.slice(1) }
+    if (v.startsWith('=')) return { op: '=', rest: v.slice(1) }
     return { op: '=', rest: v }
 }
 
@@ -149,19 +154,24 @@ function toClause(token: string, negated: boolean): FilterClause | null {
     if (colon <= 0) {
         const value = unquote(body).toLowerCase()
         if (!value) return null
-        return { negated: neg, name: null, op: '=', values: [value] }
+        return { negated: neg, name: null, op: '=', values: [value], exact: false }
     }
     const name = body.slice(0, colon).toLowerCase()
-    const rawValue = body.slice(colon + 1)
+    let rawValue = body.slice(colon + 1)
     if (name === 'due') {
         const { op, rest } = parseDueOp(rawValue)
         const values = splitValues(rest)
         if (values.length === 0) return null
-        return { negated: neg, name, op, values }
+        return { negated: neg, name, op, values, exact: false }
+    }
+    let exact = false
+    if (rawValue.startsWith('=')) {
+        exact = true
+        rawValue = rawValue.slice(1)
     }
     const values = splitValues(rawValue)
     if (values.length === 0) return null
-    return { negated: neg, name, op: '=', values }
+    return { negated: neg, name, op: '=', values, exact }
 }
 
 /** Parse a filter string into a {@link FilterQuery}. Never throws. */
@@ -271,25 +281,29 @@ const ROLE_ALIASES: Record<string, RelationshipRole> = {
 /** Whether a qualifier clause matches the record (any candidate value, OR). */
 function matchQualifier(rec: CardSearchRecord, clause: FilterClause, ctx: FilterContext): boolean {
     const name = clause.name ?? ''
+    // Substring by default; whole-value (still case-insensitive — both sides
+    // are lowercased) for the `:=` exact operator.
+    const hits = (haystack: string, v: string): boolean =>
+        clause.exact ? haystack === v : haystack.includes(v)
     if (name === 'due') {
         return clause.values.some((v) => matchDueValue(rec.due, clause.op, v, ctx))
     }
     if (name === 'title') {
-        return clause.values.some((v) => rec.title.includes(v))
+        return clause.values.some((v) => hits(rec.title, v))
     }
     if (name === 'status') {
-        return clause.values.some((v) => rec.statusText.some((s) => s.includes(v)))
+        return clause.values.some((v) => rec.statusText.some((s) => hits(s, v)))
     }
     if (name === 'tag' || name === 'tags') {
-        return clause.values.some((v) => rec.tags.some((t) => t.includes(v)))
+        return clause.values.some((v) => rec.tags.some((t) => hits(t, v)))
     }
     const role = ROLE_ALIASES[name]
     if (role) {
-        return clause.values.some((v) => rec.rels[role].some((r) => r.includes(v)))
+        return clause.values.some((v) => rec.rels[role].some((r) => hits(r, v)))
     }
     const propValues = rec.props.get(name)
     if (!propValues) return false
-    return clause.values.some((v) => propValues.some((pv) => pv.includes(v)))
+    return clause.values.some((v) => propValues.some((pv) => hits(pv, v)))
 }
 
 /** Whether one clause matches (respecting negation). */
@@ -309,4 +323,53 @@ export function matchesFilterQuery(
 ): boolean {
     if (query.groups.length === 0) return true
     return query.groups.some((group) => group.every((clause) => matchClause(rec, clause, ctx)))
+}
+
+// ── Zoom / focus-on-children helpers (issue #74) ──────────────
+//
+// Zoom is not separate state: focusing a card's children writes a
+// `parent:="Title"` term into the raw filter query and rides the normal
+// filter path. These helpers edit that term at the raw-string level so the
+// rest of what the user typed survives untouched (and the chip label keeps
+// the original casing, which the lowercasing parser would lose).
+
+/** A non-negated `parent:` / `parent:=` token (the zoom term). */
+function isParentToken(token: string): boolean {
+    return /^parent:/i.test(token)
+}
+
+/** Serialize a zoom term for `title`, always quoted (quotes stripped — the tokenizer has no escapes). */
+function parentTerm(title: string): string {
+    return `parent:="${title.replace(/"/g, '').trim()}"`
+}
+
+/**
+ * Append a `parent:="title"` exact term to `query`, replacing any existing
+ * (non-negated) `parent:` term so repeated zooms drill down instead of stacking.
+ */
+export function setParentTerm(query: string, title: string): string {
+    const kept = tokenize(query).filter((t) => !isParentToken(t))
+    return [...kept, parentTerm(title)].join(' ').trim()
+}
+
+/** Remove the `parent:` term(s) from `query`, keeping everything else. */
+export function removeParentTerm(query: string): string {
+    return tokenize(query)
+        .filter((t) => !isParentToken(t))
+        .join(' ')
+        .trim()
+}
+
+/**
+ * The zoom term's value (original casing, unquoted), or `null` when the query
+ * has no non-negated `parent:` term. Drives the derived zoom chip.
+ */
+export function getParentTerm(query: string): string | null {
+    for (const token of tokenize(query)) {
+        if (!isParentToken(token)) continue
+        const raw = token.slice(token.indexOf(':') + 1)
+        const value = unquote(raw.startsWith('=') ? raw.slice(1) : raw).trim()
+        if (value.length > 0) return value
+    }
+    return null
 }

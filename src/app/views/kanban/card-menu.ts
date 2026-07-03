@@ -36,6 +36,8 @@ export interface CardMenuHost {
     /** Open the date picker for a card's scheduled date or deadline. */
     promptDate(card: KanbanCard, dimension: DateDimension, current: Date | null): void
     openRelated(note: RelatedNote, newTab: boolean): void
+    /** Zoom (issue #74): re-filter the board to the card's children. */
+    focusOnChildren(card: KanbanCard): void
     /** Quick "today"/"tomorrow" keys + the current new-tab modifier check. */
     todayKey(): string
     tomorrowKey(): string
@@ -68,6 +70,14 @@ export function buildCardMenu(card: KanbanCard, host: CardMenuHost): Menu {
             .setIcon('lucide-external-link')
             .onClick(() => host.openCard(card, true))
     )
+    if (card.relationships.child.length > 0) {
+        menu.addItem((item) =>
+            item
+                .setTitle('Focus on children')
+                .setIcon('zoom-in')
+                .onClick(() => host.focusOnChildren(card))
+        )
+    }
     menu.addSeparator()
     for (const col of host.columns()) {
         menu.addItem((item) =>

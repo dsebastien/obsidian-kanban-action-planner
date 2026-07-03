@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'bun:test'
-import { isEmptyQuery, matchesFilterQuery, parseFilterQuery } from './filter-query'
+import {
+    getParentTerm,
+    isEmptyQuery,
+    matchesFilterQuery,
+    parseFilterQuery,
+    removeParentTerm,
+    setParentTerm
+} from './filter-query'
 import type { CardSearchRecord, FilterContext } from './filter-query'
 import { periodRange } from './calendar'
 
@@ -76,6 +83,28 @@ describe('parseFilterQuery', () => {
             name: 'due',
             op: '>=',
             values: ['2026-01-01']
+        })
+    })
+
+    it('parses the := exact operator (quoted and unquoted)', () => {
+        expect(parseFilterQuery('parent:="Website Redesign"').groups[0]?.[0]).toMatchObject({
+            name: 'parent',
+            values: ['website redesign'],
+            exact: true
+        })
+        expect(parseFilterQuery('status:=done').groups[0]?.[0]).toMatchObject({
+            name: 'status',
+            values: ['done'],
+            exact: true
+        })
+        expect(parseFilterQuery('parent:app').groups[0]?.[0]?.exact).toBe(false)
+    })
+
+    it('due:= parses as the exact-day = comparison', () => {
+        expect(parseFilterQuery('due:=2026-01-15').groups[0]?.[0]).toMatchObject({
+            name: 'due',
+            op: '=',
+            values: ['2026-01-15']
         })
     })
 
@@ -173,6 +202,27 @@ describe('matchesFilterQuery', () => {
         expect(match('due:>=2026-01-15', rec)).toBe(true)
     })
 
+    it(':= matches the whole value case-insensitively, never a substring', () => {
+        const rec = record({
+            title: 'launch plan',
+            statusText: ['30 - active', 'active'],
+            tags: ['work'],
+            rels: { parent: ['app backend'], sibling: [], child: [], blocked_by: [] },
+            props: new Map([['contexts', ['deep-focus']]])
+        })
+        expect(match('parent:="App Backend"', rec)).toBe(true)
+        expect(match('parent:="App"', rec)).toBe(false) // substring would match
+        expect(match('parent:app', rec)).toBe(true) // : keeps substring semantics
+        expect(match('title:="Launch Plan"', rec)).toBe(true)
+        expect(match('title:=launch', rec)).toBe(false)
+        expect(match('status:=active', rec)).toBe(true)
+        expect(match('status:=act', rec)).toBe(false)
+        expect(match('tag:=work', rec)).toBe(true)
+        expect(match('tag:=wor', rec)).toBe(false)
+        expect(match('contexts:=deep-focus', rec)).toBe(true)
+        expect(match('contexts:=deep', rec)).toBe(false)
+    })
+
     it('combines qualifiers and terms across OR groups', () => {
         const rec = record({
             title: 'book',
@@ -182,5 +232,45 @@ describe('matchesFilterQuery', () => {
         })
         expect(match('book parent:"pkm" status:active', rec)).toBe(true)
         expect(match('book parent:"pkm" status:done OR due:overdue', rec)).toBe(false)
+    })
+})
+
+describe('zoom helpers (issue #74)', () => {
+    it('setParentTerm appends an exact quoted term to the existing query', () => {
+        expect(setParentTerm('', 'Website Redesign')).toBe('parent:="Website Redesign"')
+        expect(setParentTerm('status:active', 'Website Redesign')).toBe(
+            'status:active parent:="Website Redesign"'
+        )
+    })
+
+    it('setParentTerm swaps an existing parent term instead of stacking', () => {
+        const zoomed = setParentTerm('status:active', 'App')
+        expect(setParentTerm(zoomed, 'App Backend')).toBe('status:active parent:="App Backend"')
+        expect(setParentTerm('parent:app status:active', 'App Backend')).toBe(
+            'status:active parent:="App Backend"'
+        )
+    })
+
+    it('setParentTerm strips quotes from the title (tokenizer has no escapes)', () => {
+        expect(setParentTerm('', 'Say "hi"')).toBe('parent:="Say hi"')
+    })
+
+    it('setParentTerm leaves a negated -parent: exclusion alone', () => {
+        expect(setParentTerm('-parent:old', 'App')).toBe('-parent:old parent:="App"')
+    })
+
+    it('removeParentTerm removes only the parent term', () => {
+        expect(removeParentTerm('status:active parent:="Website Redesign"')).toBe('status:active')
+        expect(removeParentTerm('parent:app')).toBe('')
+        expect(removeParentTerm('status:active')).toBe('status:active')
+        expect(removeParentTerm('-parent:old status:active')).toBe('-parent:old status:active')
+    })
+
+    it('getParentTerm returns the original-cased value or null', () => {
+        expect(getParentTerm('status:active parent:="Website Redesign"')).toBe('Website Redesign')
+        expect(getParentTerm('parent:App')).toBe('App')
+        expect(getParentTerm('status:active')).toBeNull()
+        expect(getParentTerm('-parent:old')).toBeNull()
+        expect(getParentTerm('')).toBeNull()
     })
 })

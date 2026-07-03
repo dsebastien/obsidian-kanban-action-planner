@@ -317,3 +317,19 @@ See `documentation/plans/kanban-action-planner-implementation-plan.md` for full 
     already the heading), like `file.name`. The title flows through `CardDisplay.title`, so board,
     calendar chips/panel, triage heading, search, and name-sort all use the same resolved value.
     Originally shipped in M2b (per note type), dropped by the #50 refactor, reintroduced per-view.
+34. **Zoom into a card's children (issue #74).** "Focus on children" re-filters the board to the
+    notes whose **parent** is the focused card — it is **not separate state**: the action writes a
+    `parent:="Title"` term into the per-view `filterQuery` and rides the normal filter path
+    (AND-appended to whatever the user typed; an existing non-negated `parent:` term is **swapped**,
+    so repeated zooms drill down one level at a time; persistence comes free). The **`:=` exact
+    operator** (new, all qualifiers; for `due:` the `=` maps to the existing same-day compare)
+    matches the **whole** value case-insensitively — zoom emits it so "App" never captures children
+    of "App Backend"; plain `:` keeps substring semantics. **Direct children only** (the resolved
+    parent/child edges, inverse/heuristic included); zoom filters **within the Base's result set**
+    (children excluded by the Base's own filters stay hidden — the empty state says so). Entry
+    points (shown only when the card has children): card context menu **Focus on children** and the
+    ▼ children badge menu **Focus on children on this board** (top item; the child badge therefore
+    always opens a menu, even for a single child). A dismissible **chip** (`▼ Title ✕`) next to the
+    filter box is **derived** from the query's parent term: ✕ removes only that term, label click
+    best-effort opens the parent note by title. The focused card itself is not shown. Recursive
+    descendants and breadcrumbs: out of scope (follow-ups).

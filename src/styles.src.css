@@ -152,6 +152,43 @@
         height: 1em;
     }
 
+    /* Zoom chip (issue #74): derived from the query's `parent:` term. */
+    .kap-root .kap-filter-zoom {
+        @apply inline-flex flex-none items-center gap-0.5 max-w-[40%] h-5 pl-1.5 pr-0.5 rounded-full text-[0.78em];
+        background: color-mix(in srgb, var(--interactive-accent) 18%, transparent);
+        color: var(--text-normal);
+    }
+
+    .kap-root .kap-filter-zoom-label {
+        @apply inline-flex min-w-0 items-center border-0 bg-transparent p-0 cursor-pointer whitespace-nowrap overflow-hidden text-ellipsis;
+        color: inherit;
+        font-size: inherit;
+        box-shadow: none;
+    }
+
+    .kap-root .kap-filter-zoom-label:hover {
+        color: var(--text-accent);
+    }
+
+    .kap-root .kap-filter-zoom-dismiss {
+        @apply inline-flex flex-none items-center justify-center w-4 h-4 p-0 border-0 rounded-full cursor-pointer bg-transparent;
+        color: var(--text-muted);
+        transition:
+            color var(--kap-transition) var(--kap-ease),
+            background-color var(--kap-transition) var(--kap-ease);
+    }
+
+    .kap-root .kap-filter-zoom-dismiss:hover {
+        color: var(--text-normal);
+        background: var(--background-modifier-border);
+    }
+
+    .kap-root .kap-filter-zoom-dismiss svg {
+        @apply flex-none;
+        width: 0.85rem;
+        height: 0.85rem;
+    }
+
     .kap-root .kap-filter-input {
         @apply flex-1 min-w-0 border-0 bg-transparent p-0 text-[0.9em];
         color: var(--text-normal);

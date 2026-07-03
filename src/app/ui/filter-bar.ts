@@ -5,6 +5,10 @@ export interface FilterBarCallbacks {
     onInput: (value: string) => void
     /** Fired when the query is cleared (× button or Esc). */
     onClear: () => void
+    /** ✕ on the zoom chip: remove only the `parent:` term (issue #74). */
+    onZoomDismiss: () => void
+    /** Click on the zoom chip label: open the focused parent note. */
+    onZoomOpen: (label: string) => void
 }
 
 /** One row of the syntax cheat-sheet popover. */
@@ -13,6 +17,7 @@ const HELP_ROWS: ReadonlyArray<{ syntax: string; desc: string }> = [
     { syntax: 'book OR plan', desc: 'OR (or |) between groups' },
     { syntax: '-status:done', desc: 'exclude (also NOT)' },
     { syntax: 'parent:"PKM Library"', desc: 'property; quote for spaces' },
+    { syntax: 'parent:="App"', desc: 'exact whole-value match (: is substring)' },
     { syntax: 'status:active,done', desc: 'comma = OR within a property' },
     { syntax: 'due:overdue', desc: 'today · overdue · none · week · month · quarter · year' },
     { syntax: 'due:>2026-01-01', desc: 'date compare: < > <= >=' }
@@ -32,6 +37,9 @@ export class FilterBar {
     private readonly clearEl: HTMLElement
     private readonly countEl: HTMLElement
     private readonly helpBtn: HTMLElement
+    private readonly zoomEl: HTMLElement
+    private readonly zoomLabelEl: HTMLElement
+    private zoomLabel = ''
     private helpBox: HTMLElement | null = null
     private readonly onDocPointerDown: (event: MouseEvent) => void
 
@@ -40,6 +48,23 @@ export class FilterBar {
 
         const icon = this.el.createSpan({ cls: 'kap-filter-icon' })
         setIcon(icon, 'search')
+
+        // Zoom chip (issue #74): derived from the query's `parent:` term, so it
+        // only renders when the view reports one via setZoomChip().
+        this.zoomEl = this.el.createSpan({ cls: 'kap-filter-zoom kap-hidden' })
+        this.zoomLabelEl = this.zoomEl.createEl('button', {
+            cls: 'kap-filter-zoom-label',
+            attr: { 'type': 'button', 'aria-label': 'Open the focused parent note' }
+        })
+        const zoomDismiss = this.zoomEl.createEl('button', {
+            cls: 'kap-filter-zoom-dismiss',
+            attr: { 'type': 'button', 'aria-label': 'Stop focusing on children' }
+        })
+        setIcon(zoomDismiss, 'x')
+        this.zoomLabelEl.addEventListener('click', () => {
+            if (this.zoomLabel) callbacks.onZoomOpen(this.zoomLabel)
+        })
+        zoomDismiss.addEventListener('click', () => callbacks.onZoomDismiss())
 
         this.inputEl = this.el.createEl('input', {
             cls: 'kap-filter-input',
@@ -103,6 +128,16 @@ export class FilterBar {
             this.inputEl.value = value
             this.syncClear()
         }
+    }
+
+    /**
+     * Show (or hide, when `label` is null) the zoom chip: `▼ <parent title>`.
+     * Derived state — the view recomputes it from the parsed query each render.
+     */
+    setZoomChip(label: string | null): void {
+        this.zoomLabel = label ?? ''
+        this.zoomEl.toggleClass('kap-hidden', label === null)
+        if (label !== null) this.zoomLabelEl.setText(`▼ ${label}`)
     }
 
     /** Show "N matches" when a filter is active, or clear it when inactive. */

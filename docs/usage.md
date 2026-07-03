@@ -89,6 +89,9 @@ Click the **?** for an in-app cheat-sheet.
 - Recognized names: `title`, `status` (matches the value or its column label), `parent`,
   `child`, `sibling`, `blocked`, `tag`, `due`, **or any frontmatter property** (e.g.
   `urgency:now`, `effort:large`), even properties not shown on the card.
+- **`:` matches substrings; `:=` matches the whole value.** `parent:app` matches children of
+  both `App` and `App Backend`; `parent:="App"` matches only `App` (still case-insensitive).
+  Works for every qualifier (`status:=done`, `tag:=work`, …).
 
 **`due:` dates**
 
@@ -236,7 +239,9 @@ On each card:
 - A small badge row shows one **counted** badge per role (**▲** parents, **▼** children, **↔**
   siblings), so a note with three children shows **▼ 3**, and hovering lists the names.
   **Click a badge** to open the related note. When there are several, you get a menu to pick
-  one. **Ctrl/Cmd-click** (on the badge or a menu item) opens in a new tab.
+  one. **Ctrl/Cmd-click** (on the badge or a menu item) opens in a new tab. The **▼ children**
+  badge always opens a menu — its top item is **Focus on children on this board** (see
+  [Focus on a card's children](#focus-on-a-cards-children-zoom)).
 - A note with a non-empty **blocked by** gets a red **⛔** badge (counted the same way, **⛔ 2**
   when blocked by two) and a red edge. Click it to jump to the blocker, or pick from the menu
   when there are several (Ctrl/Cmd-click for a new tab). Blocking never changes a card's status
@@ -259,6 +264,39 @@ remove a `blocked by` link, or archive a blocker, and the board updates without 
 
 Use the **Blocked cards** view option to **show all**, show **only blocked**, or **hide
 blocked** cards.
+
+## Focus on a card's children (zoom)
+
+Zoom into a card that has children: the board re-filters to show **only the notes whose parent is
+that card**, laid out in the usual status columns. Focus a project and you see just its tasks;
+focus an area and you see its projects.
+
+Two ways to trigger it (both appear only when the card **has children**):
+
+- The card's right-click menu → **Focus on children**.
+- The **▼ children badge** menu → **Focus on children on this board** (top item).
+
+Under the hood, zooming simply writes a `parent:="Card Title"` term into the
+[filter box](#filtering-search-bar) — there is no separate mode. That means:
+
+- It **ANDs with whatever you already typed** (e.g. `status:active` stays applied).
+- **Zooming again drills down**: focusing a child **swaps** the `parent:` term, one level at a
+  time. To go back up, dismiss the chip and focus another card (or edit the query directly).
+- It **persists with the view**, like any filter, across close/reopen.
+
+While focused, a **chip** (`▼ Website Redesign ✕`) shows next to the filter box:
+
+- Click the **✕** to remove **only** the `parent:` term — the rest of your query survives.
+- Click the **label** to open the focused parent note.
+
+**Only direct children** match (the same parent/child links the ▼ badge counts, including
+inferred ones); deeper descendants don't, until you drill down into them. The focused card itself
+is not shown — the chip is the context.
+
+**Heads-up:** zoom filters **within the notes this view's Base already selects**. If the Base's
+own filters exclude the children (e.g. you focus a project on a **projects-only** view, and its
+children are tasks), the board comes up empty — use a view whose Base includes the children, like
+a mixed "All actions" view.
 
 ## Archiving
 
