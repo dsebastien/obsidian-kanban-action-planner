@@ -1,5 +1,15 @@
 # Release Notes
 
+## 0.9.0 (2026-07-03)
+
+### Features
+
+- **plugin:** add compact mode toggle showing title-only cards
+
+### Bug Fixes
+
+- **plugin:** let columns expand equally to fill spare board width [#73](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/73)
+
 ## 0.8.1 (2026-06-30)
 
 ### Bug Fixes
