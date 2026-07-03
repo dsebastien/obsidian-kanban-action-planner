@@ -144,6 +144,16 @@ export function getKanbanViewOptions(app: App, settings: PluginSettings): BasesA
             displayName: 'Cards',
             items: [
                 {
+                    type: 'property',
+                    // Card-title source (issue #4): a property shown as the card
+                    // heading instead of the note name (falls back to the note
+                    // name when missing/empty). Read-only, so formulas work too.
+                    key: 'titleProperty',
+                    displayName: 'Title property',
+                    placeholder: 'Note name (default)',
+                    filter: readOnlyPropertyFilter
+                },
+                {
                     type: 'toggle',
                     // Visibility is per-view (issue #62); the badge position and the
                     // "soon" color threshold are global (plugin settings).

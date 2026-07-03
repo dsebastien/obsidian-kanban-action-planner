@@ -18,10 +18,10 @@ Settings live in three places, by scope:
   recognized type. Click **Configure** next to a type to edit it.
 - **Per-board configuration** (**Configure view** — the Bases view options for the Kanban view)
   — settings for **this board only**, grouped into **Columns**, **Cards**, **Swimlanes**,
-  **Filters**, and **Calendar**. The property pickers there list only your notes' **frontmatter**
-  properties (not
-  `file.*` or formula columns, which the board can't read or write); when the Obsidian Starter
-  Kit is enabled they're further limited to your note types' known properties.
+  **Filters**, and **Calendar**. Pickers for properties the board **writes** (status, order,
+  grouping) list only your notes' **frontmatter** properties; read-only pickers (card sort,
+  panel sort, title) also offer `formula.*` and `file.*` columns. When the Obsidian Starter Kit
+  is enabled, frontmatter pickers are further limited to your note types' known properties.
 
 The **gear** in the board's top-right is a shortcut that opens the plugin's **Note types**
 settings (note-type config — colors, cards, relationships, archiving, default swimlane grouping —
@@ -171,6 +171,18 @@ toolbar **filter box** — see the usage guide's "Filtering" section.
 The week the calendar grid starts on is set by **First day of the week** in the plugin settings
 (default **Monday**). This only affects the calendar display; the `{{week}}` archive placeholder
 stays ISO week numbering.
+
+## Card title
+
+The card heading is the **note name** by default. Per board, **Configure view → Cards →
+Title property** picks a property (or base formula) to show as the heading instead — useful when
+filenames are IDs or date-prefixed slugs and a `title`/`name` property carries the readable label.
+Cards whose note is missing the property (or has it empty) fall back to the note name. The chosen
+property is not repeated as a body field, and clicking the card still opens the note.
+
+| Setting            | Scope     | Default   | What it does                                                            |
+| ------------------ | --------- | --------- | ----------------------------------------------------------------------- |
+| **Title property** | Per board | Note name | Shows this property's value as the card heading, in board and calendar. |
 
 ## Due countdown
 

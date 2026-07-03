@@ -513,6 +513,15 @@ way you would for any Bases view: change the view's properties and every card up
 
 ![A card with a due countdown and color-coded properties]({{ '/images/card-due-date.png' | relative_url }})
 
+**Card title.** By default the card heading is the **note name**. If your filenames aren't meant
+to be read (date-prefixed slugs like `2026-07-07-technical-meeting`, ID-based names), pick a
+**Title property** in the view options (**Configure view → Cards → Title property**) — for
+example a `title` or `name` property — and the card heading shows that property's value instead.
+Base formulas work too. A card whose note doesn't have the property (or has it empty) falls back
+to the note name, so cards never go blank. The chosen property is not repeated as a body field,
+and clicking the card still opens the underlying note. The title applies everywhere the card
+appears: the board, the calendar chips and scheduling panel, triage, search, and name sorting.
+
 Field rendering is tuned for **scanning the whole board at a glance**:
 
 - **Enum values are color-coded** by where they rank, a warm (red/orange) signal for the

@@ -1,14 +1,85 @@
 import { describe, expect, it } from 'bun:test'
+import type { App, BasesEntry, BasesPropertyId, TFile } from 'obsidian'
 import {
+    buildCardDisplay,
     computeDueState,
     formatCountdown,
     heatLevel,
     parseEnumPrefix,
     parseProgressField,
+    resolveCardTitle,
     stripEnumPrefix
 } from './card-display.service'
 
 const TODAY = new Date(2026, 5, 28)
+
+/** A minimal BasesEntry double: `getValue` returns a `toString`-able Value or null. */
+const entryOf = (values: Record<string, string>): BasesEntry =>
+    ({
+        getValue: (id: BasesPropertyId) => {
+            const v = values[id]
+            return v === undefined ? null : { toString: (): string => v }
+        }
+    }) as unknown as BasesEntry
+
+describe('resolveCardTitle (issue #4)', () => {
+    const entry = entryOf({
+        'note.title': 'Technical meeting',
+        'note.blank': '   ',
+        'note.unset': 'null'
+    })
+
+    it('uses the note name when no title property is configured', () => {
+        expect(resolveCardTitle(entry, null, '2026-07-07-technical-meeting')).toBe(
+            '2026-07-07-technical-meeting'
+        )
+    })
+
+    it('shows the configured property value instead of the note name', () => {
+        expect(resolveCardTitle(entry, 'note.title', '2026-07-07-technical-meeting')).toBe(
+            'Technical meeting'
+        )
+    })
+
+    it('falls back to the note name when the property is missing, blank, or null', () => {
+        expect(resolveCardTitle(entry, 'note.missing', 'fallback')).toBe('fallback')
+        expect(resolveCardTitle(entry, 'note.blank', 'fallback')).toBe('fallback')
+        expect(resolveCardTitle(entry, 'note.unset', 'fallback')).toBe('fallback')
+        expect(resolveCardTitle(undefined, 'note.title', 'fallback')).toBe('fallback')
+    })
+
+    it('treats an explicit file.name as the note name', () => {
+        expect(resolveCardTitle(entry, 'file.name', 'the-note')).toBe('the-note')
+    })
+})
+
+describe('buildCardDisplay title property (issue #4)', () => {
+    // eslint-disable-next-line obsidianmd/no-tfile-tfolder-cast -- test fake: only .basename is read
+    const file = { basename: '2026-07-07-technical-meeting' } as unknown as TFile
+    const config = {
+        getOrder: (): BasesPropertyId[] => ['file.name', 'note.title', 'note.status'],
+        getDisplayName: (id: BasesPropertyId): string => id.split('.')[1] ?? id
+    }
+    const entry = entryOf({ 'note.title': 'Technical meeting', 'note.status': 'Doing' })
+    const build = (titleProperty: BasesPropertyId | null) =>
+        buildCardDisplay({} as App, file, entry, config, titleProperty, null, TODAY, {
+            show: false,
+            soonDays: 7,
+            placement: 'title'
+        })
+
+    it('titles the card from the property and drops it from the fields', () => {
+        const display = build('note.title')
+        expect(display.title).toBe('Technical meeting')
+        expect(display.fields.map((f) => f.label)).toEqual(['status'])
+    })
+
+    it('keeps the note name and shows the property as a field when unconfigured', () => {
+        const display = build(null)
+        expect(display.title).toBe('2026-07-07-technical-meeting')
+        expect(display.fields.map((f) => f.label)).toEqual(['title', 'status'])
+    })
+})
 
 describe('formatCountdown (issue #62)', () => {
     const SOON = 7

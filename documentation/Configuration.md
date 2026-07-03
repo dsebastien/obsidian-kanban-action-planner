@@ -34,7 +34,9 @@ Three places, by scope:
    `resolveActiveProfile`/`mirrorNoteType`.
 2. **Bases "Configure view"** (`views/kanban/kanban-view-options.ts`) — **per-view**
    (`this.config`) board-only settings (Bases option types can't render rich controls), grouped
-   into **Columns / Swimlanes / Filters / Calendar**. Affects only that one view.
+   into **Columns / Cards / Swimlanes / Filters / Calendar / Triage**. Affects only that one view.
+   The **Cards** group holds `titleProperty` (card heading source, issue #4; falls back to the
+   note name) and `showDueCountdown`.
 
 The note-type editor (`ui/configure-board-modal.ts`) — a two-pane dialog (Cards / Colors /
 Swimlanes / Relationships / Archiving; Archive-folder field has folder autocomplete via

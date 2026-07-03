@@ -309,3 +309,11 @@ See `documentation/plans/kanban-action-planner-implementation-plan.md` for full 
     the note leaves the board and its file moves; the archived note must carry the new status).
     Property-chip / triage-value edits (derived from the Bases entry, not the in-memory model) are
     not yet optimistic.
+33. **Card title source (issue #4).** The card heading is the **note name by default**, or a
+    **per-view `titleProperty`** (Configure view → Cards; any `note.*`/`formula.*`/`file.*` id,
+    read-only) when set. Resolution is `resolveCardTitle` in `card-display.service.ts`
+    (unit-tested): the property's value when non-empty, else **always fall back to the note name**
+    (a card never renders blank). The chosen property is **excluded from the body fields** (it's
+    already the heading), like `file.name`. The title flows through `CardDisplay.title`, so board,
+    calendar chips/panel, triage heading, search, and name-sort all use the same resolved value.
+    Originally shipped in M2b (per note type), dropped by the #50 refactor, reintroduced per-view.

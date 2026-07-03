@@ -914,6 +914,16 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
     }
 
     /**
+     * The per-view card-title source (issue #4): a validated Bases property id
+     * (`note.*` / `formula.*` / `file.*`), or null → the note name.
+     */
+    private titlePropertyId(): BasesPropertyId | null {
+        const ref = parsePropertyRef(this.config.get('titleProperty'))
+        if (!ref) return null
+        return ref.kind === 'note' ? (`note.${ref.name}` as BasesPropertyId) : ref.id
+    }
+
+    /**
      * Build a card's display from the current config + settings (issue #50/#62).
      * Extracted so a lightweight presentational refresh ({@link refreshCardDisplay})
      * can recompute just the display without re-deriving the whole card.
@@ -924,6 +934,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             file,
             this.entriesByPath.get(file.path),
             this.config,
+            this.titlePropertyId(),
             this.dueDateProperty,
             startOfDay(new Date()),
             {

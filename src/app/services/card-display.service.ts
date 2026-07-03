@@ -68,6 +68,28 @@ interface CardFieldConfig {
 /** The file/title property id — shown as the card's heading, never as a field. */
 const TITLE_PROPERTY_ID = 'file.name'
 
+/** Read a Bases entry value as trimmed display text ('' when unset/NullValue). */
+function entryText(entry: BasesEntry | undefined, id: BasesPropertyId): string {
+    const value = entry?.getValue(id)
+    const text = value == null ? '' : value.toString().trim()
+    // `NullValue.toString()` is "null" — treat it as unset.
+    return text === 'null' ? '' : text
+}
+
+/**
+ * Resolve the card's heading (issue #4): the configured title property's value
+ * when set and non-empty, else the note name — so date/ID-based filenames can
+ * show a readable `title`/`name` property instead, and cards never go blank.
+ */
+export function resolveCardTitle(
+    entry: BasesEntry | undefined,
+    titleProperty: BasesPropertyId | null,
+    basename: string
+): string {
+    if (!titleProperty || titleProperty === TITLE_PROPERTY_ID) return basename
+    return entryText(entry, titleProperty) || basename
+}
+
 /**
  * Detect a percentage field so it can render as a progress bar: the label must
  * read like a percentage/progress (`%` or "progress", case-insensitive) and the
@@ -125,17 +147,20 @@ function isNumeric(text: string): boolean {
 
 /**
  * Build a card's presentation from the **Bases view's configured properties**
- * (issue #50): the title (note name) plus one field per property in the view's
- * `getOrder()` (the standard Bases "Properties" toolbar), read per card via
- * `BasesEntry.getValue` and labelled by `getDisplayName`. Enum values are
- * prefix-stripped + heat-colored, numeric formulas become accent badges (card
- * scannability). Relationships are rendered separately, not here.
+ * (issue #50): the title (note name, or the per-view title property — issue #4)
+ * plus one field per property in the view's `getOrder()` (the standard Bases
+ * "Properties" toolbar), read per card via `BasesEntry.getValue` and labelled by
+ * `getDisplayName`. Enum values are prefix-stripped + heat-colored, numeric
+ * formulas become accent badges (card scannability). Relationships are rendered
+ * separately, not here.
  */
 export function buildCardDisplay(
     app: App,
     file: TFile,
     entry: BasesEntry | undefined,
     config: CardFieldConfig,
+    /** Card-title source (issue #4): a Bases property id, or null → note name. */
+    titleProperty: BasesPropertyId | null,
     dueDateProperty: string | null,
     today: Date,
     /** Due-countdown config (issue #62): show flag, soon-threshold, placement. */
@@ -145,11 +170,10 @@ export function buildCardDisplay(
 ): CardDisplay {
     const fields: CardFieldView[] = []
     for (const id of config.getOrder()) {
-        if (id === TITLE_PROPERTY_ID) continue // shown as the title
-        const value = entry?.getValue(id)
-        const text = value == null ? '' : value.toString().trim()
-        // `NullValue.toString()` is "null"; skip empty/unset so cards don't show "Field: null".
-        if (!text || text === 'null') continue
+        if (id === TITLE_PROPERTY_ID || id === titleProperty) continue // shown as the title
+        // Skip empty/unset so cards don't show "Field: null".
+        const text = entryText(entry, id)
+        if (!text) continue
         const label = config.getDisplayName(id)
         const progress = parseProgressField(label, text)
         if (progress !== null) {
@@ -190,7 +214,7 @@ export function buildCardDisplay(
     const dueRaw = dueDateProperty ? getFrontmatterValue(app, file, dueDateProperty) : null
     const due = parseFrontmatterDate(dueRaw)
     return {
-        title: file.basename,
+        title: resolveCardTitle(entry, titleProperty, file.basename),
         fields,
         coverUrl: null,
         wrap: true,
