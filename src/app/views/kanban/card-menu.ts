@@ -44,6 +44,10 @@ export interface CardMenuHost {
     focusOnChildren(card: KanbanCard): void
     /** Zoom (issue #74): re-filter the board to the card's whole subtree. */
     focusOnDescendants(card: KanbanCard): void
+    /** Whether manual reorder is available (Card sort = Manual order; issue #17). */
+    canReorderCards(): boolean
+    /** Send a card to the top or bottom of its column (issue #78). */
+    sendCardToEdge(card: KanbanCard, edge: 'top' | 'bottom'): void
     /** Quick "today"/"tomorrow" keys + the current new-tab modifier check. */
     todayKey(): string
     tomorrowKey(): string
@@ -61,7 +65,7 @@ export interface CardMenuHost {
     removeRelationship(card: KanbanCard, role: RelationshipRole, targetPath: string): Promise<void>
 }
 
-/** Build the card right-click / keyboard context menu (issue #3, #7, #20, #27). */
+/** Build the card right-click / keyboard context menu (issue #3, #7, #20, #27, #78). */
 export function buildCardMenu(card: KanbanCard, host: CardMenuHost): Menu {
     const menu = new Menu()
     menu.addItem((item) =>
@@ -88,6 +92,21 @@ export function buildCardMenu(card: KanbanCard, host: CardMenuHost): Menu {
                 .setTitle('Focus on all descendants')
                 .setIcon('zoom-in')
                 .onClick(() => host.focusOnDescendants(card))
+        )
+    }
+    if (host.canReorderCards()) {
+        menu.addSeparator()
+        menu.addItem((item) =>
+            item
+                .setTitle('Send to top')
+                .setIcon('lucide-arrow-up-to-line')
+                .onClick(() => host.sendCardToEdge(card, 'top'))
+        )
+        menu.addItem((item) =>
+            item
+                .setTitle('Send to bottom')
+                .setIcon('lucide-arrow-down-to-line')
+                .onClick(() => host.sendCardToEdge(card, 'bottom'))
         )
     }
     menu.addSeparator()

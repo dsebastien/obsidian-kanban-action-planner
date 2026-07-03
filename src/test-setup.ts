@@ -16,6 +16,59 @@ interface BunMock {
 }
 const bunMock = mock as unknown as BunMock
 
+/**
+ * Recording Menu/MenuItem mocks: addItem invokes the callback and keeps the
+ * item so specs can assert on titles/sections and fire onClick handlers.
+ */
+class MenuMock {
+    items: unknown[] = []
+    addItem(cb: (item: unknown) => unknown): this {
+        const item = new MenuItemMock()
+        cb(item)
+        this.items.push(item)
+        return this
+    }
+    addSeparator(): this {
+        this.items.push({ separator: true })
+        return this
+    }
+    showAtMouseEvent(_e: MouseEvent): void {}
+    showAtPosition(_p: { x: number; y: number }): void {}
+}
+
+class MenuItemMock {
+    title = ''
+    icon = ''
+    section = ''
+    checked: boolean | null = null
+    clickHandler: ((evt: MouseEvent | KeyboardEvent) => unknown) | null = null
+    submenu: MenuMock | null = null
+    setTitle(title: string): this {
+        this.title = title
+        return this
+    }
+    setIcon(icon: string): this {
+        this.icon = icon
+        return this
+    }
+    setSection(section: string): this {
+        this.section = section
+        return this
+    }
+    setChecked(checked: boolean): this {
+        this.checked = checked
+        return this
+    }
+    onClick(cb: (evt: MouseEvent | KeyboardEvent) => unknown): this {
+        this.clickHandler = cb
+        return this
+    }
+    setSubmenu(): MenuMock {
+        this.submenu = new MenuMock()
+        return this.submenu
+    }
+}
+
 // Mock the obsidian module (fire-and-forget, no need to await)
 void bunMock.module('obsidian', () => ({
     Notice: class Notice {
@@ -78,13 +131,8 @@ void bunMock.module('obsidian', () => ({
             return this
         }
     },
-    Menu: class Menu {
-        addItem(_cb: (item: unknown) => unknown) {
-            return this
-        }
-        showAtMouseEvent(_e: MouseEvent) {}
-        showAtPosition(_p: { x: number; y: number }) {}
-    },
+    Menu: MenuMock,
+    MenuItem: MenuItemMock,
     // Network — the obsidian-fetch adapter wraps this
     requestUrl: async (_params: unknown) => ({
         status: 200,

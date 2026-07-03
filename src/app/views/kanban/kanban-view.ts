@@ -1393,6 +1393,8 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             openRelated: (note, newTab) => this.openRelated(note, newTab),
             focusOnChildren: (card) => this.focusOnChildren(card),
             focusOnDescendants: (card) => this.focusOnDescendants(card.display.title),
+            canReorderCards: () => this.cardSortMode() === 'order',
+            sendCardToEdge: (card, edge) => this.sendCardToEdge(card, edge),
             todayKey: () => toDateKey(startOfDay(new Date())),
             tomorrowKey: () => toDateKey(addDays(startOfDay(new Date()), 1)),
             addableRelationshipRoles: () => this.addableRelationshipRoles(),
@@ -1520,6 +1522,21 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         if (!column) return
         const target = loc.cardIndex + direction
         if (target < 0 || target >= column.cards.length) return // at the top/bottom
+        this.refocusCardKey = card.key
+        void this.applyMove(card, card.statusValue, loc.laneId, column.column.id, target)
+    }
+
+    /** Menu: send a card to the top or bottom of its column (writes manual order; issue #78). */
+    private sendCardToEdge(card: KanbanCard, edge: 'top' | 'bottom'): void {
+        if (this.cardSortMode() !== 'order') return // manual reorder is off under a sort (#17)
+        const loc = this.cardLocation(card)
+        if (!loc) return
+        const column = loc.columns[loc.colIndex]
+        if (!column) return
+        const target = edge === 'top' ? 0 : column.cards.length
+        const atEdge =
+            edge === 'top' ? loc.cardIndex === 0 : loc.cardIndex === column.cards.length - 1
+        if (atEdge) return
         this.refocusCardKey = card.key
         void this.applyMove(card, card.statusValue, loc.laneId, column.column.id, target)
     }
