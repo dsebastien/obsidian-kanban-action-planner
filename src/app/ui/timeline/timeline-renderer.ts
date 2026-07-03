@@ -735,11 +735,18 @@ function renderPanel(
         // single-type boards skip the type level entirely.
         let host = body
         if (model.grouped) {
+            // Full-width tab-like accordion header (calendar-tab treatment):
+            // chevron + name + count badge.
             const typeHeader = body.createEl('button', {
-                cls: 'kap-tl-ugroup',
-                text: `${group.collapsed ? '▸' : '▾'} ${group.label} (${String(group.count)})`,
+                cls: group.collapsed ? 'kap-tl-ugroup' : 'kap-tl-ugroup kap-tl-ugroup-open',
                 attr: { 'type': 'button', 'aria-expanded': String(!group.collapsed) }
             })
+            typeHeader.createSpan({
+                cls: 'kap-tl-ugroup-chevron',
+                text: group.collapsed ? '▸' : '▾'
+            })
+            typeHeader.createSpan({ cls: 'kap-tl-ugroup-label', text: group.label })
+            typeHeader.createSpan({ cls: 'kap-tl-ugroup-count', text: String(group.count) })
             typeHeader.addEventListener('click', () => callbacks.onToggleUndatedGroup(group.key))
             if (group.collapsed) continue
             host = body.createDiv({ cls: 'kap-tl-ugroup-body' })

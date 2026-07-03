@@ -1776,11 +1776,49 @@
         scrollbar-color: var(--background-modifier-border) transparent;
     }
 
-    /* Undated panel groups (estimate rework): a collapsible note-type header
-       (multi-type boards)… */
+    /* Unplanned panel groups (estimate rework): the note-type level renders
+       as full-width, tab-like accordion headers (the calendar panel's tab
+       treatment — same surface, hover, and a count badge), still collapsible… */
+    /* stylelint-disable declaration-no-important -- background/box-shadow beat
+       Obsidian's unlayered default <button> styles (see .kap-panel-tab-active
+       for the rationale). */
     .kap-root .kap-tl-ugroup {
-        @apply flex w-full items-center gap-1 h-6 px-1 mt-1 border-0 rounded cursor-pointer bg-transparent text-left text-[0.78em] font-medium;
+        @apply flex w-full items-center gap-1.5 h-7 px-2 mt-1 border-0 rounded cursor-pointer text-left text-[0.82em] font-medium;
         color: var(--text-muted);
+        background: var(--background-modifier-hover) !important;
+        box-shadow: none !important;
+        transition:
+            color var(--kap-transition) var(--kap-ease),
+            background-color var(--kap-transition) var(--kap-ease);
+    }
+
+    .kap-root .kap-tl-ugroup:hover {
+        color: var(--text-normal);
+        background: var(--background-modifier-border) !important;
+    }
+
+    /* Expanded tab: accent tint + inset accent edge, like an active tab. */
+    .kap-root .kap-tl-ugroup-open,
+    .kap-root .kap-tl-ugroup-open:hover {
+        color: var(--text-normal);
+        background: color-mix(in srgb, var(--interactive-accent) 14%, transparent) !important;
+        box-shadow: inset 2px 0 0 var(--interactive-accent) !important;
+    }
+    /* stylelint-enable declaration-no-important */
+
+    .kap-root .kap-tl-ugroup-chevron {
+        @apply w-3 flex-none text-[0.85em];
+        color: var(--text-faint);
+    }
+
+    .kap-root .kap-tl-ugroup-label {
+        @apply flex-1 truncate;
+    }
+
+    .kap-root .kap-tl-ugroup-count {
+        @apply flex-none rounded-full px-1.5 text-[0.78em];
+        color: var(--text-muted);
+        background: var(--background-modifier-border);
     }
 
     /* …holding indented status subgroups (the only level on single-type boards). */
@@ -1793,7 +1831,6 @@
         color: var(--text-faint);
     }
 
-    .kap-root .kap-tl-ugroup:hover,
     .kap-root .kap-tl-usubgroup:hover {
         color: var(--text-normal);
         background: var(--background-modifier-hover);

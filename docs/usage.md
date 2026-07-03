@@ -467,8 +467,9 @@ So a board already set up for calendar mode gets a working timeline with zero co
 
 **The Unplanned panel.** Cards with **no start date** collect in the collapsible **Unplanned**
 panel on the left — named like the calendar's **Unplanned** tab and styled like its **Scheduling** panel — as **fixed-size
-cards** (kanban-like), **grouped by note type, then by status** — all groups **collapsed by
-default**, with a count on each header (single-type boards skip the type level). Drag a card to
+cards** (kanban-like), **grouped by note type, then by status** — the type level renders as
+full-width **tab-style headers** (count badge, accent tint when expanded), all groups
+**collapsed by default** (single-type boards skip the type level). Drag a card to
 schedule it, click to open, right-click for the menu. The panel scrolls on its own, so a big
 backlog never squeezes out the rows. Collapse it with the **«** toggle (the "Unplanned"
 title stays visible, turned vertical); on a narrow pane it **collapses automatically** and
