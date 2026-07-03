@@ -1,5 +1,22 @@
 # Release Notes
 
+## 1.1.0 (2026-07-03)
+
+### Features
+
+- **plugin:** add a grouped navigation pane to triage mode
+- **plugin:** add send to top/bottom card menu actions ([#79](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/79)) [#78](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/78)
+- **plugin:** calendar estimate spans, cleaner bars, global properties
+- **plugin:** drag timeline milestones to another day
+- **plugin:** group the calendar scheduling panel by note type and status
+- **plugin:** improve timeline mode
+- **plugin:** render unplanned type groups as full-width tabs
+- **plugin:** rework timeline around start date + estimate
+- **plugin:** seed a 1-day estimate when scheduling onto the timeline
+- **plugin:** show a red deadline line per timeline row
+- **plugin:** show the resize date inside the timeline bar
+- **plugin:** timeline view and per-type mixed boards
+
 ## 1.0.0 (2026-07-03)
 
 ### Features

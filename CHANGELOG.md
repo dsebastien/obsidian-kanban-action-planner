@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.1.0](https://github.com/dsebastien/obsidian-kanban-action-planner/compare/1.0.0...1.1.0) (2026-07-03)
+
+### Features
+
+* **plugin:** add a grouped navigation pane to triage mode ([988824f](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/988824f4fd1f88308b5d44040da5aa444213ffee))
+* **plugin:** add send to top/bottom card menu actions ([#79](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/79)) ([132bf1f](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/132bf1fde361c0a3cbc6f1ff812e35b4010e17c7)), closes [#17](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/17) [#78](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/78)
+* **plugin:** calendar estimate spans, cleaner bars, global properties ([183faf1](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/183faf1d91a4cea605c163ea86f29649a5296c95))
+* **plugin:** drag timeline milestones to another day ([21e5aeb](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/21e5aeb7257d0e9135ee7d0a6b23e7b1ca396816))
+* **plugin:** group the calendar scheduling panel by note type and status ([60f6e23](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/60f6e23efd3f85553fc41de0dc2f107132839594))
+* **plugin:** improve timeline mode ([3a7e73b](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/3a7e73b1926ec6cfc7faa324a0a6186b011fb893))
+* **plugin:** render unplanned type groups as full-width tabs ([9ece322](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/9ece32266a904ac176f935319bf1617dc7b30b23))
+* **plugin:** rework timeline around start date + estimate ([87ddf1b](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/87ddf1b3015a2c6be14e94d76d218c728df0a5b3))
+* **plugin:** seed a 1-day estimate when scheduling onto the timeline ([75e342b](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/75e342bd74472c64d19c7ad8bc951c0fe9a54a59))
+* **plugin:** show a red deadline line per timeline row ([1bb653e](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/1bb653e4e29d48e00ebfc7e7dbdd4868d5bb3a93))
+* **plugin:** show the resize date inside the timeline bar ([8cda27e](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/8cda27ec5964a5a3b4f6874144d0c213e0d508d9))
+* **plugin:** timeline view and per-type mixed boards ([66ceb8d](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/66ceb8d64ccff9a84db363f226b91a5ccfb4414c)), closes [#77](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/77)
+
 ## [1.0.0](https://github.com/dsebastien/obsidian-kanban-action-planner/compare/0.9.1...1.0.0) (2026-07-03)
 
 ### Features
@@ -235,6 +252,7 @@ All notable changes to this project will be documented in this file.
 
 * **plugin:** match Starter Kit's {{quarter}} placeholder format (Q2, not 2) ([4fde618](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/4fde6185c5956e3f6fd2ca3a9b03e70cf5e16840))
 * **plugin:** persist discovered statuses so Show empty columns works ([cf91b81](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/cf91b81a1b0786e35c73f4885882e2dc33564c62))
+
 
 
 
