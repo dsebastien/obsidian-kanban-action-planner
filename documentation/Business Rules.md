@@ -180,7 +180,9 @@ See `documentation/plans/kanban-action-planner-implementation-plan.md` for full 
     manual order), and the menu key / `Shift+F10` to open its context menu — all via the same
     `applyMove` path as drag-and-drop. Focus follows the card after the rebuild
     (`refocusCardKey`). Honors reduced-motion (no new animation; the board's reduced-motion
-    rules apply).
+    rules apply). The context menu also offers **Send to top / Send to bottom** (issue #78) —
+    same `applyMove` path (index `0` / column length), no-op when the card is already at that
+    edge, and hidden while a non-manual sort owns the order (rule 25).
 22. **Multi-select + bulk actions (issue #18).** A toolbar **Select** toggle enters select mode:
     click toggles a card's selection, Shift-click selects a range (board order). An action bar
     (shown when ≥1 selected) offers bulk **Set status** (per-column menu, incl. clear),

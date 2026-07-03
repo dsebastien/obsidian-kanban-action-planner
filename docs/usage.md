@@ -48,6 +48,8 @@ until you define your statuses.
 - **Drag a card to another column** to change its status (the status property is rewritten).
 - **Drag a card within a column** to reorder it. The new position is saved to a
   `manual_order` property on the note.
+- **Right-click a card → Send to top / Send to bottom** to jump it to either end of its column
+  without dragging.
 - **Drag a card to the Unmapped column** to clear its status.
 - **Drag a column header left or right** to reorder the columns. The new order is saved to _this
   board_ (the per-view status list) and takes precedence over the default order. The Unmapped
@@ -59,9 +61,10 @@ Manual ordering is stored in your notes, not in plugin data, so it travels with 
 cards inside every column by **name** or by any **property** (priority, due date, created, and so
 on), ascending or descending. Set **Card sort**, **Card sort property**, and **Card sort
 direction** in **Configure view → Columns**. Missing values sort last. While a non-manual sort is
-active, dragging a card within a column (and the keyboard reorder) is turned off, since sorting
-owns the order, but you can still drag between columns to change status. Switch **Card sort** back
-to **Manual order** to restore your saved `manual_order` and re-enable reordering.
+active, dragging a card within a column (plus the keyboard reorder and the menu's **Send to
+top/bottom**) is turned off, since sorting owns the order, but you can still drag between columns
+to change status. Switch **Card sort** back to **Manual order** to restore your saved
+`manual_order` and re-enable reordering.
 
 ## Filtering (search bar)
 
@@ -446,8 +449,9 @@ saved into the `.base` file, like the Board/Calendar/Triage mode).
   under **Settings → Core plugins → Page preview** (the source is listed as "Kanban Action Planner").
 - **Click** a card to open the note. **Ctrl/Cmd-click** opens it in a new tab.
 - **Right-click** (or long-press on touch) a card for a menu: open the note (or in a new
-  tab), set its status, clear the status, **set an enum property** (see below), schedule it,
-  set a deadline, **archive** the note, open or edit a related note.
+  tab), **send it to the top or bottom of its column**, set its status, clear the status,
+  **set an enum property** (see below), schedule it, set a deadline, **archive** the note,
+  open or edit a related note.
 - **Set a property in one click.** For any property with known allowed values, the card menu
   shows a **Set <property>** submenu (e.g. **Set priority → 10 - Top**) with the current value
   checked and a **Clear** option, just like **Set status**, but for `priority`, `urgency`,
