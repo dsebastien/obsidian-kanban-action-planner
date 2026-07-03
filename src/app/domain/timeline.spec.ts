@@ -1,14 +1,18 @@
 import { describe, expect, it } from 'bun:test'
 import {
+    ZOOM_ORDER,
     axisTicks,
     barGeometry,
+    clampResizeDate,
     dayOffsetAtPct,
     daysBetween,
     groupByStatus,
+    inclusiveDays,
     parseMilestoneEntry,
     parseMilestones,
     pointPct,
-    totalDays
+    totalDays,
+    zoomRange
 } from './timeline'
 import type { TimelineRange } from './timeline'
 
@@ -27,6 +31,78 @@ describe('day math', () => {
 
     it('totalDays is inclusive', () => {
         expect(totalDays(TEN_DAYS)).toBe(10)
+    })
+
+    it('inclusiveDays counts both endpoints; same-day is 1; reversed is 1', () => {
+        expect(inclusiveDays(new Date(2026, 5, 1), new Date(2026, 5, 12))).toBe(12)
+        expect(inclusiveDays(new Date(2026, 5, 3), new Date(2026, 5, 3))).toBe(1)
+        expect(inclusiveDays(new Date(2026, 5, 10), new Date(2026, 5, 5))).toBe(1)
+    })
+
+    it('totalDays delegates to inclusiveDays', () => {
+        expect(totalDays(TEN_DAYS)).toBe(inclusiveDays(TEN_DAYS.start, TEN_DAYS.end))
+        // A degenerate reversed range still yields the 1-day minimum.
+        expect(totalDays({ start: TEN_DAYS.end, end: TEN_DAYS.start })).toBe(1)
+    })
+})
+
+describe('zoomRange (issue #80)', () => {
+    it('zooming in steps toward week, one kind at a time', () => {
+        expect(zoomRange('year', 1)).toBe('quarter')
+        expect(zoomRange('quarter', 1)).toBe('month')
+        expect(zoomRange('month', 1)).toBe('week')
+    })
+
+    it('zooming out steps toward year, one kind at a time', () => {
+        expect(zoomRange('week', -1)).toBe('month')
+        expect(zoomRange('month', -1)).toBe('quarter')
+        expect(zoomRange('quarter', -1)).toBe('year')
+    })
+
+    it('is null at both ends (no-op for the caller)', () => {
+        expect(zoomRange('week', 1)).toBeNull()
+        expect(zoomRange('year', -1)).toBeNull()
+    })
+
+    it('ZOOM_ORDER runs from most zoomed-in to most zoomed-out', () => {
+        expect(ZOOM_ORDER).toEqual(['week', 'month', 'quarter', 'year'])
+    })
+})
+
+describe('clampResizeDate (issue #80)', () => {
+    const start = new Date(2026, 5, 1) // 2026-06-01
+    const end = new Date(2026, 5, 10) // 2026-06-10
+
+    it('moves the dragged edge by whole days', () => {
+        expect(clampResizeDate(start, end, 'start', 3)).toEqual(new Date(2026, 5, 4))
+        expect(clampResizeDate(start, end, 'start', -5)).toEqual(new Date(2026, 4, 27))
+        expect(clampResizeDate(start, end, 'end', -3)).toEqual(new Date(2026, 5, 7))
+        expect(clampResizeDate(start, end, 'end', 5)).toEqual(new Date(2026, 5, 15))
+    })
+
+    it('clamps each edge at the other one (minimum span = 1 day)', () => {
+        expect(clampResizeDate(start, end, 'start', 20)).toEqual(end)
+        expect(clampResizeDate(start, end, 'end', -20)).toEqual(start)
+        // Landing exactly on the other edge is the 1-day minimum, not a clamp.
+        expect(clampResizeDate(start, end, 'start', 9)).toEqual(end)
+        expect(clampResizeDate(start, end, 'end', -9)).toEqual(start)
+    })
+
+    it('normalizes inverted stored dates to the single start day first', () => {
+        const inverted = { start: new Date(2026, 5, 10), end: new Date(2026, 5, 5) }
+        // The effective span is just 2026-06-10, so the end edge moves from there…
+        expect(clampResizeDate(inverted.start, inverted.end, 'end', 2)).toEqual(
+            new Date(2026, 5, 12)
+        )
+        // …and shrinking either edge clamps at that same day.
+        expect(clampResizeDate(inverted.start, inverted.end, 'end', -5)).toEqual(inverted.start)
+        expect(clampResizeDate(inverted.start, inverted.end, 'start', 5)).toEqual(inverted.start)
+        // Growing the start edge moves it freely against the effective span;
+        // the controller then rewrites the stored end to the old start day so
+        // the pair can't stay inverted (see TimelineController.resizeDates).
+        expect(clampResizeDate(inverted.start, inverted.end, 'start', -3)).toEqual(
+            new Date(2026, 5, 7)
+        )
     })
 })
 

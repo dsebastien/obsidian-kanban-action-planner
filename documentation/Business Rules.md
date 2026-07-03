@@ -353,7 +353,7 @@ See `documentation/plans/kanban-action-planner-implementation-plan.md` for full 
     (`▼ Title ✕`) next to the filter box is **derived** from the query's zoom term: ✕ removes only
     that term, label click best-effort opens the focused note by title. The focused card itself is
     not shown. Breadcrumb history: out of scope (follow-up).
-35. **Timeline mode (issue #77).** A fourth view mode (Board / Calendar / **Timeline** / Triage;
+35. **Timeline mode (issues #77, #80).** A fourth view mode (Board / Calendar / **Timeline** / Triage;
     `timelineMode` config flag, `toggle-timeline-mode` command): one row per card, a bar spanning
     its **start → end** dates on a shared week/month/quarter/year axis (the calendar's range
     vocabulary; per-view `timelineRange` default + persisted `timelineRangeOverride`; the anchor is
@@ -378,5 +378,22 @@ See `documentation/plans/kanban-action-planner-implementation-plan.md` for full 
     Rows sort by start (then end/milestone/title); the toolbar filter and #74 zoom apply as in
     every mode. Pure math in `domain/timeline.ts` (geometry in % of the window, inclusive days);
     DOM in `ui/timeline/timeline-renderer.ts`; state/writes in
-    `views/kanban/timeline-controller.ts` (mirrors `CalendarController`). Out of scope
-    (follow-ups): bar resize handles, dependency arrows, hierarchy indentation, milestone notes.
+    `views/kanban/timeline-controller.ts` (mirrors `CalendarController`). **Bar resize (#80):**
+    edge handles change **only the dragged edge's property**; `clampResizeDate` clamps so
+    start ≤ end with a **minimum span of 1 day** (already-inverted stored dates are normalized
+    first); handles are not rendered on a clipped side or on bars rendered narrower than 24px —
+    those use the context menu. **Unschedule (#80):** dragging a bar/point onto the Undated
+    strip, or the menu item **Clear start & end dates**, deletes **only** the start/end
+    properties — **milestones are kept** (the row survives if any remain); by default those
+    properties are the shared scheduled/due dates, so the card also leaves the calendar and
+    loses its due badge (the menu label says what it clears). **Wheel zoom (#80):** requires
+    Ctrl/Cmd (plain wheel scrolls); steps one range kind (week↔month↔quarter↔year) per ±50
+    accumulated `deltaY`, anchors on the date under the cursor, persists via
+    `timelineRangeOverride` exactly like the range buttons, and is **inert while a drag is in
+    progress**. **Context-menu extras (#80,** `kap-timeline` **section):** **Add milestone…**;
+    **Clear start & end dates** (only when a date exists); **Set start date… / Set end date…**
+    only when the resolved timeline property differs from the scheduled/deadline property (the
+    standard Schedule / Set deadline items already cover the shared case). **Duration (#80):**
+    bars show the inclusive day count (`12d`, via `inclusiveDays`; reversed spans → 1) — always
+    in the tooltip, the in-bar span skipped on narrow bars. Out of scope (follow-ups):
+    dependency arrows, hierarchy indentation, milestone notes.

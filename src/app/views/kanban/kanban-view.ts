@@ -324,10 +324,12 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             boardEl: () => this.boardEl,
             rebuild: () => this.rebuild(),
             openCard: (card, newTab) => this.openCard(card, newTab),
-            showCardMenu: (card, event) => this.showCardMenu(card, event),
+            showCardMenu: (card, event, extend) => this.showCardMenu(card, event, extend),
             startProperty: () => this.resolveTimelineStartProperty(),
             endProperty: () => this.resolveTimelineEndProperty(),
             milestoneProperty: () => this.resolveTimelineMilestoneProperty(),
+            scheduledProperty: () => this.scheduledDateProperty,
+            deadlineProperty: () => this.dueDateProperty,
             dateFormat: () =>
                 this.noteType.calendar.dateFormat || this.plugin.settings.defaultDateFormat,
             firstDayOfWeek: () => this.plugin.settings.firstDayOfWeek,
@@ -1365,8 +1367,8 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         return lane?.columns.find((c) => c.column.id === columnId)?.cards ?? []
     }
 
-    private showCardMenu(card: KanbanCard, event: MouseEvent): void {
-        buildCardMenu(card, this.cardMenuHost).showAtMouseEvent(event)
+    private showCardMenu(card: KanbanCard, event: MouseEvent, extend?: (menu: Menu) => void): void {
+        buildCardMenu(card, this.cardMenuHost, extend).showAtMouseEvent(event)
     }
 
     /** Keyboard-triggered card menu, anchored just below the card (issue #20). */
@@ -2371,10 +2373,15 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
     /**
      * Container resized: re-evaluate the calendar pane auto-collapse and re-equalize
      * card heights (a narrower column rewraps titles, changing the tallest card).
+     * The timeline re-renders outright — its px width gates (resize handles,
+     * duration tag) are decided at render time and go stale as bars re-flow
+     * (issue #80); this also covers a hidden→visible leaf, which measures 0
+     * while hidden and fires the ResizeObserver when revealed.
      */
     private onResize(): void {
         this.calendar?.evaluatePanelAutoCollapse()
         this.equalizeCardHeights()
+        if (this.timelineMode()) this.rebuild()
     }
 
     // ── Archiving ─────────────────────────────────────────────

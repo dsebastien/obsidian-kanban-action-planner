@@ -1,4 +1,4 @@
-import type { App } from 'obsidian'
+import type { App, Menu } from 'obsidian'
 import {
     addDays,
     buildCalendar,
@@ -12,15 +12,20 @@ import type { CalendarRange } from '../../domain/calendar'
 import {
     axisTicks,
     barGeometry,
+    clampResizeDate,
     dayOffsetAtPct,
+    daysBetween,
     groupByStatus,
+    inclusiveDays,
     parseMilestones,
     pointPct,
-    totalDays
+    totalDays,
+    zoomRange
 } from '../../domain/timeline'
 import type { TimelineRange } from '../../domain/timeline'
 import {
     appendToListProperty,
+    deleteProperty,
     getFrontmatterValue,
     removeFromListProperty,
     setProperty
@@ -28,6 +33,7 @@ import {
 import { renderTimeline } from '../../ui/timeline/timeline-renderer'
 import type { TimelineRowModel } from '../../ui/timeline/timeline-renderer'
 import { MilestoneModal } from '../../ui/timeline/milestone-modal'
+import { DatePromptModal } from '../../ui/date-prompt-modal'
 import { formatDate } from '../../utils/momentjs'
 import type { KanbanCard } from '../../ui/board/types'
 
@@ -47,11 +53,19 @@ export interface TimelineHost {
     /** Re-render after a controller state change. */
     rebuild(): void
     openCard(card: KanbanCard, newTab: boolean): void
-    showCardMenu(card: KanbanCard, event: MouseEvent): void
+    showCardMenu(card: KanbanCard, event: MouseEvent, extend?: (menu: Menu) => void): void
     /** Resolved start/end date + milestone list property names. */
     startProperty(): string
     endProperty(): string
     milestoneProperty(): string
+    /**
+     * Resolved scheduled/deadline properties (issue #80): when a timeline
+     * start/end property IS one of these, the menu's own "Set start/end
+     * date…" item is skipped — the standard schedule/deadline items already
+     * write exactly that property.
+     */
+    scheduledProperty(): string
+    deadlineProperty(): string
     /** The momentjs format dates are written with. */
     dateFormat(): string
     firstDayOfWeek(): number
@@ -147,7 +161,8 @@ export class TimelineController {
             },
             {
                 onOpen: (card, newTab) => this.host.openCard(card, newTab),
-                onContextMenu: (card, event) => this.host.showCardMenu(card, event),
+                onContextMenu: (card, event) =>
+                    this.host.showCardMenu(card, event, (menu) => this.extendCardMenu(menu, card)),
                 onSetRange: (range) => {
                     this.rangeOverride = range
                     this.host.persistState({ range })
@@ -170,6 +185,10 @@ export class TimelineController {
                     this.host.rebuild()
                 },
                 onShiftDates: (card, dayDelta) => void this.shiftDates(card, dayDelta),
+                onResizeDates: (card, edge, dayDelta) =>
+                    void this.resizeDates(card, edge, dayDelta),
+                onUnschedule: (card) => void this.unschedule(card),
+                onZoom: (direction, anchorPct) => this.zoom(kind, window, direction, anchorPct),
                 onScheduleAt: (card, pct) => void this.scheduleAt(card, pct, window),
                 onAddMilestone: (card, pct) => this.promptMilestone(card, pct, window),
                 onRemoveMilestone: (card, raw) =>
@@ -196,7 +215,11 @@ export class TimelineController {
 
     /** Track double-click: prompt for a label, then append `<date> <label>`. */
     private promptMilestone(card: KanbanCard, pct: number, window: TimelineRange): void {
-        const date = addDays(window.start, dayOffsetAtPct(pct, window))
+        this.openMilestoneModal(card, addDays(window.start, dayOffsetAtPct(pct, window)))
+    }
+
+    /** Milestone prompt pre-filled with `date` (track dblclick or menu item). */
+    private openMilestoneModal(card: KanbanCard, date: Date): void {
         new MilestoneModal(this.host.app, card.display.title, toDateKey(date), (isoDate, label) => {
             const entry = label ? `${isoDate} ${label}` : isoDate
             void appendToListProperty(
@@ -206,6 +229,152 @@ export class TimelineController {
                 entry
             )
         }).open()
+    }
+
+    /**
+     * Handle-drag commit (issue #80): move only the dragged edge's date,
+     * clamped by the pure domain rule (span never inverts, minimum 1 day).
+     * Already-inverted stored dates (end before start — hand-edited
+     * frontmatter) render as the single start day; dragging the start edge of
+     * such a bar also rewrites the end to that day, otherwise the pair would
+     * stay inverted behind the user's back (the end edge self-heals — its
+     * clamp always yields end ≥ start).
+     */
+    private async resizeDates(
+        card: KanbanCard,
+        edge: 'start' | 'end',
+        dayDelta: number
+    ): Promise<void> {
+        const start = this.readDate(card, this.host.startProperty())
+        const end = this.readDate(card, this.host.endProperty())
+        if (!start || !end) return
+        const format = this.host.dateFormat()
+        const property = edge === 'start' ? this.host.startProperty() : this.host.endProperty()
+        await setProperty(
+            this.host.app,
+            card.file,
+            property,
+            formatDate(clampResizeDate(start, end, edge, dayDelta), format)
+        )
+        if (edge === 'start' && daysBetween(start, end) < 0) {
+            await setProperty(
+                this.host.app,
+                card.file,
+                this.host.endProperty(),
+                formatDate(start, format)
+            )
+        }
+    }
+
+    /**
+     * Footer drop / "Clear start & end dates" (issue #80): delete whichever of
+     * the start/end properties exist. Milestones are kept — the row survives
+     * when it has any. By default these ARE the shared scheduled/due
+     * properties, so the card also leaves the calendar and loses its due badge.
+     */
+    private async unschedule(card: KanbanCard): Promise<void> {
+        for (const property of [this.host.startProperty(), this.host.endProperty()]) {
+            if (getFrontmatterValue(this.host.app, card.file, property) === undefined) continue
+            await deleteProperty(this.host.app, card.file, property)
+        }
+    }
+
+    /**
+     * Ctrl/Cmd+wheel zoom (issue #80): step one range kind, anchor on the date
+     * under the cursor (a null pct keeps the current anchor), and persist like
+     * the range buttons. At either end of the zoom order this is a full no-op.
+     */
+    private zoom(
+        kind: CalendarRange,
+        window: TimelineRange,
+        direction: 1 | -1,
+        anchorPct: number | null
+    ): void {
+        const next = zoomRange(kind, direction)
+        if (!next) return
+        if (anchorPct !== null) {
+            this.anchor = addDays(window.start, dayOffsetAtPct(anchorPct, window))
+        }
+        this.rangeOverride = next
+        this.host.persistState({ range: next })
+        this.host.rebuild()
+    }
+
+    /**
+     * Timeline extras appended to the standard card menu (issue #80), for rows
+     * and undated chips alike. Every item sits in the `kap-timeline` section so
+     * the sectioned menu groups them at the end (no manual separators).
+     */
+    private extendCardMenu(menu: Menu, card: KanbanCard): void {
+        const reserved = [this.host.scheduledProperty(), this.host.deadlineProperty()]
+        const edges: Array<{ property: string; label: string }> = [
+            { property: this.host.startProperty(), label: 'start' },
+            { property: this.host.endProperty(), label: 'end' }
+        ]
+        for (const { property, label } of edges) {
+            // The standard "Schedule on a date…" / "Set deadline on a date…"
+            // items already write exactly that property — skip the duplicate.
+            if (reserved.includes(property)) continue
+            menu.addItem((item) =>
+                item
+                    .setTitle(`Set ${label} date…`)
+                    .setIcon('calendar')
+                    .setSection('kap-timeline')
+                    .onClick(() => this.promptEdgeDate(card, label, property))
+            )
+        }
+        menu.addItem((item) =>
+            item
+                .setTitle('Add milestone…')
+                .setIcon('diamond')
+                .setSection('kap-timeline')
+                .onClick(() => this.openMilestoneModal(card, startOfDay(new Date())))
+        )
+        const hasStart = this.readDate(card, this.host.startProperty()) !== null
+        const hasEnd = this.readDate(card, this.host.endProperty()) !== null
+        if (hasStart || hasEnd) {
+            menu.addItem((item) =>
+                item
+                    .setTitle('Clear start & end dates')
+                    .setIcon('x')
+                    .setSection('kap-timeline')
+                    .onClick(() => void this.unschedule(card))
+            )
+        }
+    }
+
+    /**
+     * "Set start/end date…" menu item: a date prompt pre-filled with the
+     * current value as `YYYY-MM-DD` (the native date input silently rejects
+     * anything non-ISO). Set writes the configured format; Clear deletes.
+     */
+    private promptEdgeDate(card: KanbanCard, label: string, property: string): void {
+        const current = this.readDate(card, property)
+        new DatePromptModal(
+            this.host.app,
+            `Set ${label} date — ${card.display.title}`,
+            current ? toDateKey(current) : '',
+            (isoDate) => void this.writeEdgeDate(card, property, isoDate)
+        ).open()
+    }
+
+    private async writeEdgeDate(
+        card: KanbanCard,
+        property: string,
+        isoDate: string | null
+    ): Promise<void> {
+        if (isoDate === null) {
+            await deleteProperty(this.host.app, card.file, property)
+            return
+        }
+        const date = parseFrontmatterDate(isoDate)
+        if (!date) return
+        await setProperty(
+            this.host.app,
+            card.file,
+            property,
+            formatDate(date, this.host.dateFormat())
+        )
     }
 
     /** One row's geometry: bar (both dates), point dots (one date), milestones. */
@@ -241,12 +410,18 @@ export class TimelineController {
             if (anyDate) offSide = anyDate < window.start ? 'before' : 'after'
         }
 
-        const span = [
+        // Duration (issue #80): inclusive day count, both dates only. The
+        // tooltip always carries it — narrow bars skip the on-bar tag.
+        const durationDays = start && end ? inclusiveDays(start, end) : null
+        let span = [
             start ? toDateKey(start) : null,
             end ? toDateKey(end) : milestones.length > 0 ? `${String(milestones.length)} ◆` : null
         ]
             .filter(Boolean)
             .join(' → ')
+        if (durationDays !== null) {
+            span = `${span} — ${String(durationDays)} day${durationDays === 1 ? '' : 's'}`
+        }
         return {
             card,
             bar,
@@ -255,6 +430,7 @@ export class TimelineController {
             overdue: end !== null && end < today,
             offSide,
             draggable: start !== null || end !== null,
+            durationLabel: durationDays !== null ? `${String(durationDays)}d` : null,
             tooltip: span ? `${card.display.title} (${span})` : card.display.title
         }
     }

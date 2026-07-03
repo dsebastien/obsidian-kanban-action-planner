@@ -1634,9 +1634,38 @@
         border: 1px solid var(--interactive-accent);
     }
 
+    /* Bar text is a flex row (issue #80): title truncates, duration tag stays. */
     .kap-root .kap-tl-bartext {
-        @apply block px-1.5 truncate text-[0.75em] leading-[1.4rem] pointer-events-none;
+        @apply flex items-center gap-1.5 px-1.5 text-[0.75em] leading-[1.4rem] pointer-events-none;
         color: var(--text-normal);
+    }
+
+    .kap-root .kap-tl-bartitle {
+        @apply truncate pointer-events-none;
+    }
+
+    .kap-root .kap-tl-barduration {
+        @apply flex-none ml-auto pointer-events-none;
+        color: var(--text-muted);
+    }
+
+    /* Resize handles (issue #80): edge zones inside the bar, shown on hover.
+       Not rendered at all on clipped sides or bars narrower than 24px. */
+    .kap-root .kap-tl-handle {
+        @apply absolute top-0 bottom-0 w-[7px] opacity-0 cursor-ew-resize;
+        background: color-mix(in srgb, var(--interactive-accent) 55%, transparent);
+    }
+
+    .kap-root .kap-tl-handle-start {
+        @apply left-0 rounded-l;
+    }
+
+    .kap-root .kap-tl-handle-end {
+        @apply right-0 rounded-r;
+    }
+
+    .kap-root .kap-tl-bar:hover .kap-tl-handle {
+        @apply opacity-100;
     }
 
     /* Clipped edges (the real start/end lies outside the window): square the
@@ -1741,6 +1770,38 @@
     /* Hit-test bypass while resolving a chip's drop target. */
     .kap-root .kap-tl-nohit {
         @apply pointer-events-none;
+    }
+
+    /* Unschedule drop target (issue #80): while a bar/point drags, the footer
+       grows into an obvious target (even when collapsed it's otherwise a thin
+       sliver) and reveals the hint below. */
+    .kap-root .kap-tl-drop-hint {
+        @apply hidden mt-1 px-2 text-[0.78em] italic;
+        color: var(--text-muted);
+    }
+
+    .kap-root .kap-tl-undated.kap-tl-drop-ready {
+        @apply min-h-16;
+        border-top: 1px dashed var(--interactive-accent);
+    }
+
+    .kap-root .kap-tl-drop-ready .kap-tl-drop-hint {
+        @apply block;
+    }
+
+    /* Pointer inside the footer: highlight the target… */
+    .kap-root .kap-tl-undated.kap-tl-drop-remove {
+        background: color-mix(in srgb, var(--text-error) 12%, transparent);
+    }
+
+    .kap-root .kap-tl-undated.kap-tl-drop-remove .kap-tl-drop-hint {
+        color: var(--text-error);
+    }
+
+    /* …and wash out the dragged bar/point about to lose its dates. */
+    .kap-root .kap-tl-drag-remove {
+        opacity: 0.4;
+        border-color: var(--text-error);
     }
 
     .kap-milestone-label-input {

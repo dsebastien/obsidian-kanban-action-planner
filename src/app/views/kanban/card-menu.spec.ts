@@ -1,5 +1,5 @@
 import { describe, expect, it, mock } from 'bun:test'
-import type { TFile } from 'obsidian'
+import type { Menu, TFile } from 'obsidian'
 import type { KanbanCard } from '../../ui/board/types'
 import { buildCardMenu, type CardMenuHost } from './card-menu'
 
@@ -7,13 +7,18 @@ import { buildCardMenu, type CardMenuHost } from './card-menu'
 interface MenuItemRecord {
     title: string
     icon: string
+    section: string
     checked: boolean | null
     clickHandler: ((evt: MouseEvent | KeyboardEvent) => unknown) | null
     separator?: boolean
 }
 
-function menuItems(card: KanbanCard, host: CardMenuHost): MenuItemRecord[] {
-    return (buildCardMenu(card, host) as unknown as { items: MenuItemRecord[] }).items
+function menuItems(
+    card: KanbanCard,
+    host: CardMenuHost,
+    extend?: (menu: Menu) => void
+): MenuItemRecord[] {
+    return (buildCardMenu(card, host, extend) as unknown as { items: MenuItemRecord[] }).items
 }
 
 function makeCard(): KanbanCard {
@@ -91,5 +96,39 @@ describe('buildCardMenu — send to top/bottom (issue #78)', () => {
         const titles = items.map((i) => i.title)
         expect(titles).not.toContain('Send to top')
         expect(titles).not.toContain('Send to bottom')
+    })
+})
+
+describe('buildCardMenu — extend hook (issue #80)', () => {
+    /** The default host's full menu, as item titles (separators dropped). */
+    const BASELINE_TITLES = [
+        'Open note',
+        'Open in new tab',
+        'Send to top',
+        'Send to bottom',
+        'Clear status',
+        'Schedule for today',
+        'Schedule for tomorrow',
+        'Schedule on a date…',
+        'Set deadline today',
+        'Set deadline on a date…'
+    ]
+
+    const titlesOf = (items: MenuItemRecord[]): string[] =>
+        items.filter((i) => !i.separator).map((i) => i.title)
+
+    it('appends extend items after the built-ins, carrying their section', () => {
+        const items = menuItems(makeCard(), makeHost(), (menu) => {
+            menu.addItem((i) => i.setTitle('Set start date…').setSection('kap-timeline'))
+            menu.addItem((i) => i.setTitle('Add milestone…').setSection('kap-timeline'))
+        })
+        const titles = titlesOf(items)
+        expect(titles).toEqual([...BASELINE_TITLES, 'Set start date…', 'Add milestone…'])
+        const extras = items.filter((i) => i.section === 'kap-timeline')
+        expect(extras.map((i) => i.title)).toEqual(['Set start date…', 'Add milestone…'])
+    })
+
+    it('leaves the menu unchanged when no extend hook is given', () => {
+        expect(titlesOf(menuItems(makeCard(), makeHost()))).toEqual(BASELINE_TITLES)
     })
 })

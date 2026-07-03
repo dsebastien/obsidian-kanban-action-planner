@@ -45,9 +45,54 @@ export function daysBetween(a: Date, b: Date): number {
     return Math.round(ms / 86_400_000)
 }
 
-/** Days shown by the range (inclusive). */
+/**
+ * Inclusive day count of a `start`→`end` span (issue #80 duration display).
+ * A reversed span (end before start) counts as 1 — the single `start` day,
+ * matching {@link barGeometry}'s treatment of inverted stored dates.
+ */
+export function inclusiveDays(start: Date, end: Date): number {
+    return Math.max(1, daysBetween(start, end) + 1)
+}
+
+/** Days shown by the range (inclusive; delegates so the convention has one home). */
 export function totalDays(range: TimelineRange): number {
-    return daysBetween(range.start, range.end) + 1
+    return inclusiveDays(range.start, range.end)
+}
+
+/** Range kinds from most zoomed-in to most zoomed-out (issue #80 wheel zoom). */
+export const ZOOM_ORDER: ReadonlyArray<CalendarRange> = ['week', 'month', 'quarter', 'year']
+
+/**
+ * The next range kind when zooming from `kind` (`1` = in, `-1` = out), or
+ * `null` at either end of {@link ZOOM_ORDER} (already at week/year) — callers
+ * treat `null` as a no-op.
+ */
+export function zoomRange(kind: CalendarRange, direction: 1 | -1): CalendarRange | null {
+    const index = ZOOM_ORDER.indexOf(kind)
+    if (index < 0) return null
+    return ZOOM_ORDER[index - direction] ?? null
+}
+
+/**
+ * The new date for a bar edge dragged by `dayDelta` whole days (issue #80
+ * resize handles): the span never inverts and never shrinks below 1 inclusive
+ * day (start ≤ end always). Already-inverted stored dates are normalized
+ * first — the effective span is the single `start` day, matching
+ * {@link barGeometry} — so the clamp works against what the user sees.
+ */
+export function clampResizeDate(
+    start: Date,
+    end: Date,
+    edge: 'start' | 'end',
+    dayDelta: number
+): Date {
+    const effectiveEnd = daysBetween(start, end) < 0 ? start : end
+    if (edge === 'start') {
+        const moved = addDays(start, dayDelta)
+        return daysBetween(moved, effectiveEnd) < 0 ? startOfDay(effectiveEnd) : moved
+    }
+    const moved = addDays(effectiveEnd, dayDelta)
+    return daysBetween(start, moved) < 0 ? startOfDay(start) : moved
 }
 
 /**

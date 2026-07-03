@@ -196,6 +196,20 @@ likewise persists `collapsedLanes`/`collapsedColumns` (loaded once in `rebuild()
 toggle). **Transient (reset on reload):** the anchor (→ today), the focused day (→ none), and the
 auto-collapse runtime memo.
 
+**Timeline mode (issues #77, #80).** Same three-layer split: pure math in `domain/timeline.ts`
+(bar geometry in % of the window; `inclusiveDays(start, end)` is the single source of the
+inclusive-day convention — `totalDays` delegates to it; `zoomRange(kind, direction)` steps
+week↔month↔quarter↔year and returns `null` at the ends; `clampResizeDate(start, end, edge,
+dayDelta)` keeps start ≤ end with a 1-day minimum span and normalizes inverted stored dates).
+DOM in `ui/timeline/timeline-renderer.ts`, which only reports intent via callbacks:
+`onResizeDates(card, edge, dayDelta)` from the bar edge handles, `onUnschedule(card)` from a
+drop on the Undated strip (2D drag), and `onZoom(direction, anchorPct)` from Ctrl/Cmd+wheel
+(deltaY accumulator, per-render listener, inert while a drag is active). State and frontmatter
+writes in `views/kanban/timeline-controller.ts` (mirrors `CalendarController`): it resolves the
+start/end/milestone properties, writes only the dragged edge on resize, deletes start/end (never
+milestones) on unschedule, and persists zoom via the existing `timelineRangeOverride`. Context
+menus reuse `card-menu.ts` through an optional `extend(menu)` hook (`kap-timeline` section).
+
 **Configure-board modal** (`ui/configure-board-modal.ts`): a two-pane dialog — a left section nav
 (Cards / Colors / Swimlanes / Relationships / Archiving) over a scrollable content pane; the
 active section renders into `this.body`. The Archive-folder field uses `ui/folder-suggest.ts`

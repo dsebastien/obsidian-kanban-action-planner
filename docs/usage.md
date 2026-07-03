@@ -447,7 +447,9 @@ So a board already set up for calendar mode gets a working timeline with zero co
 
 **What a row shows:**
 
-- **Both dates** → a bar. When the real start or end lies outside the visible window, that edge
+- **Both dates** → a bar, with a small **duration badge** at the end of the title (e.g. `12d`,
+  counting both days). The tooltip repeats it (`— 12 days`), so even a bar too narrow to fit the
+  badge still tells you. When the real start or end lies outside the visible window, that edge
   is squared and dashed (the bar continues off-screen). A bar whose end date is in the past gets
   a red **overdue** wash.
 - **One date** → a dot (blue for start-only, orange for end-only).
@@ -480,13 +482,32 @@ into **diamond markers** on the card's row (hover for the label and date). Entri
 doesn't start with a date is skipped.
 
 **Navigate** with the same range switcher as the calendar — **Week / Month / Quarter / Year**
-(default set per view, your choice is remembered) — and **‹ / Today / ›**. Rows are sorted by
-start date.
+(default set per view, your choice is remembered) — and **‹ / Today / ›**. Or zoom with the
+mouse: **Ctrl/Cmd + scroll** over the timeline steps through **Week ↔ Month ↔ Quarter ↔ Year**,
+choosing the new window around the date under your cursor. The zoom level is remembered exactly
+like the range buttons. Rows are sorted by start date.
 
 **Drag to reschedule:** drag a bar (or a dot) horizontally — it snaps to whole days, and on
 release the start **and** end dates shift together, preserving the duration (written in your
 date format). Click a bar, dot, or the row label to open the note; right-click anywhere on the
 row for the usual card menu (set status, schedule, relationships, …).
+
+**Resize a bar:** hover a bar and drag the small handle at either edge to change **just the
+start or just the end date** — the other edge stays put, still snapping to whole days (a bar
+never shrinks below one day). Handles are hidden on a clipped (dashed) edge — the real date is
+off-screen — and on very narrow bars; use the right-click menu for those.
+
+**Unschedule by dragging off:** drag a bar or dot **down onto the Undated strip** and the
+card's start and end dates are cleared. By default those are your scheduled/due dates, so the
+card also leaves the calendar. **Milestones are kept** — a card that has milestones stays on
+the timeline as a milestone-only row; one without them drops into the **Undated** strip until
+you set a date again.
+
+**More from the right-click menu:** timeline rows and undated chips add **Add milestone…** and
+**Clear start & end dates** (same effect as dragging off, shown only when a date exists) to the
+usual card menu. When the timeline uses **custom date properties**, **Set start date…** /
+**Set end date…** appear too — with the default scheduled/due properties, the existing
+**Schedule** / **Set deadline** items already write those dates.
 
 The toolbar [filter](#filtering-search-bar) and
 [zoom](#focus-on-a-cards-children-zoom) narrow the timeline like every other mode — zoom into a

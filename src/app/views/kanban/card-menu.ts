@@ -65,8 +65,17 @@ export interface CardMenuHost {
     removeRelationship(card: KanbanCard, role: RelationshipRole, targetPath: string): Promise<void>
 }
 
-/** Build the card right-click / keyboard context menu (issue #3, #7, #20, #27, #78). */
-export function buildCardMenu(card: KanbanCard, host: CardMenuHost): Menu {
+/**
+ * Build the card right-click / keyboard context menu (issue #3, #7, #20, #27,
+ * #78). The optional `extend` hook lets a mode append its own items (issue #80
+ * timeline extras) — those items must use `.setSection('kap-timeline')` so the
+ * sectioned menu sorts them together at the end (no manual separators).
+ */
+export function buildCardMenu(
+    card: KanbanCard,
+    host: CardMenuHost,
+    extend?: (menu: Menu) => void
+): Menu {
     const menu = new Menu()
     menu.addItem((item) =>
         item
@@ -139,6 +148,7 @@ export function buildCardMenu(card: KanbanCard, host: CardMenuHost): Menu {
     }
     addRelationshipMenuItems(menu, card, host)
     addRelationshipEditItems(menu, card, host)
+    extend?.(menu)
     return menu
 }
 
