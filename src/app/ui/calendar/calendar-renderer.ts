@@ -19,14 +19,36 @@ export interface CalendarEntry {
     spanLabel?: string
 }
 
+/** One status subgroup of panel cards (collapse key `typeId::status`). */
+export interface PanelStatusGroupModel {
+    key: string
+    label: string
+    collapsed: boolean
+    cards: KanbanCard[]
+}
+
+/** One note-type group of panel cards (collapse key = the type id). */
+export interface PanelTypeGroupModel {
+    key: string
+    label: string
+    count: number
+    collapsed: boolean
+    groups: PanelStatusGroupModel[]
+}
+
 /** Everything the calendar view needs to render one frame. */
 export interface CalendarViewModel {
     range: CalendarRange
     activeTab: DateDimension
     anchorLabel: string
     blocks: CalendarBlock[]
-    /** Cards missing the active dimension's date (shown in the panel list). */
-    panelCards: KanbanCard[]
+    /**
+     * The active backlog grouped by note type → status (all collapsed by
+     * default). Type headers render only when {@link panelGrouped}.
+     */
+    panelGroups: PanelTypeGroupModel[]
+    /** Whether type headers render (the backlog spans more than one type). */
+    panelGrouped: boolean
     /** Card placements bucketed by `YYYY-MM-DD` — both dimensions, color-coded. */
     cardsByDay: Map<string, CalendarEntry[]>
     panelCollapsed: boolean
@@ -52,6 +74,8 @@ export interface CalendarCallbacks {
     onShiftAnchor: (direction: number) => void
     onToday: () => void
     onTogglePanel: () => void
+    /** Toggle one panel group's collapse (key: `typeId` or `typeId::status`). */
+    onTogglePanelGroup: (key: string) => void
     /** Zoom into a single day (`YYYY-MM-DD`). */
     onFocusDay: (dayKey: string) => void
     /** Leave the focused day, back to the grid. */
@@ -118,7 +142,8 @@ function renderPanel(
     const list = panel.createDiv({ cls: 'kap-panel-list' })
     list.dataset['calendarPanel'] = model.activeTab
     list.setAttribute('role', 'list')
-    if (model.panelCards.length === 0) {
+    const total = model.panelGroups.reduce((sum, g) => sum + g.count, 0)
+    if (total === 0) {
         list.createDiv({
             cls: 'kap-panel-empty',
             text:
@@ -126,10 +151,58 @@ function renderPanel(
                     ? 'Every card has a scheduled date.'
                     : 'Every card has a deadline.'
         })
+        return
     }
-    // Panel chips represent the active backlog; dragging one sets that dimension.
-    for (const card of model.panelCards)
-        renderChip(list, { card, kind: model.activeTab, overdue: false }, callbacks)
+    // The backlog groups by note type → status (all collapsed by default);
+    // single-type boards skip the type level. Dragging a chip sets the active
+    // dimension's date.
+    for (const group of model.panelGroups) {
+        let host = list
+        if (model.panelGrouped) {
+            renderGroupHeader(
+                list,
+                'kap-cal-ugroup',
+                group.label,
+                group.count,
+                group.collapsed,
+                () => callbacks.onTogglePanelGroup(group.key)
+            )
+            if (group.collapsed) continue
+            host = list.createDiv({ cls: 'kap-cal-ugroup-body' })
+        }
+        for (const sub of group.groups) {
+            renderGroupHeader(
+                host,
+                'kap-cal-usubgroup',
+                sub.label,
+                sub.cards.length,
+                sub.collapsed,
+                () => callbacks.onTogglePanelGroup(sub.key)
+            )
+            if (sub.collapsed) continue
+            for (const card of sub.cards)
+                renderChip(host, { card, kind: model.activeTab, overdue: false }, callbacks)
+        }
+    }
+}
+
+/** A full-width collapsible group header: chevron + label + count badge. */
+function renderGroupHeader(
+    parent: HTMLElement,
+    cls: string,
+    label: string,
+    count: number,
+    collapsed: boolean,
+    onToggle: () => void
+): void {
+    const header = parent.createEl('button', {
+        cls: collapsed ? cls : `${cls} ${cls}-open`,
+        attr: { 'type': 'button', 'aria-expanded': String(!collapsed) }
+    })
+    header.createSpan({ cls: 'kap-cal-ugroup-chevron', text: collapsed ? '▸' : '▾' })
+    header.createSpan({ cls: 'kap-cal-ugroup-label', text: label })
+    header.createSpan({ cls: 'kap-cal-ugroup-count', text: String(count) })
+    header.addEventListener('click', onToggle)
 }
 
 function addTab(

@@ -398,8 +398,11 @@ a _panel drag_ sets:
 - **Unplanned**: cards with no scheduled date.
 - **No deadline**: cards with no deadline.
 
-Each tab count is the size of that backlog. Collapse the panel with the **«** toggle (the
-"Scheduling" title stays visible, turned vertical). When the calendar gets too narrow, for
+Each tab count is the size of that backlog. Within a tab, the cards are **grouped by note
+type, then by status** — the type level shows as full-width tab-style headers on multi-type
+boards (single-type boards skip it), and **all groups start collapsed** (click a header to
+expand). Collapse the panel itself with the **«** toggle (the "Scheduling" title stays
+visible, turned vertical). When the calendar gets too narrow, for
 example in a split pane, the panel **collapses automatically** and re-opens when there's room
 again. Your own manual collapse or expand always takes precedence.
 

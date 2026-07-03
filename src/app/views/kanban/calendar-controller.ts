@@ -13,9 +13,9 @@ import {
 import type { CalendarRange, DateDimension } from '../../domain/calendar'
 import { compareTabCards } from '../../domain/calendar-tabs'
 import type { TabSortKey, TabSortMode } from '../../domain/calendar-tabs'
-import { parseEstimate } from '../../domain/timeline'
+import { groupByTypeAndStatus, parseEstimate } from '../../domain/timeline'
 import { renderCalendar } from '../../ui/calendar/calendar-renderer'
-import type { CalendarEntry } from '../../ui/calendar/calendar-renderer'
+import type { CalendarEntry, PanelTypeGroupModel } from '../../ui/calendar/calendar-renderer'
 import type { CalendarDropTarget } from '../../ui/calendar/calendar-dnd'
 import {
     deleteProperty,
@@ -57,6 +57,8 @@ export interface CalendarHost {
     deadlineProperty(): string
     /** Resolved estimate property (issue #86): spans render on every covered day. */
     estimateProperty(): string
+    /** The card's recognized note type, or null (→ the "No type" bucket) — panel grouping. */
+    noteTypeFor(card: KanbanCard): { id: string; name: string } | null
     /** The momentjs date format dates are written with. */
     dateFormat(): string
     firstDayOfWeek(): number
@@ -91,6 +93,13 @@ export class CalendarController {
     // Auto-collapse the scheduling pane when the container is too narrow.
     private panelAutoCollapsed = false
     private panelLastNarrow: boolean | null = null
+    /**
+     * Panel group collapse, keyed `typeId` / `typeId::status`. Lives on the
+     * controller instance so expanding a group survives the rebuild every
+     * frontmatter write / tab switch triggers — default collapsed (mirrors the
+     * timeline's Unplanned panel).
+     */
+    private readonly panelCollapsedGroups = new Map<string, boolean>()
     // Durable state is loaded from config lazily (config is unavailable at
     // construction; the view reads it on first render) — issue #19.
     private loaded = false
@@ -196,6 +205,12 @@ export class CalendarController {
         const unplanned = cards.filter((c) => dateFor(c, 'scheduled') === null)
         const noDeadline = cards.filter((c) => dateFor(c, 'deadline') === null)
         const panelCards = this.sortFilterPanel(dimension === 'scheduled' ? unplanned : noDeadline)
+        // Group the backlog by note type → status (issue: panel parity with the
+        // timeline). Type headers only on multi-type boards; sorted cards keep
+        // their order inside each status subgroup.
+        const distinctTypes = new Set(panelCards.map((c) => this.host.noteTypeFor(c)?.id ?? '∅'))
+        const panelGrouped = distinctTypes.size > 1
+        const panelGroups = this.buildPanelGroups(panelCards)
 
         // Unified overlay: every card is placed on BOTH its scheduled day (blue)
         // and its deadline (orange); same-day collapses to one "both" chip.
@@ -241,7 +256,8 @@ export class CalendarController {
                 activeTab: dimension,
                 anchorLabel: this.anchorLabel(anchor, range),
                 blocks: buildCalendar(anchor, range, today, firstDay),
-                panelCards,
+                panelGroups,
+                panelGrouped,
                 cardsByDay,
                 panelCollapsed: this.panelCollapsed,
                 counts: { unplanned: unplanned.length, noDeadline: noDeadline.length },
@@ -285,6 +301,13 @@ export class CalendarController {
                     this.persist()
                     this.host.rebuild()
                 },
+                onTogglePanelGroup: (key) => {
+                    this.panelCollapsedGroups.set(
+                        key,
+                        !(this.panelCollapsedGroups.get(key) ?? true)
+                    )
+                    this.host.rebuild()
+                },
                 onFocusDay: (dayKey) => {
                     this.focusedDay = dayKey
                     this.host.rebuild()
@@ -310,6 +333,34 @@ export class CalendarController {
     private focusedDayLabel(): string {
         const date = parseFrontmatterDate(this.focusedDay)
         return date ? formatLongDate(date) : ''
+    }
+
+    /**
+     * The (already sorted) backlog as type → status groups with resolved
+     * collapse flags — all collapsed by default; the collapse map lives on
+     * this controller so expanding a group survives the rebuild each
+     * frontmatter write / tab switch triggers (mirrors the timeline).
+     */
+    private buildPanelGroups(cards: KanbanCard[]): PanelTypeGroupModel[] {
+        return groupByTypeAndStatus(
+            cards,
+            (card) => this.host.noteTypeFor(card),
+            (card) => card.statusValue
+        ).map((typeGroup) => ({
+            key: typeGroup.typeId,
+            label: typeGroup.typeName,
+            count: typeGroup.groups.reduce((sum, g) => sum + g.items.length, 0),
+            collapsed: this.panelCollapsedGroups.get(typeGroup.typeId) ?? true,
+            groups: typeGroup.groups.map((statusGroup) => {
+                const key = `${typeGroup.typeId}::${statusGroup.status}`
+                return {
+                    key,
+                    label: statusGroup.label,
+                    collapsed: this.panelCollapsedGroups.get(key) ?? true,
+                    cards: statusGroup.items
+                }
+            })
+        }))
     }
 
     /** Sort the scheduling-panel cards (the toolbar filter already narrowed them). */

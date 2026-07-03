@@ -173,7 +173,8 @@ through `renderBoard`/`patchBoard`. Swimlanes are content-sized but capped at on
 (`max-h-full`), scrolling their columns internally.
 
 **Calendar mode.** When `calendarMode` is on, `rebuild()` calls `renderCalendarFrame()` instead of
-the board: `ui/calendar/calendar-renderer.ts` draws a collapsible **Scheduling** panel plus a
+the board: `ui/calendar/calendar-renderer.ts` draws a collapsible **Scheduling** panel (its backlog grouped by note type → status via the
+shared `groupByTypeAndStatus`, reusing the timeline's tab-style group headers) plus a
 CSS-grid calendar (`grid-template-columns: repeat(7, minmax(0, 1fr))` so every day stays visible
 and chips truncate). **Unified overlay:** the grid plots every card on **both** its scheduled day
 _and_ its deadline — `cardsByDay` is a `Map<dayKey, CalendarEntry[]>` where each entry carries a

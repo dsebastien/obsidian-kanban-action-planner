@@ -125,7 +125,10 @@ See `documentation/plans/kanban-action-planner-implementation-plan.md` for full 
    form and dedup by resolved path; removes delete the property when it empties. The metadata-cache
    refresh above re-renders badges/blocked state live after a write.
 10. **Calendar mode.** A toggle adds a collapsible "Scheduling" panel (Unplanned /
-    No-Deadline tabs; title always visible, vertical when collapsed) + a week/month/quarter/
+    No-Deadline tabs; title always visible, vertical when collapsed; each tab's backlog is
+    **grouped by note type → status** via `groupByTypeAndStatus`, type headers only on
+    multi-type boards, all groups collapsed by default with collapse state on the controller
+    instance) + a week/month/quarter/
     year calendar. Dragging a card to a day sets the relevant date property (momentjs format,
     default `YYYY-MM-DD`); dragging back clears it. **Multi-day spans (issue #86):** a
     scheduled card with an estimate also renders a dimmed, dashed-edge continuation chip on
