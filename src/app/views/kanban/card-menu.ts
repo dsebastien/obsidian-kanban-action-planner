@@ -38,6 +38,8 @@ export interface CardMenuHost {
     openRelated(note: RelatedNote, newTab: boolean): void
     /** Zoom (issue #74): re-filter the board to the card's children. */
     focusOnChildren(card: KanbanCard): void
+    /** Zoom (issue #74): re-filter the board to the card's whole subtree. */
+    focusOnDescendants(card: KanbanCard): void
     /** Quick "today"/"tomorrow" keys + the current new-tab modifier check. */
     todayKey(): string
     tomorrowKey(): string
@@ -76,6 +78,12 @@ export function buildCardMenu(card: KanbanCard, host: CardMenuHost): Menu {
                 .setTitle('Focus on children')
                 .setIcon('zoom-in')
                 .onClick(() => host.focusOnChildren(card))
+        )
+        menu.addItem((item) =>
+            item
+                .setTitle('Focus on all descendants')
+                .setIcon('zoom-in')
+                .onClick(() => host.focusOnDescendants(card))
         )
     }
     menu.addSeparator()

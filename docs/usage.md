@@ -87,8 +87,9 @@ Click the **?** for an in-app cheat-sheet.
 - Quote values with spaces: `parent:"PKM Library"`.
 - **Comma = OR** within one property: `status:active,done`.
 - Recognized names: `title`, `status` (matches the value or its column label), `parent`,
-  `child`, `sibling`, `blocked`, `tag`, `due`, **or any frontmatter property** (e.g.
-  `urgency:now`, `effort:large`), even properties not shown on the card.
+  `ancestor` (any **transitive** parent — the parent, its parent, and so on), `child`,
+  `sibling`, `blocked`, `tag`, `due`, **or any frontmatter property** (e.g. `urgency:now`,
+  `effort:large`), even properties not shown on the card.
 - **`:` matches substrings; `:=` matches the whole value.** `parent:app` matches children of
   both `App` and `App Backend`; `parent:="App"` matches only `App` (still case-insensitive).
   Works for every qualifier (`status:=done`, `tag:=work`, …).
@@ -280,22 +281,31 @@ Three ways to trigger it:
   mixed board (e.g. an "All actions" view), click a task's ▲ badge and focus its project to see
   **all of that project's children** — the task itself and its siblings — in one move.
 
-Under the hood, zooming simply writes a `parent:="Card Title"` term into the
-[filter box](#filtering-search-bar) — there is no separate mode. That means:
+Each entry point also offers **Focus on all descendants**: instead of the direct children only,
+the board shows the **whole subtree** — children, grandchildren, and so on. Focus all descendants
+of a goal and you see its projects **and** their tasks at once. Under the hood this writes an
+`ancestor:="Title"` term (a card matches when the focused note is **any** of its transitive
+parents); the chain is climbed through the notes on the board, so a hierarchy that passes through
+a note the Base excludes stops there.
+
+Under the hood, zooming simply writes a `parent:="Card Title"` (children) or
+`ancestor:="Card Title"` (descendants) term into the [filter box](#filtering-search-bar) — there
+is no separate mode. That means:
 
 - It **ANDs with whatever you already typed** (e.g. `status:active` stays applied).
-- **Zooming again drills down**: focusing a child **swaps** the `parent:` term, one level at a
-  time. To go back up, dismiss the chip and focus another card (or edit the query directly).
+- **Zooming again drills down or re-scopes**: the next focus **swaps** the zoom term (a children
+  zoom replaces a descendants zoom and vice versa), one focus at a time. To go back up, dismiss
+  the chip and focus another card (or edit the query directly).
 - It **persists with the view**, like any filter, across close/reopen.
 
 While focused, a **chip** (`▼ Website Redesign ✕`) shows next to the filter box:
 
-- Click the **✕** to remove **only** the `parent:` term — the rest of your query survives.
+- Click the **✕** to remove **only** the zoom term — the rest of your query survives.
 - Click the **label** to open the focused parent note.
 
-**Only direct children** match (the same parent/child links the ▼ badge counts, including
-inferred ones); deeper descendants don't, until you drill down into them. The focused card itself
-is not shown — the chip is the context.
+**Focus on children** matches direct children only (the same parent/child links the ▼ badge
+counts, including inferred ones); **Focus on all descendants** matches the whole subtree. The
+focused card itself is not shown — the chip is the context.
 
 **Heads-up:** zoom filters **within the notes this view's Base already selects**. If the Base's
 own filters exclude the children (e.g. you focus a project on a **projects-only** view, and its

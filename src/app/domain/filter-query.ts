@@ -19,9 +19,9 @@ import { parseFrontmatterDate, startOfDay, toDateKey } from './calendar'
  *   instead of a substring — works for every qualifier (`due:=` = same-day `=`).
  * - Comma in a value = OR (`status:active,done`).
  * - Leading `-` or a standalone `NOT` negates the next clause.
- * - Reserved names (`title`, `status`, `parent`, `child`, `sibling`, `blocked`,
- *   `tag`, `due`) win over a same-named frontmatter property; any other name is a
- *   frontmatter property lookup.
+ * - Reserved names (`title`, `status`, `parent`, `ancestor`, `child`, `sibling`,
+ *   `blocked`, `tag`, `due`) win over a same-named frontmatter property; any
+ *   other name is a frontmatter property lookup.
  * - `due:` is the only qualifier with comparison operators and date keywords.
  * - Best-effort: malformed input never throws.
  */
@@ -69,6 +69,12 @@ export interface CardSearchRecord {
     statusText: string[]
     /** Related note names per role, lowercased. */
     rels: Record<RelationshipRole, string[]>
+    /**
+     * Names of ALL transitive parents (direct parents, their parents, …),
+     * lowercased — climbed through the board's notes. Backs the `ancestor:`
+     * qualifier (issue #74 descendants zoom); not part of the bare-term haystack.
+     */
+    ancestors: string[]
     /** Note tags, lowercased, without the leading `#`. */
     tags: string[]
     /** Parsed due date (local midnight) or null. */
@@ -297,6 +303,9 @@ function matchQualifier(rec: CardSearchRecord, clause: FilterClause, ctx: Filter
     if (name === 'tag' || name === 'tags') {
         return clause.values.some((v) => rec.tags.some((t) => hits(t, v)))
     }
+    if (name === 'ancestor' || name === 'ancestors') {
+        return clause.values.some((v) => rec.ancestors.some((a) => hits(a, v)))
+    }
     const role = ROLE_ALIASES[name]
     if (role) {
         return clause.values.some((v) => rec.rels[role].some((r) => hits(r, v)))
@@ -325,51 +334,66 @@ export function matchesFilterQuery(
     return query.groups.some((group) => group.every((clause) => matchClause(rec, clause, ctx)))
 }
 
-// ── Zoom / focus-on-children helpers (issue #74) ──────────────
+// ── Zoom / focus helpers (issue #74) ──────────────────────────
 //
 // Zoom is not separate state: focusing a card's children writes a
-// `parent:="Title"` term into the raw filter query and rides the normal
-// filter path. These helpers edit that term at the raw-string level so the
-// rest of what the user typed survives untouched (and the chip label keeps
-// the original casing, which the lowercasing parser would lose).
+// `parent:="Title"` term (direct children) or an `ancestor:="Title"` term
+// (all descendants) into the raw filter query and rides the normal filter
+// path. These helpers edit that term at the raw-string level so the rest of
+// what the user typed survives untouched (and the chip label keeps the
+// original casing, which the lowercasing parser would lose).
 
-/** A non-negated `parent:` / `parent:=` token (the zoom term). */
-function isParentToken(token: string): boolean {
-    return /^parent:/i.test(token)
+/** Which relationship the zoom term filters on. */
+export type ZoomField = 'parent' | 'ancestor'
+
+/** The parsed zoom term backing the chip. */
+export interface ZoomTerm {
+    field: ZoomField
+    /** Focused note title, original casing, unquoted. */
+    title: string
+}
+
+/** A non-negated `parent:` / `ancestor:` (`:=` included) token — the zoom term. */
+function isZoomToken(token: string): boolean {
+    return /^(parent|ancestor):/i.test(token)
 }
 
 /** Serialize a zoom term for `title`, always quoted (quotes stripped — the tokenizer has no escapes). */
-function parentTerm(title: string): string {
-    return `parent:="${title.replace(/"/g, '').trim()}"`
+function zoomToken(title: string, field: ZoomField): string {
+    return `${field}:="${title.replace(/"/g, '').trim()}"`
 }
 
 /**
- * Append a `parent:="title"` exact term to `query`, replacing any existing
- * (non-negated) `parent:` term so repeated zooms drill down instead of stacking.
+ * Append a `parent:="title"` / `ancestor:="title"` exact term to `query`,
+ * replacing any existing (non-negated) zoom term — of either field — so
+ * repeated zooms drill down or re-scope instead of stacking.
  */
-export function setParentTerm(query: string, title: string): string {
-    const kept = tokenize(query).filter((t) => !isParentToken(t))
-    return [...kept, parentTerm(title)].join(' ').trim()
+export function setZoomTerm(query: string, title: string, field: ZoomField): string {
+    const kept = tokenize(query).filter((t) => !isZoomToken(t))
+    return [...kept, zoomToken(title, field)].join(' ').trim()
 }
 
-/** Remove the `parent:` term(s) from `query`, keeping everything else. */
-export function removeParentTerm(query: string): string {
+/** Remove the zoom term(s) from `query`, keeping everything else. */
+export function removeZoomTerm(query: string): string {
     return tokenize(query)
-        .filter((t) => !isParentToken(t))
+        .filter((t) => !isZoomToken(t))
         .join(' ')
         .trim()
 }
 
 /**
- * The zoom term's value (original casing, unquoted), or `null` when the query
- * has no non-negated `parent:` term. Drives the derived zoom chip.
+ * The zoom term (field + title in its original casing), or `null` when the
+ * query has no non-negated `parent:` / `ancestor:` term. Drives the chip.
  */
-export function getParentTerm(query: string): string | null {
+export function getZoomTerm(query: string): ZoomTerm | null {
     for (const token of tokenize(query)) {
-        if (!isParentToken(token)) continue
-        const raw = token.slice(token.indexOf(':') + 1)
-        const value = unquote(raw.startsWith('=') ? raw.slice(1) : raw).trim()
-        if (value.length > 0) return value
+        if (!isZoomToken(token)) continue
+        const colon = token.indexOf(':')
+        const raw = token.slice(colon + 1)
+        const title = unquote(raw.startsWith('=') ? raw.slice(1) : raw).trim()
+        if (title.length === 0) continue
+        const field = token.slice(0, colon).toLowerCase() === 'ancestor' ? 'ancestor' : 'parent'
+        return { field, title }
     }
     return null
 }

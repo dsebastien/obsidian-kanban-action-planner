@@ -223,7 +223,7 @@ export function toCardRelationships(set: RelationshipSet | undefined): CardRelat
     }
     if (!set) return out
     for (const role of RELATIONSHIP_ROLES) {
-        out[role] = set[role].map((key) => ({ key, label: basenameOf(key) }))
+        out[role] = set[role].map((key) => ({ key, label: labelForPath(key) }))
     }
     return out
 }
@@ -234,7 +234,7 @@ export function hasAnyRelationship(rels: CardRelationships): boolean {
 }
 
 /** Display label for a vault path: the file's base name without extension. */
-function basenameOf(path: string): string {
+export function labelForPath(path: string): string {
     const file = path.split('/').pop() ?? path
     return file.endsWith('.md') ? file.slice(0, -3) : file
 }

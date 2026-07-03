@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'bun:test'
 import {
-    getParentTerm,
+    getZoomTerm,
     isEmptyQuery,
     matchesFilterQuery,
     parseFilterQuery,
-    removeParentTerm,
-    setParentTerm
+    removeZoomTerm,
+    setZoomTerm
 } from './filter-query'
 import type { CardSearchRecord, FilterContext } from './filter-query'
 import { periodRange } from './calendar'
@@ -28,6 +28,7 @@ function record(over: Partial<CardSearchRecord> = {}): CardSearchRecord {
         haystack: '',
         statusText: [],
         rels: { parent: [], sibling: [], child: [], blocked_by: [] },
+        ancestors: [],
         tags: [],
         due: null,
         props: new Map()
@@ -160,6 +161,18 @@ describe('matchesFilterQuery', () => {
         expect(match('sibling:anything', rec)).toBe(false)
     })
 
+    it('ancestor qualifier matches any transitive parent (exact and substring)', () => {
+        const rec = record({
+            rels: { parent: ['project x'], sibling: [], child: [], blocked_by: [] },
+            ancestors: ['project x', 'area y']
+        })
+        expect(match('ancestor:"area y"', rec)).toBe(true)
+        expect(match('ancestor:="Area Y"', rec)).toBe(true)
+        expect(match('ancestors:area', rec)).toBe(true) // alias + substring
+        expect(match('ancestor:="Area"', rec)).toBe(false) // exact, whole value
+        expect(match('parent:"area y"', rec)).toBe(false) // parent stays direct-only
+    })
+
     it('generic frontmatter property qualifier (lists match any element)', () => {
         const rec = record({ props: new Map([['contexts', ['work', 'deep-focus']]]) })
         expect(match('contexts:deep', rec)).toBe(true)
@@ -236,41 +249,59 @@ describe('matchesFilterQuery', () => {
 })
 
 describe('zoom helpers (issue #74)', () => {
-    it('setParentTerm appends an exact quoted term to the existing query', () => {
-        expect(setParentTerm('', 'Website Redesign')).toBe('parent:="Website Redesign"')
-        expect(setParentTerm('status:active', 'Website Redesign')).toBe(
+    it('setZoomTerm appends an exact quoted term to the existing query', () => {
+        expect(setZoomTerm('', 'Website Redesign', 'parent')).toBe('parent:="Website Redesign"')
+        expect(setZoomTerm('status:active', 'Website Redesign', 'parent')).toBe(
             'status:active parent:="Website Redesign"'
+        )
+        expect(setZoomTerm('status:active', 'Website Redesign', 'ancestor')).toBe(
+            'status:active ancestor:="Website Redesign"'
         )
     })
 
-    it('setParentTerm swaps an existing parent term instead of stacking', () => {
-        const zoomed = setParentTerm('status:active', 'App')
-        expect(setParentTerm(zoomed, 'App Backend')).toBe('status:active parent:="App Backend"')
-        expect(setParentTerm('parent:app status:active', 'App Backend')).toBe(
+    it('setZoomTerm swaps an existing zoom term instead of stacking', () => {
+        const zoomed = setZoomTerm('status:active', 'App', 'parent')
+        expect(setZoomTerm(zoomed, 'App Backend', 'parent')).toBe(
+            'status:active parent:="App Backend"'
+        )
+        expect(setZoomTerm('parent:app status:active', 'App Backend', 'parent')).toBe(
             'status:active parent:="App Backend"'
         )
     })
 
-    it('setParentTerm strips quotes from the title (tokenizer has no escapes)', () => {
-        expect(setParentTerm('', 'Say "hi"')).toBe('parent:="Say hi"')
+    it('setZoomTerm swaps across fields (children zoom replaces descendants zoom)', () => {
+        const deep = setZoomTerm('status:active', 'App', 'ancestor')
+        expect(setZoomTerm(deep, 'App Backend', 'parent')).toBe(
+            'status:active parent:="App Backend"'
+        )
+        expect(setZoomTerm('parent:"App" x', 'App', 'ancestor')).toBe('x ancestor:="App"')
     })
 
-    it('setParentTerm leaves a negated -parent: exclusion alone', () => {
-        expect(setParentTerm('-parent:old', 'App')).toBe('-parent:old parent:="App"')
+    it('setZoomTerm strips quotes from the title (tokenizer has no escapes)', () => {
+        expect(setZoomTerm('', 'Say "hi"', 'parent')).toBe('parent:="Say hi"')
     })
 
-    it('removeParentTerm removes only the parent term', () => {
-        expect(removeParentTerm('status:active parent:="Website Redesign"')).toBe('status:active')
-        expect(removeParentTerm('parent:app')).toBe('')
-        expect(removeParentTerm('status:active')).toBe('status:active')
-        expect(removeParentTerm('-parent:old status:active')).toBe('-parent:old status:active')
+    it('setZoomTerm leaves a negated -parent: exclusion alone', () => {
+        expect(setZoomTerm('-parent:old', 'App', 'parent')).toBe('-parent:old parent:="App"')
     })
 
-    it('getParentTerm returns the original-cased value or null', () => {
-        expect(getParentTerm('status:active parent:="Website Redesign"')).toBe('Website Redesign')
-        expect(getParentTerm('parent:App')).toBe('App')
-        expect(getParentTerm('status:active')).toBeNull()
-        expect(getParentTerm('-parent:old')).toBeNull()
-        expect(getParentTerm('')).toBeNull()
+    it('removeZoomTerm removes only the zoom term (either field)', () => {
+        expect(removeZoomTerm('status:active parent:="Website Redesign"')).toBe('status:active')
+        expect(removeZoomTerm('status:active ancestor:="App"')).toBe('status:active')
+        expect(removeZoomTerm('parent:app')).toBe('')
+        expect(removeZoomTerm('status:active')).toBe('status:active')
+        expect(removeZoomTerm('-parent:old status:active')).toBe('-parent:old status:active')
+    })
+
+    it('getZoomTerm returns the field and original-cased title, or null', () => {
+        expect(getZoomTerm('status:active parent:="Website Redesign"')).toEqual({
+            field: 'parent',
+            title: 'Website Redesign'
+        })
+        expect(getZoomTerm('ancestor:="App"')).toEqual({ field: 'ancestor', title: 'App' })
+        expect(getZoomTerm('parent:App')).toEqual({ field: 'parent', title: 'App' })
+        expect(getZoomTerm('status:active')).toBeNull()
+        expect(getZoomTerm('-parent:old')).toBeNull()
+        expect(getZoomTerm('')).toBeNull()
     })
 })

@@ -15,7 +15,8 @@ import type { KanbanCard } from '../ui/board/types'
 export function buildCardSearchRecord(
     app: App,
     card: KanbanCard,
-    dueDateProperty: string
+    dueDateProperty: string,
+    ancestorLabels: ReadonlyArray<string> = []
 ): CardSearchRecord {
     const file = card.file
     const cache = app.metadataCache.getFileCache(file)
@@ -57,6 +58,10 @@ export function buildCardSearchRecord(
         haystack: haystack.join('  ').toLowerCase(),
         statusText,
         rels,
+        // Transitive parents for `ancestor:` (issue #74 descendants zoom);
+        // deliberately NOT added to the haystack — a bare word shouldn't match
+        // a card through its grandparent's name.
+        ancestors: ancestorLabels.map((l) => l.toLowerCase()),
         tags,
         due,
         props

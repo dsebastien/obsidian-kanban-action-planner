@@ -24,7 +24,7 @@ const HELP_ROWS: ReadonlyArray<{ syntax: string; desc: string }> = [
 ]
 
 const PROPERTY_HINT =
-    'Properties: title, status, parent, child, sibling, blocked, tag, due, or any frontmatter property.'
+    'Properties: title, status, parent, ancestor (any transitive parent), child, sibling, blocked, tag, due, or any frontmatter property.'
 
 /**
  * The persistent filter input in the view toolbar. Created once and kept alive

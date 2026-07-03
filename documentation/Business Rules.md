@@ -317,21 +317,24 @@ See `documentation/plans/kanban-action-planner-implementation-plan.md` for full 
     already the heading), like `file.name`. The title flows through `CardDisplay.title`, so board,
     calendar chips/panel, triage heading, search, and name-sort all use the same resolved value.
     Originally shipped in M2b (per note type), dropped by the #50 refactor, reintroduced per-view.
-34. **Zoom into a card's children (issue #74).** "Focus on children" re-filters the board to the
-    notes whose **parent** is the focused card — it is **not separate state**: the action writes a
-    `parent:="Title"` term into the per-view `filterQuery` and rides the normal filter path
-    (AND-appended to whatever the user typed; an existing non-negated `parent:` term is **swapped**,
-    so repeated zooms drill down one level at a time; persistence comes free). The **`:=` exact
-    operator** (new, all qualifiers; for `due:` the `=` maps to the existing same-day compare)
-    matches the **whole** value case-insensitively — zoom emits it so "App" never captures children
-    of "App Backend"; plain `:` keeps substring semantics. **Direct children only** (the resolved
-    parent/child edges, inverse/heuristic included); zoom filters **within the Base's result set**
-    (children excluded by the Base's own filters stay hidden — the empty state says so). Entry
-    points: card context menu **Focus on children** (only when the card has children), the
-    ▼ children badge menu **Focus on children on this board** (top item), and — zooming up from a
-    child — the ▲ parents badge menu **Focus on children of X** (one item per parent, focusing that
-    parent's children = the card and its siblings). The ▼ and ▲ badges therefore always open a
-    menu, even for a single related note. A dismissible **chip** (`▼ Title ✕`) next to the
-    filter box is **derived** from the query's parent term: ✕ removes only that term, label click
-    best-effort opens the parent note by title. The focused card itself is not shown. Recursive
-    descendants and breadcrumbs: out of scope (follow-ups).
+34. **Zoom into a card's children / descendants (issue #74).** "Focus on children" re-filters the
+    board to the notes whose **parent** is the focused card; "Focus on all descendants" to its
+    **whole subtree**. Zoom is **not separate state**: the action writes a `parent:="Title"`
+    (children) or `ancestor:="Title"` (descendants) term into the per-view `filterQuery` and rides
+    the normal filter path (AND-appended to whatever the user typed; an existing non-negated zoom
+    term — of either field — is **swapped**, so repeated zooms drill down/re-scope instead of
+    stacking; persistence comes free). The **`:=` exact operator** (all qualifiers; for `due:` the
+    `=` maps to the existing same-day compare) matches the **whole** value case-insensitively —
+    zoom emits it so "App" never captures children of "App Backend"; plain `:` keeps substring
+    semantics. The **`ancestor:` reserved qualifier** matches a card's **transitive parents**
+    (`CardSearchRecord.ancestors`, BFS via `ancestorPaths` over the resolved board relationships,
+    cycle-safe; an off-board parent is included but not climbed through; deliberately NOT in the
+    bare-term haystack). Zoom filters **within the Base's result set** (children excluded by the
+    Base's own filters stay hidden — the empty state says so). Entry points: card context menu
+    **Focus on children** / **Focus on all descendants** (only when the card has children), the
+    ▼ children badge menu (both, on top), and — zooming up from a child — the ▲ parents badge menu
+    **Focus on children of X** / **Focus on all descendants of X** (per parent). The ▼ and ▲
+    badges therefore always open a menu, even for a single related note. A dismissible **chip**
+    (`▼ Title ✕`) next to the filter box is **derived** from the query's zoom term: ✕ removes only
+    that term, label click best-effort opens the focused note by title. The focused card itself is
+    not shown. Breadcrumb history: out of scope (follow-up).

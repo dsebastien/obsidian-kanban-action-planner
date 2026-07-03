@@ -34,13 +34,14 @@ import type { RelationshipSet } from '../../domain/relationships'
 import {
     addRelationshipLink,
     directLinkTargets,
+    labelForPath,
     removeRelationshipLink,
     resolveBoardRelationships,
     roleProperties,
     toCardRelationships
 } from '../../services/relationships.service'
 import type { RelatedNote } from '../../services/relationships.service'
-import { RELATIONSHIP_ROLES } from '../../domain/relationships'
+import { RELATIONSHIP_ROLES, ancestorPaths } from '../../domain/relationships'
 import { RelationshipTargetModal } from '../../ui/relationship-target-modal'
 import { planInsertion } from '../../domain/ordering'
 import {
@@ -74,12 +75,12 @@ import {
 } from '../../domain/calendar'
 import type { DateDimension } from '../../domain/calendar'
 import {
-    getParentTerm,
+    getZoomTerm,
     isEmptyQuery,
     matchesFilterQuery,
     parseFilterQuery,
-    removeParentTerm,
-    setParentTerm
+    removeZoomTerm,
+    setZoomTerm
 } from '../../domain/filter-query'
 import type { CardSearchRecord, FilterContext, FilterQuery } from '../../domain/filter-query'
 import { CalendarDnd } from '../../ui/calendar/calendar-dnd'
@@ -581,7 +582,14 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         this.searchByKey = new Map(
             this.allCards.map((c) => [
                 c.key,
-                buildCardSearchRecord(this.app, c, this.dueDateProperty)
+                buildCardSearchRecord(
+                    this.app,
+                    c,
+                    this.dueDateProperty,
+                    // Transitive parents, climbed through the board's notes,
+                    // for `ancestor:` / descendants zoom (issue #74).
+                    ancestorPaths(c.key, this.relationshipsByPath).map(labelForPath)
+                )
             ])
         )
 
@@ -607,15 +615,15 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             : this.allCards
         this.cardsByKey = new Map(cards.map((c) => [c.key, c]))
         this.filterBar?.setCount(active ? cards.length : null)
-        // Zoom chip (issue #74): derived from the query's `parent:` term — no
-        // separate zoom state. The empty message hints that the Base's own
-        // filters may exclude the children (e.g. tasks on a projects-only view).
-        const zoomTitle = getParentTerm(this.filterQuery)
-        this.filterBar?.setZoomChip(zoomTitle)
+        // Zoom chip (issue #74): derived from the query's `parent:`/`ancestor:`
+        // term — no separate zoom state. The empty message hints that the Base's
+        // own filters may exclude the children (e.g. tasks on a projects-only view).
+        const zoom = getZoomTerm(this.filterQuery)
+        this.filterBar?.setZoomChip(zoom?.title ?? null)
         this.filterEmptyEl?.setText(
-            zoomTitle === null
+            zoom === null
                 ? 'No cards match the filter.'
-                : `No cards match the filter. Children of "${zoomTitle}" may be excluded by this view's own Base filters.`
+                : `No cards match the filter. ${zoom.field === 'ancestor' ? 'Descendants' : 'Children'} of "${zoom.title}" may be excluded by this view's own Base filters.`
         )
         this.filterEmptyEl?.toggleClass('kap-hidden', !(active && cards.length === 0))
 
@@ -1178,6 +1186,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             promptDate: (card, dimension, current) => this.promptDate(card, dimension, current),
             openRelated: (note, newTab) => this.openRelated(note, newTab),
             focusOnChildren: (card) => this.focusOnChildren(card),
+            focusOnDescendants: (card) => this.focusOnDescendants(card.display.title),
             todayKey: () => toDateKey(startOfDay(new Date())),
             tomorrowKey: () => toDateKey(addDays(startOfDay(new Date()), 1)),
             addableRelationshipRoles: () => this.addableRelationshipRoles(),
@@ -1417,17 +1426,29 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
                     .setIcon('zoom-in')
                     .onClick(() => this.focusOnChildren(card))
             )
+            menu.addItem((item) =>
+                item
+                    .setTitle('Focus on all descendants on this board')
+                    .setIcon('zoom-in')
+                    .onClick(() => this.focusOnDescendants(card.display.title))
+            )
             menu.addSeparator()
         }
         if (role === 'parent') {
-            // Zoom up-and-across: focus a parent's children, i.e. this card
-            // and its siblings under that parent (issue #74 follow-up).
+            // Zoom up-and-across: focus a parent's children (this card and its
+            // siblings) or its whole subtree (issue #74 follow-up).
             for (const note of related) {
                 menu.addItem((item) =>
                     item
                         .setTitle(`Focus on children of ${note.label}`)
                         .setIcon('zoom-in')
                         .onClick(() => this.focusOnParent(note.label))
+                )
+                menu.addItem((item) =>
+                    item
+                        .setTitle(`Focus on all descendants of ${note.label}`)
+                        .setIcon('zoom-in')
+                        .onClick(() => this.focusOnDescendants(note.label))
                 )
             }
             menu.addSeparator()
@@ -2054,17 +2075,26 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
     }
 
     /**
-     * Zoom to the children of the note titled `title` (from a card's ▲ parents
-     * badge: the card and its siblings under that parent). Same mechanism as
-     * {@link focusOnChildren} — only the source of the title differs.
+     * Zoom to the direct children of the note titled `title` (from a card's ▲
+     * parents badge: the card and its siblings under that parent). Same
+     * mechanism as {@link focusOnChildren} — only the source of the title differs.
      */
     private focusOnParent(title: string): void {
-        this.setFilterQuery(setParentTerm(this.filterQuery, title))
+        this.setFilterQuery(setZoomTerm(this.filterQuery, title, 'parent'))
     }
 
-    /** Chip ✕: remove only the `parent:` term; the rest of the query survives. */
+    /**
+     * Zoom to ALL descendants of the note titled `title` (`ancestor:=` — the
+     * whole subtree: children, grandchildren, …, climbed through the board's
+     * notes), from the card's own zoom or a ▲ parents badge.
+     */
+    private focusOnDescendants(title: string): void {
+        this.setFilterQuery(setZoomTerm(this.filterQuery, title, 'ancestor'))
+    }
+
+    /** Chip ✕: remove only the zoom term; the rest of the query survives. */
     private clearChildFocus(): void {
-        this.setFilterQuery(removeParentTerm(this.filterQuery))
+        this.setFilterQuery(removeZoomTerm(this.filterQuery))
     }
 
     /** Chip label click: best-effort resolve the focused parent note by title. */

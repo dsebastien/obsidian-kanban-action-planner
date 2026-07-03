@@ -128,3 +128,27 @@ export function resolveRelationships(
 
     return result
 }
+
+/**
+ * All transitive parents of `start` (BFS order, deduped, cycle-safe): the
+ * direct parents, their parents, and so on, climbing `parent` edges through
+ * the resolved sets (issue #74 descendants zoom — a card is a descendant of X
+ * iff X is among its ancestors). A parent outside the map (an off-board note)
+ * is included but cannot be climbed through.
+ */
+export function ancestorPaths(
+    start: string,
+    byPath: ReadonlyMap<string, RelationshipSet>
+): string[] {
+    const out: string[] = []
+    const seen = new Set<string>([start])
+    const queue = [...(byPath.get(start)?.parent ?? [])]
+    while (queue.length > 0) {
+        const path = queue.shift()
+        if (path === undefined || seen.has(path)) continue
+        seen.add(path)
+        out.push(path)
+        queue.push(...(byPath.get(path)?.parent ?? []))
+    }
+    return out
+}

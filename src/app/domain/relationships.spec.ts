@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
-import { normalizeTag, resolveRelationships } from './relationships'
-import type { HeuristicRule, NoteRecord } from './relationships'
+import { ancestorPaths, normalizeTag, resolveRelationships } from './relationships'
+import type { HeuristicRule, NoteRecord, RelationshipSet } from './relationships'
 import type { RelationshipRole } from './note-type'
 
 function record(
@@ -168,5 +168,45 @@ describe('resolveRelationships', () => {
             // The inverse parent is still allowed onto the active 'parent' role.
             expect(rels.get('task.md')?.parent).toEqual(['project.md'])
         })
+    })
+})
+
+describe('ancestorPaths', () => {
+    const set = (parent: string[] = []): RelationshipSet => ({
+        parent,
+        sibling: [],
+        child: [],
+        blocked_by: []
+    })
+
+    it('collects transitive parents through the map', () => {
+        const byPath = new Map<string, RelationshipSet>([
+            ['task.md', set(['project.md'])],
+            ['project.md', set(['area.md'])],
+            ['area.md', set()]
+        ])
+        expect(ancestorPaths('task.md', byPath)).toEqual(['project.md', 'area.md'])
+        expect(ancestorPaths('project.md', byPath)).toEqual(['area.md'])
+        expect(ancestorPaths('area.md', byPath)).toEqual([])
+    })
+
+    it('includes an off-map parent but cannot climb through it', () => {
+        const byPath = new Map<string, RelationshipSet>([['task.md', set(['offboard.md'])]])
+        expect(ancestorPaths('task.md', byPath)).toEqual(['offboard.md'])
+    })
+
+    it('dedups multiple routes and survives cycles', () => {
+        const byPath = new Map<string, RelationshipSet>([
+            // a → b and a → c, both b and c → d; d loops back to a.
+            ['a.md', set(['b.md', 'c.md'])],
+            ['b.md', set(['d.md'])],
+            ['c.md', set(['d.md'])],
+            ['d.md', set(['a.md'])]
+        ])
+        expect(ancestorPaths('a.md', byPath)).toEqual(['b.md', 'c.md', 'd.md'])
+    })
+
+    it('is empty for an unknown start', () => {
+        expect(ancestorPaths('missing.md', new Map())).toEqual([])
     })
 })
