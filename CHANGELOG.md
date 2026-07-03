@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.1](https://github.com/dsebastien/obsidian-kanban-action-planner/compare/0.9.0...0.9.1) (2026-07-03)
+
+### Bug Fixes
+
+* **plugin:** reintroduce configurable card title property ([82db5d1](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/82db5d15427ad92ed42c44a0a8c7614af700a423)), closes [#50](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/50) [#4](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/4)
+
 ## [0.9.0](https://github.com/dsebastien/obsidian-kanban-action-planner/compare/0.8.1...0.9.0) (2026-07-03)
 
 ### Features
@@ -221,6 +227,7 @@ All notable changes to this project will be documented in this file.
 
 * **plugin:** match Starter Kit's {{quarter}} placeholder format (Q2, not 2) ([4fde618](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/4fde6185c5956e3f6fd2ca3a9b03e70cf5e16840))
 * **plugin:** persist discovered statuses so Show empty columns works ([cf91b81](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/cf91b81a1b0786e35c73f4885882e2dc33564c62))
+
 
 
 

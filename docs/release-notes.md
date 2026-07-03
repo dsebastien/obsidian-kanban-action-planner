@@ -1,5 +1,11 @@
 # Release Notes
 
+## 0.9.1 (2026-07-03)
+
+### Bug Fixes
+
+- **plugin:** reintroduce configurable card title property [#4](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/4)
+
 ## 0.9.0 (2026-07-03)
 
 ### Features
