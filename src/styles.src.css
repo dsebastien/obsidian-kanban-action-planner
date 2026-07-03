@@ -1737,7 +1737,7 @@
     }
 
     .kap-root .kap-tl-milestone {
-        @apply absolute top-1/2 w-2 h-2 -translate-x-1/2 -translate-y-1/2 rotate-45;
+        @apply absolute top-1/2 w-2 h-2 -translate-x-1/2 -translate-y-1/2 rotate-45 cursor-grab;
         background: var(--text-accent);
         border: 1px solid var(--background-primary);
     }

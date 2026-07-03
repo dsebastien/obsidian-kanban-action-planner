@@ -32,9 +32,11 @@ let dragActive = false
 /** A milestone placed on a row's track. */
 export interface TimelineMilestoneModel {
     pct: number
+    /** Day offset from the window start (drag snapping + live labels). */
+    dayOffset: number
     /** Tooltip: label + date (label may be empty). */
     tooltip: string
-    /** The original frontmatter list entry — the removal key. */
+    /** The original frontmatter list entry — the removal/replace key. */
     raw: string
 }
 
@@ -163,6 +165,8 @@ export interface TimelineCallbacks {
     onAddMilestone(card: KanbanCard, pct: number): void
     /** Remove one milestone (the raw frontmatter list entry). */
     onRemoveMilestone(card: KanbanCard, raw: string): void
+    /** Commit a diamond drag: shift one milestone's date by whole days. */
+    onMoveMilestone(card: KanbanCard, raw: string, dayDelta: number): void
     /** Toggle one undated group's collapse (key: `typeId` or `typeId::status`). */
     onToggleUndatedGroup(key: string): void
     /** Toggle one row type-group's collapse. */
@@ -403,6 +407,7 @@ function renderRow(
             )
             menu.showAtMouseEvent(e)
         })
+        makeMilestoneDraggable(diamond, track, milestone, row, model, callbacks)
     }
     if (row.offSide) {
         track.createSpan({
@@ -734,6 +739,70 @@ function makeResizable(
  * scrolls the undated cards as type → status collapsible groups (all
  * collapsed by default; single-type boards skip the type level).
  */
+/**
+ * Drag a milestone diamond horizontally to move it to another day: whole-day
+ * snapping with the guide line + floating date label, committed as a day
+ * delta on the milestone's raw list entry. A press without movement does
+ * nothing (diamonds have no click action); pointercancel aborts. The inline
+ * preview transform must repeat the class's centering + 45° rotation — a bare
+ * translateX would override them and un-rotate the diamond.
+ */
+function makeMilestoneDraggable(
+    diamond: HTMLElement,
+    track: HTMLElement,
+    milestone: TimelineMilestoneModel,
+    row: TimelineRowModel,
+    model: TimelineViewModel,
+    callbacks: TimelineCallbacks
+): void {
+    diamond.addEventListener('pointerdown', (down) => {
+        if (down.button !== 0) return
+        // Claim the gesture (no text selection, no track dblclick underneath).
+        down.preventDefault()
+        down.stopPropagation()
+        dragActive = true
+        const startX = down.clientX
+        const dayWidth = track.clientWidth / Math.max(1, model.totalDays)
+        const doc = diamond.ownerDocument
+        const label = createDragLabel(doc)
+        const guide = createGuide(model.totalDays)
+
+        let moved = false
+        const onMove = (move: PointerEvent): void => {
+            if (Math.abs(move.clientX - startX) > 5) moved = true
+            if (!moved) return
+            const delta = Math.round((move.clientX - startX) / dayWidth)
+            const snapped = delta * dayWidth
+            diamond.style.transform = `translate(calc(-50% + ${String(snapped)}px), -50%) rotate(45deg)`
+            diamond.addClass('kap-tl-dragging')
+            const date = callbacks.labelForDayOffset(milestone.dayOffset + delta)
+            label.show(`◆ → ${date}`, move.clientX, move.clientY)
+            guide.showAtOffset(track, milestone.dayOffset + delta)
+        }
+        const cleanup = (): void => {
+            dragActive = false
+            doc.removeEventListener('pointermove', onMove)
+            doc.removeEventListener('pointerup', onUp)
+            doc.removeEventListener('pointercancel', onCancel)
+            diamond.style.removeProperty('transform')
+            diamond.removeClass('kap-tl-dragging')
+            label.remove()
+            guide.remove()
+        }
+        const onUp = (up: PointerEvent): void => {
+            cleanup()
+            if (!moved) return
+            const dayDelta = Math.round((up.clientX - startX) / dayWidth)
+            if (dayDelta !== 0) callbacks.onMoveMilestone(row.card, milestone.raw, dayDelta)
+        }
+        // A canceled gesture aborts: restore, write nothing.
+        const onCancel = (): void => cleanup()
+        doc.addEventListener('pointermove', onMove)
+        doc.addEventListener('pointerup', onUp)
+        doc.addEventListener('pointercancel', onCancel)
+    })
+}
+
 function renderPanel(
     parent: HTMLElement,
     model: TimelineViewModel,

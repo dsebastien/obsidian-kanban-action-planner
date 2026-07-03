@@ -102,6 +102,32 @@ export async function appendToListProperty(
 }
 
 /**
+ * Replace one entry (exact match) of a list property IN PLACE — the entry
+ * keeps its position, unlike a remove + append round-trip. Scalars equal to
+ * `entry` are replaced the same way. A miss is a no-op (the entry may have
+ * been edited externally mid-gesture). Used by milestone drags.
+ */
+export async function replaceInListProperty(
+    app: App,
+    file: TFile,
+    propertyName: string,
+    entry: string,
+    replacement: string
+): Promise<void> {
+    await app.fileManager.processFrontMatter(file, (fm: Record<string, unknown>) => {
+        const key = findKeyCaseInsensitive(fm, propertyName)
+        if (key === null) return
+        const raw = fm[key]
+        if (Array.isArray(raw)) {
+            const index = raw.indexOf(entry)
+            if (index >= 0) raw[index] = replacement
+            return
+        }
+        if (raw === entry) fm[key] = replacement
+    })
+}
+
+/**
  * Remove one entry (exact match) from a list property; the property is deleted
  * when the list empties. Scalars equal to `entry` are removed the same way.
  */

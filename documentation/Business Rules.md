@@ -397,7 +397,9 @@ See `documentation/plans/kanban-action-planner-implementation-plan.md` for full 
     rounding as its commit path. **Milestone
     editing:** double-click a row's track → modal (pre-filled editable date + optional label) →
     appends `"<date> [label]"` to the milestone list property (`appendToListProperty`, dedup,
-    scalar promoted to list); right-click a diamond removes its entry (keyed by the raw list
+    scalar promoted to list); dragging a diamond shifts its date by the snapped whole-day delta — the entry is rewritten
+    IN PLACE via `replaceInListProperty` (position + label kept; unparseable raw = no-op);
+    right-click a diamond removes its entry (keyed by the raw list
     entry; property deleted when the list empties). **Drag a square/rectangle horizontally** to
     shift it by the snapped whole-day delta — the commit writes **only the start date** (the
     estimate is intrinsic, so the span follows). Rows sort by start (then milestone/title);

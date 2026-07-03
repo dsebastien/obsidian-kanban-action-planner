@@ -18,6 +18,7 @@ import {
     derivedEnd,
     groupByTypeAndStatus,
     parseEstimate,
+    parseMilestoneEntry,
     parseMilestones,
     pointPct,
     resizeEstimate,
@@ -31,6 +32,7 @@ import {
     deleteProperty,
     getFrontmatterValue,
     removeFromListProperty,
+    replaceInListProperty,
     setProperties,
     setProperty
 } from '../../services/frontmatter.service'
@@ -328,6 +330,8 @@ export class TimelineController {
                         this.host.milestoneProperty(),
                         raw
                     ),
+                onMoveMilestone: (card, raw, dayDelta) =>
+                    void this.moveMilestone(card, raw, dayDelta),
                 onToggleUndatedGroup: (key) => {
                     this.undatedCollapsed.set(key, !(this.undatedCollapsed.get(key) ?? true))
                     this.host.rebuild()
@@ -450,6 +454,25 @@ export class TimelineController {
     /** Track double-click: prompt for a label, then append `<date> <label>`. */
     private promptMilestone(card: KanbanCard, pct: number, window: TimelineRange): void {
         this.openMilestoneModal(card, addDays(window.start, dayOffsetAtPct(pct, window)))
+    }
+
+    /**
+     * Diamond drag commit: shift one milestone's date by `dayDelta` whole
+     * days, rewriting its list entry IN PLACE (position and label kept). A
+     * raw entry that no longer parses (edited mid-gesture) is a no-op.
+     */
+    private async moveMilestone(card: KanbanCard, raw: string, dayDelta: number): Promise<void> {
+        const parsed = parseMilestoneEntry(raw)
+        if (!parsed) return
+        const date = toDateKey(addDays(parsed.date, dayDelta))
+        const replacement = parsed.label ? `${date} ${parsed.label}` : date
+        await replaceInListProperty(
+            this.host.app,
+            card.file,
+            this.host.milestoneProperty(),
+            raw,
+            replacement
+        )
     }
 
     /** Milestone prompt pre-filled with `date` (track dblclick or menu item). */
@@ -678,7 +701,14 @@ export class TimelineController {
             const pct = pointPct(m.date, window)
             if (pct === null) return []
             const label = m.label ? `${m.label} — ` : ''
-            return [{ pct, tooltip: `◆ ${label}${toDateKey(m.date)}`, raw: m.raw }]
+            return [
+                {
+                    pct,
+                    dayOffset: daysBetween(window.start, m.date),
+                    tooltip: `◆ ${label}${toDateKey(m.date)}`,
+                    raw: m.raw
+                }
+            ]
         })
 
         // Dates exist but nothing landed in the window: which side is it on?

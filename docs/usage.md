@@ -525,7 +525,9 @@ hides its unplanned cards); the choice is remembered per view.
 **Define milestones from the timeline.** **Double-click** a card's row at the date you want: a
 small dialog opens with the date pre-filled (still editable) and an optional label. **Add
 milestone** appends a `<date> <label>` entry to the configured milestones list property and the
-diamond appears at once. **Right-click a diamond** to remove that milestone.
+diamond appears at once. **Drag a diamond** left or right to move the milestone to another
+day (whole-day snapping, with the guide line and date label; the label is kept).
+**Right-click a diamond** to remove that milestone.
 
 **Milestones.** A configurable **list property** (default `milestones`) turns entries like:
 

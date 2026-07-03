@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'bun:test'
 import type { App, TFile } from 'obsidian'
-import { coerceOrder, findKeyCaseInsensitive, setProperties } from './frontmatter.service'
+import {
+    coerceOrder,
+    findKeyCaseInsensitive,
+    replaceInListProperty,
+    setProperties
+} from './frontmatter.service'
 
 describe('findKeyCaseInsensitive', () => {
     it('returns the exact key when present', () => {
@@ -53,6 +58,43 @@ describe('setProperties', () => {
         const { app } = appFor(fm)
         await setProperties(app, file, { estimate: 2 })
         expect(fm).toEqual({ Estimate: 2 })
+    })
+
+    describe('replaceInListProperty', () => {
+        it('replaces the matching entry in place, keeping its position', async () => {
+            const fm: Record<string, unknown> = {
+                milestones: ['2026-09-01 Beta', '2026-10-15 GA', '2026-12-01 Sunset']
+            }
+            const { app } = appFor(fm)
+            await replaceInListProperty(app, file, 'milestones', '2026-10-15 GA', '2026-10-22 GA')
+            expect(fm['milestones']).toEqual([
+                '2026-09-01 Beta',
+                '2026-10-22 GA',
+                '2026-12-01 Sunset'
+            ])
+        })
+
+        it('replaces a scalar equal to the entry', async () => {
+            const fm: Record<string, unknown> = { milestones: '2026-09-01 Beta' }
+            const { app } = appFor(fm)
+            await replaceInListProperty(
+                app,
+                file,
+                'milestones',
+                '2026-09-01 Beta',
+                '2026-09-08 Beta'
+            )
+            expect(fm['milestones']).toBe('2026-09-08 Beta')
+        })
+
+        it('is a no-op on a miss or a missing property', async () => {
+            const fm: Record<string, unknown> = { milestones: ['2026-09-01 Beta'] }
+            const { app } = appFor(fm)
+            await replaceInListProperty(app, file, 'milestones', 'not there', 'x')
+            expect(fm['milestones']).toEqual(['2026-09-01 Beta'])
+            await replaceInListProperty(app, file, 'other', '2026-09-01 Beta', 'x')
+            expect(fm['other']).toBeUndefined()
+        })
     })
 })
 
