@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.0](https://github.com/dsebastien/obsidian-kanban-action-planner/compare/0.9.1...1.0.0) (2026-07-03)
+
+### Features
+
+* **plugin:** zoom into a card's children (focus mode) ([8c0bb33](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/8c0bb33dfefef38451bf08412b7779af4c0c193e)), closes [#74](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/74)
+* **plugin:** zoom to all descendants (whole subtree) ([4502d20](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/4502d20f157cdd971cff8d46a2c815b5692f9489))
+* **plugin:** zoom up from a card via its parents badge ([3ceae11](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/3ceae11f72681a3d47cbe971d48054fd459b4e18)), closes [#74](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/74)
+
 ## [0.9.1](https://github.com/dsebastien/obsidian-kanban-action-planner/compare/0.9.0...0.9.1) (2026-07-03)
 
 ### Bug Fixes
@@ -227,6 +235,7 @@ All notable changes to this project will be documented in this file.
 
 * **plugin:** match Starter Kit's {{quarter}} placeholder format (Q2, not 2) ([4fde618](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/4fde6185c5956e3f6fd2ca3a9b03e70cf5e16840))
 * **plugin:** persist discovered statuses so Show empty columns works ([cf91b81](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/cf91b81a1b0786e35c73f4885882e2dc33564c62))
+
 
 
 

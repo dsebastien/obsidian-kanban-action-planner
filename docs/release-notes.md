@@ -1,5 +1,13 @@
 # Release Notes
 
+## 1.0.0 (2026-07-03)
+
+### Features
+
+- **plugin:** zoom into a card's children (focus mode)
+- **plugin:** zoom to all descendants (whole subtree)
+- **plugin:** zoom up from a card via its parents badge
+
 ## 0.9.1 (2026-07-03)
 
 ### Bug Fixes
