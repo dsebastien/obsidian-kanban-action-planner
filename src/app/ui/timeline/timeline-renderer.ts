@@ -596,8 +596,10 @@ function makeDraggable(
  * anchored derived end and the estimate never drops below 1 day. Extending
  * past the window edge is allowed (the commit allows off-window dates; the
  * next render clips). A delta-0 release is a click, like the bar itself. Live
- * feedback: left edge shows the new start date, right edge shows
- * `Nd → ends <date>`.
+ * feedback: the to-be-written date renders INSIDE the bar at the dragged edge
+ * (larger, for readability) whenever the previewed width allows; narrower
+ * bars fall back to the floating pointer label (left edge: the new start
+ * date; right edge: `Nd → ends <date>`).
  */
 function makeResizable(
     handle: HTMLElement,
@@ -636,6 +638,21 @@ function makeResizable(
         const snappedDelta = (clientX: number): number =>
             clampDelta(Math.round((clientX - startX) / dayWidth))
 
+        // In-bar date at the dragged edge — bigger than the floating label,
+        // shown only while the previewed bar is wide enough to fit it.
+        bar.addClass('kap-tl-resizing')
+        let inBar: HTMLElement | null = null
+        const showInBar = (text: string, fits: boolean): boolean => {
+            if (!fits) {
+                inBar?.remove()
+                inBar = null
+                return false
+            }
+            inBar ??= bar.createDiv({ cls: `kap-tl-resize-label kap-tl-resize-label-${edge}` })
+            inBar.setText(text)
+            return true
+        }
+
         let moved = false
         const onMove = (move: PointerEvent): void => {
             if (Math.abs(move.clientX - startX) > 5) moved = true
@@ -645,22 +662,22 @@ function makeResizable(
             // rendered width is the clipped one, so floor the preview at 0 —
             // a negative CSS width is silently ignored and freezes it.
             if (edge === 'start') {
+                const newWidth = Math.max(0, widthPx - px)
                 bar.style.left = `${String(leftPx + px)}px`
-                bar.style.width = `${String(Math.max(0, widthPx - px))}px`
-                label.show(
-                    `→ ${callbacks.labelForDayOffset(startOffset + delta)}`,
-                    move.clientX,
-                    move.clientY
-                )
+                bar.style.width = `${String(newWidth)}px`
+                const date = callbacks.labelForDayOffset(startOffset + delta)
+                if (showInBar(date, newWidth >= 110)) label.remove()
+                else label.show(`→ ${date}`, move.clientX, move.clientY)
                 guide.showAtOffset(track, startOffset + delta)
             } else {
-                bar.style.width = `${String(Math.max(0, widthPx + px))}px`
+                const newWidth = Math.max(0, widthPx + px)
+                bar.style.width = `${String(newWidth)}px`
                 const newEstimate = estimate + delta
-                label.show(
-                    `${String(newEstimate)}d → ends ${callbacks.labelForDayOffset(startOffset + newEstimate - 1)}`,
-                    move.clientX,
-                    move.clientY
-                )
+                const date = callbacks.labelForDayOffset(startOffset + newEstimate - 1)
+                if (showInBar(date, newWidth >= 110)) label.remove()
+                else {
+                    label.show(`${String(newEstimate)}d → ends ${date}`, move.clientX, move.clientY)
+                }
                 guide.showAtOffset(track, startOffset + newEstimate)
             }
         }
@@ -673,6 +690,9 @@ function makeResizable(
             doc.removeEventListener('pointermove', onMove)
             doc.removeEventListener('pointerup', onUp)
             doc.removeEventListener('pointercancel', onCancel)
+            bar.removeClass('kap-tl-resizing')
+            inBar?.remove()
+            inBar = null
             label.remove()
             guide.remove()
         }

@@ -393,7 +393,7 @@ See `documentation/plans/kanban-action-planner-implementation-plan.md` for full 
     floating label (in a `.kap-root` wrapper) plus a day guide line; drop targets highlight;
     scheduling from the panel shows a striped **New entry** lane stuck to the top of the row
     body (the drop creates a new row — never "into" an existing card's line; the guide renders
-    inside the lane); the drag ghost's width is capped; each gesture's label uses the same
+    inside the lane); the drag ghost's width is capped; while resizing, the date also renders inside the bar at the dragged edge (larger; only when the previewed width fits, else the floating label takes over); each gesture's label uses the same
     rounding as its commit path. **Milestone
     editing:** double-click a row's track → modal (pre-filled editable date + optional label) →
     appends `"<date> [label]"` to the milestone list property (`appendToListProperty`, dedup,

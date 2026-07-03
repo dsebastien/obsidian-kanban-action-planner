@@ -504,6 +504,10 @@ schedule, relationships, …).
 - **Right edge** → changes the **estimate** (never below 1 day); the label shows
   `5d → ends 2026-07-18` as you drag.
 
+While you resize, the to-be-written date also appears **inside the rectangle** at the dragged
+edge, larger for readability — when the bar is too narrow to fit it, the floating label near
+the pointer takes over.
+
 Handles are hidden on a clipped (dashed) edge — the real date is off-screen — and on very
 narrow rectangles; squares have no handles. Use the right-click menu for those.
 

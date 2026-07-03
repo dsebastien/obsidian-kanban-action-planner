@@ -1672,6 +1672,27 @@
         color: var(--text-muted);
     }
 
+    /* While a handle drags, the to-be-written date renders INSIDE the bar at
+       the dragged edge — larger than the floating label for readability
+       (shown only when the previewed width allows; the duration tag hides so
+       they can't overlap). */
+    .kap-root .kap-tl-bar.kap-tl-resizing .kap-tl-bartext {
+        @apply hidden;
+    }
+
+    .kap-root .kap-tl-resize-label {
+        @apply absolute top-0 bottom-0 z-10 flex items-center px-2 text-[0.9em] font-semibold whitespace-nowrap pointer-events-none;
+        color: var(--text-normal);
+    }
+
+    .kap-root .kap-tl-resize-label-start {
+        @apply left-0;
+    }
+
+    .kap-root .kap-tl-resize-label-end {
+        @apply right-0;
+    }
+
     /* Resize handles (issue #80): edge zones inside the bar, shown on hover.
        Not rendered at all on clipped sides or bars narrower than 24px. */
     .kap-root .kap-tl-handle {
