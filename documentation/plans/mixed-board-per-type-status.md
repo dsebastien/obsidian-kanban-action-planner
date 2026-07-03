@@ -52,4 +52,4 @@ true)` → per-type colors + WIP limits. A per-view `statuses` list is the legac
 - [x] Docs (Business Rules 2/7 amendments, usage, READMEs)
 - [x] Live-vault validation (mixed fixtures: per-type lanes/columns, per-type writes,
       bulk restriction, reorder guard, single-type regression)
-- [ ] Awaiting review — implemented but **not committed** per owner instruction
+- [x] Committed and pushed (66ceb8d)

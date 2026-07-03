@@ -75,4 +75,4 @@ from a configurable list property.
 - [x] Live-vault validation (render, clipping, overdue, milestones incl. create at 25% →
       2026-07-08 + label + removal, chip drop at 50% → 2026-07-16, scroll with 30 rows,
       drag +2d write, range switch, filter integration, persistence)
-- [ ] Awaiting review — implemented but **not committed** per owner instruction
+- [x] Committed and pushed (66ceb8d)
