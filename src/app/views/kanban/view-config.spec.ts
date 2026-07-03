@@ -7,7 +7,8 @@ import {
     readLaneGroupingOverride,
     readSortMode,
     readStringArray,
-    readTriageConfig
+    readTriageConfig,
+    resolveEffectiveLaneGrouping
 } from './view-config'
 
 /** A config whose `get` returns values from a plain record. */
@@ -110,6 +111,41 @@ describe('readLaneGroupingOverride', () => {
         expect(readLaneGroupingOverride(config({}))).toBeNull()
         expect(readLaneGroupingOverride(config({ laneGrouping: '__profile__' }))).toBeNull()
         expect(readLaneGroupingOverride(config({ laneGrouping: 'property' }))).toBeNull()
+    })
+})
+
+describe('resolveEffectiveLaneGrouping (mixed-type boards)', () => {
+    it('a per-view override always wins — an explicit None disables lanes', () => {
+        expect(resolveEffectiveLaneGrouping({ kind: 'none' }, { kind: 'none' }, 3)).toEqual({
+            kind: 'none'
+        })
+        expect(
+            resolveEffectiveLaneGrouping(
+                { kind: 'property', property: 'note.area' },
+                { kind: 'none' },
+                3
+            )
+        ).toEqual({ kind: 'property', property: 'note.area' })
+    })
+
+    it('auto-enables note-type lanes when the profile has none and >1 recognized type', () => {
+        expect(resolveEffectiveLaneGrouping(null, { kind: 'none' }, 2)).toEqual({
+            kind: 'note-type'
+        })
+    })
+
+    it('keeps the profile grouping for a single-type (or empty) board', () => {
+        expect(resolveEffectiveLaneGrouping(null, { kind: 'none' }, 1)).toEqual({ kind: 'none' })
+        expect(resolveEffectiveLaneGrouping(null, { kind: 'none' }, 0)).toEqual({ kind: 'none' })
+    })
+
+    it('never overrides a non-none profile grouping', () => {
+        expect(
+            resolveEffectiveLaneGrouping(null, { kind: 'property', property: 'note.area' }, 2)
+        ).toEqual({ kind: 'property', property: 'note.area' })
+        expect(resolveEffectiveLaneGrouping(null, { kind: 'note-type' }, 2)).toEqual({
+            kind: 'note-type'
+        })
     })
 })
 

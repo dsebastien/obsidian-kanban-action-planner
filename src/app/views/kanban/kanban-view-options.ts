@@ -176,7 +176,10 @@ export function getKanbanViewOptions(app: App, settings: PluginSettings): BasesA
                     // for this view only.
                     default: '__profile__',
                     options: {
-                        '__profile__': 'Use note type default',
+                        // The default auto-groups by note type when the board
+                        // mixes types (each type gets its own lane + columns);
+                        // an explicit 'None' keeps a flat board.
+                        '__profile__': 'Use note type default (auto by type on mixed boards)',
                         'none': 'None',
                         'note-type': 'By note type',
                         'property': 'By property'
@@ -244,6 +247,49 @@ export function getKanbanViewOptions(app: App, settings: PluginSettings): BasesA
                     displayName: 'Scheduling panel sort property',
                     placeholder: 'Used when sort is "By property" (formulas allowed)',
                     filter: readOnlyPropertyFilter
+                }
+            ]
+        },
+        {
+            type: 'group',
+            displayName: 'Timeline',
+            items: [
+                // Timeline mode is toggled by the in-view mode switch (persisted
+                // to `timelineMode`). Start/end default to the resolved
+                // scheduled/due date properties so an already-configured board
+                // gets a working timeline with zero setup (issue #77).
+                {
+                    type: 'property',
+                    key: 'timelineStartProperty',
+                    displayName: 'Start date property',
+                    placeholder: 'Scheduled date property (default)',
+                    filter: propertyFilter
+                },
+                {
+                    type: 'property',
+                    key: 'timelineEndProperty',
+                    displayName: 'End date property',
+                    placeholder: 'Due date property (default)',
+                    filter: propertyFilter
+                },
+                {
+                    type: 'property',
+                    key: 'timelineMilestoneProperty',
+                    displayName: 'Milestones list property',
+                    placeholder: 'milestones (default)',
+                    filter: propertyFilter
+                },
+                {
+                    type: 'dropdown',
+                    key: 'timelineRange',
+                    displayName: 'Default range',
+                    default: 'quarter',
+                    options: {
+                        week: 'Week',
+                        month: 'Month',
+                        quarter: 'Quarter',
+                        year: 'Year'
+                    }
                 }
             ]
         },

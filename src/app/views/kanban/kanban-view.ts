@@ -107,6 +107,8 @@ import type { TriageConfigData } from '../../ui/triage/triage-config-modal'
 import { resolveAllowedValues } from '../../services/enum.service'
 import { listNoteTypes } from '../../services/starter-kit.service'
 import { FilterBar } from '../../ui/filter-bar'
+import { TimelineController } from './timeline-controller'
+import type { TimelineViewState } from './timeline-controller'
 import { BoardSelection } from './board-selection'
 import { buildCardMenu, isNewTabEvent } from './card-menu'
 import type { CardMenuHost } from './card-menu'
@@ -120,7 +122,8 @@ import {
     readLaneGroupingOverride,
     readSortMode,
     readStringArray,
-    readTriageConfig
+    readTriageConfig,
+    resolveEffectiveLaneGrouping
 } from './view-config'
 import type { TriageConfig } from './view-config'
 import { parsePropertyRef, unwrapValue } from './property-access'
@@ -170,6 +173,12 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
     private noteType: NoteType = createDefaultNoteType(DEFAULT_NOTE_TYPE_ID, 'Default', 'local')
     private noteTypeStatusValues: string[] | null = null
     private columns: ColumnDef[] = []
+    /**
+     * Per-lane column sets on mixed boards (note-type lanes, no per-view
+     * `statuses` override): lane id (the note type NAME) → that type's own
+     * column defs. Empty when the board shares one column set.
+     */
+    private columnsByLane = new Map<string, ColumnDef[]>()
     private laneGrouping: LaneGrouping = { kind: 'none' }
     private laneValueByPath = new Map<string, string | null>()
     // Per-file note type (Starter Kit) and the archive config it resolves to.
@@ -224,6 +233,8 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
     // Calendar mode (Milestone 5) — state + rendering owned by CalendarController.
     private scheduledDateProperty = 'date_scheduled'
     private calendar: CalendarController | null = null
+    // Timeline mode (issue #77) — state + rendering owned by TimelineController.
+    private timeline: TimelineController | null = null
     private resizeObserver: ResizeObserver | null = null
     private readonly debouncedResize: Debouncer<[], void>
 
@@ -266,8 +277,8 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
                 this.board.lanes.flatMap((l) =>
                     l.columns.flatMap((c) => c.cards.map((card) => card.key))
                 ),
-            columns: () => this.columns,
-            statusProperty: () => this.statusProperty,
+            columnsForSelection: (cards) => this.columnsForSelection(cards),
+            statusPropertyFor: (card) => this.statusPropertyFor(card),
             archiveConfigFor: (card) => this.archiveConfigFor(card),
             onModeChanged: () => this.renderToolbar(this.board.lanes.length > 1)
         })
@@ -307,6 +318,22 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         this.calendarDnd = new CalendarDnd(this.boardEl, {
             onDrop: (cardKey, target, dimension) =>
                 void this.calendar?.handleDrop(cardKey, target, dimension)
+        })
+        this.timeline = new TimelineController({
+            app: this.app,
+            boardEl: () => this.boardEl,
+            rebuild: () => this.rebuild(),
+            openCard: (card, newTab) => this.openCard(card, newTab),
+            showCardMenu: (card, event) => this.showCardMenu(card, event),
+            startProperty: () => this.resolveTimelineStartProperty(),
+            endProperty: () => this.resolveTimelineEndProperty(),
+            milestoneProperty: () => this.resolveTimelineMilestoneProperty(),
+            dateFormat: () =>
+                this.noteType.calendar.dateFormat || this.plugin.settings.defaultDateFormat,
+            firstDayOfWeek: () => this.plugin.settings.firstDayOfWeek,
+            configuredRange: () => this.config.get('timelineRange'),
+            restoreState: () => this.restoreTimelineState(),
+            persistState: (state) => this.persistTimelineState(state)
         })
         this.resizeObserver = new ResizeObserver(() => this.debouncedResize())
         this.resizeObserver.observe(this.boardEl)
@@ -420,6 +447,11 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         this.setViewMode(this.triageMode() ? 'board' : 'triage')
     }
 
+    /** Toggle timeline mode (returns to board when already in timeline) — issue #77. */
+    toggleTimeline(): void {
+        this.setViewMode(this.timelineMode() ? 'board' : 'timeline')
+    }
+
     /** Put the cursor in the filter box. */
     focusFilter(): void {
         this.filterBar?.focus()
@@ -521,9 +553,26 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         )
     }
 
-    /** Per-view grouping override (when set) else the note type's grouping. */
+    /**
+     * Effective swimlane grouping: a per-view override always wins (an explicit
+     * 'None' disables lanes); otherwise a mixed board (more than one recognized
+     * note type) whose profile grouping is `none` auto-enables note-type lanes,
+     * so each type gets its own lane — and, with per-lane column sets, its own
+     * status vocabulary. Else the note type's grouping.
+     */
     private resolveLaneGrouping(): LaneGrouping {
-        return readLaneGroupingOverride(this.config) ?? this.noteType.laneGrouping
+        return resolveEffectiveLaneGrouping(
+            readLaneGroupingOverride(this.config),
+            this.noteType.laneGrouping,
+            this.distinctRecognizedTypeCount()
+        )
+    }
+
+    /** Distinct recognized (non-null) note type ids across the board's files. */
+    private distinctRecognizedTypeCount(): number {
+        const ids = new Set<string>()
+        for (const type of this.noteTypeByPath.values()) if (type) ids.add(type.id)
+        return ids.size
     }
 
     /**
@@ -643,13 +692,34 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             return
         }
 
+        if (this.timelineMode()) {
+            this.renderToolbar(false)
+            this.timeline?.render(cards)
+            return
+        }
+
         const values = this.resolveColumnValues()
         this.columns = columnsFromValues(values, this.noteType, true)
+
+        // Per-lane column sets (mixed boards): each note-type lane carries its
+        // own type's vocabulary/colors/WIP limits. Lane ids are the type NAMES
+        // (see computeLaneValues); the Ungrouped lane falls back to the board set.
+        this.columnsByLane.clear()
+        let columnsForLane: ((laneId: string) => ReadonlyArray<ColumnDef>) | undefined
+        if (this.perLaneColumnsActive()) {
+            for (const type of this.noteTypeByPath.values()) {
+                if (!type || this.columnsByLane.has(type.name)) continue
+                const cols = this.columnsForType(type.id)
+                if (cols) this.columnsByLane.set(type.name, cols)
+            }
+            columnsForLane = (laneId) => this.laneColumns(laneId)
+        }
 
         let board = buildBoard(cards, this.columns, {
             grouped: this.laneGrouping.kind !== 'none',
             unmappedPosition: this.unmappedPosition(),
-            compare: this.cardComparator()
+            compare: this.cardComparator(),
+            columnsForLane
         })
         if (!this.showEmptyColumns()) {
             board = {
@@ -723,7 +793,9 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
     /**
      * Record the leftmost on-screen column and its offset from the scroller's
      * left edge, so the same column can be pinned back to that spot after a
-     * re-render. Reads the first column board (columns are identical per lane).
+     * re-render. Reads the first column board; with per-lane column sets
+     * (mixed boards) the restore is best-effort — lanes lacking the anchored
+     * id are simply left alone.
      */
     private captureColumnAnchor(): { id: string; offset: number } | null {
         const scroller = this.boardEl?.querySelector<HTMLElement>('.kap-board')
@@ -818,6 +890,38 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         this.config.set('calendarShowDeadlines', state.showDeadlines)
     }
 
+    /** Read the persisted durable timeline state (issue #77; anchor stays transient). */
+    private restoreTimelineState(): TimelineViewState {
+        const stored = this.config.get('timelineRangeOverride')
+        return {
+            range:
+                stored === 'week' || stored === 'month' || stored === 'quarter' || stored === 'year'
+                    ? stored
+                    : null
+        }
+    }
+
+    private persistTimelineState(state: TimelineViewState): void {
+        this.config.set('timelineRangeOverride', state.range)
+    }
+
+    /** Timeline bar start date property (per-view, else the scheduled property). */
+    private resolveTimelineStartProperty(): string {
+        return (
+            basesPropToName(this.config.get('timelineStartProperty')) ?? this.scheduledDateProperty
+        )
+    }
+
+    /** Timeline bar end date property (per-view, else the due-date property). */
+    private resolveTimelineEndProperty(): string {
+        return basesPropToName(this.config.get('timelineEndProperty')) ?? this.dueDateProperty
+    }
+
+    /** Milestone list property (per-view, default `milestones`). */
+    private resolveTimelineMilestoneProperty(): string {
+        return basesPropToName(this.config.get('timelineMilestoneProperty')) ?? 'milestones'
+    }
+
     /**
      * Persist a drag-reordered column order (issue #24) to the per-view `statuses`
      * list — which takes precedence over the Starter Kit / default order. The ids
@@ -825,6 +929,13 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
      */
     private reorderColumns(orderedColumnIds: string[]): void {
         if (orderedColumnIds.length === 0) return
+        // Per-lane column sets (mixed board): persisting a single `statuses`
+        // list would silently force the legacy shared set for every lane.
+        if (this.perLaneColumnsActive()) {
+            new Notice('On a mixed board, column order comes from each note type.')
+            this.rebuild() // snap the dragged column back
+            return
+        }
         this.config.set('statuses', orderedColumnIds)
         this.rebuild()
     }
@@ -878,6 +989,91 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             return this.noteTypeStatusValues
         }
         return this.plugin.settings.defaultStatuses
+    }
+
+    // ── Per-type columns on mixed boards ──────────────────────
+    // A card's own note type is authoritative for its status vocabulary and
+    // every status write. On a mixed board with note-type lanes, each lane
+    // carries its type's own column set; a per-view `statuses` list is the
+    // legacy whole-board override and forces one shared set.
+
+    /** Whether per-lane column sets are active (note-type lanes, no `statuses` override). */
+    private perLaneColumnsActive(): boolean {
+        return (
+            this.laneGrouping.kind === 'note-type' &&
+            readStringArray(this.config.get('statuses')).length === 0
+        )
+    }
+
+    /**
+     * One note type's own column defs: its defined status values (else the
+     * global defaults) with its own colors and WIP limits. `null` when the type
+     * is unknown (deleted config), so callers fall back to the board set.
+     */
+    private columnsForType(typeId: string): ColumnDef[] | null {
+        const noteType = findNoteType(this.plugin, typeId)
+        if (!noteType) return null
+        const values = noteType.columns.map((c) => c.statusValue)
+        const effective = values.length > 0 ? values : this.plugin.settings.defaultStatuses
+        return columnsFromValues(effective, noteType, true)
+    }
+
+    /** A lane's column set (its type's own on mixed boards), else the board's. */
+    private laneColumns(laneId: string | undefined): ReadonlyArray<ColumnDef> {
+        if (laneId !== undefined) {
+            const cols = this.columnsByLane.get(laneId)
+            if (cols) return cols
+        }
+        return this.columns
+    }
+
+    /**
+     * The column set that applies to one card: its own recognized type's
+     * vocabulary (any view mode), unless a per-view `statuses` override forces
+     * the shared set; untyped cards use the board set.
+     */
+    private cardColumns(card: KanbanCard): ReadonlyArray<ColumnDef> {
+        if (readStringArray(this.config.get('statuses')).length > 0) return this.columns
+        const type = this.noteTypeByPath.get(card.key)
+        if (type) {
+            const cols = this.columnsForType(type.id)
+            if (cols && cols.length > 0) return cols
+        }
+        return this.columns
+    }
+
+    /**
+     * The status property for one card: the per-view override wins for every
+     * card (existing semantics), else the card's own recognized type's status
+     * property, else the board-wide resolved property. Every status read and
+     * write for the card goes through this.
+     */
+    private statusPropertyForFile(file: TFile): string | null {
+        const configured = basesPropToName(this.config.get('statusProperty'))
+        if (configured) return configured
+        const type = this.noteTypeByPath.get(file.path)
+        if (type) {
+            const own = findNoteType(this.plugin, type.id)?.statusProperty
+            if (own) return own
+        }
+        return this.statusProperty
+    }
+
+    private statusPropertyFor(card: KanbanCard): string | null {
+        return this.statusPropertyForFile(card.file)
+    }
+
+    /**
+     * Shared column set for a bulk selection: only when every selected card
+     * resolves to the same note type (or all untyped). `null` = mixed types,
+     * so bulk set-status is unavailable (vocabularies differ).
+     */
+    private columnsForSelection(cards: KanbanCard[]): ReadonlyArray<ColumnDef> | null {
+        const first = cards[0]
+        if (!first) return null
+        const ids = new Set(cards.map((c) => this.noteTypeByPath.get(c.key)?.id ?? ''))
+        if (ids.size > 1) return null
+        return this.cardColumns(first)
     }
 
     private showEmptyColumns(): boolean {
@@ -974,10 +1170,13 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
     }
 
     private toCard(file: TFile): KanbanCard {
+        // The card's own type's status property (mixed boards) — per-view
+        // override and board default fall out of statusPropertyForFile.
+        const statusProperty = this.statusPropertyForFile(file)
         const statusValue =
-            this.statusProperty === null
+            statusProperty === null
                 ? null
-                : normalizeStatusValue(getFrontmatterValue(this.app, file, this.statusProperty))
+                : normalizeStatusValue(getFrontmatterValue(this.app, file, statusProperty))
         const order = coerceOrder(getFrontmatterValue(this.app, file, this.orderProperty))
         const display = this.cardDisplayFor(file)
         const laneValue =
@@ -1033,10 +1232,13 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             if (!reassigned) return
         }
 
+        // Resolve the dropped column's status from the TARGET LANE's own set
+        // (per-type vocabularies on mixed boards). Cross-lane drops were
+        // rejected above for note-type lanes, so this is the card's own type.
         const newStatus =
             target.columnId === UNMAPPED_COLUMN_ID
                 ? null
-                : (this.columnStatusValue(target.columnId) ?? card.statusValue)
+                : (this.columnStatusValue(target.columnId, target.laneId) ?? card.statusValue)
         await this.applyMove(card, newStatus, target.laneId, target.columnId, target.index)
     }
 
@@ -1074,8 +1276,8 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         return value === null || value === undefined || value === '' ? UNGROUPED_LANE_ID : value
     }
 
-    private columnStatusValue(columnId: string): string | null {
-        return this.columns.find((c) => c.id === columnId)?.statusValue ?? null
+    private columnStatusValue(columnId: string, laneId?: string): string | null {
+        return this.laneColumns(laneId).find((c) => c.id === columnId)?.statusValue ?? null
     }
 
     /**
@@ -1089,14 +1291,18 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         destColumnId: string,
         index: number
     ): Promise<void> {
-        const statusChanged = this.statusProperty !== null && newStatus !== card.statusValue
+        // The card's own note type is authoritative for every status write:
+        // the value comes from the card's lane/type column set (callers), the
+        // property from its own type.
+        const statusProperty = this.statusPropertyFor(card)
+        const statusChanged = statusProperty !== null && newStatus !== card.statusValue
 
         // Status-triggered archiving is terminal — the note leaves the board and its
         // file moves — so it stays on the write-then-rebuild path (the archived note
         // must also carry the new status). No optimistic shortcut here.
-        if (statusChanged && this.willAutoArchive(card, newStatus) && this.statusProperty) {
-            if (newStatus === null) await deleteProperty(this.app, card.file, this.statusProperty)
-            else await setProperty(this.app, card.file, this.statusProperty, newStatus)
+        if (statusChanged && this.willAutoArchive(card, newStatus) && statusProperty) {
+            if (newStatus === null) await deleteProperty(this.app, card.file, statusProperty)
+            else await setProperty(this.app, card.file, statusProperty, newStatus)
             await this.maybeAutoArchive(card, newStatus)
             return
         }
@@ -1145,9 +1351,9 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
 
         // Persist. Each write triggers onDataUpdated → a debounced rebuild that
         // re-derives this exact state, so there is no visual change (issue #64).
-        if (statusChanged && this.statusProperty) {
-            if (newStatus === null) await deleteProperty(this.app, card.file, this.statusProperty)
-            else await setProperty(this.app, card.file, this.statusProperty, newStatus)
+        if (statusChanged && statusProperty) {
+            if (newStatus === null) await deleteProperty(this.app, card.file, statusProperty)
+            else await setProperty(this.app, card.file, statusProperty, newStatus)
         }
         for (const write of orderWrites) {
             await setProperty(this.app, write.file, this.orderProperty, write.order)
@@ -1173,7 +1379,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
     private get cardMenuHost(): CardMenuHost {
         return {
             openCard: (card, newTab) => this.openCard(card, newTab),
-            columns: () => this.columns,
+            columnsFor: (card) => this.cardColumns(card),
             setCardStatus: (card, statusValue, columnId) =>
                 this.setCardStatus(card, statusValue, columnId),
             enumPropertiesFor: (card) => this.enumPropertiesFor(card),
@@ -1497,7 +1703,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         values: string[]
         current: string | null
     }> {
-        const statusName = this.statusProperty?.toLowerCase() ?? ''
+        const statusName = this.statusPropertyFor(card)?.toLowerCase() ?? ''
         const defs = listEnumProperties(this.app, this.plugin, this.noteTypeIdFor(card))
         return defs
             .filter((def) => def.name.toLowerCase() !== statusName)
@@ -1538,18 +1744,24 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         return this.viewMode() === 'triage'
     }
 
-    /** The active view mode (triage wins, else calendar, else board). */
+    private timelineMode(): boolean {
+        return this.viewMode() === 'timeline'
+    }
+
+    /** The active view mode (triage wins, else calendar, else timeline, else board). */
     private viewMode(): ViewMode {
         if (this.config.get('triageMode') === true) return 'triage'
         if (this.config.get('calendarMode') === true) return 'calendar'
+        if (this.config.get('timelineMode') === true) return 'timeline'
         return 'board'
     }
 
-    /** Switch the view mode, persisting the two flags and rebuilding. */
+    /** Switch the view mode, persisting the mode flags and rebuilding. */
     private setViewMode(mode: ViewMode): void {
         if (this.viewMode() === mode) return
         this.config.set('calendarMode', mode === 'calendar')
         this.config.set('triageMode', mode === 'triage')
+        this.config.set('timelineMode', mode === 'timeline')
         if (mode === 'triage') {
             // Fresh queue snapshot each time triage is (re)entered.
             this.triageQueueKeys = null

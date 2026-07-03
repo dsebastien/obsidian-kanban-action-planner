@@ -1551,6 +1551,216 @@
     }
 
     /* ========================================
+       TIMELINE MODE (issue #77)
+       ======================================== */
+    /* Fills the host: header + axis fixed, rows scroll vertically. Bars, points,
+       milestones, and the today line are %-positioned inside each row's track,
+       so the layout is fluid at every width (no horizontal scroll). */
+    .kap-root .kap-timeline {
+        @apply flex flex-col h-full min-h-0 w-full;
+        overflow: hidden;
+    }
+
+    .kap-root .kap-tl-axisrow {
+        @apply flex items-end;
+        border-bottom: 1px solid var(--background-modifier-border);
+    }
+
+    /* Row-label gutter width shared by the axis spacer and every row. */
+    .kap-root .kap-tl-gutter,
+    .kap-root .kap-tl-rowlabel {
+        @apply w-44 min-w-44 max-w-44 flex-none px-2;
+    }
+
+    .kap-root .kap-tl-axis {
+        @apply relative flex-1 h-6 min-w-0;
+    }
+
+    .kap-root .kap-tl-tick {
+        @apply absolute bottom-0 h-1.5 w-px;
+        background: var(--background-modifier-border);
+    }
+
+    .kap-root .kap-tl-tick-major {
+        @apply h-2.5;
+        background: var(--text-faint);
+    }
+
+    .kap-root .kap-tl-ticklabel {
+        @apply absolute bottom-2.5 left-0.5 whitespace-nowrap text-[0.7em];
+        color: var(--text-muted);
+    }
+
+    .kap-root .kap-tl-body {
+        @apply flex-1 min-h-0 overflow-y-auto;
+    }
+
+    .kap-root .kap-tl-row {
+        @apply flex items-center h-8;
+        border-bottom: 1px solid var(--background-modifier-border);
+    }
+
+    .kap-root .kap-tl-row:hover {
+        background: var(--background-modifier-hover);
+    }
+
+    .kap-root .kap-tl-rowlabel {
+        @apply cursor-pointer truncate text-[0.85em] leading-8;
+        color: var(--text-normal);
+    }
+
+    .kap-root .kap-tl-rowlabel:hover {
+        color: var(--text-accent);
+    }
+
+    .kap-root .kap-tl-track {
+        @apply relative flex-1 h-full min-w-0;
+    }
+
+    .kap-root .kap-tl-today {
+        @apply absolute top-0 bottom-0 w-px pointer-events-none;
+        background: var(--text-accent);
+        opacity: 0.5;
+    }
+
+    .kap-root .kap-tl-today-axis {
+        @apply w-0.5;
+        opacity: 1;
+    }
+
+    .kap-root .kap-tl-bar {
+        @apply absolute top-1.5 bottom-1.5 min-w-1 rounded cursor-grab overflow-hidden;
+        background: color-mix(in srgb, var(--interactive-accent) 35%, transparent);
+        border: 1px solid var(--interactive-accent);
+    }
+
+    .kap-root .kap-tl-bartext {
+        @apply block px-1.5 truncate text-[0.75em] leading-[1.4rem] pointer-events-none;
+        color: var(--text-normal);
+    }
+
+    /* Clipped edges (the real start/end lies outside the window): square the
+       corner and dash the border on that side. */
+    .kap-root .kap-tl-clip-start {
+        @apply rounded-l-none border-l-2;
+        border-left-style: dashed;
+    }
+
+    .kap-root .kap-tl-clip-end {
+        @apply rounded-r-none border-r-2;
+        border-right-style: dashed;
+    }
+
+    .kap-root .kap-tl-overdue {
+        background: color-mix(in srgb, var(--text-error) 25%, transparent);
+        border-color: var(--text-error);
+    }
+
+    .kap-root .kap-tl-point {
+        @apply absolute top-1/2 w-2.5 h-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full cursor-grab;
+        background: var(--interactive-accent);
+    }
+
+    .kap-root .kap-tl-point-end {
+        background: var(--color-orange);
+    }
+
+    .kap-root .kap-tl-point.kap-tl-overdue {
+        background: var(--text-error);
+    }
+
+    .kap-root .kap-tl-milestone {
+        @apply absolute top-1/2 w-2 h-2 -translate-x-1/2 -translate-y-1/2 rotate-45;
+        background: var(--text-accent);
+        border: 1px solid var(--background-primary);
+    }
+
+    .kap-root .kap-tl-dragging {
+        @apply cursor-grabbing;
+        opacity: 0.75;
+    }
+
+    .kap-root .kap-tl-off {
+        @apply absolute top-1/2 -translate-y-1/2 text-[0.7em] italic;
+        color: var(--text-faint);
+    }
+
+    .kap-root .kap-tl-off-before {
+        @apply left-1;
+    }
+
+    .kap-root .kap-tl-off-after {
+        @apply right-1;
+    }
+
+    .kap-root .kap-tl-empty {
+        @apply p-6 text-center text-[0.9em];
+        color: var(--text-muted);
+    }
+
+    /* Cap the strip so a big undated backlog can't squeeze out the rows;
+       the strip scrolls its own content instead. */
+    .kap-root .kap-tl-undated {
+        @apply flex-none p-2 max-h-[35%] overflow-y-auto;
+        border-top: 1px solid var(--background-modifier-border);
+    }
+
+    .kap-root .kap-tl-undated-toggle {
+        @apply inline-flex items-center gap-1 h-6 px-2 border-0 rounded cursor-pointer bg-transparent text-[0.8em];
+        color: var(--text-muted);
+    }
+
+    .kap-root .kap-tl-undated-toggle:hover {
+        color: var(--text-normal);
+        background: var(--background-modifier-hover);
+    }
+
+    .kap-root .kap-tl-undated-group {
+        @apply mt-1.5;
+    }
+
+    .kap-root .kap-tl-undated-grouplabel {
+        @apply block text-[0.72em] font-medium uppercase tracking-wide;
+        color: var(--text-faint);
+    }
+
+    .kap-root .kap-tl-undated-list {
+        @apply flex flex-wrap gap-1 mt-1;
+    }
+
+    .kap-root .kap-tl-undated-chip {
+        @apply h-6 px-2 border-0 rounded-full cursor-grab text-[0.78em] truncate max-w-60;
+        color: var(--text-normal);
+        background: var(--background-modifier-hover);
+    }
+
+    .kap-root .kap-tl-undated-chip.kap-tl-dragging {
+        @apply relative z-10 cursor-grabbing;
+    }
+
+    /* Hit-test bypass while resolving a chip's drop target. */
+    .kap-root .kap-tl-nohit {
+        @apply pointer-events-none;
+    }
+
+    .kap-milestone-label-input {
+        @apply block w-full mt-2;
+    }
+
+    .kap-root .kap-tl-undated-chip:hover {
+        background: var(--background-modifier-border);
+    }
+
+    /* Narrow hosts: shrink the label gutter so tracks keep room (mobile posture:
+       full feature set, denser labels). */
+    @media (max-width: 600px) {
+        .kap-root .kap-tl-gutter,
+        .kap-root .kap-tl-rowlabel {
+            @apply w-24 min-w-24 max-w-24;
+        }
+    }
+
+    /* ========================================
        SUPPORT & UI SECTIONS (settings tab)
        ======================================== */
     .support-header-margin {

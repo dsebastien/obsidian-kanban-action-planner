@@ -199,11 +199,34 @@ Split the board into horizontal **lanes**, each with its own columns. Choose how
 note type's **Swimlanes** section (**Settings → Note types**), or override it per view (see View
 options):
 
-- **None**: a single plain board (the default).
-- **By note type**: one lane per note type (requires the Obsidian Starter Kit to recognize
-  types; without it, everything stays in one plain board).
+- **None**: a single plain board.
+- **By note type**: one lane per note type (recognized via the Obsidian Starter Kit or your own
+  local recognition rules).
 - **By property**: one lane per distinct value of a property you choose (e.g. a `project` or
   `area`). Lanes order by a numeric prefix just like columns (`10 Alpha`, `20 Beta`).
+
+**Mixed boards group by note type automatically.** When a Base's results contain **more than one
+recognized note type** (e.g. an "All actions" view with goals, projects, and tasks) and you
+haven't chosen a grouping, the board auto-groups **by note type** — each type gets its own lane
+**with its own columns** (see below). Set the per-view Swimlanes option to **None** to keep a
+flat board instead.
+
+### Mixed note types on one board
+
+Different note types often have different status vocabularies (a task's `Backlog → Done` vs a
+project's `Idea → Abandoned`). On a mixed board:
+
+- **Each note-type lane shows its own type's columns**, colors, and WIP limits — a project card
+  sits in _Active_ in the Projects lane while tasks flow through their own columns below.
+- **A card's own note type is authoritative for its status.** Dragging, the card menu's **Set
+  status**, and keyboard moves only ever offer/write values from the card's own type — a project
+  can't be given a task status.
+- **Bulk set status** (multi-select) works when the selection is a single type; a mixed
+  selection shows a notice instead (Archive / Open / Clear still work).
+- **Column drag-reorder is off on mixed boards** (order comes from each note type's definition);
+  it still works on single-type boards. Setting an explicit per-view **Statuses (columns)** list
+  reverts the whole board to one shared column set, for when you want to mix types in the same
+  columns on purpose.
 
 ![The board split into swimlanes, grouped by priority]({{ '/images/swimlanes.png' | relative_url }})
 
@@ -405,6 +428,67 @@ change a date without dragging, and it works on the board too, not just the cale
 property** (e.g. a priority or estimate). To narrow the panel, use the toolbar
 [filter box](#filtering-search-bar). It applies to the calendar and its panel together.
 
+## Timeline mode
+
+Where the calendar answers "what happens on day X", the **Timeline** shows how the work spreads
+and overlaps **over time**: one row per card, a horizontal bar spanning its start → end dates on
+a shared axis, Gantt-style. Switch to it with the **Timeline** button next to
+**Board / Calendar / Triage** (or the **Toggle timeline mode** command).
+
+**Dates are configurable per view** (**Configure view → Timeline**):
+
+- **Start date property** — defaults to your scheduled-date property (`date_scheduled`).
+- **End date property** — defaults to your due-date property (`date_due`).
+
+So a board already set up for calendar mode gets a working timeline with zero configuration.
+
+**What a row shows:**
+
+- **Both dates** → a bar. When the real start or end lies outside the visible window, that edge
+  is squared and dashed (the bar continues off-screen). A bar whose end date is in the past gets
+  a red **overdue** wash.
+- **One date** → a dot (blue for start-only, orange for end-only).
+- A vertical **today line** crosses every row.
+- Cards whose dates all fall outside the window show a small _out of view_ hint; cards with **no
+  dates at all** collect in the collapsible **Undated** strip at the bottom, **grouped by
+  status** (in column order, no-status last — click a chip to open the note). The strip caps its
+  height and scrolls on its own, so a big undated backlog never squeezes out the rows; the row
+  area scrolls vertically too.
+
+**Schedule from the timeline.** Drag a chip out of the **Undated** strip and drop it anywhere on
+the timeline: the card gets its **start date** set to the day under the pointer (using the
+configured start date property) and jumps onto its row. From there, drag its dot/bar to fine-tune.
+
+**Define milestones from the timeline.** **Double-click** a card's row at the date you want: a
+small dialog opens with the date pre-filled (still editable) and an optional label. **Add
+milestone** appends a `<date> <label>` entry to the configured milestones list property and the
+diamond appears at once. **Right-click a diamond** to remove that milestone.
+
+**Milestones.** A configurable **list property** (default `milestones`) turns entries like:
+
+```yaml
+milestones:
+    - 2026-09-01 Beta release
+    - 2026-10-15 GA
+```
+
+into **diamond markers** on the card's row (hover for the label and date). Entries are
+`<date> <optional label>`; wikilink brackets around the date are tolerated, and anything that
+doesn't start with a date is skipped.
+
+**Navigate** with the same range switcher as the calendar — **Week / Month / Quarter / Year**
+(default set per view, your choice is remembered) — and **‹ / Today / ›**. Rows are sorted by
+start date.
+
+**Drag to reschedule:** drag a bar (or a dot) horizontally — it snaps to whole days, and on
+release the start **and** end dates shift together, preserving the duration (written in your
+date format). Click a bar, dot, or the row label to open the note; right-click anywhere on the
+row for the usual card menu (set status, schedule, relationships, …).
+
+The toolbar [filter](#filtering-search-bar) and
+[zoom](#focus-on-a-cards-children-zoom) narrow the timeline like every other mode — zoom into a
+project and the timeline becomes that project's plan.
+
 ## Keyboard
 
 Cards are fully keyboard-operable. **Tab** to a card, then:
@@ -459,14 +543,17 @@ saved into the `.base` file, like the Board/Calendar/Triage mode).
 
 Each Kanban view remembers how you left it, **per view**, across reloads and reopening Obsidian:
 
-- Board vs **Calendar** mode, and the calendar **range** (Week/Month/Quarter/Year), **active
-  tab**, **panel collapsed** state, and the **Scheduled/Deadlines** legend toggles.
+- Board vs **Calendar** vs **Timeline** mode, and the calendar **range**
+  (Week/Month/Quarter/Year), **active tab**, **panel collapsed** state, and the
+  **Scheduled/Deadlines** legend toggles.
+- The timeline **range** (Week/Month/Quarter/Year).
 - **Collapsed swimlanes** and **collapsed columns**.
 - **Compact cards** (titles only) on or off.
 - The toolbar **filter** query.
 
-Two calendar bits are deliberately **not** remembered, and reset every time you reopen the
-view: the **anchor** (the calendar jumps back to today) and the **focused day** zoom (cleared).
+A few bits are deliberately **not** remembered, and reset every time you reopen the view: the
+calendar/timeline **anchor** (both jump back to today) and the calendar's **focused day** zoom
+(cleared).
 
 ## View options (Configure view)
 
@@ -492,8 +579,9 @@ changing your notes. They're grouped:
 
 **Swimlanes**
 
-- **Grouping**: override lane grouping for this view. **Use note type default**, **None**,
-  **By note type**, or **By property**. (The default is set per note type in Settings.)
+- **Grouping**: override lane grouping for this view. **Use note type default** (which
+  auto-groups **by note type** when the board mixes types), **None**, **By note type**, or
+  **By property**. (The per-type default is set in Settings.)
 - **Grouping property**: when grouping **By property**, the property whose values become lanes.
   This can also be a **base formula** (`formula.…`) or `file.…` column. Grouping by a computed
   column is **read-only**, so cross-lane drag is disabled for those lanes (there's no property to
@@ -511,6 +599,14 @@ changing your notes. They're grouped:
 
 (Calendar mode itself is toggled by the in-view **Board / Calendar** switch. The scheduled and due
 date **property names** are set globally in plugin settings.)
+
+**Timeline**
+
+- **Start date property** / **End date property**: the bar's span (default to the scheduled and
+  due date properties).
+- **Milestones list property**: the list property holding `<date> <label>` entries (default
+  `milestones`).
+- **Default range**: Week, Month, Quarter, or Year.
 
 ## Note type configuration (colors, enums, relationships, archiving)
 
@@ -642,6 +738,8 @@ A few commands act on the **currently focused** Kanban view (they do nothing whe
 is active, and each can be given a hotkey in **Settings → Hotkeys**):
 
 - **Toggle board / calendar mode**
+- **Toggle timeline mode**
+- **Toggle triage mode** / **Configure triage**
 - **Focus filter**: jump to the filter box
 - **Clear filter**
 - **Go to next swimlane** / **Go to previous swimlane**

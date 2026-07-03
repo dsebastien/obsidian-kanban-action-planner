@@ -146,6 +146,14 @@ export interface BuildBoardOptions<T extends BoardCardBase = BoardCardBase> {
      * passes a property/name comparator for non-manual sorts (issue #17).
      */
     compare?: (a: T, b: T) => number
+    /**
+     * Per-lane column sets (mixed-type boards): given a lane id (the grouping
+     * value, or `UNGROUPED_LANE_ID` for the catch-all lane), return that lane's
+     * columns. Falls back to the shared `columns` argument when absent or when
+     * grouping is off. Unmapped bucketing is evaluated against each lane's own
+     * column set.
+     */
+    columnsForLane?: (laneId: string) => ReadonlyArray<ColumnDef>
 }
 
 /**
@@ -154,7 +162,9 @@ export interface BuildBoardOptions<T extends BoardCardBase = BoardCardBase> {
  * distinct `laneValue` (ordered by numeric/lexical prefix), plus an `Ungrouped`
  * lane for missing values — included only when non-empty and placed last by
  * default. Grouping that yields a single lane stays chrome-free
- * (`isMultiLane: false`).
+ * (`isMultiLane: false`). When `columnsForLane` is provided, each grouped lane
+ * gets its own column set (mixed-type boards); otherwise every lane shares
+ * `columns`.
  */
 export function buildBoard<T extends BoardCardBase>(
     cards: ReadonlyArray<T>,
@@ -163,6 +173,8 @@ export function buildBoard<T extends BoardCardBase>(
 ): Board<T> {
     const unmappedPosition = options.unmappedPosition ?? 'first'
     const compare = options.compare ?? compareCards
+    const columnsFor = (laneId: string): ReadonlyArray<ColumnDef> =>
+        options.columnsForLane?.(laneId) ?? columns
 
     if (!options.grouped) {
         return {
@@ -192,7 +204,7 @@ export function buildBoard<T extends BoardCardBase>(
             splitStatusValue(value).label,
             false,
             groups.get(value) as T[],
-            columns,
+            columnsFor(value),
             unmappedPosition,
             compare
         )
@@ -204,7 +216,7 @@ export function buildBoard<T extends BoardCardBase>(
             'Ungrouped',
             true,
             ungrouped,
-            columns,
+            columnsFor(UNGROUPED_LANE_ID),
             unmappedPosition,
             compare
         )
