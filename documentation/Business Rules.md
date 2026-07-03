@@ -353,47 +353,77 @@ See `documentation/plans/kanban-action-planner-implementation-plan.md` for full 
     (`▼ Title ✕`) next to the filter box is **derived** from the query's zoom term: ✕ removes only
     that term, label click best-effort opens the focused note by title. The focused card itself is
     not shown. Breadcrumb history: out of scope (follow-up).
-35. **Timeline mode (issues #77, #80).** A fourth view mode (Board / Calendar / **Timeline** / Triage;
-    `timelineMode` config flag, `toggle-timeline-mode` command): one row per card, a bar spanning
-    its **start → end** dates on a shared week/month/quarter/year axis (the calendar's range
-    vocabulary; per-view `timelineRange` default + persisted `timelineRangeOverride`; the anchor is
-    transient → today). Start/end are **per-view configurable properties**
-    (`timelineStartProperty`/`timelineEndProperty`, `note.*` only — drag writes them) defaulting to
-    the resolved scheduled/due date properties. **Milestones** come from a configurable **list
-    property** (`timelineMilestoneProperty`, default `milestones`); each entry is
+35. **Timeline mode (issues #77, #80 + estimate rework).** A fourth view mode (Board / Calendar /
+    **Timeline** / Triage; `timelineMode` config flag, `toggle-timeline-mode` command): one row
+    per card, placed by **start date + estimate** on a shared week/month/quarter/year axis (the
+    calendar's range vocabulary; per-view `timelineRange` default + persisted
+    `timelineRangeOverride`; the anchor is transient → today). The start is a **per-view
+    configurable property** (`timelineStartProperty`, `note.*` only — drag writes it) defaulting
+    to the resolved scheduled date property; the estimate is a **number of days** in
+    `timelineEstimateProperty` (replaces `timelineEndProperty`, whose old `.base` key is
+    ignored), defaulting to the global `defaultEstimateProperty` (`estimate`). **There is no
+    end-date property.** `parseEstimate` accepts numbers or numeric strings, `Math.ceil`s, and
+    yields ≥ 1 or null; estimates are always **written as numbers**; derived end =
+    start + estimate − 1 (inclusive). Start without estimate → **square**; start + estimate →
+    **rectangle**; **squares are never overdue**, rectangles get the overdue wash when the
+    derived end < today. **Milestones** come from a configurable **list property**
+    (`timelineMilestoneProperty`, default `milestones`); each entry is
     `"<date> [label…]"` (wikilink brackets tolerated, `parseFrontmatterDate` semantics,
-    non-parseable entries skipped) → diamond markers on the row. Degrades gracefully: one date →
-    point dot; bars crossing the window edge are clamped with a dashed clipped edge; past end date
-    → overdue wash; dates all outside the window → "out of view" hint; no dates → collapsible
-    **Undated** strip **grouped by status value** (column order via `compareStatusValues`,
-    labels via `splitStatusValue`, no-status group last; the strip caps at 35% height and
-    scrolls itself so it never squeezes out the rows). **Scheduling from the timeline:**
-    dragging an undated chip onto any track writes the **start date** property for the day
-    under the pointer (`dayOffsetAtPct`). **Milestone editing:** double-click a row's track →
-    modal (pre-filled editable date + optional label) → appends `"<date> [label]"` to the
-    milestone list property (`appendToListProperty`, dedup, scalar promoted to list);
-    right-click a diamond removes its entry (keyed by the raw list entry; property deleted when
-    the list empties). **Drag a bar/point horizontally** to shift its existing date(s) by the
-    snapped whole-day delta (duration preserved; same frontmatter write path as calendar DnD).
-    Rows sort by start (then end/milestone/title); the toolbar filter and #74 zoom apply as in
-    every mode. Pure math in `domain/timeline.ts` (geometry in % of the window, inclusive days);
-    DOM in `ui/timeline/timeline-renderer.ts`; state/writes in
-    `views/kanban/timeline-controller.ts` (mirrors `CalendarController`). **Bar resize (#80):**
-    edge handles change **only the dragged edge's property**; `clampResizeDate` clamps so
-    start ≤ end with a **minimum span of 1 day** (already-inverted stored dates are normalized
-    first); handles are not rendered on a clipped side or on bars rendered narrower than 24px —
-    those use the context menu. **Unschedule (#80):** dragging a bar/point onto the Undated
-    strip, or the menu item **Clear start & end dates**, deletes **only** the start/end
-    properties — **milestones are kept** (the row survives if any remain); by default those
-    properties are the shared scheduled/due dates, so the card also leaves the calendar and
-    loses its due badge (the menu label says what it clears). **Wheel zoom (#80):** requires
-    Ctrl/Cmd (plain wheel scrolls); steps one range kind (week↔month↔quarter↔year) per ±50
-    accumulated `deltaY`, anchors on the date under the cursor, persists via
-    `timelineRangeOverride` exactly like the range buttons, and is **inert while a drag is in
-    progress**. **Context-menu extras (#80,** `kap-timeline` **section):** **Add milestone…**;
-    **Clear start & end dates** (only when a date exists); **Set start date… / Set end date…**
-    only when the resolved timeline property differs from the scheduled/deadline property (the
-    standard Schedule / Set deadline items already cover the shared case). **Duration (#80):**
-    bars show the inclusive day count (`12d`, via `inclusiveDays`; reversed spans → 1) — always
-    in the tooltip, the in-bar span skipped on narrow bars. Out of scope (follow-ups):
+    non-parseable entries skipped) → diamond markers on the row. Bars crossing the window edge
+    are clamped with a dashed clipped edge; dates all outside the window → "out of view" hint;
+    cards with an estimate but no start are **unplanned**. **Unplanned panel** (named like the
+    calendar's Unplanned tab): a calendar-style
+    **collapsible left side panel** (same shell/behavior as the calendar's Scheduling panel:
+    **«** toggle in the header, collapses to a slim vertical bar, **auto-collapses on narrow
+    panes** with manual choice taking precedence, collapse **persisted per view**) holding
+    **uniform fixed-size cards** grouped by **note type, then status** (`groupByTypeAndStatus`:
+    types alphabetical, no-type bucket last; statuses via `compareStatusValues`, no-status
+    last; single-type boards skip the type level), **all groups collapsed by default**; group
+    collapse state lives on the controller instance (survives rebuilds, not persisted); the
+    panel scrolls itself so it never squeezes out the rows. **Scheduling from the
+    timeline:** dragging an unplanned card anywhere over the chart writes the **start date** property for
+    the day under the pointer (`dayOffsetAtPct`). **Live feedback:** every drag, resize, and
+    drop shows the **to-be-written date** (right resize: `Nd → ends <date>`) via a body-level
+    floating label (in a `.kap-root` wrapper) plus a day guide line; drop targets highlight;
+    scheduling from the panel shows a striped **New entry** lane stuck to the top of the row
+    body (the drop creates a new row — never "into" an existing card's line; the guide renders
+    inside the lane); the drag ghost's width is capped; each gesture's label uses the same
+    rounding as its commit path. **Milestone
+    editing:** double-click a row's track → modal (pre-filled editable date + optional label) →
+    appends `"<date> [label]"` to the milestone list property (`appendToListProperty`, dedup,
+    scalar promoted to list); right-click a diamond removes its entry (keyed by the raw list
+    entry; property deleted when the list empties). **Drag a square/rectangle horizontally** to
+    shift it by the snapped whole-day delta — the commit writes **only the start date** (the
+    estimate is intrinsic, so the span follows). Rows sort by start (then milestone/title);
+    the toolbar filter and #74 zoom apply as in every mode. Pure math in `domain/timeline.ts`
+    (geometry in % of the window, inclusive days); DOM in `ui/timeline/timeline-renderer.ts`;
+    state/writes in `views/kanban/timeline-controller.ts` (mirrors `CalendarController`).
+    **Resize:** left handle changes the **start** while the derived end stays **anchored** —
+    `resizeFromStart` clamps the **shared** delta once (`min(dayDelta, estimate − 1)`) and
+    derives start-delta + estimate from it, committed as start + estimate in **one** frontmatter
+    transaction (`setProperties`); right handle writes **only the estimate**
+    (`resizeEstimate` = `max(1, estimate + dayDelta)`, never < 1 day); handles are not rendered
+    on a clipped side or on bars rendered narrower than 24px — those use the context menu;
+    squares get no handles. **Unschedule:** dragging a square/rectangle onto the Unplanned panel,
+    or the menu item **Clear start date**, deletes **only** the start property — the **estimate
+    and milestones are kept** (the row survives if milestones remain); by default that property
+    is the shared scheduled date, so the card also leaves the calendar (the menu label says
+    what it clears). **Wheel zoom (#80):** requires Ctrl/Cmd (plain wheel scrolls); steps one
+    range kind (week↔month↔quarter↔year) per ±50 accumulated `deltaY`, anchors on the date
+    under the cursor, persists via `timelineRangeOverride` exactly like the range buttons, and
+    is **inert while a drag is in progress**. **Type grouping + visibility:** when the
+    timeline's cards span more than one distinct note type (counted **before hiding**), rows are
+    grouped by type — collapsible header rows (name + count, expanded by default, state on the
+    controller instance), types alphabetical with the **No type** bucket (sentinel id
+    `__none__`) last, the date sort applied within each group. A **Types** toolbar button
+    (checkable menu, built from the **unfiltered** type set so hiding everything never strands
+    the user) shows/hides types; hiding a type removes its rows **and** its unplanned cards;
+    hidden types persist **by type id** in the dedicated `timelineHiddenTypes` config key
+    (validated string[], not part of `TimelineViewState`). **Context-menu extras
+    (**`kap-timeline` **section):** **Add milestone…**; **Set estimate…** (number input, days,
+    min 1; Clear deletes the property); **Clear start date** (only when a start exists);
+    **Set start date…** only when the resolved timeline property differs from the scheduled
+    property (the standard Schedule items already cover the shared case). **Duration:**
+    rectangles show the estimate as an inclusive day count (`5d`) — always in the tooltip, the
+    in-bar span skipped on narrow bars. Out of scope (follow-ups):
     dependency arrows, hierarchy indentation, milestone notes.

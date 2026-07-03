@@ -27,6 +27,8 @@ export const DEFAULT_ORDER_PROPERTY = 'manual_order'
 export const DEFAULT_BLOCKED_BY_PROPERTY = 'blocked_by'
 export const DEFAULT_SCHEDULED_DATE_PROPERTY = 'date_scheduled'
 export const DEFAULT_DUE_DATE_PROPERTY = 'date_due'
+/** Days a note is expected to take (drives the timeline's bar length). */
+export const DEFAULT_ESTIMATE_PROPERTY = 'estimate'
 
 /** Default review (spaced-repetition) property names (issue #57; configurable). */
 export const DEFAULT_REVIEWED_DATE_PROPERTY = 'last_reviewed'

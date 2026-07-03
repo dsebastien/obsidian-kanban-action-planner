@@ -196,19 +196,38 @@ likewise persists `collapsedLanes`/`collapsedColumns` (loaded once in `rebuild()
 toggle). **Transient (reset on reload):** the anchor (→ today), the focused day (→ none), and the
 auto-collapse runtime memo.
 
-**Timeline mode (issues #77, #80).** Same three-layer split: pure math in `domain/timeline.ts`
-(bar geometry in % of the window; `inclusiveDays(start, end)` is the single source of the
-inclusive-day convention — `totalDays` delegates to it; `zoomRange(kind, direction)` steps
-week↔month↔quarter↔year and returns `null` at the ends; `clampResizeDate(start, end, edge,
-dayDelta)` keeps start ≤ end with a 1-day minimum span and normalizes inverted stored dates).
-DOM in `ui/timeline/timeline-renderer.ts`, which only reports intent via callbacks:
-`onResizeDates(card, edge, dayDelta)` from the bar edge handles, `onUnschedule(card)` from a
-drop on the Undated strip (2D drag), and `onZoom(direction, anchorPct)` from Ctrl/Cmd+wheel
-(deltaY accumulator, per-render listener, inert while a drag is active). State and frontmatter
-writes in `views/kanban/timeline-controller.ts` (mirrors `CalendarController`): it resolves the
-start/end/milestone properties, writes only the dragged edge on resize, deletes start/end (never
-milestones) on unschedule, and persists zoom via the existing `timelineRangeOverride`. Context
-menus reuse `card-menu.ts` through an optional `extend(menu)` hook (`kap-timeline` section).
+**Timeline mode (issues #77, #80 + estimate rework).** Same three-layer split: pure math in
+`domain/timeline.ts` (bar geometry in % of the window from start + derived end
+(start + estimate − 1); `inclusiveDays(start, end)` is the single source of the inclusive-day
+convention — `totalDays` delegates to it; `parseEstimate(raw)` accepts numbers or numeric
+strings, `Math.ceil`s, and returns ≥ 1 or `null`; `resizeFromStart(estimate, dayDelta)` clamps
+the **shared** delta once (`min(dayDelta, estimate − 1)` for positive deltas) and derives
+`{ startDelta, estimate }` from it, so a left resize can never push the start past the anchored
+end; `resizeEstimate(estimate, dayDelta)` is `max(1, estimate + dayDelta)`;
+`groupByTypeAndStatus(items, typeOf, statusOf)` builds the Unplanned panel's type → status
+groups; `zoomRange(kind, direction)` steps week↔month↔quarter↔year and returns `null` at the
+ends). DOM in `ui/timeline/timeline-renderer.ts`, which only reports intent via callbacks; the
+live drag/resize/drop labels are produced by a controller closure
+`labelForDayOffset(offset: number)` (works for any signed offset, so clipped bars and
+off-window drags stay correct), and the floating drag label and the unplanned-card drag **ghost** (width-capped)
+are appended to `ownerDocument.body` inside a `.kap-root`-classed wrapper (nothing inside the
+track/panel, which clip; popout-safe). Unplanned cards live in a **collapsible left panel** (titled "Unplanned", matching the calendar)
+reusing the calendar's shared `kap-scheduling-panel` shell (plus a `kap-tl-panel` modifier);
+`panelCollapsed` is part of `TimelineViewState`, persisted per view under the
+`timelinePanelCollapsed` config key, and `evaluatePanelAutoCollapse` mirrors the calendar's
+narrow-pane auto-collapse (manual choice wins). State and frontmatter writes in
+`views/kanban/timeline-controller.ts` (mirrors `CalendarController`): it resolves the
+start/estimate/milestone properties, commits a left-edge resize as start + estimate in **one**
+frontmatter transaction via the new `setProperties(app, file, record)` helper in
+`frontmatter.service.ts` (single `processFrontMatter` call), writes only the estimate on a
+right-edge resize and only the start on move/drop, and deletes only the start (never estimate
+or milestones) on unschedule. Collapse state — unplanned type/status groups and timeline type
+group rows — lives on the controller instance (survives frontmatter-write rebuilds, not
+persisted); hidden types persist by type id in a dedicated `timelineHiddenTypes` config key
+(own `restoreHiddenTypes()`/`persistHiddenTypes(ids)` host pair, validated as a string[]),
+deliberately outside `TimelineViewState` so `persistState({ range })` calls can't clobber it.
+Zoom persists via the existing `timelineRangeOverride`. Context menus reuse `card-menu.ts`
+through an optional `extend(menu)` hook (`kap-timeline` section).
 
 **Configure-board modal** (`ui/configure-board-modal.ts`): a two-pane dialog — a left section nav
 (Cards / Colors / Swimlanes / Relationships / Archiving) over a scrollable content pane; the

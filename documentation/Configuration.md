@@ -61,6 +61,7 @@ Defined in `src/app/types/plugin-settings.intf.ts`, seeded from `src/app/constan
 | `defaultBlockedByProperty`     | `blocked_by`     | Property listing blockers                               |
 | `defaultScheduledDateProperty` | `date_scheduled` | "Unplanned" tab / scheduling date                       |
 | `defaultDueDateProperty`       | `date_due`       | "No Deadline" tab / due date                            |
+| `defaultEstimateProperty`      | `estimate`       | Timeline estimate in days (span = start + estimate − 1) |
 | `defaultDateFormat`            | `YYYY-MM-DD`     | momentjs format for dates written to notes              |
 | `firstDayOfWeek`               | `1` (Monday)     | Day calendar weeks start on (0 = Sunday … 6 = Saturday) |
 

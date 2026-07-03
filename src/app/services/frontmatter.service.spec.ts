@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'bun:test'
-import { coerceOrder, findKeyCaseInsensitive } from './frontmatter.service'
+import type { App, TFile } from 'obsidian'
+import { coerceOrder, findKeyCaseInsensitive, setProperties } from './frontmatter.service'
 
 describe('findKeyCaseInsensitive', () => {
     it('returns the exact key when present', () => {
@@ -15,6 +16,43 @@ describe('findKeyCaseInsensitive', () => {
         expect(findKeyCaseInsensitive({ a: 1 }, 'status')).toBeNull()
         expect(findKeyCaseInsensitive(null, 'status')).toBeNull()
         expect(findKeyCaseInsensitive(undefined, 'status')).toBeNull()
+    })
+})
+
+describe('setProperties', () => {
+    /** A stub App whose processFrontMatter hands the callback the given object. */
+    const appFor = (fm: Record<string, unknown>): { app: App; calls: () => number } => {
+        let calls = 0
+        const app = {
+            fileManager: {
+                processFrontMatter: (
+                    _file: TFile,
+                    cb: (frontmatter: Record<string, unknown>) => void
+                ): Promise<void> => {
+                    calls += 1
+                    cb(fm)
+                    return Promise.resolve()
+                }
+            }
+        } as unknown as App
+        return { app, calls: () => calls }
+    }
+    // eslint-disable-next-line obsidianmd/no-tfile-tfolder-cast -- test fake; the stubbed processFrontMatter never touches the file
+    const file = { path: 'Notes/Card.md' } as unknown as TFile
+
+    it('writes every entry in ONE processFrontMatter transaction', async () => {
+        const fm: Record<string, unknown> = {}
+        const { app, calls } = appFor(fm)
+        await setProperties(app, file, { date_scheduled: '2026-07-14', estimate: 3 })
+        expect(fm).toEqual({ date_scheduled: '2026-07-14', estimate: 3 })
+        expect(calls()).toBe(1)
+    })
+
+    it('reuses an existing differently-cased key instead of duplicating', async () => {
+        const fm: Record<string, unknown> = { Estimate: 5 }
+        const { app } = appFor(fm)
+        await setProperties(app, file, { estimate: 2 })
+        expect(fm).toEqual({ Estimate: 2 })
     })
 })
 

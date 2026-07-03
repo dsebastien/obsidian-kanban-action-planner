@@ -323,19 +323,22 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             app: this.app,
             boardEl: () => this.boardEl,
             rebuild: () => this.rebuild(),
+            isTimelineMode: () => this.timelineMode(),
             openCard: (card, newTab) => this.openCard(card, newTab),
             showCardMenu: (card, event, extend) => this.showCardMenu(card, event, extend),
             startProperty: () => this.resolveTimelineStartProperty(),
-            endProperty: () => this.resolveTimelineEndProperty(),
+            estimateProperty: () => this.resolveTimelineEstimateProperty(),
             milestoneProperty: () => this.resolveTimelineMilestoneProperty(),
             scheduledProperty: () => this.scheduledDateProperty,
-            deadlineProperty: () => this.dueDateProperty,
             dateFormat: () =>
                 this.noteType.calendar.dateFormat || this.plugin.settings.defaultDateFormat,
             firstDayOfWeek: () => this.plugin.settings.firstDayOfWeek,
+            noteTypeFor: (card) => this.noteTypeByPath.get(card.key) ?? null,
             configuredRange: () => this.config.get('timelineRange'),
             restoreState: () => this.restoreTimelineState(),
-            persistState: (state) => this.persistTimelineState(state)
+            persistState: (state) => this.persistTimelineState(state),
+            restoreHiddenTypes: () => this.restoreTimelineHiddenTypes(),
+            persistHiddenTypes: (ids) => this.persistTimelineHiddenTypes(ids)
         })
         this.resizeObserver = new ResizeObserver(() => this.debouncedResize())
         this.resizeObserver.observe(this.boardEl)
@@ -899,12 +902,28 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             range:
                 stored === 'week' || stored === 'month' || stored === 'quarter' || stored === 'year'
                     ? stored
-                    : null
+                    : null,
+            panelCollapsed: this.config.get('timelinePanelCollapsed') === true
         }
     }
 
     private persistTimelineState(state: TimelineViewState): void {
         this.config.set('timelineRangeOverride', state.range)
+        this.config.set('timelinePanelCollapsed', state.panelCollapsed)
+    }
+
+    /**
+     * Hidden timeline note-type IDs (estimate rework): a dedicated config key
+     * with a validated string[] read — deliberately NOT part of
+     * `TimelineViewState`, whose `persistState({ range })` call sites would
+     * silently clobber the list.
+     */
+    private restoreTimelineHiddenTypes(): string[] {
+        return readIdArray(this.config.get('timelineHiddenTypes'))
+    }
+
+    private persistTimelineHiddenTypes(ids: string[]): void {
+        this.config.set('timelineHiddenTypes', ids)
     }
 
     /** Timeline bar start date property (per-view, else the scheduled property). */
@@ -914,9 +933,12 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         )
     }
 
-    /** Timeline bar end date property (per-view, else the due-date property). */
-    private resolveTimelineEndProperty(): string {
-        return basesPropToName(this.config.get('timelineEndProperty')) ?? this.dueDateProperty
+    /** Timeline estimate property, in days (per-view, else the global default). */
+    private resolveTimelineEstimateProperty(): string {
+        return (
+            basesPropToName(this.config.get('timelineEstimateProperty')) ??
+            this.plugin.settings.defaultEstimateProperty
+        )
     }
 
     /** Milestone list property (per-view, default `milestones`). */
@@ -1791,6 +1813,10 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             this.calendar?.resetNarrow()
             this.calendar?.evaluatePanelAutoCollapse()
         }
+        if (mode === 'timeline') {
+            this.timeline?.resetNarrow()
+            this.timeline?.evaluatePanelAutoCollapse()
+        }
     }
 
     /** Whether compact cards (title only) are active (board mode). */
@@ -2371,15 +2397,19 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
     /** Persist the board/calendar mode and re-render in place (rebuild() re-renders the toolbar). */
 
     /**
-     * Container resized: re-evaluate the calendar pane auto-collapse and re-equalize
+     * Container resized: re-evaluate both panels' auto-collapse and re-equalize
      * card heights (a narrower column rewraps titles, changing the tallest card).
      * The timeline re-renders outright — its px width gates (resize handles,
      * duration tag) are decided at render time and go stale as bars re-flow
      * (issue #80); this also covers a hidden→visible leaf, which measures 0
-     * while hidden and fires the ResizeObserver when revealed.
+     * while hidden and fires the ResizeObserver when revealed. The timeline
+     * panel evaluation runs BEFORE that unconditional rebuild — it only
+     * rebuilds itself on a width-CATEGORY change (memoized), so the resize
+     * rebuild storm never fights it.
      */
     private onResize(): void {
         this.calendar?.evaluatePanelAutoCollapse()
+        this.timeline?.evaluatePanelAutoCollapse()
         this.equalizeCardHeights()
         if (this.timelineMode()) this.rebuild()
     }

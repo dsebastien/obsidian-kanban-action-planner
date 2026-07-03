@@ -1553,12 +1553,22 @@
     /* ========================================
        TIMELINE MODE (issue #77)
        ======================================== */
-    /* Fills the host: header + axis fixed, rows scroll vertically. Bars, points,
-       milestones, and the today line are %-positioned inside each row's track,
-       so the layout is fluid at every width (no horizontal scroll). */
+    /* Fills the host: toolbar on top, then a flex row — the collapsible
+       undated panel (left, calendar-panel shell) and the chart column (axis
+       fixed, rows scroll vertically). Bars, squares, milestones, and the today
+       line are %-positioned inside each row's track, so the layout is fluid
+       at every width (no horizontal scroll). */
     .kap-root .kap-timeline {
         @apply flex flex-col h-full min-h-0 w-full;
         overflow: hidden;
+    }
+
+    .kap-root .kap-tl-main {
+        @apply flex flex-1 min-h-0;
+    }
+
+    .kap-root .kap-tl-chart {
+        @apply flex flex-col flex-1 min-w-0 min-h-0;
     }
 
     .kap-root .kap-tl-axisrow {
@@ -1685,17 +1695,11 @@
         border-color: var(--text-error);
     }
 
-    .kap-root .kap-tl-point {
-        @apply absolute top-1/2 w-2.5 h-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full cursor-grab;
+    /* Start-only marker (no estimate): a small square centered on the day
+       cell. Never overdue — a past start is normal in-progress work. */
+    .kap-root .kap-tl-square {
+        @apply absolute top-1/2 w-3 h-3 -translate-x-1/2 -translate-y-1/2 rounded-sm cursor-grab;
         background: var(--interactive-accent);
-    }
-
-    .kap-root .kap-tl-point-end {
-        background: var(--color-orange);
-    }
-
-    .kap-root .kap-tl-point.kap-tl-overdue {
-        background: var(--text-error);
     }
 
     .kap-root .kap-tl-milestone {
@@ -1707,6 +1711,42 @@
     .kap-root .kap-tl-dragging {
         @apply cursor-grabbing;
         opacity: 0.75;
+    }
+
+    /* Live drag feedback (estimate rework): a vertical guide inside the
+       hovered row's track at the snapped day… */
+    .kap-root .kap-tl-guide {
+        @apply absolute top-0 bottom-0 w-px pointer-events-none;
+        background: var(--interactive-accent);
+    }
+
+    /* …and a floating label with the date about to be written. Body-level
+       (inside its own .kap-root wrapper) — anything inside the bar/track/
+       panel would be clipped by an ancestor's overflow. */
+    .kap-root .kap-tl-drag-label {
+        @apply fixed whitespace-nowrap rounded px-1.5 py-0.5 text-[0.75em] pointer-events-none;
+        z-index: var(--layer-tooltip, 9999);
+        color: var(--text-normal);
+        background: var(--background-primary);
+        border: 1px solid var(--background-modifier-border);
+        box-shadow: var(--shadow-s);
+    }
+
+    /* Collapsible note-type header row for the timeline body (multi-type). */
+    .kap-root .kap-tl-group {
+        @apply flex w-full items-center gap-1 h-7 px-2 border-0 cursor-pointer bg-transparent text-left text-[0.8em] font-medium;
+        color: var(--text-muted);
+        border-bottom: 1px solid var(--background-modifier-border);
+    }
+
+    .kap-root .kap-tl-group:hover {
+        color: var(--text-normal);
+        background: var(--background-modifier-hover);
+    }
+
+    /* Space the Types visibility button off the range switcher. */
+    .kap-root .kap-tl-types-btn {
+        @apply ml-2;
     }
 
     .kap-root .kap-tl-off {
@@ -1727,78 +1767,147 @@
         color: var(--text-muted);
     }
 
-    /* Cap the strip so a big undated backlog can't squeeze out the rows;
-       the strip scrolls its own content instead. */
-    .kap-root .kap-tl-undated {
-        @apply flex-none p-2 max-h-[35%] overflow-y-auto;
-        border-top: 1px solid var(--background-modifier-border);
+    /* Undated panel: the shared .kap-scheduling-panel shell provides the
+       chrome (width, border, collapsed rail + vertical title); this body
+       scrolls the type → status groups. */
+    .kap-root .kap-tl-panel-body {
+        @apply flex-1 min-h-0 overflow-y-auto p-2;
+        scrollbar-width: thin;
+        scrollbar-color: var(--background-modifier-border) transparent;
     }
 
-    .kap-root .kap-tl-undated-toggle {
-        @apply inline-flex items-center gap-1 h-6 px-2 border-0 rounded cursor-pointer bg-transparent text-[0.8em];
+    /* Undated panel groups (estimate rework): a collapsible note-type header
+       (multi-type boards)… */
+    .kap-root .kap-tl-ugroup {
+        @apply flex w-full items-center gap-1 h-6 px-1 mt-1 border-0 rounded cursor-pointer bg-transparent text-left text-[0.78em] font-medium;
         color: var(--text-muted);
     }
 
-    .kap-root .kap-tl-undated-toggle:hover {
-        color: var(--text-normal);
-        background: var(--background-modifier-hover);
+    /* …holding indented status subgroups (the only level on single-type boards). */
+    .kap-root .kap-tl-ugroup-body {
+        @apply pl-3;
     }
 
-    .kap-root .kap-tl-undated-group {
-        @apply mt-1.5;
-    }
-
-    .kap-root .kap-tl-undated-grouplabel {
-        @apply block text-[0.72em] font-medium uppercase tracking-wide;
+    .kap-root .kap-tl-usubgroup {
+        @apply flex w-full items-center gap-1 h-6 px-1 mt-0.5 border-0 rounded cursor-pointer bg-transparent text-left text-[0.74em] font-medium uppercase tracking-wide;
         color: var(--text-faint);
     }
 
-    .kap-root .kap-tl-undated-list {
-        @apply flex flex-wrap gap-1 mt-1;
-    }
-
-    .kap-root .kap-tl-undated-chip {
-        @apply h-6 px-2 border-0 rounded-full cursor-grab text-[0.78em] truncate max-w-60;
+    .kap-root .kap-tl-ugroup:hover,
+    .kap-root .kap-tl-usubgroup:hover {
         color: var(--text-normal);
         background: var(--background-modifier-hover);
     }
 
-    .kap-root .kap-tl-undated-chip.kap-tl-dragging {
-        @apply relative z-10 cursor-grabbing;
+    .kap-root .kap-tl-undated-cards {
+        @apply flex flex-col gap-1.5 mt-1 mb-1.5 px-1;
     }
 
-    /* Hit-test bypass while resolving a chip's drop target. */
+    /* Uniform kanban-like undated cards: full panel width, fixed height,
+       2-line title clamp. */
+    .kap-root .kap-tl-undated-card {
+        @apply flex w-full h-14 flex-none items-start rounded p-2 text-left cursor-grab overflow-hidden;
+        color: var(--text-normal);
+        background: var(--background-primary);
+        border: 1px solid var(--background-modifier-border);
+    }
+
+    .kap-root .kap-tl-undated-card:hover {
+        background: var(--background-modifier-hover);
+        border-color: var(--interactive-accent);
+    }
+
+    .kap-root .kap-tl-undated-cardtitle {
+        @apply w-full text-[0.8em] leading-snug overflow-hidden;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+    }
+
+    /* While an undated card drags: the original dims in place (the ghost
+       follows the pointer instead — the panel body's overflow would clip an
+       in-place transform)… */
+    .kap-root .kap-tl-drag-source {
+        opacity: 0.4;
+    }
+
+    /* …a fixed-position card-styled ghost rides along (width capped — the
+       in-panel cards are full-panel-width, a dragged one must stay compact)… */
+    .kap-root .kap-tl-ghost {
+        @apply fixed w-44;
+        z-index: var(--layer-tooltip, 9999);
+        opacity: 0.9;
+        box-shadow: var(--shadow-s);
+    }
+
+    /* …and the row body highlights while the chart is under the pointer. */
+    .kap-root .kap-tl-body.kap-tl-drop-target {
+        background: color-mix(in srgb, var(--interactive-accent) 8%, transparent);
+    }
+
+    /* The schedule drop zone: a striped "new entry" lane stuck to the top of
+       the row body, so a drop clearly creates a new row rather than landing
+       on an existing card's line. Its track shares the rows' x-geometry, so
+       the day guide renders inside it. */
+    .kap-root .kap-tl-drop-lane {
+        @apply sticky top-0 z-10 flex h-8 items-center;
+        background:
+            repeating-linear-gradient(
+                45deg,
+                transparent 0 6px,
+                color-mix(in srgb, var(--interactive-accent) 14%, transparent) 6px 12px
+            ),
+            var(--background-primary);
+        border-bottom: 1px dashed var(--interactive-accent);
+    }
+
+    .kap-root .kap-tl-drop-lane-label {
+        @apply text-[0.75em] font-medium uppercase tracking-wide;
+        color: var(--text-accent);
+    }
+
+    .kap-root .kap-tl-drop-lane-track {
+        @apply relative flex-1 h-full min-w-0;
+    }
+
+    /* Hit-test bypass so elementFromPoint sees through the dragged ghost. */
     .kap-root .kap-tl-nohit {
         @apply pointer-events-none;
     }
 
-    /* Unschedule drop target (issue #80): while a bar/point drags, the footer
-       grows into an obvious target (even when collapsed it's otherwise a thin
-       sliver) and reveals the hint below. */
+    /* Unschedule drop target (issue #80): while a bar/square drags, the whole
+       panel lights up with a dashed accent inset (a vertical-panel treatment)
+       and reveals the hint under the header. A collapsed panel still accepts
+       drops on its rail — only the hint stays hidden there (no room). */
     .kap-root .kap-tl-drop-hint {
-        @apply hidden mt-1 px-2 text-[0.78em] italic;
+        @apply hidden px-2 pt-1 text-[0.78em] italic;
         color: var(--text-muted);
     }
 
-    .kap-root .kap-tl-undated.kap-tl-drop-ready {
-        @apply min-h-16;
-        border-top: 1px dashed var(--interactive-accent);
+    .kap-root .kap-tl-panel.kap-tl-drop-ready {
+        outline: 2px dashed var(--interactive-accent);
+        outline-offset: -2px;
     }
 
-    .kap-root .kap-tl-drop-ready .kap-tl-drop-hint {
+    .kap-root .kap-tl-panel.kap-tl-drop-ready .kap-tl-drop-hint {
         @apply block;
     }
 
-    /* Pointer inside the footer: highlight the target… */
-    .kap-root .kap-tl-undated.kap-tl-drop-remove {
+    .kap-root .kap-tl-panel.kap-scheduling-panel-collapsed .kap-tl-drop-hint {
+        @apply hidden;
+    }
+
+    /* Pointer inside the panel: highlight the removal target… */
+    .kap-root .kap-tl-panel.kap-tl-drop-remove {
+        outline-color: var(--text-error);
         background: color-mix(in srgb, var(--text-error) 12%, transparent);
     }
 
-    .kap-root .kap-tl-undated.kap-tl-drop-remove .kap-tl-drop-hint {
+    .kap-root .kap-tl-panel.kap-tl-drop-remove .kap-tl-drop-hint {
         color: var(--text-error);
     }
 
-    /* …and wash out the dragged bar/point about to lose its dates. */
+    /* …and wash out the dragged bar/square about to lose its dates. */
     .kap-root .kap-tl-drag-remove {
         opacity: 0.4;
         border-color: var(--text-error);
@@ -1808,16 +1917,24 @@
         @apply block w-full mt-2;
     }
 
-    .kap-root .kap-tl-undated-chip:hover {
-        background: var(--background-modifier-border);
-    }
-
     /* Narrow hosts: shrink the label gutter so tracks keep room (mobile posture:
-       full feature set, denser labels). */
+       full feature set, denser labels). The calendar's 600px override stacks
+       .kap-scheduling-panel full-width; the timeline keeps its side-by-side row
+       (the 36rem auto-collapse already shrinks the panel to a rail), so undo
+       that shared-class stacking for .kap-tl-panel. */
     @media (max-width: 600px) {
         .kap-root .kap-tl-gutter,
         .kap-root .kap-tl-rowlabel {
             @apply w-24 min-w-24 max-w-24;
+        }
+        .kap-root .kap-tl-panel {
+            width: 15rem;
+            max-height: none;
+            border-bottom: 0;
+            border-right: 1px solid var(--background-modifier-border);
+        }
+        .kap-root .kap-tl-panel.kap-scheduling-panel-collapsed {
+            width: 2.25rem;
         }
     }
 

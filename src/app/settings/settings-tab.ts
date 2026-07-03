@@ -275,6 +275,12 @@ export class KanbanActionPlannerSettingTab extends PluginSettingTab {
         )
         text('Due date property', 'Date a note is due.', 'defaultDueDateProperty', 'date_due')
         text(
+            'Estimate property',
+            'Days a note is expected to take (used by the timeline).',
+            'defaultEstimateProperty',
+            'estimate'
+        )
+        text(
             'Date format',
             'Moment.js format used when writing scheduling dates to notes.',
             'defaultDateFormat',

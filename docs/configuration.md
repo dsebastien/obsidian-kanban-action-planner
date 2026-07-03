@@ -37,10 +37,11 @@ Swimlanes** (which defaults to "Use note type default").
 The plugin reads and writes ordinary note properties (frontmatter). The defaults below are
 used today; per-view overrides may arrive in later releases.
 
-| Property     | Default        | What it does                                                                                                                   |
-| ------------ | -------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| Status       | `status`       | Its value places a card in a column. Auto-detected: a property named `status`, else any property whose name contains `status`. |
-| Manual order | `manual_order` | Stores a card's position within its column (a number). Written when you drag to reorder.                                       |
+| Property     | Default        | What it does                                                                                                                                                                                                                                                                                                |
+| ------------ | -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Status       | `status`       | Its value places a card in a column. Auto-detected: a property named `status`, else any property whose name contains `status`.                                                                                                                                                                              |
+| Manual order | `manual_order` | Stores a card's position within its column (a number). Written when you drag to reorder.                                                                                                                                                                                                                    |
+| Estimate     | `estimate`     | A number of days: with a start date it gives a card its span on the timeline. Written when you resize a bar (right edge sets it directly; left edge adjusts it so the derived end stays anchored) or via **Set estimate…** in the card menu. Set globally with **Estimate property**, overridable per view. |
 
 The status property is auto-detected, but the **columns are defined explicitly** (see below),
 not inferred from your notes' values.
@@ -171,6 +172,22 @@ toolbar **filter box** — see the usage guide's "Filtering" section.
 The week the calendar grid starts on is set by **First day of the week** in the plugin settings
 (default **Monday**). This only affects the calendar display; the `{{week}}` archive placeholder
 stays ISO week numbering.
+
+## Timeline mode
+
+Timeline mode places each card by a **start date plus an estimate in days** — there is no
+end-date property. Per view, **Configure view → Timeline** sets:
+
+| Option                       | Default                                  | Role                                                                  |
+| ---------------------------- | ---------------------------------------- | --------------------------------------------------------------------- |
+| **Start date property**      | the scheduled date property              | Where the card's placement starts.                                    |
+| **Estimate property (days)** | the global **Estimate property** setting | Number of days the card spans (square without it, rectangle with it). |
+| **Milestones list property** | `milestones`                             | List of `<date> <label>` entries rendered as diamonds.                |
+| **Default range**            | Quarter                                  | Week, Month, Quarter, or Year.                                        |
+
+The global **Estimate property** (plugin settings) defaults to `estimate`. Estimates are
+written as plain numbers; fractional values are rounded up to whole days, minimum 1. A view
+that still has the old end-date option in its `.base` file simply ignores it.
 
 ## Card title
 

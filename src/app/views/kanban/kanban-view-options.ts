@@ -255,9 +255,10 @@ export function getKanbanViewOptions(app: App, settings: PluginSettings): BasesA
             displayName: 'Timeline',
             items: [
                 // Timeline mode is toggled by the in-view mode switch (persisted
-                // to `timelineMode`). Start/end default to the resolved
-                // scheduled/due date properties so an already-configured board
-                // gets a working timeline with zero setup (issue #77).
+                // to `timelineMode`). The start defaults to the resolved
+                // scheduled date property and the estimate (days) to the global
+                // default, so an already-configured board gets a working
+                // timeline with zero setup (issue #77 / #80 rework).
                 {
                     type: 'property',
                     key: 'timelineStartProperty',
@@ -267,9 +268,9 @@ export function getKanbanViewOptions(app: App, settings: PluginSettings): BasesA
                 },
                 {
                     type: 'property',
-                    key: 'timelineEndProperty',
-                    displayName: 'End date property',
-                    placeholder: 'Due date property (default)',
+                    key: 'timelineEstimateProperty',
+                    displayName: 'Estimate property (days)',
+                    placeholder: settings.defaultEstimateProperty,
                     filter: propertyFilter
                 },
                 {

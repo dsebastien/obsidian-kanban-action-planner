@@ -1,16 +1,20 @@
 import { describe, expect, it } from 'bun:test'
 import {
+    NO_TYPE_ID,
     ZOOM_ORDER,
     axisTicks,
     barGeometry,
-    clampResizeDate,
     dayOffsetAtPct,
     daysBetween,
-    groupByStatus,
+    derivedEnd,
+    groupByTypeAndStatus,
     inclusiveDays,
+    parseEstimate,
     parseMilestoneEntry,
     parseMilestones,
     pointPct,
+    resizeEstimate,
+    resizeFromStart,
     totalDays,
     zoomRange
 } from './timeline'
@@ -69,40 +73,57 @@ describe('zoomRange (issue #80)', () => {
     })
 })
 
-describe('clampResizeDate (issue #80)', () => {
-    const start = new Date(2026, 5, 1) // 2026-06-01
-    const end = new Date(2026, 5, 10) // 2026-06-10
-
-    it('moves the dragged edge by whole days', () => {
-        expect(clampResizeDate(start, end, 'start', 3)).toEqual(new Date(2026, 5, 4))
-        expect(clampResizeDate(start, end, 'start', -5)).toEqual(new Date(2026, 4, 27))
-        expect(clampResizeDate(start, end, 'end', -3)).toEqual(new Date(2026, 5, 7))
-        expect(clampResizeDate(start, end, 'end', 5)).toEqual(new Date(2026, 5, 15))
+describe('parseEstimate', () => {
+    it('accepts numbers and numeric strings, rounding fractions UP', () => {
+        expect(parseEstimate(5)).toBe(5)
+        expect(parseEstimate(0.4)).toBe(1)
+        expect(parseEstimate(0.5)).toBe(1)
+        expect(parseEstimate('2.6')).toBe(3)
+        expect(parseEstimate('12')).toBe(12)
     })
 
-    it('clamps each edge at the other one (minimum span = 1 day)', () => {
-        expect(clampResizeDate(start, end, 'start', 20)).toEqual(end)
-        expect(clampResizeDate(start, end, 'end', -20)).toEqual(start)
-        // Landing exactly on the other edge is the 1-day minimum, not a clamp.
-        expect(clampResizeDate(start, end, 'start', 9)).toEqual(end)
-        expect(clampResizeDate(start, end, 'end', -9)).toEqual(start)
+    it('rejects zero, negatives, and anything non-numeric', () => {
+        expect(parseEstimate(0)).toBeNull()
+        expect(parseEstimate(-1)).toBeNull()
+        expect(parseEstimate('abc')).toBeNull()
+        expect(parseEstimate('')).toBeNull()
+        expect(parseEstimate(null)).toBeNull()
+        expect(parseEstimate(undefined)).toBeNull()
+        expect(parseEstimate(true)).toBeNull()
+        expect(parseEstimate('3d')).toBeNull()
+        expect(parseEstimate(Infinity)).toBeNull()
+    })
+})
+
+describe('derivedEnd', () => {
+    it('is start + estimate − 1 (inclusive span)', () => {
+        expect(derivedEnd(new Date(2026, 5, 1), 5)).toEqual(new Date(2026, 5, 5))
+        // A 1-day estimate ends on the start day itself.
+        expect(derivedEnd(new Date(2026, 5, 1), 1)).toEqual(new Date(2026, 5, 1))
+    })
+})
+
+describe('resizeFromStart / resizeEstimate', () => {
+    it('trades the shared delta between start and estimate (end anchored)', () => {
+        expect(resizeFromStart(5, 2)).toEqual({ startDelta: 2, estimate: 3 })
+        // Negative delta = grow: the start moves left, the estimate absorbs it.
+        expect(resizeFromStart(5, -3)).toEqual({ startDelta: -3, estimate: 8 })
     })
 
-    it('normalizes inverted stored dates to the single start day first', () => {
-        const inverted = { start: new Date(2026, 5, 10), end: new Date(2026, 5, 5) }
-        // The effective span is just 2026-06-10, so the end edge moves from there…
-        expect(clampResizeDate(inverted.start, inverted.end, 'end', 2)).toEqual(
-            new Date(2026, 5, 12)
-        )
-        // …and shrinking either edge clamps at that same day.
-        expect(clampResizeDate(inverted.start, inverted.end, 'end', -5)).toEqual(inverted.start)
-        expect(clampResizeDate(inverted.start, inverted.end, 'start', 5)).toEqual(inverted.start)
-        // Growing the start edge moves it freely against the effective span;
-        // the controller then rewrites the stored end to the old start day so
-        // the pair can't stay inverted (see TimelineController.resizeDates).
-        expect(clampResizeDate(inverted.start, inverted.end, 'start', -3)).toEqual(
-            new Date(2026, 5, 7)
-        )
+    it('shrinking clamps at estimate − 1 so the estimate never drops below 1', () => {
+        // Landing exactly on the anchored end day is the 1-day minimum…
+        expect(resizeFromStart(5, 4)).toEqual({ startDelta: 4, estimate: 1 })
+        // …and any overshoot (delta ≥ estimate) clamps to the same point.
+        expect(resizeFromStart(5, 5)).toEqual({ startDelta: 4, estimate: 1 })
+        expect(resizeFromStart(5, 50)).toEqual({ startDelta: 4, estimate: 1 })
+        expect(resizeFromStart(1, 1)).toEqual({ startDelta: 0, estimate: 1 })
+    })
+
+    it('resizeEstimate grows/shrinks the estimate with a 1-day floor', () => {
+        expect(resizeEstimate(5, 3)).toBe(8)
+        expect(resizeEstimate(5, -2)).toBe(3)
+        expect(resizeEstimate(5, -4)).toBe(1)
+        expect(resizeEstimate(5, -50)).toBe(1)
     })
 })
 
@@ -195,37 +216,58 @@ describe('dayOffsetAtPct', () => {
     })
 })
 
-describe('groupByStatus', () => {
-    const item = (
-        title: string,
+describe('groupByTypeAndStatus', () => {
+    interface Item {
+        title: string
+        type: { id: string; name: string } | null
         status: string | null
-    ): { title: string; status: string | null } => ({
+    }
+    const item = (title: string, type: Item['type'], status: string | null): Item => ({
         title,
+        type,
         status
     })
+    const task = { id: 't1', name: 'Task' }
+    const project = { id: 'p1', name: 'Project' }
 
-    it('groups by status value in numeric-prefix order, no-status last', () => {
-        const groups = groupByStatus(
+    it('groups by type (alphabetical, no-type last), then status (column order, no-status last)', () => {
+        const groups = groupByTypeAndStatus(
             [
-                item('done', '80 - Done'),
-                item('none', null),
-                item('backlog a', '10 - Backlog'),
-                item('backlog b', '10 - Backlog')
+                item('t done', task, '80 - Done'),
+                item('untyped', null, '10 - Backlog'),
+                item('p backlog', project, '10 - Backlog'),
+                item('t backlog', task, '10 - Backlog'),
+                item('t nostatus', task, null)
             ],
+            (i) => i.type,
             (i) => i.status
         )
-        expect(groups.map((g) => g.label)).toEqual(['Backlog', 'Done', 'No status'])
-        expect(groups[0]?.items.map((i) => i.title)).toEqual(['backlog a', 'backlog b'])
-        expect(groups[2]?.items).toHaveLength(1)
+        expect(groups.map((g) => g.typeName)).toEqual(['Project', 'Task', 'No type'])
+        expect(groups[2]?.typeId).toBe(NO_TYPE_ID)
+        expect(groups[1]?.groups.map((g) => g.label)).toEqual(['Backlog', 'Done', 'No status'])
+        expect(groups[1]?.groups[2]?.status).toBe('')
+        expect(groups[1]?.groups[0]?.items.map((i) => i.title)).toEqual(['t backlog'])
+        expect(groups[0]?.groups).toHaveLength(1)
     })
 
-    it('strips the NN- prefix for the label, keeps unprefixed values as-is', () => {
-        const groups = groupByStatus([item('x', 'In Review')], (i) => i.status)
-        expect(groups[0]?.label).toBe('In Review')
+    it('strips the NN- prefix for the status label, keeps unprefixed values as-is', () => {
+        const groups = groupByTypeAndStatus(
+            [item('x', task, 'In Review')],
+            (i) => i.type,
+            (i) => i.status
+        )
+        expect(groups[0]?.groups[0]?.label).toBe('In Review')
+        expect(groups[0]?.groups[0]?.status).toBe('In Review')
     })
 
     it('is empty for no items', () => {
-        expect(groupByStatus([], () => null)).toEqual([])
+        expect(
+            groupByTypeAndStatus(
+                [],
+                () => null,
+                () => null
+            )
+        ).toEqual([])
     })
 })
 

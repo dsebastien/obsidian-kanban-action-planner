@@ -434,35 +434,80 @@ property** (e.g. a priority or estimate). To narrow the panel, use the toolbar
 ## Timeline mode
 
 Where the calendar answers "what happens on day X", the **Timeline** shows how the work spreads
-and overlaps **over time**: one row per card, a horizontal bar spanning its start → end dates on
-a shared axis, Gantt-style. Switch to it with the **Timeline** button next to
-**Board / Calendar / Triage** (or the **Toggle timeline mode** command).
+and overlaps **over time**: one row per card on a shared axis, Gantt-style. Switch to it with the
+**Timeline** button next to **Board / Calendar / Triage** (or the **Toggle timeline mode**
+command).
 
-**Dates are configurable per view** (**Configure view → Timeline**):
+**A card is placed by its start date plus an estimate.** There is no end-date property:
 
-- **Start date property** — defaults to your scheduled-date property (`date_scheduled`).
-- **End date property** — defaults to your due-date property (`date_due`).
+- **Start date property** (per view, **Configure view → Timeline**) — defaults to your
+  scheduled-date property (`date_scheduled`).
+- **Estimate property** — a plain **number of days** (default `estimate`, set globally with
+  **Estimate property** in the plugin settings, overridable per view).
 
 So a board already set up for calendar mode gets a working timeline with zero configuration.
 
+> **Migrating from the start/end model?** Boards that used the end-date property now show a
+> **square** for cards with a start date — the stored end date is ignored; set an **estimate**
+> to get a bar back. Cards that only had an **end** date move to the **Unplanned** panel until
+> you give them a start.
+
 **What a row shows:**
 
-- **Both dates** → a bar, with a small **duration badge** at the end of the title (e.g. `12d`,
-  counting both days). The tooltip repeats it (`— 12 days`), so even a bar too narrow to fit the
-  badge still tells you. When the real start or end lies outside the visible window, that edge
-  is squared and dashed (the bar continues off-screen). A bar whose end date is in the past gets
-  a red **overdue** wash.
-- **One date** → a dot (blue for start-only, orange for end-only).
+- **Start + estimate** → a **rectangle** spanning from the start to the derived end
+  (start + estimate − 1, inclusive — a 1-day estimate covers just the start day), with a small
+  **duration badge** at the end of the title (e.g. `5d`). The tooltip repeats it, so even a bar
+  too narrow to fit the badge still tells you. When the start or the derived end lies outside
+  the visible window, that edge is squared and dashed (the bar continues off-screen). A
+  rectangle whose derived end is in the past gets a red **overdue** wash.
+- **Start only** (no estimate) → a **square** on the start day. Squares are **never marked
+  overdue** — a past start is just work in progress, not an error.
 - A vertical **today line** crosses every row.
-- Cards whose dates all fall outside the window show a small _out of view_ hint; cards with **no
-  dates at all** collect in the collapsible **Undated** strip at the bottom, **grouped by
-  status** (in column order, no-status last — click a chip to open the note). The strip caps its
-  height and scrolls on its own, so a big undated backlog never squeezes out the rows; the row
-  area scrolls vertically too.
+- Cards whose dates all fall outside the window show a small _out of view_ hint.
 
-**Schedule from the timeline.** Drag a chip out of the **Undated** strip and drop it anywhere on
-the timeline: the card gets its **start date** set to the day under the pointer (using the
-configured start date property) and jumps onto its row. From there, drag its dot/bar to fine-tune.
+**The Unplanned panel.** Cards with **no start date** collect in the collapsible **Unplanned**
+panel on the left — named like the calendar's **Unplanned** tab and styled like its **Scheduling** panel — as **fixed-size
+cards** (kanban-like), **grouped by note type, then by status** — all groups **collapsed by
+default**, with a count on each header (single-type boards skip the type level). Drag a card to
+schedule it, click to open, right-click for the menu. The panel scrolls on its own, so a big
+backlog never squeezes out the rows. Collapse it with the **«** toggle (the "Unplanned"
+title stays visible, turned vertical); on a narrow pane it **collapses automatically** and
+re-opens when there's room, with your manual choice always taking precedence. The collapse is
+remembered per view.
+
+**Schedule from the timeline.** Drag a card out of the **Unplanned** panel and drop it anywhere
+over the timeline: its **start date** is set to the day under the pointer and it jumps onto its
+own row. While you drag, the timeline highlights and a striped **New entry** lane appears at the
+top — the drop creates a new row there (it never lands "inside" an existing card's line) — with
+a guide line marking the snapped day and a floating label showing the exact date that will be
+written.
+
+**Drag to reschedule:** drag a square or rectangle horizontally — it snaps to whole days, and on
+release **only the start date** is written (the estimate travels with the card, so the span is
+preserved). The floating label shows the new start date the whole time. Click a card or the row
+label to open the note; right-click anywhere on the row for the usual card menu (set status,
+schedule, relationships, …).
+
+**Resize a rectangle:** hover it and drag the small handle at either edge:
+
+- **Left edge** → changes the **start date** and adjusts the **estimate** with it, so the
+  derived end stays anchored (the start can never pass it).
+- **Right edge** → changes the **estimate** (never below 1 day); the label shows
+  `5d → ends 2026-07-18` as you drag.
+
+Handles are hidden on a clipped (dashed) edge — the real date is off-screen — and on very
+narrow rectangles; squares have no handles. Use the right-click menu for those.
+
+**Unschedule by dragging off:** drag a square or rectangle **onto the Unplanned panel** (or
+use the menu's **Clear start date**) and **only the start date** is cleared — the **estimate
+and milestones are kept**. By default the start is your shared scheduled date, so the card also
+leaves the calendar. A card that has milestones stays on the timeline as a milestone-only row;
+one without them drops into the **Unplanned** panel until you set a start again.
+
+**Mixed note types.** When the board's cards span more than one note type, timeline rows are
+**grouped by type** — collapsible header rows with a name and count, alphabetical, **No type**
+last. A **Types** toolbar button lets you **show or hide** individual types (hiding a type also
+hides its unplanned cards); the choice is remembered per view.
 
 **Define milestones from the timeline.** **Double-click** a card's row at the date you want: a
 small dialog opens with the date pre-filled (still editable) and an optional label. **Add
@@ -487,27 +532,11 @@ mouse: **Ctrl/Cmd + scroll** over the timeline steps through **Week ↔ Month �
 choosing the new window around the date under your cursor. The zoom level is remembered exactly
 like the range buttons. Rows are sorted by start date.
 
-**Drag to reschedule:** drag a bar (or a dot) horizontally — it snaps to whole days, and on
-release the start **and** end dates shift together, preserving the duration (written in your
-date format). Click a bar, dot, or the row label to open the note; right-click anywhere on the
-row for the usual card menu (set status, schedule, relationships, …).
-
-**Resize a bar:** hover a bar and drag the small handle at either edge to change **just the
-start or just the end date** — the other edge stays put, still snapping to whole days (a bar
-never shrinks below one day). Handles are hidden on a clipped (dashed) edge — the real date is
-off-screen — and on very narrow bars; use the right-click menu for those.
-
-**Unschedule by dragging off:** drag a bar or dot **down onto the Undated strip** and the
-card's start and end dates are cleared. By default those are your scheduled/due dates, so the
-card also leaves the calendar. **Milestones are kept** — a card that has milestones stays on
-the timeline as a milestone-only row; one without them drops into the **Undated** strip until
-you set a date again.
-
-**More from the right-click menu:** timeline rows and undated chips add **Add milestone…** and
-**Clear start & end dates** (same effect as dragging off, shown only when a date exists) to the
-usual card menu. When the timeline uses **custom date properties**, **Set start date…** /
-**Set end date…** appear too — with the default scheduled/due properties, the existing
-**Schedule** / **Set deadline** items already write those dates.
+**More from the right-click menu:** timeline rows and unplanned cards add **Add milestone…**,
+**Set estimate…** (a number of days, minimum 1; **Clear estimate** removes the property), and
+**Clear start date** (same effect as dragging off, shown only when a start exists) to the usual
+card menu. When the timeline uses a **custom start property**, **Set start date…** appears too —
+with the default scheduled property, the existing **Schedule** items already write that date.
 
 The toolbar [filter](#filtering-search-bar) and
 [zoom](#focus-on-a-cards-children-zoom) narrow the timeline like every other mode — zoom into a
@@ -571,7 +600,8 @@ Each Kanban view remembers how you left it, **per view**, across reloads and reo
 - Board vs **Calendar** vs **Timeline** mode, and the calendar **range**
   (Week/Month/Quarter/Year), **active tab**, **panel collapsed** state, and the
   **Scheduled/Deadlines** legend toggles.
-- The timeline **range** (Week/Month/Quarter/Year).
+- The timeline **range** (Week/Month/Quarter/Year), its **panel collapsed** state, and its
+  **hidden types**.
 - **Collapsed swimlanes** and **collapsed columns**.
 - **Compact cards** (titles only) on or off.
 - The toolbar **filter** query.
@@ -627,8 +657,10 @@ date **property names** are set globally in plugin settings.)
 
 **Timeline**
 
-- **Start date property** / **End date property**: the bar's span (default to the scheduled and
-  due date properties).
+- **Start date property**: where a card's placement starts (defaults to the scheduled date
+  property).
+- **Estimate property (days)**: the number-of-days property that gives a card its span
+  (defaults to the global **Estimate property** setting, `estimate`).
 - **Milestones list property**: the list property holding `<date> <label>` entries (default
   `milestones`).
 - **Default range**: Week, Month, Quarter, or Year.

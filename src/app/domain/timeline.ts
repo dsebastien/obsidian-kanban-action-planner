@@ -74,25 +74,46 @@ export function zoomRange(kind: CalendarRange, direction: 1 | -1): CalendarRange
 }
 
 /**
- * The new date for a bar edge dragged by `dayDelta` whole days (issue #80
- * resize handles): the span never inverts and never shrinks below 1 inclusive
- * day (start ≤ end always). Already-inverted stored dates are normalized
- * first — the effective span is the single `start` day, matching
- * {@link barGeometry} — so the clamp works against what the user sees.
+ * Parse an estimate frontmatter value into a whole positive day count, or
+ * `null` when unusable. Numbers and numeric strings are accepted; a fractional
+ * estimate rounds UP (`Math.ceil` — a half-day task still spans a day); the
+ * result must be ≥ 1. Everything else (booleans, `'3d'`, blanks, non-finite
+ * values) is `null` — the card renders as a start-only square.
  */
-export function clampResizeDate(
-    start: Date,
-    end: Date,
-    edge: 'start' | 'end',
+export function parseEstimate(raw: unknown): number | null {
+    let value: number
+    if (typeof raw === 'number') value = raw
+    else if (typeof raw === 'string' && raw.trim() !== '') value = Number(raw)
+    else return null
+    if (!Number.isFinite(value)) return null
+    const days = Math.ceil(value)
+    return days >= 1 ? days : null
+}
+
+/** Inclusive derived end of a `start` + `estimate` span: start + estimate − 1. */
+export function derivedEnd(start: Date, estimate: number): Date {
+    return addDays(startOfDay(start), estimate - 1)
+}
+
+/**
+ * Left-handle resize (start edge, estimate model): the derived end stays
+ * anchored, so moving the start by `dayDelta` days trades the same delta out
+ * of the estimate. The SHARED delta is clamped once — shrinking (positive
+ * delta) stops at `estimate − 1` (the estimate never drops below 1), growing
+ * (negative delta) is unbounded — and both outputs derive from it, so the
+ * start can never pass the anchored end even when the raw delta overshoots.
+ */
+export function resizeFromStart(
+    estimate: number,
     dayDelta: number
-): Date {
-    const effectiveEnd = daysBetween(start, end) < 0 ? start : end
-    if (edge === 'start') {
-        const moved = addDays(start, dayDelta)
-        return daysBetween(moved, effectiveEnd) < 0 ? startOfDay(effectiveEnd) : moved
-    }
-    const moved = addDays(effectiveEnd, dayDelta)
-    return daysBetween(start, moved) < 0 ? startOfDay(start) : moved
+): { startDelta: number; estimate: number } {
+    const clamped = dayDelta > 0 ? Math.min(dayDelta, estimate - 1) : dayDelta
+    return { startDelta: clamped, estimate: estimate - clamped }
+}
+
+/** Right-handle resize (end edge): grow/shrink the estimate, never below 1 day. */
+export function resizeEstimate(estimate: number, dayDelta: number): number {
+    return Math.max(1, estimate + dayDelta)
 }
 
 /**
@@ -169,38 +190,80 @@ export function dayOffsetAtPct(pct: number, range: TimelineRange): number {
     return Math.max(0, Math.min(days - 1, Math.floor((pct / 100) * days)))
 }
 
-/** One group of undated cards, keyed by their status value. */
-export interface StatusGroup<T> {
+/** Sentinel type id for cards without a recognized note type ("No type"). */
+export const NO_TYPE_ID = '__none__'
+
+/** One status subgroup of undated cards within a type group. */
+export interface UndatedStatusGroup<T> {
+    /** The raw status value (`''` for no status) — the collapse-key suffix. */
+    status: string
     /** Display label: the status value's label (`NN -` prefix stripped), or `No status`. */
     label: string
     items: T[]
 }
 
+/** One note-type group of undated cards, holding its status subgroups. */
+export interface UndatedTypeGroup<T> {
+    /** The note type id, or {@link NO_TYPE_ID} for unrecognized cards. */
+    typeId: string
+    /** Display name: the note type name, or `No type`. */
+    typeName: string
+    groups: UndatedStatusGroup<T>[]
+}
+
 /**
- * Group the undated-strip items by their status value: ordered like the board's
- * columns (numeric `NN -` prefixes compare numerically), the no-status group
- * last. Labels reuse the column-label convention (`splitStatusValue`).
+ * Group the undated-strip items by (1) note type, (2) status value: types
+ * alphabetical with the no-type bucket ({@link NO_TYPE_ID}) last, statuses in
+ * column order (numeric `NN -` prefixes compare numerically) with the
+ * no-status group last. Labels reuse the column-label convention
+ * (`splitStatusValue`).
  */
-export function groupByStatus<T>(
+export function groupByTypeAndStatus<T>(
     items: ReadonlyArray<T>,
+    typeOf: (item: T) => { id: string; name: string } | null,
     statusOf: (item: T) => string | null
-): StatusGroup<T>[] {
-    const byStatus = new Map<string, T[]>()
+): UndatedTypeGroup<T>[] {
+    const byType = new Map<string, { name: string; byStatus: Map<string, T[]> }>()
     for (const item of items) {
-        const key = statusOf(item) ?? ''
-        const bucket = byStatus.get(key)
-        if (bucket) bucket.push(item)
-        else byStatus.set(key, [item])
+        const type = typeOf(item)
+        const typeId = type?.id ?? NO_TYPE_ID
+        let bucket = byType.get(typeId)
+        if (!bucket) {
+            bucket = { name: type?.name ?? 'No type', byStatus: new Map() }
+            byType.set(typeId, bucket)
+        }
+        const status = statusOf(item) ?? ''
+        const list = bucket.byStatus.get(status)
+        if (list) list.push(item)
+        else bucket.byStatus.set(status, [item])
     }
-    const keys = [...byStatus.keys()].sort((a, b) => {
-        if (a === '') return 1
-        if (b === '') return -1
-        return compareStatusValues(a, b)
+    const typeIds = [...byType.keys()].sort((a, b) => {
+        if (a === NO_TYPE_ID) return 1
+        if (b === NO_TYPE_ID) return -1
+        const nameA = byType.get(a)?.name ?? ''
+        const nameB = byType.get(b)?.name ?? ''
+        return nameA.localeCompare(nameB)
     })
-    return keys.map((key) => ({
-        label: key === '' ? 'No status' : splitStatusValue(key).label,
-        items: byStatus.get(key) ?? []
-    }))
+    return typeIds.flatMap((typeId) => {
+        const bucket = byType.get(typeId)
+        if (!bucket) return []
+        const statuses = [...bucket.byStatus.keys()].sort((a, b) => {
+            if (a === '') return 1
+            if (b === '') return -1
+            return compareStatusValues(a, b)
+        })
+        return [
+            {
+                typeId,
+                typeName: bucket.name,
+                groups: statuses.map((status) => ({
+                    status,
+                    label: status === '' ? 'No status' : splitStatusValue(status).label,
+                    items: bucket.byStatus.get(status) ?? []
+                }))
+            }
+        ]
+    })
 }
 
 const MONTH_SHORT = [

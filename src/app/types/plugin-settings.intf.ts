@@ -5,6 +5,7 @@ import {
     DEFAULT_DATE_FORMAT,
     DEFAULT_DUE_DATE_PROPERTY,
     DEFAULT_DUE_SOON_THRESHOLD_DAYS,
+    DEFAULT_ESTIMATE_PROPERTY,
     DEFAULT_FIRST_DAY_OF_WEEK,
     DEFAULT_ORDER_PROPERTY,
     DEFAULT_REVIEW_COUNT_PROPERTY,
@@ -34,6 +35,8 @@ export const pluginSettingsSchema = z.object({
     defaultBlockedByProperty: z.string(),
     defaultScheduledDateProperty: z.string(),
     defaultDueDateProperty: z.string(),
+    /** Days a note is expected to take (timeline bar length; issue #80 rework). */
+    defaultEstimateProperty: z.string(),
     /** Review (spaced-repetition) property names (issue #57). */
     reviewedDateProperty: z.string(),
     reviewIntervalProperty: z.string(),
@@ -82,6 +85,7 @@ export const DEFAULT_SETTINGS: PluginSettings = {
     defaultBlockedByProperty: DEFAULT_BLOCKED_BY_PROPERTY,
     defaultScheduledDateProperty: DEFAULT_SCHEDULED_DATE_PROPERTY,
     defaultDueDateProperty: DEFAULT_DUE_DATE_PROPERTY,
+    defaultEstimateProperty: DEFAULT_ESTIMATE_PROPERTY,
     reviewedDateProperty: DEFAULT_REVIEWED_DATE_PROPERTY,
     reviewIntervalProperty: DEFAULT_REVIEW_INTERVAL_PROPERTY,
     reviewCountProperty: DEFAULT_REVIEW_COUNT_PROPERTY,

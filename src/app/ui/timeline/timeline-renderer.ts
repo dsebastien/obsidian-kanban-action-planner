@@ -1,21 +1,28 @@
 import { Menu } from 'obsidian'
 import type { CalendarRange } from '../../domain/calendar'
-import type { AxisTick, BarGeometry, StatusGroup } from '../../domain/timeline'
+import { resizeEstimate, resizeFromStart } from '../../domain/timeline'
+import type { AxisTick, BarGeometry } from '../../domain/timeline'
 import type { KanbanCard } from '../board/types'
 
 /**
- * Timeline view DOM (issue #77, #80): header (nav + range switch, reusing the
- * calendar's toolbar classes), a percentage-positioned axis, one row per card
- * (label + track with bar / point dots / milestone diamonds / today line), and
- * an always-rendered "Undated" footer that doubles as the unschedule drop
- * target. Bars and points drag to reschedule (whole-day snapping) or, dropped
- * on the footer, to unschedule; bar edges drag to resize; Ctrl/Cmd+wheel zooms
- * the range. Geometry comes precomputed from the controller so this file is
- * DOM-only.
+ * Timeline view DOM (issue #77, #80, estimate rework): header (nav + range
+ * switch + Types visibility menu, reusing the calendar's toolbar classes),
+ * then a flex row — an always-rendered collapsible LEFT "Undated" panel
+ * (reusing the calendar's scheduling-panel shell classes) of full-width cards
+ * grouped by note type → status that doubles as the unschedule drop target,
+ * and a chart column (percentage-positioned axis + one row per card: label +
+ * track with an estimate-length bar or a start-only square, milestone
+ * diamonds and the today line). Bars and squares drag to move the start date
+ * (whole-day snapping) or, dropped on the panel, to unschedule; bar edges
+ * drag to resize (left = start + estimate, right = estimate); every drag
+ * shows a floating date label + an in-track guide; Ctrl/Cmd+wheel zooms the
+ * range. Geometry comes precomputed from the controller so this file is
+ * DOM-only (the preview clamps mirror the pure domain rules so preview and
+ * commit agree).
  */
 
 /**
- * True while any bar/point/handle/chip drag is in progress (issue #80): the
+ * True while any bar/square/handle/card drag is in progress (issue #80): the
  * wheel-zoom handler must no-op then — a mid-drag rebuild would destroy the
  * dragged element while its document-level pointer listeners survive and
  * commit a wrong date against stale geometry.
@@ -31,28 +38,66 @@ export interface TimelineMilestoneModel {
     raw: string
 }
 
-/** A single-date marker (start-only or end-only card). */
-export interface TimelinePointModel {
-    pct: number
-    kind: 'start' | 'end'
-}
-
 export interface TimelineRowModel {
     card: KanbanCard
-    /** Bar geometry when both dates are set and the span is visible. */
+    /** Bar geometry when start + estimate are set and the span is visible. */
     bar: BarGeometry | null
-    points: TimelinePointModel[]
+    /** Start-only marker centered on the start day's cell (no estimate). */
+    square: { pct: number } | null
     milestones: TimelineMilestoneModel[]
-    /** End date in the past (overdue wash on the bar/points). */
+    /** Derived end (start + estimate − 1) in the past. Squares are never overdue. */
     overdue: boolean
     /** Dates exist but everything falls outside the window: which side. */
     offSide: 'before' | 'after' | null
-    /** At least one of start/end is set, so dragging can shift it. */
+    /** A start date is set, so dragging can shift it. */
     draggable: boolean
-    /** Inclusive span length ("12d"), only when both dates are set. */
+    /**
+     * Signed, UNCLAMPED day offset of the real start from the window start
+     * (negative when the bar is clipped left / the start precedes the window).
+     * Null when the row has no start (milestone-only rows). Live drag labels
+     * are computed from this, so they stay correct for clipped bars and
+     * off-window drags.
+     */
+    startDayOffset: number | null
+    /** Parsed estimate in days, or null (start-only square). */
+    estimate: number | null
+    /** Estimate length ("12d"), only when an estimate is set. */
     durationLabel: string | null
     /** Tooltip for the bar/row (title + date span). */
     tooltip: string
+}
+
+/** One collapsible note-type group of timeline rows (multi-type boards). */
+export interface TimelineTypeGroupModel {
+    typeId: string
+    name: string
+    count: number
+    collapsed: boolean
+    rows: TimelineRowModel[]
+}
+
+/** One status subgroup of undated cards (collapse key `typeId::status`). */
+export interface TimelineUndatedStatusGroupModel {
+    key: string
+    label: string
+    collapsed: boolean
+    cards: KanbanCard[]
+}
+
+/** One note-type group of undated cards (collapse key = the type id). */
+export interface TimelineUndatedTypeGroupModel {
+    key: string
+    label: string
+    count: number
+    collapsed: boolean
+    groups: TimelineUndatedStatusGroupModel[]
+}
+
+/** One entry of the Types visibility menu (pre-hiding type set). */
+export interface TimelineTypeVisibilityModel {
+    id: string
+    name: string
+    hidden: boolean
 }
 
 export interface TimelineViewModel {
@@ -61,10 +106,19 @@ export interface TimelineViewModel {
     ticks: AxisTick[]
     /** Today's position in % of the track, or null when outside the window. */
     todayPct: number | null
-    rows: TimelineRowModel[]
-    /** Undated cards grouped by status value (column order, no-status last). */
-    undatedGroups: StatusGroup<KanbanCard>[]
-    undatedExpanded: boolean
+    /** Row groups by note type (a single group on single-type boards). */
+    groups: TimelineTypeGroupModel[]
+    /** Whether type headers render (pre-hiding distinct type count > 1). */
+    grouped: boolean
+    /** Undated cards grouped by note type → status (all collapsed by default). */
+    undatedGroups: TimelineUndatedTypeGroupModel[]
+    /** Whether the left undated panel is collapsed to its slim rail. */
+    panelCollapsed: boolean
+    /**
+     * The Types visibility menu entries, derived from the PRE-hiding type set
+     * so hiding every type never strands the user without the button.
+     */
+    types: TimelineTypeVisibilityModel[]
     /** Days in the visible window (drag snapping). */
     totalDays: number
 }
@@ -75,12 +129,22 @@ export interface TimelineCallbacks {
     onSetRange(range: CalendarRange): void
     onShiftAnchor(direction: number): void
     onToday(): void
-    onToggleUndated(): void
-    /** Commit a drag: shift the card's start/end date(s) by whole days. */
-    onShiftDates(card: KanbanCard, dayDelta: number): void
-    /** Commit an edge resize: move only that edge's date by whole days. */
-    onResizeDates(card: KanbanCard, edge: 'start' | 'end', dayDelta: number): void
-    /** Bar/point dropped on the undated footer: clear the start/end dates. */
+    /** Collapse/expand the left undated panel. */
+    onTogglePanel(): void
+    /**
+     * Human-readable date for the day `offset` days from the window start —
+     * works for ANY signed offset (clipped bars / off-window drags), so live
+     * drag labels never index past the visible window.
+     */
+    labelForDayOffset(offset: number): string
+    /** Commit a move drag: shift the card's start date by whole days. */
+    onMove(card: KanbanCard, dayDelta: number): void
+    /**
+     * Commit an edge resize: `start` trades the start date against the
+     * estimate (derived end anchored), `end` resizes only the estimate.
+     */
+    onResizeEdge(card: KanbanCard, edge: 'start' | 'end', dayDelta: number): void
+    /** Bar/square dropped on the undated panel: clear the start date. */
     onUnschedule(card: KanbanCard): void
     /**
      * Ctrl/Cmd+wheel zoom step: `1` = in, `-1` = out. `anchorPct` is the
@@ -88,12 +152,18 @@ export interface TimelineCallbacks {
      * the controller can keep the date under the cursor in view.
      */
     onZoom(direction: 1 | -1, anchorPct: number | null): void
-    /** Undated chip dropped on a track at `pct` (% of the window): set its start date. */
+    /** Undated card dropped on a track at `pct` (% of the window): set its start date. */
     onScheduleAt(card: KanbanCard, pct: number): void
     /** Track double-clicked at `pct`: create a milestone there. */
     onAddMilestone(card: KanbanCard, pct: number): void
     /** Remove one milestone (the raw frontmatter list entry). */
     onRemoveMilestone(card: KanbanCard, raw: string): void
+    /** Toggle one undated group's collapse (key: `typeId` or `typeId::status`). */
+    onToggleUndatedGroup(key: string): void
+    /** Toggle one row type-group's collapse. */
+    onToggleTypeGroup(typeId: string): void
+    /** Toggle one note type's visibility (rows + undated cards). */
+    onToggleTypeHidden(typeId: string): void
 }
 
 const RANGES: Array<{ key: CalendarRange; label: string }> = [
@@ -112,7 +182,13 @@ export function renderTimeline(
     const tl = root.createDiv({ cls: 'kap-timeline' })
     renderHeader(tl, model, callbacks)
 
-    const axisRow = tl.createDiv({ cls: 'kap-tl-axisrow' })
+    // Below the toolbar: a flex row — the collapsible undated panel on the
+    // left (calendar-panel parity) and the chart column (axis + rows) right.
+    const main = tl.createDiv({ cls: 'kap-tl-main' })
+    renderPanel(main, model, callbacks)
+    const chart = main.createDiv({ cls: 'kap-tl-chart' })
+
+    const axisRow = chart.createDiv({ cls: 'kap-tl-axisrow' })
     axisRow.createDiv({ cls: 'kap-tl-gutter' })
     const axis = axisRow.createDiv({ cls: 'kap-tl-axis' })
     for (const tick of model.ticks) {
@@ -127,11 +203,12 @@ export function renderTimeline(
         today.style.left = `${String(model.todayPct)}%`
     }
 
-    const body = tl.createDiv({ cls: 'kap-tl-body' })
-    if (model.rows.length === 0) {
+    const body = chart.createDiv({ cls: 'kap-tl-body' })
+    const rowCount = model.groups.reduce((sum, g) => sum + g.rows.length, 0)
+    if (rowCount === 0) {
         body.createDiv({
             cls: 'kap-tl-empty',
-            text: 'No cards with dates in this window. Navigate with ‹ › or add start/end dates.'
+            text: 'No cards with dates in this window. Navigate with ‹ › or drag a card in from the Unplanned panel.'
         })
     }
     // Measured once — the axis mirrors every row's track (same gutter + flex),
@@ -139,9 +216,18 @@ export function renderTimeline(
     // the view isn't laid out (hidden tab): width gates treat that as
     // unmeasurable and the resize-triggered re-render re-evaluates them.
     const trackWidth = axis.clientWidth
-    for (const row of model.rows) renderRow(body, row, model, trackWidth, callbacks)
-
-    renderUndated(tl, model, callbacks)
+    for (const group of model.groups) {
+        if (model.grouped) {
+            const header = body.createEl('button', {
+                cls: 'kap-tl-group',
+                text: `${group.collapsed ? '▸' : '▾'} ${group.name} (${String(group.count)})`,
+                attr: { 'type': 'button', 'aria-expanded': String(!group.collapsed) }
+            })
+            header.addEventListener('click', () => callbacks.onToggleTypeGroup(group.typeId))
+            if (group.collapsed) continue
+        }
+        for (const row of group.rows) renderRow(body, row, model, trackWidth, callbacks)
+    }
 
     // Ctrl/Cmd+wheel zoom (issue #80). The listener lives on the per-render
     // `tl` element — never on `root` (the persistent boardEl; `empty()` would
@@ -186,6 +272,30 @@ function renderHeader(
         const btn = ranges.createEl('button', { cls: 'kap-range-btn', text: label })
         if (key === model.range) btn.addClass('kap-range-btn-active')
         btn.addEventListener('click', () => callbacks.onSetRange(key))
+    }
+    // Per-type visibility (estimate rework): a checkable menu over the
+    // PRE-hiding type set — visible whenever the board mixes types, even with
+    // every type hidden, so the user is never stranded without the button.
+    // The `some(hidden)` arm covers the present set later shrinking to a
+    // single type that is already hidden (the only unhide path is this menu).
+    if (model.types.length > 1 || model.types.some((t) => t.hidden)) {
+        const typesBtn = ranges.createEl('button', {
+            cls: 'kap-range-btn kap-tl-types-btn',
+            text: 'Types',
+            attr: { 'type': 'button', 'aria-label': 'Show or hide note types' }
+        })
+        typesBtn.addEventListener('click', (e) => {
+            const menu = new Menu()
+            for (const type of model.types) {
+                menu.addItem((item) =>
+                    item
+                        .setTitle(type.name)
+                        .setChecked(!type.hidden)
+                        .onClick(() => callbacks.onToggleTypeHidden(type.id))
+                )
+            }
+            menu.showAtMouseEvent(e)
+        })
     }
 }
 
@@ -255,14 +365,13 @@ function renderRow(
             }
         }
     }
-    for (const point of row.points) {
-        const dot = track.createDiv({
-            cls: `kap-tl-point kap-tl-point-${point.kind}`,
-            attr: { title: row.tooltip }
-        })
-        dot.style.left = `${String(point.pct)}%`
-        if (row.overdue && point.kind === 'end') dot.addClass('kap-tl-overdue')
-        makeDraggable(dot, track, row, model, callbacks)
+    if (row.square) {
+        // Start without an estimate: a square centered on the day cell. No
+        // handles (the estimate is set via the context menu) and never overdue
+        // (a past start is normal in-progress work, not an error).
+        const square = track.createDiv({ cls: 'kap-tl-square', attr: { title: row.tooltip } })
+        square.style.left = `${String(row.square.pct)}%`
+        makeDraggable(square, track, row, model, callbacks)
     }
     for (const milestone of row.milestones) {
         const diamond = track.createDiv({
@@ -292,17 +401,82 @@ function renderRow(
     }
 }
 
-/** Whether client coordinates fall inside a DOMRect (footer drop testing). */
+/** Whether client coordinates fall inside a DOMRect (panel drop testing). */
 function inRect(rect: DOMRect, x: number, y: number): boolean {
     return x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom
 }
 
 /**
- * Pointer-drag on a bar/point: X snaps to whole days (live transform, commit
- * the day delta on release), while Y only engages over the undated footer —
- * releasing there unschedules the card regardless of the X delta (issue #80).
- * A press without movement (2D threshold, matching the chips) is a click
- * (open the note; Ctrl/Cmd for a new tab).
+ * Floating drag label: the date about to be written, following the pointer.
+ * Appended to the document body inside a `.kap-root`-classed wrapper so the
+ * plugin's CSS scoping holds (and popout windows get their own element) —
+ * anything inside the bar/track/panel would be clipped by an ancestor's
+ * overflow. Lazily created on first `show`; `remove` tears it down (both the
+ * pointerup cleanup and pointercancel must call it).
+ */
+function createDragLabel(doc: Document): {
+    show(text: string, x: number, y: number): void
+    remove(): void
+} {
+    let wrap: HTMLElement | null = null
+    let label: HTMLElement | null = null
+    return {
+        show(text: string, x: number, y: number): void {
+            if (!wrap || !label) {
+                wrap = doc.body.createDiv({ cls: 'kap-root' })
+                label = wrap.createDiv({ cls: 'kap-tl-drag-label' })
+            }
+            label.setText(text)
+            label.style.left = `${String(x + 14)}px`
+            label.style.top = `${String(y + 18)}px`
+        },
+        remove(): void {
+            wrap?.remove()
+            wrap = null
+            label = null
+        }
+    }
+}
+
+/**
+ * In-track guide line at the snapped day. One element that moves between
+ * tracks (chip drags hover different rows); `showAtOffset` hides it when the
+ * snapped day falls outside the visible window.
+ */
+function createGuide(totalDays: number): {
+    showAtOffset(track: HTMLElement, dayOffset: number): void
+    remove(): void
+} {
+    let el: HTMLElement | null = null
+    return {
+        showAtOffset(track: HTMLElement, dayOffset: number): void {
+            const pct = (dayOffset / Math.max(1, totalDays)) * 100
+            if (pct < 0 || pct > 100) {
+                el?.remove()
+                el = null
+                return
+            }
+            if (!el || el.parentElement !== track) {
+                el?.remove()
+                el = track.createDiv({ cls: 'kap-tl-guide' })
+            }
+            el.style.left = `${String(pct)}%`
+        },
+        remove(): void {
+            el?.remove()
+            el = null
+        }
+    }
+}
+
+/**
+ * Pointer-drag on a bar/square: X snaps to whole days (live transform + a
+ * floating date label + in-track guide, commit the day delta on release as a
+ * start-date shift). Over the undated panel the element follows the pointer
+ * freely instead — releasing there unschedules the card (clears the start
+ * date) regardless of the X delta (issue #80). A press without movement (2D
+ * threshold, matching the undated cards) is a click (open the note; Ctrl/Cmd
+ * for a new tab).
  */
 function makeDraggable(
     el: HTMLElement,
@@ -322,25 +496,45 @@ function makeDraggable(
         const startX = down.clientX
         const startY = down.clientY
         const dayWidth = track.clientWidth / Math.max(1, model.totalDays)
-        // The footer renders even at Undated (0) so this target always exists.
-        const footer =
-            el.closest('.kap-timeline')?.querySelector<HTMLElement>('.kap-tl-undated') ?? null
+        const startOffset = row.startDayOffset ?? 0
+        // The panel renders even collapsed / at Undated (0) so this
+        // unschedule target always exists.
+        const panel =
+            el.closest('.kap-timeline')?.querySelector<HTMLElement>('.kap-tl-panel') ?? null
         let moved = false
         const doc = el.ownerDocument
+        const label = createDragLabel(doc)
+        const guide = createGuide(model.totalDays)
 
         const onMove = (move: PointerEvent): void => {
             if (Math.hypot(move.clientX - startX, move.clientY - startY) > 5) moved = true
             if (!moved) return
             el.addClass('kap-tl-dragging')
-            footer?.addClass('kap-tl-drop-ready')
-            const overFooter =
-                footer !== null &&
-                inRect(footer.getBoundingClientRect(), move.clientX, move.clientY)
-            footer?.toggleClass('kap-tl-drop-remove', overFooter)
-            el.toggleClass('kap-tl-drag-remove', overFooter)
-            const snapped = Math.round((move.clientX - startX) / dayWidth) * dayWidth
-            const dy = overFooter ? move.clientY - startY : 0
-            el.style.transform = `translate(${String(snapped)}px, ${String(dy)}px)`
+            panel?.addClass('kap-tl-drop-ready')
+            const overPanel =
+                panel !== null && inRect(panel.getBoundingClientRect(), move.clientX, move.clientY)
+            panel?.toggleClass('kap-tl-drop-remove', overPanel)
+            el.toggleClass('kap-tl-drag-remove', overPanel)
+            // The label mirrors the commit's rounding exactly (Math.round of
+            // the px delta), applied to the UNCLAMPED signed start offset.
+            const dayDelta = Math.round((move.clientX - startX) / dayWidth)
+            // Day-snapped X while over the chart; free pointer-follow while
+            // over the panel (there is no day grid to snap to there).
+            const dx = overPanel ? move.clientX - startX : dayDelta * dayWidth
+            const dy = overPanel ? move.clientY - startY : 0
+            el.style.transform = `translate(${String(dx)}px, ${String(dy)}px)`
+            if (overPanel) {
+                // The panel's own hint says what a drop does; no date applies.
+                label.remove()
+                guide.remove()
+            } else {
+                label.show(
+                    `→ ${callbacks.labelForDayOffset(startOffset + dayDelta)}`,
+                    move.clientX,
+                    move.clientY
+                )
+                guide.showAtOffset(track, startOffset + dayDelta)
+            }
         }
         const cleanup = (): void => {
             dragActive = false
@@ -349,26 +543,28 @@ function makeDraggable(
             doc.removeEventListener('pointercancel', onCancel)
             el.style.removeProperty('transform')
             el.removeClass('kap-tl-dragging', 'kap-tl-drag-remove')
-            footer?.removeClass('kap-tl-drop-ready', 'kap-tl-drop-remove')
+            panel?.removeClass('kap-tl-drop-ready', 'kap-tl-drop-remove')
+            label.remove()
+            guide.remove()
         }
         const onUp = (up: PointerEvent): void => {
-            // Test the drop BEFORE cleanup drops the classes: kap-tl-drop-ready
-            // enlarges the footer, and that grown rect is the real target.
-            const droppedOnFooter =
+            // Test the drop BEFORE cleanup drops the classes, so the rect
+            // measured is exactly the one the hover feedback highlighted.
+            const droppedOnPanel =
                 moved &&
-                footer !== null &&
-                inRect(footer.getBoundingClientRect(), up.clientX, up.clientY)
+                panel !== null &&
+                inRect(panel.getBoundingClientRect(), up.clientX, up.clientY)
             cleanup()
             if (!moved) {
                 callbacks.onOpen(row.card, up.ctrlKey || up.metaKey)
                 return
             }
-            if (droppedOnFooter) {
+            if (droppedOnPanel) {
                 callbacks.onUnschedule(row.card)
                 return
             }
             const dayDelta = Math.round((up.clientX - startX) / dayWidth)
-            if (dayDelta !== 0) callbacks.onShiftDates(row.card, dayDelta)
+            if (dayDelta !== 0) callbacks.onMove(row.card, dayDelta)
         }
         // A canceled gesture (touch scroll takeover, pen leaving range, …)
         // aborts: no open, no write — its coordinates are unreliable.
@@ -380,12 +576,16 @@ function makeDraggable(
 }
 
 /**
- * Edge-handle drag (issue #80): resizes the bar by whole days, moving only the
- * grabbed edge. The %-geometry is converted to px once at pointerdown, then
- * left/width are live-set in px with day snapping; the preview delta is
- * clamped to the same min-1-day rule as the commit so both agree (extending
- * past the window edge is allowed — the next render clips). A delta-0 release
- * is a click, like the bar itself.
+ * Edge-handle drag (issue #80, estimate rework): resizes the bar by whole
+ * days. The %-geometry is converted to px once at pointerdown, then
+ * left/width are live-set in px with day snapping; the preview delta applies
+ * the IDENTICAL clamp as the commit ({@link resizeFromStart} /
+ * {@link resizeEstimate}) so both agree — the left edge can never pass the
+ * anchored derived end and the estimate never drops below 1 day. Extending
+ * past the window edge is allowed (the commit allows off-window dates; the
+ * next render clips). A delta-0 release is a click, like the bar itself. Live
+ * feedback: left edge shows the new start date, right edge shows
+ * `Nd → ends <date>`.
  */
 function makeResizable(
     handle: HTMLElement,
@@ -409,22 +609,47 @@ function makeResizable(
         const leftPx = (geometry.leftPct / 100) * trackWidth
         const widthPx = (geometry.widthPct / 100) * trackWidth
         const doc = handle.ownerDocument
+        // Handles only render on bars, which always carry start + estimate.
+        const estimate = row.estimate ?? 1
+        const startOffset = row.startDayOffset ?? 0
+        const label = createDragLabel(doc)
+        const guide = createGuide(model.totalDays)
 
-        // Shrinking stops at 1 rendered day; growing is unbounded.
-        const clampDelta = (dayDelta: number): number => {
-            const maxShrink = Math.max(0, Math.round(widthPx / dayWidth) - 1)
-            return edge === 'start' ? Math.min(dayDelta, maxShrink) : Math.max(dayDelta, -maxShrink)
-        }
+        // The commit's clamp, verbatim: the shared start-delta stops at
+        // estimate − 1; the estimate never drops below 1.
+        const clampDelta = (dayDelta: number): number =>
+            edge === 'start'
+                ? resizeFromStart(estimate, dayDelta).startDelta
+                : resizeEstimate(estimate, dayDelta) - estimate
         const snappedDelta = (clientX: number): number =>
             clampDelta(Math.round((clientX - startX) / dayWidth))
 
+        let moved = false
         const onMove = (move: PointerEvent): void => {
-            const px = snappedDelta(move.clientX) * dayWidth
+            if (Math.abs(move.clientX - startX) > 5) moved = true
+            const delta = snappedDelta(move.clientX)
+            const px = delta * dayWidth
+            // The delta is clamped against the FULL estimate while the
+            // rendered width is the clipped one, so floor the preview at 0 —
+            // a negative CSS width is silently ignored and freezes it.
             if (edge === 'start') {
                 bar.style.left = `${String(leftPx + px)}px`
-                bar.style.width = `${String(widthPx - px)}px`
+                bar.style.width = `${String(Math.max(0, widthPx - px))}px`
+                label.show(
+                    `→ ${callbacks.labelForDayOffset(startOffset + delta)}`,
+                    move.clientX,
+                    move.clientY
+                )
+                guide.showAtOffset(track, startOffset + delta)
             } else {
-                bar.style.width = `${String(widthPx + px)}px`
+                bar.style.width = `${String(Math.max(0, widthPx + px))}px`
+                const newEstimate = estimate + delta
+                label.show(
+                    `${String(newEstimate)}d → ends ${callbacks.labelForDayOffset(startOffset + newEstimate - 1)}`,
+                    move.clientX,
+                    move.clientY
+                )
+                guide.showAtOffset(track, startOffset + newEstimate)
             }
         }
         const restore = (): void => {
@@ -436,17 +661,25 @@ function makeResizable(
             doc.removeEventListener('pointermove', onMove)
             doc.removeEventListener('pointerup', onUp)
             doc.removeEventListener('pointercancel', onCancel)
+            label.remove()
+            guide.remove()
         }
         const onUp = (up: PointerEvent): void => {
             cleanup()
             const dayDelta = snappedDelta(up.clientX)
-            if (dayDelta === 0) {
-                // No movement → a click: restore the % styles and open.
+            if (!moved) {
+                // A genuine click (no movement): restore the % styles and open.
                 restore()
                 callbacks.onOpen(row.card, up.ctrlKey || up.metaKey)
                 return
             }
-            callbacks.onResizeDates(row.card, edge, dayDelta)
+            if (dayDelta === 0) {
+                // A real drag whose delta clamped to 0 (e.g. shrinking an
+                // estimate-1 bar) is NOT a click — restore silently.
+                restore()
+                return
+            }
+            callbacks.onResizeEdge(row.card, edge, dayDelta)
         }
         // A canceled gesture aborts the resize: restore, write nothing.
         const onCancel = (): void => {
@@ -459,96 +692,201 @@ function makeResizable(
     })
 }
 
-function renderUndated(
+/**
+ * Left undated panel (calendar parity): reuses the calendar's
+ * scheduling-panel shell classes (identical chrome, collapsed rail + vertical
+ * title for free) plus `kap-tl-panel` for timeline-scoped styling. Always
+ * rendered — even collapsed or `Undated (0)` — because the whole panel is the
+ * unschedule drop target for every bar/square drag (issue #80): the collapsed
+ * rail still accepts drops (the hint stays hidden then — no room). The body
+ * scrolls the undated cards as type → status collapsible groups (all
+ * collapsed by default; single-type boards skip the type level).
+ */
+function renderPanel(
     parent: HTMLElement,
     model: TimelineViewModel,
     callbacks: TimelineCallbacks
 ): void {
-    const total = model.undatedGroups.reduce((sum, g) => sum + g.items.length, 0)
-    // Always rendered — even `Undated (0)` — so the unschedule drop target
-    // exists for every bar/point drag (issue #80).
-    const footer = parent.createDiv({ cls: 'kap-tl-undated' })
-    const toggle = footer.createEl('button', {
-        cls: 'kap-tl-undated-toggle',
-        text: `${model.undatedExpanded ? '▾' : '▸'} Undated (${String(total)})`,
-        attr: { 'type': 'button', 'aria-expanded': String(model.undatedExpanded) }
+    const total = model.undatedGroups.reduce((sum, g) => sum + g.count, 0)
+    const panel = parent.createDiv({ cls: 'kap-scheduling-panel kap-tl-panel' })
+    if (model.panelCollapsed) panel.addClass('kap-scheduling-panel-collapsed')
+
+    const header = panel.createDiv({ cls: 'kap-panel-header' })
+    const toggle = header.createEl('button', {
+        cls: 'kap-panel-toggle',
+        text: model.panelCollapsed ? '»' : '«',
+        attr: { 'aria-label': model.panelCollapsed ? 'Expand panel' : 'Collapse panel' }
     })
-    toggle.addEventListener('click', () => callbacks.onToggleUndated())
-    // Hidden until a drag marks the footer kap-tl-drop-ready (CSS), so the
-    // hint shows regardless of the collapsed/expanded state.
-    footer.createDiv({ cls: 'kap-tl-drop-hint', text: 'Drop here to unschedule' })
-    if (!model.undatedExpanded) return
+    toggle.addEventListener('click', () => callbacks.onTogglePanel())
+    // "Unplanned", matching the calendar panel's tab vocabulary.
+    header.createSpan({ cls: 'kap-panel-title', text: `Unplanned (${String(total)})` })
+    // Revealed while a bar/square drag marks the panel kap-tl-drop-ready
+    // (CSS); collapsed panels keep it hidden — the rail has no room.
+    panel.createDiv({ cls: 'kap-tl-drop-hint', text: 'Drop here to unschedule' })
+    if (model.panelCollapsed) return
+
+    const body = panel.createDiv({ cls: 'kap-tl-panel-body' })
+    if (total === 0) {
+        body.createDiv({ cls: 'kap-panel-empty', text: 'Nothing unplanned.' })
+        return
+    }
     for (const group of model.undatedGroups) {
-        const groupEl = footer.createDiv({ cls: 'kap-tl-undated-group' })
-        groupEl.createSpan({
-            cls: 'kap-tl-undated-grouplabel',
-            text: `${group.label} (${String(group.items.length)})`
-        })
-        const list = groupEl.createDiv({ cls: 'kap-tl-undated-list' })
-        for (const card of group.items) {
-            const chip = list.createEl('button', {
-                cls: 'kap-tl-undated-chip',
-                text: card.display.title,
-                attr: { type: 'button', title: 'Drag onto the timeline to schedule' }
+        // Multi-type boards nest status subgroups under a type header;
+        // single-type boards skip the type level entirely.
+        let host = body
+        if (model.grouped) {
+            const typeHeader = body.createEl('button', {
+                cls: 'kap-tl-ugroup',
+                text: `${group.collapsed ? '▸' : '▾'} ${group.label} (${String(group.count)})`,
+                attr: { 'type': 'button', 'aria-expanded': String(!group.collapsed) }
             })
-            chip.addEventListener('contextmenu', (e) => {
-                e.preventDefault()
-                callbacks.onContextMenu(card, e)
+            typeHeader.addEventListener('click', () => callbacks.onToggleUndatedGroup(group.key))
+            if (group.collapsed) continue
+            host = body.createDiv({ cls: 'kap-tl-ugroup-body' })
+        }
+        for (const sub of group.groups) {
+            const subHeader = host.createEl('button', {
+                cls: 'kap-tl-usubgroup',
+                text: `${sub.collapsed ? '▸' : '▾'} ${sub.label} (${String(sub.cards.length)})`,
+                attr: { 'type': 'button', 'aria-expanded': String(!sub.collapsed) }
             })
-            makeChipSchedulable(chip, card, callbacks)
+            subHeader.addEventListener('click', () => callbacks.onToggleUndatedGroup(sub.key))
+            if (sub.collapsed) continue
+            const grid = host.createDiv({ cls: 'kap-tl-undated-cards' })
+            for (const card of sub.cards) {
+                const cardEl = grid.createEl('button', {
+                    cls: 'kap-tl-undated-card',
+                    attr: { type: 'button', title: 'Drag onto the timeline to schedule' }
+                })
+                cardEl.createSpan({ cls: 'kap-tl-undated-cardtitle', text: card.display.title })
+                cardEl.addEventListener('contextmenu', (e) => {
+                    e.preventDefault()
+                    callbacks.onContextMenu(card, e)
+                })
+                makeCardSchedulable(cardEl, card, model, callbacks)
+            }
         }
     }
 }
 
 /**
- * Drag an undated chip onto any row's track to schedule the card there (writes
- * the start date property for the day under the pointer). A press without
- * movement stays a click (open the note).
+ * Drag an unplanned card from the panel anywhere over the CHART to schedule
+ * it (writes the start date property for the day under the pointer, read off
+ * the axis' x-geometry). The drop zone renders as a striped "new entry" lane
+ * stuck to the top of the row body — dropping schedules a NEW row, it never
+ * lands "inside" an existing card's line. The dragged card renders as a
+ * fixed-position body-level GHOST following the pointer (an in-place
+ * transform would be clipped by the panel body's `overflow-y-auto`; the
+ * ghost's width is capped in CSS) while the original dims; the ghost carries
+ * `kap-tl-nohit` from the moment the 5px threshold crosses so
+ * `elementFromPoint` sees through it — that hit test drives the body
+ * highlight, the lane's guide, and the floating date label on every
+ * pointermove, and the pointerup drop reuses it. A press without movement
+ * stays a click (open the note).
  */
-function makeChipSchedulable(
-    chip: HTMLElement,
+function makeCardSchedulable(
+    cardEl: HTMLElement,
     card: KanbanCard,
+    model: TimelineViewModel,
     callbacks: TimelineCallbacks
 ): void {
-    chip.addEventListener('pointerdown', (down) => {
+    cardEl.addEventListener('pointerdown', (down) => {
         if (down.button !== 0) return
         dragActive = true
         const startX = down.clientX
         const startY = down.clientY
         let moved = false
-        const doc = chip.ownerDocument
+        const doc = cardEl.ownerDocument
+        const tl = cardEl.closest('.kap-timeline')
+        const body = tl?.querySelector<HTMLElement>('.kap-tl-body') ?? null
+        const axis = tl?.querySelector<HTMLElement>('.kap-tl-axis') ?? null
+        let ghostWrap: HTMLElement | null = null
+        let ghost: HTMLElement | null = null
+        let lane: HTMLElement | null = null
+        let laneTrack: HTMLElement | null = null
+        const label = createDragLabel(doc)
+        const guide = createGuide(model.totalDays)
+
+        // The whole chart column is the drop zone — requiring an existing
+        // row's track would suggest the card lands on that row's line.
+        const overChart = (x: number, y: number): boolean =>
+            doc.elementFromPoint(x, y)?.closest('.kap-tl-chart') !== null
+        // The commit path floors pct → day (dayOffsetAtPct); mirror it exactly
+        // so the label always names the date that would be written. The axis
+        // mirrors every track's x-geometry.
+        const dayOffsetFor = (x: number, rect: DOMRect): number =>
+            Math.max(
+                0,
+                Math.min(
+                    model.totalDays - 1,
+                    Math.floor(((x - rect.left) / rect.width) * model.totalDays)
+                )
+            )
+        const showLane = (): void => {
+            if (lane || !body) return
+            lane = body.createDiv({ cls: 'kap-tl-drop-lane' })
+            lane.createDiv({ cls: 'kap-tl-gutter kap-tl-drop-lane-label', text: 'New entry' })
+            laneTrack = lane.createDiv({ cls: 'kap-tl-drop-lane-track' })
+            // Sticky-first: visible even when the row body is scrolled.
+            body.prepend(lane)
+        }
+        const hideLane = (): void => {
+            lane?.remove()
+            lane = null
+            laneTrack = null
+        }
 
         const onMove = (move: PointerEvent): void => {
-            if (Math.hypot(move.clientX - startX, move.clientY - startY) > 5) moved = true
-            if (moved) {
-                chip.addClass('kap-tl-dragging')
-                const dx = move.clientX - startX
-                const dy = move.clientY - startY
-                chip.style.transform = `translate(${String(dx)}px, ${String(dy)}px)`
+            if (!moved && Math.hypot(move.clientX - startX, move.clientY - startY) > 5) {
+                moved = true
+                cardEl.addClass('kap-tl-drag-source')
+                ghostWrap = doc.body.createDiv({ cls: 'kap-root' })
+                ghost = ghostWrap.createDiv({
+                    cls: 'kap-tl-undated-card kap-tl-ghost kap-tl-nohit'
+                })
+                ghost.createSpan({ cls: 'kap-tl-undated-cardtitle', text: card.display.title })
             }
+            if (!moved || !ghost) return
+            ghost.style.left = `${String(move.clientX + 10)}px`
+            ghost.style.top = `${String(move.clientY + 10)}px`
+            const hit = overChart(move.clientX, move.clientY)
+            body?.toggleClass('kap-tl-drop-target', hit)
+            const rect = axis?.getBoundingClientRect()
+            if (!hit || !rect || rect.width <= 0) {
+                hideLane()
+                label.remove()
+                guide.remove()
+                return
+            }
+            showLane()
+            const offset = dayOffsetFor(move.clientX, rect)
+            label.show(`→ ${callbacks.labelForDayOffset(offset)}`, move.clientX, move.clientY)
+            if (laneTrack) guide.showAtOffset(laneTrack, offset)
         }
         const cleanup = (): void => {
             dragActive = false
             doc.removeEventListener('pointermove', onMove)
             doc.removeEventListener('pointerup', onUp)
             doc.removeEventListener('pointercancel', onCancel)
-            chip.style.removeProperty('transform')
-            chip.removeClass('kap-tl-dragging')
+            cardEl.removeClass('kap-tl-drag-source')
+            body?.removeClass('kap-tl-drop-target')
+            hideLane()
+            ghostWrap?.remove()
+            ghostWrap = null
+            ghost = null
+            label.remove()
+            guide.remove()
         }
         const onUp = (up: PointerEvent): void => {
+            // Same hit test as the hover feedback (the ghost is no-hit).
+            const hit = moved && overChart(up.clientX, up.clientY)
+            const rect = axis?.getBoundingClientRect()
             cleanup()
             if (!moved) {
                 callbacks.onOpen(card, up.ctrlKey || up.metaKey)
                 return
             }
-            // The chip follows the pointer, so look just beneath it.
-            chip.addClass('kap-tl-nohit')
-            const under = doc.elementFromPoint(up.clientX, up.clientY)
-            chip.removeClass('kap-tl-nohit')
-            const track = under?.closest<HTMLElement>('.kap-tl-track') ?? null
-            if (!track) return
-            const rect = track.getBoundingClientRect()
-            if (rect.width <= 0) return
+            if (!hit || !rect || rect.width <= 0) return
             callbacks.onScheduleAt(card, ((up.clientX - rect.left) / rect.width) * 100)
         }
         // A canceled gesture aborts: no open, no schedule.

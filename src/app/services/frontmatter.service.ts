@@ -54,6 +54,26 @@ export async function setProperty(
     })
 }
 
+/**
+ * Set several frontmatter properties in ONE `processFrontMatter` transaction
+ * (each reusing an existing differently-cased key). Used where two sequential
+ * {@link setProperty} calls would double-rebuild the board and leave a torn
+ * intermediate state on disk (the timeline's left-handle resize writes the
+ * start date and the estimate together).
+ */
+export async function setProperties(
+    app: App,
+    file: TFile,
+    properties: Record<string, unknown>
+): Promise<void> {
+    await app.fileManager.processFrontMatter(file, (fm: Record<string, unknown>) => {
+        for (const [name, value] of Object.entries(properties)) {
+            const key = findKeyCaseInsensitive(fm, name) ?? name
+            fm[key] = value
+        }
+    })
+}
+
 /** Delete a frontmatter property (case-insensitive); used to clear a value. */
 export async function deleteProperty(app: App, file: TFile, propertyName: string): Promise<void> {
     await app.fileManager.processFrontMatter(file, (fm: Record<string, unknown>) => {
