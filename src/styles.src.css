@@ -336,14 +336,15 @@
         overflow-y: hidden;
     }
 
-    /* Equal column widths (hard invariant): every column is the same fixed
-       width, in every lane, with show-empty on, and on mobile (capped to 85vw).
-       Never make width depend on content. */
+    /* Equal column widths (hard invariant): every column is the same width, in
+       every lane, with show-empty on, and on mobile (capped to 85vw). Never make
+       width depend on content. Columns grow **equally** to fill spare board
+       width (issue #73); when space is tight they hold the 17rem floor
+       (flex-shrink 0) and the board scrolls horizontally. */
     .kap-column {
         display: flex;
         flex-direction: column;
-        flex: 0 0 17rem;
-        width: 17rem;
+        flex: 1 0 17rem;
         max-width: 85vw;
         max-height: 100%;
         background: var(--background-secondary);
