@@ -78,6 +78,8 @@ export interface TimelineHost {
      * the standard schedule items already write exactly that property.
      */
     scheduledProperty(): string
+    /** Resolved due-date property (issue #85): the row's red deadline line. */
+    deadlineProperty(): string
     /** The momentjs format dates are written with. */
     dateFormat(): string
     firstDayOfWeek(): number
@@ -652,8 +654,10 @@ export class TimelineController {
     /**
      * One row's geometry: a rectangle spanning `start → start + estimate − 1`
      * when an estimate is set, a square on the start day otherwise, plus
-     * milestone diamonds. Only rectangles can be overdue (derived end in the
-     * past) — a square's past start is normal in-progress work.
+     * milestone diamonds and the deadline line (issue #85: the resolved
+     * due-date property as a vertical red line in the row's lane). Only
+     * rectangles can be overdue (derived end in the past) — a square's past
+     * start is normal in-progress work.
      */
     private buildRow(
         card: KanbanCard,
@@ -684,7 +688,16 @@ export class TimelineController {
             if (anyDate) offSide = anyDate < window.start ? 'before' : 'after'
         }
 
-        // Tooltip: the span (start → derived end) and the estimate length.
+        // The deadline line (issue #85): only when it lands in the window.
+        const deadlineDate = this.readDate(card, this.host.deadlineProperty())
+        const deadlinePct = deadlineDate ? pointPct(deadlineDate, window) : null
+        const deadline =
+            deadlineDate && deadlinePct !== null
+                ? { pct: deadlinePct, label: `Due ${toDateKey(deadlineDate)}` }
+                : null
+
+        // Tooltip: the span (start → derived end), the estimate length, and
+        // the deadline (kept even when its line is off-window).
         let span = [
             start ? toDateKey(start) : null,
             end ? toDateKey(end) : milestones.length > 0 ? `${String(milestones.length)} ◆` : null
@@ -694,11 +707,17 @@ export class TimelineController {
         if (end !== null && estimate !== null) {
             span = `${span} — ${String(estimate)} day${estimate === 1 ? '' : 's'}`
         }
+        if (deadlineDate) {
+            span = span
+                ? `${span} · due ${toDateKey(deadlineDate)}`
+                : `due ${toDateKey(deadlineDate)}`
+        }
         return {
             card,
             bar,
             square,
             milestones: visibleMilestones,
+            deadline,
             overdue: end !== null && end < today,
             offSide,
             draggable: start !== null,

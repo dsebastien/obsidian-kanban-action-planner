@@ -330,6 +330,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             estimateProperty: () => this.resolveTimelineEstimateProperty(),
             milestoneProperty: () => this.resolveTimelineMilestoneProperty(),
             scheduledProperty: () => this.scheduledDateProperty,
+            deadlineProperty: () => this.dueDateProperty,
             dateFormat: () =>
                 this.noteType.calendar.dateFormat || this.plugin.settings.defaultDateFormat,
             firstDayOfWeek: () => this.plugin.settings.firstDayOfWeek,

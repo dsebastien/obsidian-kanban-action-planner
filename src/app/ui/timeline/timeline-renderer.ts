@@ -45,6 +45,11 @@ export interface TimelineRowModel {
     /** Start-only marker centered on the start day's cell (no estimate). */
     square: { pct: number } | null
     milestones: TimelineMilestoneModel[]
+    /**
+     * The note's deadline (resolved due-date property) as a vertical red line
+     * in the row's lane (issue #85); null when unset or outside the window.
+     */
+    deadline: { pct: number; label: string } | null
     /** Derived end (start + estimate − 1) in the past. Squares are never overdue. */
     overdue: boolean
     /** Dates exist but everything falls outside the window: which side. */
@@ -332,6 +337,13 @@ function renderRow(
     if (model.todayPct !== null) {
         const today = track.createDiv({ cls: 'kap-tl-today' })
         today.style.left = `${String(model.todayPct)}%`
+    }
+    if (row.deadline) {
+        const deadline = track.createDiv({
+            cls: 'kap-tl-deadline',
+            attr: { 'title': row.deadline.label, 'aria-label': row.deadline.label }
+        })
+        deadline.style.left = `${String(row.deadline.pct)}%`
     }
 
     if (row.bar) {

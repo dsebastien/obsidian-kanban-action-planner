@@ -1638,6 +1638,15 @@
         opacity: 1;
     }
 
+    /* The row's deadline (issue #85): a vertical red line in that lane only
+       (per-note, unlike the shared today line). Sits above the bar so it stays
+       visible when the deadline falls inside the card's span. */
+    .kap-root .kap-tl-deadline {
+        @apply absolute top-0 bottom-0 w-0.5 z-10 pointer-events-none;
+        background: var(--text-error);
+        opacity: 0.8;
+    }
+
     .kap-root .kap-tl-bar {
         @apply absolute top-1.5 bottom-1.5 min-w-1 rounded cursor-grab overflow-hidden;
         background: color-mix(in srgb, var(--interactive-accent) 35%, transparent);

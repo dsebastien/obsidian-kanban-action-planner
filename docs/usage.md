@@ -463,6 +463,9 @@ So a board already set up for calendar mode gets a working timeline with zero co
 - **Start only** (no estimate) → a **square** on the start day. Squares are **never marked
   overdue** — a past start is just work in progress, not an error.
 - A vertical **today line** crosses every row.
+- A card with a **deadline** (your due-date property) shows a vertical **red deadline line** in
+  its own lane — hover the row for the date, which also sits in the tooltip when the line falls
+  outside the window.
 - Cards whose dates all fall outside the window show a small _out of view_ hint.
 
 **The Unplanned panel.** Cards with **no start date** collect in the collapsible **Unplanned**

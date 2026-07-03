@@ -366,7 +366,7 @@ See `documentation/plans/kanban-action-planner-implementation-plan.md` for full 
     yields ≥ 1 or null; estimates are always **written as numbers**; derived end =
     start + estimate − 1 (inclusive). Start without estimate → **square**; start + estimate →
     **rectangle**; **squares are never overdue**, rectangles get the overdue wash when the
-    derived end < today. **Milestones** come from a configurable **list property**
+    derived end < today. **Deadline line (issue #85):** each row also renders its resolved due-date property as a vertical red line in its own lane (`kap-tl-deadline`, pointer-inert, above the bar), omitted when the date is unset or outside the window; the row tooltip carries `· due <date>` either way. **Milestones** come from a configurable **list property**
     (`timelineMilestoneProperty`, default `milestones`); each entry is
     `"<date> [label…]"` (wikilink brackets tolerated, `parseFrontmatterDate` semantics,
     non-parseable entries skipped) → diamond markers on the row. Bars crossing the window edge
