@@ -1,5 +1,11 @@
 # Release Notes
 
+## 1.3.0 (2026-07-14)
+
+### Features
+
+- **plugin:** keep the WBS usable on single-type, filtered and flat views
+
 ## 1.2.0 (2026-07-14)
 
 ### Features
