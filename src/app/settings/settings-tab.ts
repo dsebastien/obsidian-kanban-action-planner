@@ -276,19 +276,19 @@ export class KanbanActionPlannerSettingTab extends PluginSettingTab {
         text('Due date property', 'Date a note is due.', 'defaultDueDateProperty', 'date_due')
         text(
             'Estimate property',
-            'Days a note is expected to take (used by the timeline).',
+            'Days a note is expected to take.',
             'defaultEstimateProperty',
             'estimate'
         )
         text(
             'Milestones property',
-            'List of "<date> [label]" entries shown as timeline diamonds.',
+            'List of "<date> [label]" milestone entries.',
             'defaultMilestonesProperty',
             'milestones'
         )
         text(
             'Progress property',
-            'Completion percentage 0–100 (drives the WBS progress bars).',
+            'Completion percentage 0–100.',
             'defaultProgressProperty',
             'progress'
         )
