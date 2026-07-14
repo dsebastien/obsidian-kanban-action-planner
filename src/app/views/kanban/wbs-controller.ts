@@ -7,6 +7,7 @@ import {
     buildWbsForest,
     buildWbsNode,
     childrenEstimate,
+    collectContextAncestors,
     distributeEstimate,
     effectiveEstimate,
     effectiveProgress,
@@ -61,6 +62,8 @@ export interface WbsHost {
     /** Whether the view is currently in WBS mode (guards auto-collapse). */
     isWbsMode(): boolean
     openCard(card: KanbanCard, newTab: boolean): void
+    /** Open a note by vault path — context rows have no card to open with. */
+    openPath(path: string, newTab: boolean): void
     showCardMenu(card: KanbanCard, event: MouseEvent, extend?: (menu: Menu) => void): void
     cardForKey(key: string): KanbanCard | undefined
     /**
@@ -86,6 +89,13 @@ export interface WbsHost {
     /** Role link-properties for the active note type ('' = role disabled). */
     parentProperty(): string
     childProperty(): string
+    /**
+     * The parent link-property for an arbitrary vault path, resolved from
+     * the note's OWN recognized type (context-ancestor climbing: a
+     * filtered-out project may store its parent under a different property
+     * than the board's cards do). '' when unresolvable or role disabled.
+     */
+    parentPropertyForPath(path: string): string
     dateFormat(): string
     noteTypeFor(card: KanbanCard): { id: string; name: string } | null
     /** Resolved status column color/label for the row's dot (null = neutral). */
@@ -127,6 +137,12 @@ export class WbsController {
     private readonly paneCollapsed = new Map<string, boolean>()
     /** Every branch path from the last render — the collapse-all target set. */
     private lastBranchPaths = new Set<string>()
+    /**
+     * Extra parent→children edges from the last render's context-ancestor
+     * discovery — the cycle check must see them (a drop onto a context row
+     * whose chain climbs back through the source would loop).
+     */
+    private contextChildEdges = new Map<string, string[]>()
     // Durable state loads lazily: config is unavailable at construction.
     private loaded = false
 
@@ -189,8 +205,32 @@ export class WbsController {
 
         const byKey = new Map(cards.map((c) => [c.key, c]))
         const rels = this.host.relationshipSets()
-        const childrenOf = (path: string): ReadonlyArray<string> => rels.get(path)?.child ?? []
-        const parentsOf = (path: string): ReadonlyArray<string> => rels.get(path)?.parent ?? []
+        // Out-of-set ancestors (approved rule-36 exception): graft the trees
+        // under parents the Base's filters exclude, so e.g. a single-type
+        // base keeps its cross-type hierarchy visible. Further ancestors are
+        // climbed via each out-of-set note's OWN type's parent property.
+        const context = collectContextAncestors(
+            [...byKey.keys()],
+            (path) => rels.get(path)?.parent ?? [],
+            (path) => {
+                const prop = this.host.parentPropertyForPath(path)
+                if (prop === '') return []
+                const file = this.host.app.vault.getFileByPath(path)
+                return file ? directLinkTargets(this.host.app, file, prop).map((t) => t.path) : []
+            },
+            (path) => this.host.app.vault.getFileByPath(path) !== null
+        )
+        this.contextChildEdges = context.childEdges
+        const childrenOf = (path: string): ReadonlyArray<string> => {
+            const extra = context.childEdges.get(path)
+            const own = rels.get(path)?.child ?? []
+            return extra ? [...own, ...extra] : own
+        }
+        const parentsOf = (path: string): ReadonlyArray<string> => {
+            const extra = context.parentEdges.get(path)
+            const own = rels.get(path)?.parent ?? []
+            return extra ? [...own, ...extra] : own
+        }
         const compareCards = this.host.comparator()
 
         // Per-render frontmatter caches: one read per path, not per instance.
@@ -261,10 +301,15 @@ export class WbsController {
             if (!startA && startB) return 1
             const cardA = byKey.get(a)
             const cardB = byKey.get(b)
-            if (!cardA || !cardB) return a.localeCompare(b)
+            if (!cardA || !cardB) return labelForPath(a).localeCompare(labelForPath(b))
             return compareCards(cardA, cardB)
         }
-        const forest = buildWbsForest([...byKey.keys()], childrenOf, parentsOf, compare)
+        const forest = buildWbsForest(
+            [...byKey.keys(), ...context.paths],
+            childrenOf,
+            parentsOf,
+            compare
+        )
 
         const today = startOfDay(new Date())
         const rows: WbsRowModel[] = []
@@ -272,8 +317,9 @@ export class WbsController {
         // Every branch (dedup by path) — the collapse-all target set.
         const branchPaths = new Set<string>()
         const pushRows = (node: WbsNode): void => {
-            const card = byKey.get(node.path)
-            if (!card) return
+            // No card → a context ancestor (outside the view's results):
+            // rendered from derived values only, never skipped.
+            const card = byKey.get(node.path) ?? null
             const own = estimateOf(node.path)
             const rollup = childrenEstimate(node, estimateOf)
             const progress = effectiveProgress(node, progressOf, weightOf)
@@ -292,20 +338,21 @@ export class WbsController {
                     datesDerived = true
                 }
             }
-            const due = this.readDate(card, this.host.deadlineProperty())
+            const due = card ? this.readDate(card, this.host.deadlineProperty()) : null
             const countdown = formatCountdown(due, today, this.host.dueSoonDays(), 'chip')
             const collapsed = this.collapsedNodes.has(node.path)
             rows.push({
                 card,
+                title: card?.display.title ?? labelForPath(node.path),
                 key: node.path,
                 parentKey: node.parentPath ?? '',
                 depth: node.depth,
                 hasChildren: node.children.length > 0,
                 collapsed,
                 childCount: node.children.length,
-                statusLabel: this.host.statusLabelFor(card),
-                statusColor: this.host.statusColorFor(card),
-                blocked: card.relationships.blocked_by.length > 0,
+                statusLabel: card ? this.host.statusLabelFor(card) : null,
+                statusColor: card ? this.host.statusColorFor(card) : null,
+                blocked: card !== null && card.relationships.blocked_by.length > 0,
                 duplicate: seenPaths.has(node.path),
                 ownEstimate: own,
                 rollupEstimate: rollup,
@@ -344,6 +391,7 @@ export class WbsController {
             } satisfies WbsViewModel,
             {
                 onOpen: (card, newTab) => this.host.openCard(card, newTab),
+                onOpenPath: (path, newTab) => this.host.openPath(path, newTab),
                 onContextMenu: (card, event) =>
                     this.host.showCardMenu(card, event, (menu) => this.extendCardMenu(menu, card)),
                 onToggleNode: (key) => this.toggleNode(key),
@@ -490,17 +538,25 @@ export class WbsController {
         return { childOwned, parentOwned }
     }
 
-    /** Whether `candidate` sits anywhere inside `root`'s subtree (cycle-safe). */
+    /**
+     * Whether `candidate` sits anywhere inside `root`'s subtree (cycle-safe).
+     * Walks the resolved child edges PLUS the context edges — a context
+     * ancestor reached through the source must not become its parent.
+     */
     private isDescendant(root: string, candidate: string): boolean {
         const rels = this.host.relationshipSets()
+        const childrenOf = (path: string): string[] => [
+            ...(rels.get(path)?.child ?? []),
+            ...(this.contextChildEdges.get(path) ?? [])
+        ]
         const seen = new Set<string>()
-        const queue = [...(rels.get(root)?.child ?? [])]
+        const queue = childrenOf(root)
         while (queue.length > 0) {
             const path = queue.shift()
             if (path === undefined || seen.has(path)) continue
             if (path === candidate) return true
             seen.add(path)
-            queue.push(...(rels.get(path)?.child ?? []))
+            queue.push(...childrenOf(path))
         }
         return false
     }
@@ -524,8 +580,13 @@ export class WbsController {
         }
         const targetKey = dropTarget.targetKey
         const source = this.host.cardForKey(sourceKey)
-        const target = this.host.cardForKey(targetKey)
-        if (!source || !target) return
+        if (!source) return
+        // A context row has no card — resolve its file straight from the
+        // vault (the edge is stored on the SOURCE, so this stays writable).
+        const target = this.host.cardForKey(targetKey) ?? null
+        const targetFile = target ? target.file : this.host.app.vault.getFileByPath(targetKey)
+        if (!targetFile) return
+        const targetLabel = target?.display.title ?? labelForPath(targetKey)
         const oldParent = sourceParentKey ? this.host.cardForKey(sourceParentKey) : undefined
         const parentProp = this.host.parentProperty()
         const childProp = this.host.childProperty()
@@ -540,7 +601,12 @@ export class WbsController {
         const heuristicEdge = sourceParentKey !== null && !childOwned && !parentOwned
 
         // Optimistic: mutate the resolved sets + badges, re-render, then write.
-        this.applyOptimisticReparent(source, target, heuristicEdge ? null : sourceParentKey)
+        this.applyOptimisticReparent(
+            source,
+            targetKey,
+            target,
+            heuristicEdge ? null : sourceParentKey
+        )
         this.host.refresh()
 
         void (async () => {
@@ -560,22 +626,22 @@ export class WbsController {
             // (pane drop / heuristic) prefers the child's parent property.
             let wrote = false
             if (parentOwned && childProp !== '') {
-                await addRelationshipLink(this.host.app, target.file, childProp, source.file)
+                await addRelationshipLink(this.host.app, targetFile, childProp, source.file)
                 wrote = true
             }
             if ((childOwned || !parentOwned) && parentProp !== '') {
-                await addRelationshipLink(this.host.app, source.file, parentProp, target.file)
+                await addRelationshipLink(this.host.app, source.file, parentProp, targetFile)
                 wrote = true
             }
             if (!wrote && childProp !== '') {
-                await addRelationshipLink(this.host.app, target.file, childProp, source.file)
+                await addRelationshipLink(this.host.app, targetFile, childProp, source.file)
                 wrote = true
             }
             if (!wrote) return
             new Notice(
                 heuristicEdge
-                    ? `"${source.display.title}" moved under "${target.display.title}". The old parent came from a tag+link heuristic and still applies — adjust the note body to fully detach it.`
-                    : `"${source.display.title}" moved under "${target.display.title}".`
+                    ? `"${source.display.title}" moved under "${targetLabel}". The old parent came from a tag+link heuristic and still applies — adjust the note body to fully detach it.`
+                    : `"${source.display.title}" moved under "${targetLabel}".`
             )
         })()
     }
@@ -635,18 +701,20 @@ export class WbsController {
      * Mutate the live relationship sets + card badge lists so the tree
      * re-renders in its post-move shape before the writes land. `oldParentKey`
      * null = nothing to detach (pane card, root, or a heuristic edge that
-     * stays).
+     * stays). `target` is null for a context row — the re-render's context
+     * discovery picks the new edge up from the source's parent list.
      */
     private applyOptimisticReparent(
         source: KanbanCard,
-        target: KanbanCard,
+        targetKey: string,
+        target: KanbanCard | null,
         oldParentKey: string | null
     ): void {
         const rels = this.host.relationshipSets()
         const sourceSet = rels.get(source.key)
         if (sourceSet) {
             sourceSet.parent = sourceSet.parent.filter((p) => p !== oldParentKey)
-            if (!sourceSet.parent.includes(target.key)) sourceSet.parent.push(target.key)
+            if (!sourceSet.parent.includes(targetKey)) sourceSet.parent.push(targetKey)
         }
         if (oldParentKey) {
             const oldParentSet = rels.get(oldParentKey)
@@ -660,16 +728,19 @@ export class WbsController {
                 )
             }
         }
-        const targetSet = rels.get(target.key)
+        const targetSet = rels.get(targetKey)
         if (targetSet && !targetSet.child.includes(source.key)) targetSet.child.push(source.key)
 
         source.relationships.parent = source.relationships.parent.filter(
             (r) => r.key !== oldParentKey
         )
-        if (!source.relationships.parent.some((r) => r.key === target.key)) {
-            source.relationships.parent.push({ key: target.key, label: target.display.title })
+        if (!source.relationships.parent.some((r) => r.key === targetKey)) {
+            source.relationships.parent.push({
+                key: targetKey,
+                label: target?.display.title ?? labelForPath(targetKey)
+            })
         }
-        if (!target.relationships.child.some((r) => r.key === source.key)) {
+        if (target && !target.relationships.child.some((r) => r.key === source.key)) {
             target.relationships.child.push({ key: source.key, label: source.display.title })
         }
     }

@@ -25,7 +25,15 @@ import type { KanbanCard, CountdownTone } from '../board/types'
 
 /** One visible tree row (collapse already applied by the controller). */
 export interface WbsRowModel {
-    card: KanbanCard
+    /**
+     * The card, or null for a CONTEXT row — an ancestor outside the view's
+     * result set, shown so a filtered board keeps its hierarchy (approved
+     * exception to business rule 36). Context rows open on click and accept
+     * drops, but carry no editing chips, menu, or drag handle.
+     */
+    card: KanbanCard | null
+    /** The row's display title (card title, or the file name for context rows). */
+    title: string
     /** The note path (the DnD/card key). */
     key: string
     /** The context parent's path — '' for roots (dataset-friendly). */
@@ -91,6 +99,8 @@ export interface WbsViewModel {
 
 export interface WbsCallbacks {
     onOpen: (card: KanbanCard, newTab: boolean) => void
+    /** Open a context row's note (no card exists for it in the result set). */
+    onOpenPath: (path: string, newTab: boolean) => void
     onContextMenu: (card: KanbanCard, event: MouseEvent) => void
     onToggleNode: (key: string) => void
     onTogglePanel: () => void
@@ -254,7 +264,8 @@ function rowKey(row: WbsRowModel): string {
 /** Everything a row renders — a changed signature rebuilds the node. */
 function rowSignature(row: WbsRowModel): string {
     return JSON.stringify({
-        t: row.card.display.title,
+        t: row.title,
+        x: row.card === null,
         d: row.depth,
         h: row.hasChildren,
         c: row.collapsed,
@@ -286,11 +297,11 @@ function reconcileTree(shell: HTMLElement, model: WbsViewModel, callbacks: WbsCa
             const empty = tree.createDiv({ cls: 'kap-wbs-empty' })
             empty.createDiv({
                 cls: 'kap-wbs-empty-title',
-                text: 'No hierarchy to break down.'
+                text: 'Nothing to break down.'
             })
             empty.createDiv({
                 cls: 'kap-wbs-empty-hint',
-                text: 'Link notes with parent/child relationships (or drag a card from the panel onto a node once one exists). Notes excluded by this view’s own Base filters stay hidden.'
+                text: 'No notes match this view’s filters. Every matching note appears here — as a tree when notes link to parents or children, as single rows otherwise.'
             })
         }
         return
@@ -364,6 +375,12 @@ function buildRowNode(row: WbsRowModel, callbacks: WbsCallbacks): HTMLElement {
     if (row.hasChildren && row.collapsed) el.dataset['wbsCollapsed'] = '1'
     if (row.blocked) el.addClass('kap-wbs-row-blocked')
     if (row.depth === 0) el.addClass('kap-wbs-row-root')
+    // Context ancestor (outside the view's filters): display + drop target
+    // only — the DnD skips it as a drag source via this marker.
+    if (row.card === null) {
+        el.addClass('kap-wbs-row-context')
+        el.dataset['wbsContext'] = '1'
+    }
     el.style.setProperty('--kap-wbs-depth', String(row.depth))
 
     // Expand/collapse chevron (fixed-width spacer keeps leaves aligned).
@@ -388,7 +405,14 @@ function buildRowNode(row: WbsRowModel, callbacks: WbsCallbacks): HTMLElement {
     if (row.statusColor) dot.style.backgroundColor = row.statusColor
     if (row.statusLabel) dot.setAttribute('title', row.statusLabel)
 
-    el.createSpan({ cls: 'kap-wbs-title', text: row.card.display.title })
+    el.createSpan({ cls: 'kap-wbs-title', text: row.title })
+    if (row.card === null) {
+        el.createSpan({
+            cls: 'kap-wbs-context-badge',
+            text: 'outside view',
+            attr: { title: 'Not in this view’s results — shown so the hierarchy stays visible' }
+        })
+    }
     if (row.duplicate) {
         el.createSpan({
             cls: 'kap-wbs-dup',
@@ -406,9 +430,13 @@ function buildRowNode(row: WbsRowModel, callbacks: WbsCallbacks): HTMLElement {
     renderDueChip(meta, row, callbacks)
     renderEstimateChip(meta, row, callbacks)
 
+    const open = (newTab: boolean): void => {
+        if (row.card) callbacks.onOpen(row.card, newTab)
+        else callbacks.onOpenPath(row.key, newTab)
+    }
     el.addEventListener('click', (e) => {
         if ((e.target as HTMLElement).closest('.kap-wbs-chip-btn, .kap-wbs-toggle')) return
-        callbacks.onOpen(row.card, e.ctrlKey || e.metaKey)
+        open(e.ctrlKey || e.metaKey)
     })
     el.addEventListener('keydown', (e) => {
         // Keys pressed on a nested chip/toggle button belong to that button
@@ -417,7 +445,7 @@ function buildRowNode(row: WbsRowModel, callbacks: WbsCallbacks): HTMLElement {
         if ((e.target as HTMLElement).closest('.kap-wbs-chip-btn, .kap-wbs-toggle')) return
         if (e.key === 'Enter') {
             e.preventDefault()
-            callbacks.onOpen(row.card, e.ctrlKey || e.metaKey)
+            open(e.ctrlKey || e.metaKey)
         }
         if (e.key === 'ArrowRight' && row.hasChildren && row.collapsed) {
             e.preventDefault()
@@ -439,7 +467,7 @@ function buildRowNode(row: WbsRowModel, callbacks: WbsCallbacks): HTMLElement {
     })
     el.addEventListener('contextmenu', (e) => {
         e.preventDefault()
-        callbacks.onContextMenu(row.card, e)
+        if (row.card) callbacks.onContextMenu(row.card, e)
     })
     return el
 }
@@ -451,11 +479,12 @@ function renderProgress(parent: HTMLElement, row: WbsRowModel, callbacks: WbsCal
         value === null
             ? 'No progress'
             : `${String(value)}%${row.progressDerived ? ' (from children)' : ''}`
+    const card = row.card
     const btn = parent.createEl('button', {
         cls: 'kap-wbs-chip-btn kap-wbs-progressbtn',
         attr: {
             'type': 'button',
-            'title': `${label} — click to set`,
+            'title': card ? `${label} — click to set` : label,
             'aria-label': `Progress: ${label}`
         }
     })
@@ -466,7 +495,8 @@ function renderProgress(parent: HTMLElement, row: WbsRowModel, callbacks: WbsCal
         cls: 'kap-wbs-progress-caption',
         text: value === null ? '–' : `${String(value)}%`
     })
-    btn.addEventListener('click', () => callbacks.onEditProgress(row.card))
+    if (card) btn.addEventListener('click', () => callbacks.onEditProgress(card))
+    else btn.disabled = true
 }
 
 /**
@@ -480,23 +510,29 @@ function renderDatesChip(parent: HTMLElement, row: WbsRowModel, callbacks: WbsCa
             : row.endLabel === null
               ? row.startLabel
               : `${row.startLabel} → ${row.endLabel}`
+    const card = row.card
     const btn = parent.createEl('button', {
         cls: 'kap-wbs-chip-btn kap-wbs-dates',
         text,
         attr: {
             type: 'button',
-            title: row.datesDerived
-                ? 'Span covered by children — click to set a start date'
-                : 'Set start date'
+            title: !card
+                ? 'Span covered by children'
+                : row.datesDerived
+                  ? 'Span covered by children — click to set a start date'
+                  : 'Set start date'
         }
     })
     if (row.startLabel === null) btn.addClass('kap-wbs-chip-unset')
     if (row.datesDerived) btn.addClass('kap-wbs-chip-derived')
-    btn.addEventListener('click', () => callbacks.onEditStart(row.card))
+    if (card) btn.addEventListener('click', () => callbacks.onEditStart(card))
+    else btn.disabled = true
 }
 
 /** Due chip: the countdown (`in 3d` / `2d overdue`), tone-colored (issue #62 scale). */
 function renderDueChip(parent: HTMLElement, row: WbsRowModel, callbacks: WbsCallbacks): void {
+    const card = row.card
+    if (!card) return // context rows carry no due date
     const btn = parent.createEl('button', {
         cls: 'kap-wbs-chip-btn kap-wbs-due',
         text: row.dueLabel ?? 'no due',
@@ -507,7 +543,7 @@ function renderDueChip(parent: HTMLElement, row: WbsRowModel, callbacks: WbsCall
     })
     if (row.dueTone) btn.addClass(`kap-wbs-due-${row.dueTone}`)
     else btn.addClass('kap-wbs-chip-unset')
-    btn.addEventListener('click', () => callbacks.onEditDue(row.card))
+    btn.addEventListener('click', () => callbacks.onEditDue(card))
 }
 
 /**
@@ -517,9 +553,10 @@ function renderDueChip(parent: HTMLElement, row: WbsRowModel, callbacks: WbsCall
  * nothing.
  */
 function renderEstimateChip(parent: HTMLElement, row: WbsRowModel, callbacks: WbsCallbacks): void {
+    const card = row.card
     const btn = parent.createEl('button', {
         cls: 'kap-wbs-chip-btn kap-wbs-estimate',
-        attr: { type: 'button', title: 'Set estimate (days)' }
+        attr: { type: 'button', title: card ? 'Set estimate (days)' : 'Children rollup (days)' }
     })
     if (row.ownEstimate !== null) {
         btn.createSpan({ text: `${String(row.ownEstimate)}d` })
@@ -541,5 +578,6 @@ function renderEstimateChip(parent: HTMLElement, row: WbsRowModel, callbacks: Wb
         btn.addClass('kap-wbs-chip-unset')
         btn.createSpan({ text: '–d' })
     }
-    btn.addEventListener('click', () => callbacks.onEditEstimate(row.card))
+    if (card) btn.addEventListener('click', () => callbacks.onEditEstimate(card))
+    else btn.disabled = true
 }

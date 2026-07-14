@@ -85,8 +85,12 @@ column rule.
 
 - **WbsNode / WBS rollups (issue #76)** — `domain/wbs.ts` (pure, unit-tested).
   `buildWbsForest(paths, childrenOf, parentsOf, compare)` derives the WBS forest from the
-  resolved relationships: roots have in-set children and no in-set parent, multi-parent notes
-  duplicate under each parent, cycles stop where a branch re-enters itself. One rollup model
+  resolved relationships: roots have no in-set parent (a note with no relationships roots a
+  childless standalone row — approved rule-36 exception), multi-parent notes duplicate under
+  each parent, cycles stop where a branch re-enters itself. `collectContextAncestors`
+  discovers out-of-set ancestors (existing vault notes referenced by in-set parents, climbed
+  per-note via each ancestor's own type's parent property) so filtered views keep their
+  hierarchy as display-only context rows; out-of-set children are intentionally excluded. One rollup model
   for estimates and progress: **a note's own value wins; without one it derives from its
   children** (`effectiveEstimate`/`childrenEstimate`, `effectiveProgress` — weighted by
   effective estimates; `parseProgress` clamps to 0–100). `subtreeSpan` derives a parent's

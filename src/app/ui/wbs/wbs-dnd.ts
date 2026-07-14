@@ -3,9 +3,10 @@
  *
  * Mirrors `CalendarDnd` (one delegated listener set, pointer events for
  * mouse + touch, a 5px move threshold so clicks still open notes, post-drag
- * click swallow). Drag sources are tree rows (`.kap-wbs-row`) and left-pane
- * cards (`.kap-wbs-pane-card`); drop targets are tree rows (re-parent / set
- * parent) and the panel (detach a row from its parent). The host validates
+ * click swallow). Drag sources are tree rows (`.kap-wbs-row`, minus context
+ * rows) and left-pane cards (`.kap-wbs-pane-card`); drop targets are tree
+ * rows — context rows included (re-parent / set parent) — and the panel
+ * (detach a row from its parent). The host validates
  * targets live so invalid drops highlight as such and are never committed.
  *
  * Ergonomics: while dragging, the tree auto-scrolls when the pointer nears
@@ -85,6 +86,9 @@ export class WbsDnd {
         const sourceEl =
             target?.closest<HTMLElement>('.kap-wbs-row[data-card-key], .kap-wbs-pane-card') ?? null
         if (!sourceEl || !this.containerEl.contains(sourceEl)) return
+        // Context rows (ancestors outside the view's results) are drop
+        // targets only — their own frontmatter is never dragged around.
+        if (sourceEl.dataset['wbsContext'] === '1') return
 
         this.pointerId = e.pointerId
         this.startX = e.clientX

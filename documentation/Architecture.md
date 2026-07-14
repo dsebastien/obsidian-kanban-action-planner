@@ -233,8 +233,13 @@ Zoom persists via the existing `timelineRangeOverride`. Context menus reuse `car
 through an optional `extend(menu)` hook (`kap-timeline` section).
 
 **WBS mode (issue #76).** A fifth view mode (`wbsMode` flag, `toggle-wbs-mode` command) with
-the same three-layer split: pure math in `domain/wbs.ts` (`buildWbsForest` — roots = in-set
-children + no in-set parent, per-branch cycle guard, multi-parent duplication;
+the same three-layer split: pure math in `domain/wbs.ts` (`buildWbsForest` — roots = no
+in-set parent (loose notes render as childless depth-0 rows — approved rule-36 exception),
+per-branch cycle guard, multi-parent duplication; `collectContextAncestors` — discovers
+out-of-set ancestors from the in-set parents and climbs further via each note's OWN type's
+parent property (`WbsHost.parentPropertyForPath` → `recognizeLocalNoteType` +
+`roleProperties`), so filtered views render muted display-only **context rows** (drop
+targets, derived rollups, `data-wbs-context` opts them out of drag sourcing);
 `effectiveEstimate`/`childrenEstimate` — **own value wins, else recursive children rollup**,
 so persisting a rollup never double-counts; `effectiveProgress` — own > 0 wins, else the
 children's combination weighted by effective estimates; `subtreeSpan` — derived date span;

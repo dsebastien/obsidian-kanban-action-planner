@@ -582,9 +582,17 @@ mode** command).
 
 ![The WBS tree with rolled-up estimates and progress]({{ '/images/wbs.png' | relative_url }})
 
-**What's in the tree:** every note (in this view's result set) that has children roots or
-joins a tree; notes without children appear only nested under their parent, never as
-standalone rows. A note with **several parents** shows under each of them (marked ⧉). Fold
+**What's in the tree: every note in this view's result set.** Notes link into trees through
+their parent/child relationships; a note with no relationships still shows as a standalone
+row, so a flat board stays workable — drag rows onto each other to grow the breakdown. When
+a note's **parent is excluded by the view's filters** (say the view shows only tasks, but
+tasks belong to projects), the out-of-view ancestors still appear as muted **context rows**
+(italic, dashed border, an "outside view" badge) so the hierarchy keeps its shape — ancestor
+chains are followed through each note's own type configuration (tasks → projects → goals).
+Context rows are display-only (no chips to edit, no dragging them), but they show the
+rollups derived from their in-view descendants, you can click them to open the note, and
+you can **drop rows onto them** to set a parent. Out-of-view _children_ are not shown.
+A note with **several parents** shows under each of them (marked ⧉). Fold
 and unfold any node with the chevron (**←/→** on a focused row also work, and **↑/↓** move
 between rows) — collapse state is remembered per view, and the two buttons above the tree
 **expand or collapse everything** at once. Click a row to open the note (Ctrl/Cmd-click for
@@ -641,7 +649,7 @@ submenu do the same without dragging.
 
 **Detach by drag:** drop a row onto the left panel ("Drop here to detach from parent") to
 remove it from its parent — the stored link is deleted, nothing else changes. The note then
-roots its own tree (if it has children) or leaves the tree.
+roots its own tree: with its children if it has any, as a standalone row otherwise.
 
 **The "Needs planning" panel** on the left lists every card missing a **start date or an
 estimate**, grouped by note type → status and sorted by the view's card sort — your
@@ -650,8 +658,10 @@ panel onto a tree node to give it a parent (and grow the breakdown). The panel c
 slim rail with **«** (remembered per view, auto-collapses on narrow panes).
 
 The toolbar [filter](#filtering-search-bar) and [zoom](#focus-on-a-cards-children-zoom) apply
-here too — zoom into a goal and the WBS shows just that subtree's breakdown. The tree stays
-within the Base's own result set: notes excluded by the Base's filters don't appear.
+here too — zoom into a goal and the WBS shows just that subtree's breakdown. Notes excluded
+by the Base's filters never appear as regular rows — only as the muted context ancestors
+described above — and persisted numbers (saved rollups, distribution) always compute over
+the Base's own result set only.
 
 The WBS never creates notes — it structures, estimates, and re-parents the ones the Base
 already selects.

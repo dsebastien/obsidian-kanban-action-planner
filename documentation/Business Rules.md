@@ -504,3 +504,23 @@ See `documentation/plans/kanban-action-planner-implementation-plan.md` for full 
     `planReconcile` over per-instance keys (`parentKey::path`) + content signatures, so
     unchanged rows keep their exact DOM node (scroll, focus, in-flight drags survive) and
     the echo rebuild after an optimistic write no-ops. The view never creates notes.
+
+    **APPROVED EXCEPTION (owner, 2026-07-14) — single-type / filtered views stay usable.**
+    The root/scope sentence above ("roots are notes with at least one in-set child and no
+    in-set parent; leaf notes appear only nested") is relaxed in two ways, so a Base filtered
+    to one note type (or with no links yet) still gets a working WBS. The original rule text
+    is kept for history; this exception governs. **(a) Loose rows:** roots are now ALL notes
+    with no in-set parent — a note with no relationships renders as a childless depth-0 row
+    (visible, draggable, full menu) instead of disappearing; the empty state only shows when
+    the filtered set itself is empty. **(b) Context ancestors:** parents that exist in the
+    vault but are excluded by the Base's filters render as **context rows**
+    (`collectContextAncestors`): muted/italic, dashed border, "outside view" badge, no
+    chips/menu/drag — but they ARE drop targets (the edge is written on the in-set child's
+    parent property) and show derived rollups (estimate/progress/dates) computed from their
+    in-set descendants only. Ancestor chains climb via each out-of-set note's OWN recognized
+    type's parent property (`parentPropertyForPath` — e.g. a task board climbs task →
+    project via `related_projects`, then project → goal via `related_goals`). Dangling
+    links (target missing) are skipped — the subtree roots itself as before. Out-of-set
+    CHILDREN are intentionally NOT rendered (owner: deferred). The math scope is unchanged:
+    persisted numbers (save-rollup, distribute, prefills) still compute over the Base result
+    set only.

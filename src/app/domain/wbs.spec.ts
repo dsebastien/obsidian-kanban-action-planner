@@ -3,6 +3,7 @@ import {
     buildWbsForest,
     buildWbsNode,
     childrenEstimate,
+    collectContextAncestors,
     descendantPaths,
     distributeEstimate,
     effectiveEstimate,
@@ -28,19 +29,23 @@ function forest(
 }
 
 describe('buildWbsForest', () => {
-    test('roots at notes with children and no in-set parent; leaves only nested', () => {
+    test('roots at notes with no in-set parent; linked leaves only nested', () => {
         const trees = forest(['goal', 'project', 'task', 'loose'], {
             goal: ['project'],
             project: ['task']
         })
-        expect(trees.map((t) => t.path)).toEqual(['goal'])
+        expect(trees.map((t) => t.path)).toEqual(['goal', 'loose'])
         expect(trees[0]?.children.map((c) => c.path)).toEqual(['project'])
         expect(trees[0]?.children[0]?.children.map((c) => c.path)).toEqual(['task'])
-        // 'loose' has no children → no standalone row.
+        // 'loose' (no relationships) roots a childless single-row tree —
+        // approved exception to rule 36 so flat boards stay usable.
+        expect(trees[1]?.children).toEqual([])
     })
 
-    test('a childless note never roots a tree, even unparented', () => {
-        expect(forest(['a'], {})).toEqual([])
+    test('a flat (edge-less) board renders every note as a standalone row', () => {
+        const trees = forest(['b', 'a'], {})
+        expect(trees.map((t) => t.path)).toEqual(['a', 'b'])
+        expect(trees.every((t) => t.children.length === 0)).toBe(true)
     })
 
     test('multi-parent notes appear under each parent', () => {
@@ -85,6 +90,66 @@ describe('buildWbsForest', () => {
     test('siblings and roots sort with the comparator', () => {
         const trees = forest(['r', 'b', 'a'], { r: ['b', 'a'] })
         expect(trees[0]?.children.map((c) => c.path)).toEqual(['a', 'b'])
+    })
+})
+
+describe('collectContextAncestors', () => {
+    const collect = (
+        inSet: string[],
+        parents: Record<string, string[]>,
+        climb: Record<string, string[]>,
+        missing: string[] = []
+    ): ReturnType<typeof collectContextAncestors> =>
+        collectContextAncestors(
+            inSet,
+            (p) => parents[p] ?? [],
+            (p) => climb[p] ?? [],
+            (p) => !missing.includes(p)
+        )
+
+    test('discovers out-of-set parents and inverts the edges', () => {
+        // Two in-set tasks point at the same filtered-out project.
+        const ctx = collect(['t1', 't2'], { t1: ['proj'], t2: ['proj'] }, {})
+        expect(ctx.paths).toEqual(['proj'])
+        expect(ctx.childEdges.get('proj')).toEqual(['t1', 't2'])
+        // In-set children keep their resolved parents; no extra parent edge.
+        expect(ctx.parentEdges.size).toBe(0)
+    })
+
+    test('climbs ancestor chains through out-of-set notes', () => {
+        const ctx = collect(['task'], { task: ['proj'] }, { proj: ['goal'] })
+        expect(ctx.paths).toEqual(['proj', 'goal'])
+        expect(ctx.childEdges.get('goal')).toEqual(['proj'])
+        expect(ctx.parentEdges.get('proj')).toEqual(['goal'])
+    })
+
+    test('a climbed parent already in the set is linked but not climbed', () => {
+        // task → proj (out) → epic (IN set): epic gains proj as extra child.
+        const ctx = collect(['task', 'epic'], { task: ['proj'] }, { proj: ['epic'] })
+        expect(ctx.paths).toEqual(['proj'])
+        expect(ctx.childEdges.get('epic')).toEqual(['proj'])
+        expect(ctx.parentEdges.get('proj')).toEqual(['epic'])
+    })
+
+    test('dangling paths (note gone) are skipped; in-set parents ignored', () => {
+        const ctx = collect(['t1', 't2', 'p2'], { t1: ['ghost'], t2: ['p2'] }, {}, ['ghost'])
+        expect(ctx.paths).toEqual([])
+        expect(ctx.childEdges.size).toBe(0)
+    })
+
+    test('cyclic out-of-set links terminate (edges kept, no infinite climb)', () => {
+        const ctx = collect(['task'], { task: ['a'] }, { a: ['b'], b: ['a'] })
+        expect(ctx.paths).toEqual(['a', 'b'])
+        expect(ctx.childEdges.get('b')).toEqual(['a'])
+        expect(ctx.childEdges.get('a')).toEqual(['task', 'b'])
+        expect(ctx.parentEdges.get('a')).toEqual(['b'])
+        expect(ctx.parentEdges.get('b')).toEqual(['a'])
+    })
+
+    test('self-links never form an edge', () => {
+        const ctx = collect(['t'], { t: ['p'] }, { p: ['p'] })
+        expect(ctx.paths).toEqual(['p'])
+        expect(ctx.parentEdges.size).toBe(0)
     })
 })
 

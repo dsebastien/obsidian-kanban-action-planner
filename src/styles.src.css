@@ -2544,6 +2544,23 @@
         box-shadow: inset 3px 0 0 var(--text-error);
     }
 
+    /* Context ancestor (outside the view's results — rule-36 exception):
+       muted + dashed outline so real cards stay the visual anchors. */
+    .kap-root .kap-wbs-row-context {
+        border: 1px dashed var(--background-modifier-border);
+    }
+
+    .kap-root .kap-wbs-row-context > .kap-wbs-title {
+        @apply italic;
+        color: var(--text-muted);
+    }
+
+    .kap-root .kap-wbs-context-badge {
+        @apply shrink-0 rounded-full px-1.5 text-[0.7em] uppercase tracking-wide;
+        color: var(--text-faint);
+        background: var(--background-modifier-hover);
+    }
+
     /* Live drop feedback: valid targets glow accent, invalid strike red. */
     .kap-root .kap-wbs-drop {
         background: var(--background-modifier-hover);

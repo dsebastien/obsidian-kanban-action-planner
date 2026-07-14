@@ -2,9 +2,12 @@
  * Work-breakdown-structure math (issue #76) — pure, unit-tested.
  *
  * The WBS renders the resolved parent/child relationships as a forest:
- * trees are rooted at notes that HAVE children (decomposable items) and no
- * in-set parent; leaf notes appear only as children, never as standalone
- * rows. Multi-parent notes appear under EACH parent (duplicated instances).
+ * trees are rooted at notes with no in-set parent — including loose notes
+ * (no relationships at all), which render as childless depth-0 rows so a
+ * flat board stays usable (approved exception to business rule 36). Notes
+ * whose parents live OUTSIDE the result set can be grafted under those
+ * ancestors via {@link collectContextAncestors} (same exception).
+ * Multi-parent notes appear under EACH parent (duplicated instances).
  * Estimates and progress follow one model (owner rule): a note's OWN value
  * wins; a note without one derives its value from its children — so plans
  * work top-down, bottom-up, or mixed, and persisting a rollup to the parent
@@ -25,7 +28,8 @@ export interface WbsNode {
 /**
  * Build the WBS forest over the (already filtered) result set.
  *
- * Roots are paths with at least one in-set child and no in-set parent.
+ * Roots are paths with no in-set parent — a parentless childless path roots
+ * a single-row tree (loose notes stay visible and draggable on flat boards).
  * Children are expanded per branch with the branch's ancestry as the cycle
  * guard — a diamond (same node under two parents) still renders twice, but a
  * cycle stops where it would re-enter itself. Nodes locked inside a parent
@@ -40,11 +44,7 @@ export function buildWbsForest(
     const inSet = new Set(paths)
     const setChildren = (path: string): string[] =>
         [...new Set(childrenOf(path))].filter((p) => inSet.has(p)).sort(compare)
-    const roots = paths
-        .filter(
-            (path) => setChildren(path).length > 0 && !parentsOf(path).some((p) => inSet.has(p))
-        )
-        .sort(compare)
+    const roots = paths.filter((path) => !parentsOf(path).some((p) => inSet.has(p))).sort(compare)
     const expand = (path: string, parentPath: string | null, ancestry: Set<string>): WbsNode => {
         const nextAncestry = new Set(ancestry)
         nextAncestry.add(path)
@@ -58,6 +58,76 @@ export function buildWbsForest(
         }
     }
     return roots.map((root) => expand(root, null, new Set()))
+}
+
+/** Extra hierarchy edges discovered outside the result set (context rows). */
+export interface ContextAncestors {
+    /** Out-of-set ancestor paths, discovery order (BFS from the result set). */
+    paths: string[]
+    /** Extra parent→children edges (keyed by in-set OR context path). */
+    childEdges: Map<string, string[]>
+    /** Extra child→parents edges (context paths only). */
+    parentEdges: Map<string, string[]>
+}
+
+/**
+ * Discover the out-of-set ancestors referenced by the result set, so the WBS
+ * can graft its trees under them (approved exception to business rule 36: a
+ * base filtered to one note type keeps its cross-type hierarchy visible).
+ *
+ * Starts from every in-set path's resolved parents that are NOT in the set,
+ * then climbs further via `climbParents` (metadata-cache resolution for
+ * notes that have no resolved record), cycle-guarded. `exists` gates every
+ * candidate — a dangling path (note deleted, unresolved link) is skipped and
+ * its subtree roots itself, exactly as before. A climbed parent that turns
+ * out to be IN the set is linked (extra child edge) but never climbed again.
+ */
+export function collectContextAncestors(
+    inSetPaths: ReadonlyArray<string>,
+    parentsOf: (path: string) => ReadonlyArray<string>,
+    climbParents: (contextPath: string) => ReadonlyArray<string>,
+    exists: (path: string) => boolean
+): ContextAncestors {
+    const inSet = new Set(inSetPaths)
+    const paths: string[] = []
+    const childEdges = new Map<string, string[]>()
+    const parentEdges = new Map<string, string[]>()
+    const addEdge = (map: Map<string, string[]>, key: string, value: string): void => {
+        const list = map.get(key)
+        if (!list) map.set(key, [value])
+        else if (!list.includes(value)) list.push(value)
+    }
+    const discovered = new Set<string>()
+    const queue: string[] = []
+    const discover = (parent: string, child: string): void => {
+        if (parent === child) return
+        if (inSet.has(parent)) {
+            // Climbed back into the set: link it, but the set's own resolved
+            // relationships govern everything else about that note.
+            addEdge(childEdges, parent, child)
+            if (!inSet.has(child)) addEdge(parentEdges, child, parent)
+            return
+        }
+        if (!exists(parent)) return
+        addEdge(childEdges, parent, child)
+        if (!inSet.has(child)) addEdge(parentEdges, child, parent)
+        if (!discovered.has(parent)) {
+            discovered.add(parent)
+            paths.push(parent)
+            queue.push(parent)
+        }
+    }
+    for (const path of inSetPaths) {
+        for (const parent of parentsOf(path)) {
+            if (!inSet.has(parent)) discover(parent, path)
+        }
+    }
+    while (queue.length > 0) {
+        const path = queue.shift()
+        if (path === undefined) continue
+        for (const parent of climbParents(path)) discover(parent, path)
+    }
+    return { paths, childEdges, parentEdges }
 }
 
 /** All distinct descendant paths of a node (the node itself excluded). */

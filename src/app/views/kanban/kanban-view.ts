@@ -56,6 +56,7 @@ import {
     columnsFromValues,
     createDefaultNoteType,
     findNoteType,
+    recognizeLocalNoteType,
     recognizeNoteTypeFor,
     resolveActiveNoteType
 } from '../../services/note-type.service'
@@ -363,6 +364,10 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             refresh: () => this.applyFilterAndRender(),
             isWbsMode: () => this.wbsMode(),
             openCard: (card, newTab) => this.openCard(card, newTab),
+            openPath: (path, newTab) => {
+                const file = this.app.vault.getFileByPath(path)
+                if (file) void this.app.workspace.getLeaf(newTab ? 'tab' : false).openFile(file)
+            },
             showCardMenu: (card, event, extend) => this.showCardMenu(card, event, extend),
             cardForKey: (key) => this.cardsByKey.get(key),
             allCardForKey: (key) => this.allCards.find((c) => c.key === key),
@@ -375,6 +380,20 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             dueSoonDays: () => this.plugin.settings.dueSoonThresholdDays,
             parentProperty: () => this.relationshipProperties().parent,
             childProperty: () => this.relationshipProperties().child,
+            // Ancestor climbing resolves each out-of-set note's OWN type
+            // (e.g. a project stores its parent in `related_goals` while the
+            // task board's parent property is `related_projects`).
+            parentPropertyForPath: (path) => {
+                const file = this.app.vault.getFileByPath(path)
+                if (!file) return ''
+                const local = recognizeLocalNoteType(this.app, this.plugin, file)
+                const noteType = local
+                    ? this.plugin.settings.noteTypes.find((t) => t.id === local.id)
+                    : undefined
+                return noteType
+                    ? roleProperties(noteType).parent
+                    : this.relationshipProperties().parent
+            },
             dateFormat: () =>
                 this.noteType.calendar.dateFormat || this.plugin.settings.defaultDateFormat,
             noteTypeFor: (card) => this.noteTypeByPath.get(card.key) ?? null,
