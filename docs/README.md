@@ -48,10 +48,13 @@ every change written straight back into your notes.
 
 - **Calendar mode.** Switch a board to a calendar that plots scheduled dates and deadlines
   together. Drag a card onto a day to schedule it.
-- **Timeline mode.** A Gantt-style view: one row per card, a bar spanning its start → end
-  dates, milestone diamonds from a configurable list property, and drag-to-reschedule.
+- **Timeline mode.** A Gantt-style view: one row per card placed by its start date and an
+  estimate in days, milestone diamonds from a configurable list property, and
+  drag-to-reschedule. The Unplanned panel groups cards by note type, then status.
 
 ![Calendar mode]({{ '/images/calendar.png' | relative_url }})
+
+![Timeline mode]({{ '/images/timeline.png' | relative_url }})
 
 - **Archiving.** Move a finished note to a placeholder-driven archive folder, manually or
   automatically when it reaches a chosen status.

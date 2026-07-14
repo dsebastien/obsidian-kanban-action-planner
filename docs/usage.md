@@ -450,6 +450,8 @@ and overlaps **over time**: one row per card on a shared axis, Gantt-style. Swit
 **Timeline** button next to **Board / Calendar / Triage** (or the **Toggle timeline mode**
 command).
 
+![The timeline placing cards by start date and estimate]({{ '/images/timeline.png' | relative_url }})
+
 **A card is placed by its start date plus an estimate.** There is no end-date property. The
 properties are **global plugin settings** (no per-view overrides):
 
@@ -492,6 +494,8 @@ title stays visible, turned vertical); on a narrow pane it **collapses automatic
 re-opens when there's room, with your manual choice always taking precedence. The collapse is
 remembered per view.
 
+![The Unplanned panel grouped by note type, then status]({{ '/images/unplanned-panel.png' | relative_url }})
+
 **Schedule from the timeline.** Drag a card out of the **Unplanned** panel and drop it anywhere
 over the timeline: its **start date** is set to the day under the pointer and it jumps onto its
 own row. A card without an estimate gets **an estimate of 1 day** as it lands, so every new
@@ -528,7 +532,9 @@ one without them drops into the **Unplanned** panel until you set a start again.
 
 **Mixed note types.** When the board's cards span more than one note type, timeline rows are
 **grouped by type** — collapsible header rows with a name and count, alphabetical, **No type**
-last. A **Types** toolbar button lets you **show or hide** individual types (hiding a type also
+last.
+
+![Timeline rows grouped by note type]({{ '/images/timeline-groups.png' | relative_url }}) A **Types** toolbar button lets you **show or hide** individual types (hiding a type also
 hides its unplanned cards); the choice is remembered per view.
 
 **Define milestones from the timeline.** **Double-click** a card's row at the date you want: a

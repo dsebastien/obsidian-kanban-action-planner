@@ -24,6 +24,10 @@ Flip that exact board into a calendar to schedule work, plotting scheduled dates
 
 ![Calendar mode](docs/images/calendar.png)
 
+Or into a Gantt-style timeline that places each card by its start date and estimate, with cards grouped by note type and status in the Unplanned panel:
+
+![Timeline mode](docs/images/timeline.png)
+
 Filter as you type with a compact query language:
 
 ![Filter as you type](docs/images/filter.png)
