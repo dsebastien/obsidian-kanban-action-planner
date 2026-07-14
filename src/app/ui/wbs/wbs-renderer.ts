@@ -7,11 +7,21 @@
  * `.kap-wbs-row` (the controller applies collapse before building the row
  * list), indented by depth, carrying `data-card-key` + `data-parent-key` for
  * the DnD hit-testing contract.
+ *
+ * **Incremental refresh:** the shell (panel + tree bar + tree) is built once
+ * and kept. The panel re-renders only when its content signature changes;
+ * tree rows are reconciled with the board's pure `planReconcile` over a
+ * per-instance key (`parentKey::path` — duplicated multi-parent instances
+ * stay distinct) plus a content signature — unchanged rows keep their exact
+ * DOM node, so scroll, focus, and an in-flight drag survive every refresh,
+ * and the echo rebuild after an optimistic write no-ops.
  */
 
+import { setIcon } from 'obsidian'
 import { renderGroupHeader } from '../calendar/calendar-renderer'
+import { planReconcile } from '../board/reconcile'
 import { cssEscapeAttr } from '../../utils/css-escape'
-import type { KanbanCard } from '../board/types'
+import type { KanbanCard, CountdownTone } from '../board/types'
 
 /** One visible tree row (collapse already applied by the controller). */
 export interface WbsRowModel {
@@ -47,6 +57,11 @@ export interface WbsRowModel {
     /** Effective progress 0–100 (own, or derived from children), or null. */
     progress: number | null
     progressDerived: boolean
+    /** Due countdown text (`in 3d`, `2d overdue`) + tone; null = no due date. */
+    dueLabel: string | null
+    dueTone: CountdownTone | null
+    /** The due date key (tooltip / modal prefill), null when unset. */
+    dueDateKey: string | null
 }
 
 export interface WbsPaneStatusGroupModel {
@@ -82,41 +97,81 @@ export interface WbsCallbacks {
     onTogglePaneGroup: (key: string) => void
     onEditEstimate: (card: KanbanCard) => void
     onEditStart: (card: KanbanCard) => void
+    onEditDue: (card: KanbanCard) => void
     onEditProgress: (card: KanbanCard) => void
+    onExpandAll: () => void
+    onCollapseAll: () => void
 }
 
-/**
- * Render the WBS view into the board host (replaces its content). The tree
- * is torn down and rebuilt, so its scroll position and the focused row are
- * captured first and restored after — a collapse deep in a long tree (or the
- * optimistic post-drop refresh) must not jump the viewport or drop keyboard
- * focus (visual-stability priority; the board's refocusCardKey analogue).
- */
+/** Render (or incrementally refresh) the WBS view inside the board host. */
 export function renderWbs(root: HTMLElement, model: WbsViewModel, callbacks: WbsCallbacks): void {
-    const prevTree = root.querySelector<HTMLElement>('.kap-wbs-tree')
-    const prevScroll = prevTree?.scrollTop ?? 0
-    const active = root.ownerDocument.activeElement
-    const focusedKey =
-        active instanceof HTMLElement
-            ? (active.closest<HTMLElement>('.kap-wbs-row')?.dataset['cardKey'] ?? null)
-            : null
-
-    root.empty()
-    const wbs = root.createDiv({ cls: 'kap-wbs' })
-    renderPanel(wbs, model, callbacks)
-    const tree = renderTree(wbs, model, callbacks)
-
-    tree.scrollTop = prevScroll
-    if (focusedKey) {
-        wbs.querySelector<HTMLElement>(
-            `.kap-wbs-row[data-card-key="${cssEscapeAttr(focusedKey)}"]`
-        )?.focus()
+    let shell = root.querySelector<HTMLElement>(':scope > .kap-wbs')
+    if (!shell) {
+        root.empty()
+        shell = root.createDiv({ cls: 'kap-wbs' })
+        buildShell(shell, callbacks)
     }
+    reconcilePanel(shell, model, callbacks)
+    reconcileTree(shell, model, callbacks)
 }
 
-function renderPanel(parent: HTMLElement, model: WbsViewModel, callbacks: WbsCallbacks): void {
+/** The persistent skeleton: panel placeholder + tree bar + scrolling tree. */
+function buildShell(shell: HTMLElement, callbacks: WbsCallbacks): void {
+    // The panel is (re)built by reconcilePanel; reserve its slot first.
+    shell.createDiv({ cls: 'kap-scheduling-panel kap-wbs-panel' })
+    const wrap = shell.createDiv({ cls: 'kap-wbs-treewrap' })
+    const bar = wrap.createDiv({ cls: 'kap-wbs-treebar' })
+    const expand = bar.createEl('button', {
+        cls: 'kap-wbs-treebar-btn',
+        attr: { 'type': 'button', 'aria-label': 'Expand all', 'title': 'Expand all' }
+    })
+    setIcon(expand, 'chevrons-up-down')
+    expand.addEventListener('click', () => callbacks.onExpandAll())
+    const collapse = bar.createEl('button', {
+        cls: 'kap-wbs-treebar-btn',
+        attr: { 'type': 'button', 'aria-label': 'Collapse all', 'title': 'Collapse all' }
+    })
+    setIcon(collapse, 'chevrons-down-up')
+    collapse.addEventListener('click', () => callbacks.onCollapseAll())
+    wrap.createDiv({ cls: 'kap-wbs-tree', attr: { role: 'tree' } })
+}
+
+// ── Panel ─────────────────────────────────────────────────────
+
+/** Everything the panel renders, for the skip-unchanged signature. */
+function panelSignature(model: WbsViewModel): string {
+    return JSON.stringify({
+        collapsed: model.panelCollapsed,
+        grouped: model.paneGrouped,
+        groups: model.paneGroups.map((g) => ({
+            k: g.key,
+            l: g.label,
+            n: g.count,
+            c: g.collapsed,
+            s: g.groups.map((s) => ({
+                k: s.key,
+                l: s.label,
+                c: s.collapsed,
+                i: s.cards.map((card) => `${card.key}|${card.display.title}`)
+            }))
+        }))
+    })
+}
+
+/** Rebuild the panel only when its signature changed (in-place replace). */
+function reconcilePanel(shell: HTMLElement, model: WbsViewModel, callbacks: WbsCallbacks): void {
+    const existing = shell.querySelector<HTMLElement>(':scope > .kap-wbs-panel')
+    const signature = panelSignature(model)
+    if (existing && existing.dataset['wbsPanelSig'] === signature) return
+    const panel = buildPanel(model, callbacks)
+    panel.dataset['wbsPanelSig'] = signature
+    if (existing) existing.replaceWith(panel)
+    else shell.insertBefore(panel, shell.firstChild)
+}
+
+function buildPanel(model: WbsViewModel, callbacks: WbsCallbacks): HTMLElement {
     const total = model.paneGroups.reduce((sum, g) => sum + g.count, 0)
-    const panel = parent.createDiv({ cls: 'kap-scheduling-panel kap-wbs-panel' })
+    const panel = createDiv({ cls: 'kap-scheduling-panel kap-wbs-panel' })
     if (model.panelCollapsed) panel.addClass('kap-scheduling-panel-collapsed')
 
     const header = panel.createDiv({ cls: 'kap-panel-header' })
@@ -128,7 +183,10 @@ function renderPanel(parent: HTMLElement, model: WbsViewModel, callbacks: WbsCal
     toggle.addEventListener('click', () => callbacks.onTogglePanel())
     // Cards missing a start date or an estimate — the WBS backlog to plan.
     header.createSpan({ cls: 'kap-panel-title', text: `Needs planning (${String(total)})` })
-    if (model.panelCollapsed) return
+    // Revealed while a tree row drags (CSS on .kap-wbs-drop-ready); dropping
+    // detaches the row from its parent. The collapsed rail has no room.
+    panel.createDiv({ cls: 'kap-wbs-drop-hint', text: 'Drop here to detach from parent' })
+    if (model.panelCollapsed) return panel
 
     const body = panel.createDiv({ cls: 'kap-wbs-panel-body' })
     if (total === 0) {
@@ -136,7 +194,7 @@ function renderPanel(parent: HTMLElement, model: WbsViewModel, callbacks: WbsCal
             cls: 'kap-panel-empty',
             text: 'Everything has a start date and estimate.'
         })
-        return
+        return panel
     }
     for (const group of model.paneGroups) {
         let host = body
@@ -183,32 +241,111 @@ function renderPanel(parent: HTMLElement, model: WbsViewModel, callbacks: WbsCal
             }
         }
     }
+    return panel
 }
 
-function renderTree(
-    parent: HTMLElement,
-    model: WbsViewModel,
-    callbacks: WbsCallbacks
-): HTMLElement {
-    const tree = parent.createDiv({ cls: 'kap-wbs-tree', attr: { role: 'tree' } })
+// ── Tree ──────────────────────────────────────────────────────
+
+/** Per-instance reconcile key: multi-parent duplicates stay distinct. */
+function rowKey(row: WbsRowModel): string {
+    return `${row.parentKey}::${row.key}`
+}
+
+/** Everything a row renders — a changed signature rebuilds the node. */
+function rowSignature(row: WbsRowModel): string {
+    return JSON.stringify({
+        t: row.card.display.title,
+        d: row.depth,
+        h: row.hasChildren,
+        c: row.collapsed,
+        n: row.childCount,
+        sl: row.statusLabel,
+        sc: row.statusColor,
+        b: row.blocked,
+        dup: row.duplicate,
+        oe: row.ownEstimate,
+        re: row.rollupEstimate,
+        s: row.startLabel,
+        e: row.endLabel,
+        dd: row.datesDerived,
+        p: row.progress,
+        pd: row.progressDerived,
+        du: row.dueLabel,
+        dt: row.dueTone
+    })
+}
+
+function reconcileTree(shell: HTMLElement, model: WbsViewModel, callbacks: WbsCallbacks): void {
+    const tree = shell.querySelector<HTMLElement>('.kap-wbs-tree')
+    if (!tree) return
+
     if (model.rootCount === 0) {
-        const empty = tree.createDiv({ cls: 'kap-wbs-empty' })
-        empty.createDiv({
-            cls: 'kap-wbs-empty-title',
-            text: 'No hierarchy to break down.'
-        })
-        empty.createDiv({
-            cls: 'kap-wbs-empty-hint',
-            text: 'Link notes with parent/child relationships (or drag a card from the panel onto a node once one exists). Notes excluded by this view’s own Base filters stay hidden.'
-        })
-        return tree
+        if (tree.dataset['wbsEmpty'] !== '1') {
+            tree.empty()
+            tree.dataset['wbsEmpty'] = '1'
+            const empty = tree.createDiv({ cls: 'kap-wbs-empty' })
+            empty.createDiv({
+                cls: 'kap-wbs-empty-title',
+                text: 'No hierarchy to break down.'
+            })
+            empty.createDiv({
+                cls: 'kap-wbs-empty-hint',
+                text: 'Link notes with parent/child relationships (or drag a card from the panel onto a node once one exists). Notes excluded by this view’s own Base filters stay hidden.'
+            })
+        }
+        return
     }
-    for (const row of model.rows) renderRow(tree, row, callbacks)
-    return tree
+    if (tree.dataset['wbsEmpty'] === '1') {
+        tree.empty()
+        delete tree.dataset['wbsEmpty']
+    }
+
+    // If the focused row gets rebuilt/removed, focus falls to body — restore
+    // it onto the same instance (or the same note) after the pass.
+    const activeEl = tree.ownerDocument.activeElement
+    const focusedInstance =
+        activeEl instanceof HTMLElement && tree.contains(activeEl)
+            ? (activeEl.closest<HTMLElement>('.kap-wbs-row')?.dataset['wbsKey'] ?? null)
+            : null
+
+    const existingEls = Array.from(tree.querySelectorAll<HTMLElement>(':scope > .kap-wbs-row'))
+    const nodeByKey = new Map<string, HTMLElement>()
+    const existing = existingEls.map((el) => {
+        const key = el.dataset['wbsKey'] ?? ''
+        nodeByKey.set(key, el)
+        return { key, signature: el.dataset['wbsSig'] ?? '' }
+    })
+    const rowByKey = new Map(model.rows.map((r) => [rowKey(r), r]))
+    const desired = model.rows.map((r) => ({ key: rowKey(r), signature: rowSignature(r) }))
+
+    const plan = planReconcile(existing, desired)
+    for (const key of plan.remove) nodeByKey.get(key)?.remove()
+
+    // Place desired nodes in order, reusing untouched nodes (React-style cursor).
+    let cursor = tree.firstElementChild
+    for (const entry of plan.ordered) {
+        let node: HTMLElement | undefined
+        if (entry.create || entry.update) {
+            const row = rowByKey.get(entry.key)
+            if (row) node = buildRowNode(row, callbacks)
+        } else {
+            node = nodeByKey.get(entry.key)
+        }
+        if (!node) continue
+        if (node === cursor) cursor = cursor.nextElementSibling
+        else tree.insertBefore(node, cursor)
+    }
+
+    if (focusedInstance && tree.ownerDocument.activeElement === tree.ownerDocument.body) {
+        tree.querySelector<HTMLElement>(
+            `.kap-wbs-row[data-wbs-key="${cssEscapeAttr(focusedInstance)}"]`
+        )?.focus()
+    }
 }
 
-function renderRow(tree: HTMLElement, row: WbsRowModel, callbacks: WbsCallbacks): void {
-    const el = tree.createDiv({
+/** Build one fully-wired, detached tree row and stamp its diff signature. */
+function buildRowNode(row: WbsRowModel, callbacks: WbsCallbacks): HTMLElement {
+    const el = createDiv({
         cls: 'kap-wbs-row',
         attr: {
             'role': 'treeitem',
@@ -221,6 +358,10 @@ function renderRow(tree: HTMLElement, row: WbsRowModel, callbacks: WbsCallbacks)
     if (row.hasChildren) el.setAttribute('aria-expanded', String(!row.collapsed))
     el.dataset['cardKey'] = row.key
     el.dataset['parentKey'] = row.parentKey
+    el.dataset['wbsKey'] = rowKey(row)
+    el.dataset['wbsSig'] = rowSignature(row)
+    // Collapsed-branch marker: the DnD's hover-to-expand reads it.
+    if (row.hasChildren && row.collapsed) el.dataset['wbsCollapsed'] = '1'
     if (row.blocked) el.addClass('kap-wbs-row-blocked')
     if (row.depth === 0) el.addClass('kap-wbs-row-root')
     el.style.setProperty('--kap-wbs-depth', String(row.depth))
@@ -262,6 +403,7 @@ function renderRow(tree: HTMLElement, row: WbsRowModel, callbacks: WbsCallbacks)
     const meta = el.createDiv({ cls: 'kap-wbs-meta' })
     renderProgress(meta, row, callbacks)
     renderDatesChip(meta, row, callbacks)
+    renderDueChip(meta, row, callbacks)
     renderEstimateChip(meta, row, callbacks)
 
     el.addEventListener('click', (e) => {
@@ -285,11 +427,21 @@ function renderRow(tree: HTMLElement, row: WbsRowModel, callbacks: WbsCallbacks)
             e.preventDefault()
             callbacks.onToggleNode(row.key)
         }
+        if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+            // ARIA tree pattern: vertical arrows move focus between rows.
+            const sibling =
+                e.key === 'ArrowDown' ? el.nextElementSibling : el.previousElementSibling
+            if (sibling instanceof HTMLElement && sibling.hasClass('kap-wbs-row')) {
+                e.preventDefault()
+                sibling.focus()
+            }
+        }
     })
     el.addEventListener('contextmenu', (e) => {
         e.preventDefault()
         callbacks.onContextMenu(row.card, e)
     })
+    return el
 }
 
 /** The per-node progress bar: own values solid, derived (rolled-up) hatched. */
@@ -341,6 +493,21 @@ function renderDatesChip(parent: HTMLElement, row: WbsRowModel, callbacks: WbsCa
     if (row.startLabel === null) btn.addClass('kap-wbs-chip-unset')
     if (row.datesDerived) btn.addClass('kap-wbs-chip-derived')
     btn.addEventListener('click', () => callbacks.onEditStart(row.card))
+}
+
+/** Due chip: the countdown (`in 3d` / `2d overdue`), tone-colored (issue #62 scale). */
+function renderDueChip(parent: HTMLElement, row: WbsRowModel, callbacks: WbsCallbacks): void {
+    const btn = parent.createEl('button', {
+        cls: 'kap-wbs-chip-btn kap-wbs-due',
+        text: row.dueLabel ?? 'no due',
+        attr: {
+            type: 'button',
+            title: row.dueDateKey ? `Due ${row.dueDateKey} — click to change` : 'Set due date'
+        }
+    })
+    if (row.dueTone) btn.addClass(`kap-wbs-due-${row.dueTone}`)
+    else btn.addClass('kap-wbs-chip-unset')
+    btn.addEventListener('click', () => callbacks.onEditDue(row.card))
 }
 
 /**

@@ -1,6 +1,7 @@
 import { Notice } from 'obsidian'
 import type { App, Menu } from 'obsidian'
-import { parseFrontmatterDate, toDateKey } from '../../domain/calendar'
+import { parseFrontmatterDate, startOfDay, toDateKey } from '../../domain/calendar'
+import { formatCountdown } from '../../services/card-display.service'
 import { derivedEnd, groupByTypeAndStatus, parseEstimate } from '../../domain/timeline'
 import {
     buildWbsForest,
@@ -22,10 +23,12 @@ import {
 import {
     addRelationshipLink,
     directLinkTargets,
+    labelForPath,
     removeRelationshipLink
 } from '../../services/relationships.service'
 import { renderWbs } from '../../ui/wbs/wbs-renderer'
 import type { WbsPaneTypeGroupModel, WbsRowModel, WbsViewModel } from '../../ui/wbs/wbs-renderer'
+import type { WbsDropTarget } from '../../ui/wbs/wbs-dnd'
 import { EstimatePromptModal } from '../../ui/timeline/estimate-modal'
 import { ProgressPromptModal } from '../../ui/wbs/progress-modal'
 import { DatePromptModal } from '../../ui/date-prompt-modal'
@@ -76,6 +79,10 @@ export interface WbsHost {
     estimateProperty(): string
     progressProperty(): string
     scheduledProperty(): string
+    /** Resolved due-date property (the rows' due chip reads and writes it). */
+    deadlineProperty(): string
+    /** The global "due soon" threshold (days) for the countdown tone ramp. */
+    dueSoonDays(): number
     /** Role link-properties for the active note type ('' = role disabled). */
     parentProperty(): string
     childProperty(): string
@@ -118,6 +125,8 @@ export class WbsController {
      * so it survives the rebuild every frontmatter write triggers.
      */
     private readonly paneCollapsed = new Map<string, boolean>()
+    /** Every branch path from the last render — the collapse-all target set. */
+    private lastBranchPaths = new Set<string>()
     // Durable state loads lazily: config is unavailable at construction.
     private loaded = false
 
@@ -183,13 +192,6 @@ export class WbsController {
         const childrenOf = (path: string): ReadonlyArray<string> => rels.get(path)?.child ?? []
         const parentsOf = (path: string): ReadonlyArray<string> => rels.get(path)?.parent ?? []
         const compareCards = this.host.comparator()
-        const compare = (a: string, b: string): number => {
-            const cardA = byKey.get(a)
-            const cardB = byKey.get(b)
-            if (!cardA || !cardB) return a.localeCompare(b)
-            return compareCards(cardA, cardB)
-        }
-        const forest = buildWbsForest([...byKey.keys()], childrenOf, parentsOf, compare)
 
         // Per-render frontmatter caches: one read per path, not per instance.
         const estimateCache = new Map<string, number | null>()
@@ -246,8 +248,29 @@ export class WbsController {
             return start && estimate !== null ? derivedEnd(start, estimate) : null
         }
 
+        // Sibling order (owner rule): planned (start) dates win — dated
+        // siblings sort chronologically ahead of undated ones; the rest (and
+        // date ties) follow the view's card sort, title as the last resort.
+        const compare = (a: string, b: string): number => {
+            const startA = startOf(a)
+            const startB = startOf(b)
+            if (startA && startB && startA.getTime() !== startB.getTime()) {
+                return startA.getTime() - startB.getTime()
+            }
+            if (startA && !startB) return -1
+            if (!startA && startB) return 1
+            const cardA = byKey.get(a)
+            const cardB = byKey.get(b)
+            if (!cardA || !cardB) return a.localeCompare(b)
+            return compareCards(cardA, cardB)
+        }
+        const forest = buildWbsForest([...byKey.keys()], childrenOf, parentsOf, compare)
+
+        const today = startOfDay(new Date())
         const rows: WbsRowModel[] = []
         const seenPaths = new Set<string>()
+        // Every branch (dedup by path) — the collapse-all target set.
+        const branchPaths = new Set<string>()
         const pushRows = (node: WbsNode): void => {
             const card = byKey.get(node.path)
             if (!card) return
@@ -269,6 +292,8 @@ export class WbsController {
                     datesDerived = true
                 }
             }
+            const due = this.readDate(card, this.host.deadlineProperty())
+            const countdown = formatCountdown(due, today, this.host.dueSoonDays(), 'chip')
             const collapsed = this.collapsedNodes.has(node.path)
             rows.push({
                 card,
@@ -288,12 +313,25 @@ export class WbsController {
                 endLabel,
                 datesDerived,
                 progress: progress.value,
-                progressDerived: progress.derived
+                progressDerived: progress.derived,
+                dueLabel: countdown?.text ?? null,
+                dueTone: countdown?.tone ?? null,
+                dueDateKey: due ? toDateKey(due) : null
             })
             seenPaths.add(node.path)
             if (!collapsed) for (const child of node.children) pushRows(child)
         }
-        for (const tree of forest) pushRows(tree)
+        // Collapse-all needs every branch, including ones hidden inside
+        // already-collapsed subtrees — walk the full forest separately.
+        const collectBranches = (n: WbsNode): void => {
+            if (n.children.length > 0) branchPaths.add(n.path)
+            for (const child of n.children) collectBranches(child)
+        }
+        for (const tree of forest) {
+            pushRows(tree)
+            collectBranches(tree)
+        }
+        this.lastBranchPaths = branchPaths
 
         renderWbs(
             boardEl,
@@ -322,7 +360,18 @@ export class WbsController {
                 },
                 onEditEstimate: (card) => this.promptEstimate(card),
                 onEditStart: (card) => this.promptStartDate(card),
-                onEditProgress: (card) => this.promptProgress(card)
+                onEditDue: (card) => this.promptDueDate(card),
+                onEditProgress: (card) => this.promptProgress(card),
+                onExpandAll: () => {
+                    this.collapsedNodes.clear()
+                    this.host.persistCollapsedNodes([])
+                    this.host.refresh()
+                },
+                onCollapseAll: () => {
+                    this.collapsedNodes = new Set(this.lastBranchPaths)
+                    this.host.persistCollapsedNodes([...this.collapsedNodes])
+                    this.host.refresh()
+                }
             }
         )
     }
@@ -340,16 +389,20 @@ export class WbsController {
     /**
      * The "Needs planning" backlog: cards missing a start date OR an estimate
      * (owner rule — the pane is the estimation worklist), grouped note type →
-     * status, all groups collapsed by default.
+     * status, all groups collapsed by default, sorted inside each group by
+     * the view's card sort (like the calendar's panel).
      */
     private buildPaneGroups(cards: KanbanCard[]): WbsPaneTypeGroupModel[] {
-        const needsPlanning = cards.filter((card) => {
-            const start = this.readDate(card, this.host.startProperty())
-            const estimate = parseEstimate(
-                getFrontmatterValue(this.host.app, card.file, this.host.estimateProperty())
-            )
-            return start === null || estimate === null
-        })
+        const compare = this.host.comparator()
+        const needsPlanning = cards
+            .filter((card) => {
+                const start = this.readDate(card, this.host.startProperty())
+                const estimate = parseEstimate(
+                    getFrontmatterValue(this.host.app, card.file, this.host.estimateProperty())
+                )
+                return start === null || estimate === null
+            })
+            .sort(compare)
         return groupByTypeAndStatus(
             needsPlanning,
             (card) => this.host.noteTypeFor(card),
@@ -378,20 +431,63 @@ export class WbsController {
         this.host.refresh()
     }
 
-    // ── Drag re-parenting (issues #76 + #14 write path) ───────
+    // ── Drag re-parenting / detaching (issues #76 + #14 write path) ───────
 
     /**
-     * Whether re-parenting `sourceKey` under `targetKey` is committable:
+     * Whether dropping `sourceKey` on `target` is committable. Row targets:
      * never onto itself, an existing parent (incl. the context parent), or a
      * node inside its own subtree (a cycle), and only when a writable link
-     * property exists for the parent or child role.
+     * property exists for the parent or child role. Panel target: detach —
+     * only for a row dragged from under a parent whose edge is physically
+     * stored (a heuristic edge has no property to remove).
      */
-    canDrop(sourceKey: string, _sourceParentKey: string | null, targetKey: string): boolean {
-        if (sourceKey === targetKey) return false
+    canDrop(sourceKey: string, sourceParentKey: string | null, target: WbsDropTarget): boolean {
+        if (target.kind === 'panel') {
+            if (sourceParentKey === null) return false
+            const storage = this.edgeStorage(sourceKey, sourceParentKey)
+            return storage.childOwned || storage.parentOwned
+        }
+        if (sourceKey === target.targetKey) return false
         if (this.host.parentProperty() === '' && this.host.childProperty() === '') return false
         const rels = this.host.relationshipSets()
-        if ((rels.get(sourceKey)?.parent ?? []).includes(targetKey)) return false
-        return !this.isDescendant(sourceKey, targetKey)
+        if ((rels.get(sourceKey)?.parent ?? []).includes(target.targetKey)) return false
+        return !this.isDescendant(sourceKey, target.targetKey)
+    }
+
+    /** Hover-to-expand during a drag: open the collapsed branch in place. */
+    hoverExpand(key: string): void {
+        if (!this.collapsedNodes.has(key)) return
+        this.collapsedNodes.delete(key)
+        this.host.persistCollapsedNodes([...this.collapsedNodes])
+        this.host.refresh()
+    }
+
+    /**
+     * Where the `sourceKey` → `oldParentKey` edge is physically stored: as a
+     * parent link on the child, a children link on the old parent, both
+     * (redundant convention), or neither (heuristic — not removable).
+     */
+    private edgeStorage(
+        sourceKey: string,
+        oldParentKey: string
+    ): { childOwned: boolean; parentOwned: boolean } {
+        const parentProp = this.host.parentProperty()
+        const childProp = this.host.childProperty()
+        const source = this.host.allCardForKey(sourceKey)
+        const oldParent = this.host.allCardForKey(oldParentKey)
+        const childOwned =
+            parentProp !== '' &&
+            source !== undefined &&
+            directLinkTargets(this.host.app, source.file, parentProp).some(
+                (t) => t.path === oldParentKey
+            )
+        const parentOwned =
+            childProp !== '' &&
+            oldParent !== undefined &&
+            directLinkTargets(this.host.app, oldParent.file, childProp).some(
+                (t) => t.path === sourceKey
+            )
+        return { childOwned, parentOwned }
     }
 
     /** Whether `candidate` sits anywhere inside `root`'s subtree (cycle-safe). */
@@ -410,16 +506,23 @@ export class WbsController {
     }
 
     /**
-     * Commit a drop: re-parent `sourceKey` from its context parent to
-     * `targetKey`. The stored link may live on either side (#14 semantics —
+     * Commit a drop. Panel target → detach `sourceKey` from its context
+     * parent. Row target → re-parent `sourceKey` from its context parent to
+     * the row. The stored link may live on either side (#14 semantics —
      * only DIRECT links are rewritable): a child-owned `parent` link moves on
      * the child; a parent-owned `children` link moves across the two parents;
-     * a heuristic edge can't be removed — the new parent link is added and a
-     * Notice explains. Optimistic (#64): the in-memory relationship sets and
-     * card badges mutate first, the frontmatter writes follow.
+     * a redundant both-sides edge is removed from both; a heuristic edge
+     * can't be removed — the new parent link is added and a Notice explains.
+     * Optimistic (#64): the in-memory relationship sets and card badges
+     * mutate first, the frontmatter writes follow.
      */
-    handleDrop(sourceKey: string, sourceParentKey: string | null, targetKey: string): void {
-        if (!this.canDrop(sourceKey, sourceParentKey, targetKey)) return
+    handleDrop(sourceKey: string, sourceParentKey: string | null, dropTarget: WbsDropTarget): void {
+        if (!this.canDrop(sourceKey, sourceParentKey, dropTarget)) return
+        if (dropTarget.kind === 'panel') {
+            if (sourceParentKey !== null) this.unparent(sourceKey, sourceParentKey)
+            return
+        }
+        const targetKey = dropTarget.targetKey
         const source = this.host.cardForKey(sourceKey)
         const target = this.host.cardForKey(targetKey)
         if (!source || !target) return
@@ -427,23 +530,13 @@ export class WbsController {
         const parentProp = this.host.parentProperty()
         const childProp = this.host.childProperty()
 
-        // Where is the old edge physically stored? Both checks run
-        // independently — a redundantly stored edge (parent link on the
-        // child AND a children link on the old parent) must be removed from
-        // BOTH sides, or the surviving side's inverse resurrects it on the
-        // echo rebuild.
-        const childOwned =
-            parentProp !== '' &&
-            sourceParentKey !== null &&
-            directLinkTargets(this.host.app, source.file, parentProp).some(
-                (t) => t.path === sourceParentKey
-            )
-        const parentOwned =
-            childProp !== '' &&
-            oldParent !== undefined &&
-            directLinkTargets(this.host.app, oldParent.file, childProp).some(
-                (t) => t.path === sourceKey
-            )
+        // Where is the old edge physically stored? A redundantly stored edge
+        // (parent link on the child AND a children link on the old parent)
+        // must be removed from BOTH sides, or the surviving side's inverse
+        // resurrects it on the echo rebuild.
+        const { childOwned, parentOwned } = sourceParentKey
+            ? this.edgeStorage(sourceKey, sourceParentKey)
+            : { childOwned: false, parentOwned: false }
         const heuristicEdge = sourceParentKey !== null && !childOwned && !parentOwned
 
         // Optimistic: mutate the resolved sets + badges, re-render, then write.
@@ -483,6 +576,57 @@ export class WbsController {
                 heuristicEdge
                     ? `"${source.display.title}" moved under "${target.display.title}". The old parent came from a tag+link heuristic and still applies — adjust the note body to fully detach it.`
                     : `"${source.display.title}" moved under "${target.display.title}".`
+            )
+        })()
+    }
+
+    /**
+     * Panel drop: detach `sourceKey` from `oldParentKey` — remove the stored
+     * edge from every side it lives on (nothing is added; the note may join
+     * the "Needs planning" backlog or root its own tree). Optimistic (#64).
+     */
+    private unparent(sourceKey: string, oldParentKey: string): void {
+        const source = this.host.cardForKey(sourceKey)
+        const oldParent = this.host.cardForKey(oldParentKey)
+        if (!source) return
+        const { childOwned, parentOwned } = this.edgeStorage(sourceKey, oldParentKey)
+        if (!childOwned && !parentOwned) return // heuristic — canDrop blocks this
+
+        // Optimistic: drop the edge from the live sets + badges, re-render.
+        const rels = this.host.relationshipSets()
+        const sourceSet = rels.get(sourceKey)
+        if (sourceSet) sourceSet.parent = sourceSet.parent.filter((p) => p !== oldParentKey)
+        const oldParentSet = rels.get(oldParentKey)
+        if (oldParentSet) oldParentSet.child = oldParentSet.child.filter((c) => c !== sourceKey)
+        source.relationships.parent = source.relationships.parent.filter(
+            (r) => r.key !== oldParentKey
+        )
+        if (oldParent) {
+            oldParent.relationships.child = oldParent.relationships.child.filter(
+                (r) => r.key !== sourceKey
+            )
+        }
+        this.host.refresh()
+
+        void (async () => {
+            if (childOwned) {
+                await removeRelationshipLink(
+                    this.host.app,
+                    source.file,
+                    this.host.parentProperty(),
+                    oldParentKey
+                )
+            }
+            if (parentOwned && oldParent) {
+                await removeRelationshipLink(
+                    this.host.app,
+                    oldParent.file,
+                    this.host.childProperty(),
+                    sourceKey
+                )
+            }
+            new Notice(
+                `"${source.display.title}" detached from "${oldParent?.display.title ?? labelForPath(oldParentKey)}".`
             )
         })()
     }
@@ -740,11 +884,23 @@ export class WbsController {
             this.host.app,
             `Set start date — ${card.display.title}`,
             current ? toDateKey(current) : '',
-            (isoDate) => void this.writeStartDate(card, property, isoDate)
+            (isoDate) => void this.writeDate(card, property, isoDate)
         ).open()
     }
 
-    private async writeStartDate(
+    /** Due chip click: the same date prompt on the due-date property. */
+    private promptDueDate(card: KanbanCard): void {
+        const property = this.host.deadlineProperty()
+        const current = this.readDate(card, property)
+        new DatePromptModal(
+            this.host.app,
+            `Set due date — ${card.display.title}`,
+            current ? toDateKey(current) : '',
+            (isoDate) => void this.writeDate(card, property, isoDate)
+        ).open()
+    }
+
+    private async writeDate(
         card: KanbanCard,
         property: string,
         isoDate: string | null

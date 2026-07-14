@@ -246,19 +246,31 @@ clamp; `buildWbsNode` — single-path twin for menu-time math). DOM in `ui/wbs/w
 column-align across rows). State + writes in `views/kanban/wbs-controller.ts` (mirrors
 `TimelineController`: lazy `ensureLoaded`, full-object `persist()`, narrow-pane
 auto-collapse; node collapse under the dedicated `wbsCollapsedNodes` key, panel collapse
-under `wbsPanelCollapsed`; estimate/progress/start edits via `EstimatePromptModal` /
-`ProgressPromptModal` (`ui/wbs/progress-modal.ts`) / `DatePromptModal`, all writing numbers /
+under `wbsPanelCollapsed`; estimate/start/due/progress edits via `EstimatePromptModal` /
+`DatePromptModal` / `ProgressPromptModal` (`ui/wbs/progress-modal.ts`), all writing numbers /
 formatted dates through `frontmatter.service`; menu extras in the `kap-wbs` section incl.
-**Save rolled-up estimate/progress** and **Distribute estimate to children**). DnD in
+**Save rolled-up estimate/progress** and **Distribute estimate to children**; standard
+Set-status menu items work in the tree because `applyFilterAndRender` resolves
+`this.columns` before the mode branches). Sibling order: planned starts first
+(chronological), then the view's card sort; the panel sorts its status groups the same way.
+Rows carry a due-countdown chip (`formatCountdown`, #62 tone ramp). **Incremental refresh:**
+`renderWbs` keeps the shell; the panel re-renders only on a content-signature change and
+tree rows reconcile via the board's pure `planReconcile` over `parentKey::path` instance
+keys + row signatures (`data-wbs-key`/`data-wbs-sig`) — unchanged rows keep their DOM node,
+so the post-write echo rebuild no-ops and scroll/focus/in-flight drags survive. DnD in
 `ui/wbs/wbs-dnd.ts` (a `CalendarDnd` sibling: sources `.kap-wbs-row` + `.kap-wbs-pane-card`,
-targets rows, live `canDrop` validation — self/existing-parent/own-subtree rejected with a
-red highlight). Re-parenting resolves where the old edge is physically stored via
-`directLinkTargets` (child-owned `parent` link vs parent-owned `children` link vs
-non-removable heuristic) and commits through `addRelationshipLink`/`removeRelationshipLink`;
-the controller mutates the view's live `relationshipsByPath` sets + card badge lists first
-and re-renders through a host `refresh()` closure (`applyFilterAndRender`, NOT `rebuild()` —
-a rebuild would re-derive from the not-yet-written frontmatter and snap back), so the echo
-rebuild re-derives identical state (#64). The progress property name is a global setting
+targets rows **and the panel** — a panel drop detaches the row from its context parent; live
+`canDrop` validation rejects self/existing-parent/own-subtree/heuristic-detach with a red
+highlight; rAF edge auto-scroll; linger-to-expand over collapsed branches; the drag source
+re-resolves by key across mid-drag re-renders). Re-parenting/detaching resolve where the old
+edge is physically stored via `directLinkTargets` (child-owned `parent` link, parent-owned
+`children` link, or both — both sides are cleaned) and commit through
+`addRelationshipLink`/`removeRelationshipLink`; the controller mutates the view's live
+`relationshipsByPath` sets + card badge lists first and re-renders through a host
+`refresh()` closure (`applyFilterAndRender`, NOT `rebuild()` — a rebuild would re-derive
+from the not-yet-written frontmatter and snap back), so the echo rebuild re-derives
+identical state (#64). Menu-time math (save-rollup, distribution, prefills) runs over the
+unfiltered result set (`allCardForKey`). The progress property name is a global setting
 (`defaultProgressProperty`, default `progress`), matching the timeline's global-property
 decision.
 

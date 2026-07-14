@@ -371,6 +371,8 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             estimateProperty: () => this.resolveTimelineEstimateProperty(),
             progressProperty: () => this.resolveProgressProperty(),
             scheduledProperty: () => this.scheduledDateProperty,
+            deadlineProperty: () => this.dueDateProperty,
+            dueSoonDays: () => this.plugin.settings.dueSoonThresholdDays,
             parentProperty: () => this.relationshipProperties().parent,
             childProperty: () => this.relationshipProperties().child,
             dateFormat: () =>
@@ -387,10 +389,11 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             addParentRelationship: (card) => this.addRelationship(card, 'parent')
         })
         this.wbsDnd = new WbsDnd(this.boardEl, {
-            canDrop: (sourceKey, sourceParentKey, targetKey) =>
-                this.wbs?.canDrop(sourceKey, sourceParentKey, targetKey) ?? false,
-            onDrop: (sourceKey, sourceParentKey, targetKey) =>
-                this.wbs?.handleDrop(sourceKey, sourceParentKey, targetKey)
+            canDrop: (sourceKey, sourceParentKey, target) =>
+                this.wbs?.canDrop(sourceKey, sourceParentKey, target) ?? false,
+            onDrop: (sourceKey, sourceParentKey, target) =>
+                this.wbs?.handleDrop(sourceKey, sourceParentKey, target),
+            onHoverExpand: (targetKey) => this.wbs?.hoverExpand(targetKey)
         })
         this.resizeObserver = new ResizeObserver(() => this.debouncedResize())
         this.resizeObserver.observe(this.boardEl)

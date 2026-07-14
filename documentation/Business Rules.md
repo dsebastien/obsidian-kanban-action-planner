@@ -477,9 +477,30 @@ See `documentation/plans/kanban-action-planner-implementation-plan.md` for full 
     the parents; a heuristic edge only gains the new link, with a Notice), optimistic per
     rule 32 (in-memory relationship sets + badges mutate and re-render before the writes);
     guards reject self, existing parents, and the node's own subtree (live red highlight).
-    Non-drag fallback: the Relationships submenu + **Set parent…** menu item. Row meta
-    (progress bar / dates / estimate) sits in **fixed-width right-aligned columns** so values
-    align across rows (scannability, owner priority). Node collapse persists per view under
-    the dedicated `wbsCollapsedNodes` key (string[], `readIdArray`). Estimate/start/progress
-    are editable per node (chip click → modal; menu items). The view never creates notes;
-    status writes from the tree stay out of v1 (context menu still offers them).
+    A redundant both-sides edge is removed from BOTH sides (a survivor would resurrect the
+    old parent through the inverse pass on the echo rebuild). **Un-parent by drag (owner):**
+    dropping a tree row on the panel detaches it from its context parent (edge removed
+    wherever stored; heuristic edges aren't detachable and highlight invalid); a "Drop here
+    to detach from parent" hint appears while a row drags. Non-drag fallback: the
+    Relationships submenu + **Set parent…** menu item. **Drag ergonomics:** the tree
+    auto-scrolls when the pointer nears its top/bottom edge (rAF loop), and lingering over a
+    collapsed branch expands it in place so drops can land deeper; the drag survives mid-drag
+    re-renders (source re-resolved by key). **Sibling order (owner): planned (start) dates
+    win** — dated siblings sort chronologically ahead of undated ones; the rest follow the
+    view's card sort (title fallback). The panel sorts inside each status group by the same
+    card sort. Row meta (progress bar / dates / due / estimate) sits in **fixed-width
+    right-aligned columns** so values align across rows (scannability, owner priority);
+    container queries shed the dates, then due, then progress-track columns on narrow
+    splits. **Due dates are first-class (owner):** every row shows a due chip on the #62
+    countdown tone ramp, click-editable like the start-date and estimate chips.
+    **Expand all / collapse all** buttons sit above the tree (collapse-all targets every
+    branch, incl. ones hidden inside collapsed subtrees). Node collapse persists per view
+    under the dedicated `wbsCollapsedNodes` key (string[], `readIdArray`).
+    Estimate/start/due/progress are editable per node (chip click → modal; menu items), and
+    **status is writable from the tree** via the standard context-menu Set-status items
+    (rule 2 semantics; the dot updates optimistically). **Reconciled rendering (owner: no
+    needless re-renders):** the WBS never tears down on refresh — the panel re-renders only
+    when its content signature changes, and tree rows reconcile via the board's pure
+    `planReconcile` over per-instance keys (`parentKey::path`) + content signatures, so
+    unchanged rows keep their exact DOM node (scroll, focus, in-flight drags survive) and
+    the echo rebuild after an optimistic write no-ops. The view never creates notes.

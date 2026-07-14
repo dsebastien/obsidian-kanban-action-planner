@@ -59,7 +59,14 @@ WBS answers "how does the work decompose".
   direct children whose subtree has **no estimate at all** (min 1 day each, numbers).
   Existing values are never overwritten.
 - **No entry creation.** The view never creates notes.
-- **Status writes from the tree: v1 out of scope** (context menu still offers them).
+- **Status writes from the tree (owner, round 2):** supported via the standard context-menu
+  Set-status items (rule 2 semantics; optimistic dot update). No inline status control yet.
+- **Round 2 (owner, 2026-07-14):** due dates visible + editable per row (countdown chip,
+  #62 tone ramp); planned (start) dates order siblings first (chronological), then the card
+  sort; the panel sorts its groups by the card sort; un-parent by dropping a row on the
+  panel; expand all / collapse all; drag ergonomics (edge auto-scroll, linger-to-expand,
+  drag survives re-renders); reconciled rendering (panel signature + `planReconcile` over
+  `parentKey::path` row keys — the post-write echo no-ops, nothing tears down).
 
 ## Re-parenting write semantics (rule 9/#14)
 

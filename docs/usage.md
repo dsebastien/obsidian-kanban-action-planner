@@ -585,8 +585,14 @@ mode** command).
 **What's in the tree:** every note (in this view's result set) that has children roots or
 joins a tree; notes without children appear only nested under their parent, never as
 standalone rows. A note with **several parents** shows under each of them (marked ⧉). Fold
-and unfold any node with the chevron (**←/→** on a focused row also work) — collapse state is
-remembered per view. Click a row to open the note (Ctrl/Cmd-click for a new tab).
+and unfold any node with the chevron (**←/→** on a focused row also work, and **↑/↓** move
+between rows) — collapse state is remembered per view, and the two buttons above the tree
+**expand or collapse everything** at once. Click a row to open the note (Ctrl/Cmd-click for
+a new tab).
+
+**Sibling order follows your plan:** under a common parent, notes with a **planned (start)
+date** come first, chronologically; undated siblings follow, ordered by the view's **Card
+sort** (name, any property, or title as the fallback).
 
 **One rollup model — own value wins, else derived from the children.** Estimates and progress
 work the same way, so you can plan **top-down** (estimate the goal, split it later),
@@ -602,6 +608,9 @@ work the same way, so you can plan **top-down** (estimate the goal, split it lat
   with a dashed outline.
 - **Dates** — a row with a start date shows its span (start → start + estimate − 1). A parent
   without one shows the span its subtree covers, in italics.
+- **Due dates** — every row also shows a due chip with the countdown (`in 3d`, `2d overdue`,
+  color-coded by urgency like the board's due countdown). Click it to set or change the due
+  date; the dates chip does the same for the planned date.
 
 **Rollups are displayed by default — persist them when you want.** Right-click a node and use
 **Save rolled-up estimate (Nd)** or **Save rolled-up progress (N%)** to write the derived
@@ -614,20 +623,29 @@ subtree's contribution (it never adds to it), saving a rollup never double-count
 coverage) is split equally, whole days, across the children that have no estimate yet.
 Existing values are never overwritten.
 
-**Editing per node:** click the estimate chip, the dates chip, or the progress bar on any row
-to set that value directly. The context menu offers the same (**Set estimate…**, **Set
-progress…**, **Set parent…**), plus everything the card menu has elsewhere.
+**Editing per node:** click the estimate chip, the dates chip, the due chip, or the progress
+bar on any row to set that value directly. The context menu offers the same (**Set
+estimate…**, **Set progress…**, **Set parent…**), plus everything the card menu has
+elsewhere — including **Set status**, so you can move work through its workflow without
+leaving the tree (the status dot updates instantly).
 
 **Re-parenting by drag and drop:** drag a row onto another row to move it under a new parent
 — the wikilink in the relationship property is rewritten for you (whether the link lives on
-the child's `parent` property or the old parent's `children` list). Invalid targets — the
-node itself, its current parent, anything inside its own subtree — highlight red and refuse
-the drop. Relationships detected from the tag+link **heuristic** can't be un-linked
-automatically; the new parent link is added and a notice explains. Prefer menus? **Set
-parent…** and the **Relationships** submenu do the same without dragging.
+the child's `parent` property, the old parent's `children` list, or both). Invalid targets —
+the node itself, its current parent, anything inside its own subtree — highlight red and
+refuse the drop. While dragging, the tree **auto-scrolls** when you near its top or bottom
+edge, and **hovering a collapsed node expands it** so you can drop deeper. Relationships
+detected from the tag+link **heuristic** can't be un-linked automatically; the new parent
+link is added and a notice explains. Prefer menus? **Set parent…** and the **Relationships**
+submenu do the same without dragging.
+
+**Detach by drag:** drop a row onto the left panel ("Drop here to detach from parent") to
+remove it from its parent — the stored link is deleted, nothing else changes. The note then
+roots its own tree (if it has children) or leaves the tree.
 
 **The "Needs planning" panel** on the left lists every card missing a **start date or an
-estimate**, grouped by note type → status — your estimation backlog. Drag a card from the
+estimate**, grouped by note type → status and sorted by the view's card sort — your
+estimation backlog. Drag a card from the
 panel onto a tree node to give it a parent (and grow the breakdown). The panel collapses to a
 slim rail with **«** (remembered per view, auto-collapses on narrow panes).
 

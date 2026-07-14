@@ -2486,6 +2486,28 @@
         -webkit-box-orient: vertical;
     }
 
+    /* Tree column: a slim toolbar (expand/collapse all) over the scroller. */
+    .kap-root .kap-wbs-treewrap {
+        @apply flex flex-col flex-1 min-w-0 min-h-0;
+    }
+
+    .kap-root .kap-wbs-treebar {
+        @apply flex items-center justify-end gap-1 px-2 pt-1;
+    }
+
+    .kap-root .kap-wbs-treebar-btn {
+        @apply inline-flex items-center justify-center h-6 w-6 shrink-0 border-0 rounded cursor-pointer bg-transparent p-0;
+        color: var(--text-muted);
+        transition:
+            color var(--kap-transition) var(--kap-ease),
+            background-color var(--kap-transition) var(--kap-ease);
+    }
+
+    .kap-root .kap-wbs-treebar-btn:hover {
+        background: var(--background-modifier-hover);
+        color: var(--text-normal);
+    }
+
     /* The tree scrolls on its own so the panel never squeezes it out. */
     .kap-root .kap-wbs-tree {
         @apply flex-1 min-w-0 overflow-y-auto p-2;
@@ -2597,6 +2619,28 @@
         justify-content: flex-start;
     }
 
+    /* Due chip: countdown text on the issue-#62 tone ramp (color only). */
+    .kap-root .kap-wbs-due {
+        width: 7rem;
+        justify-content: flex-start;
+    }
+
+    .kap-root .kap-wbs-due-overdue {
+        color: var(--color-red, var(--text-error));
+    }
+
+    .kap-root .kap-wbs-due-today {
+        color: var(--color-yellow, var(--text-warning, var(--text-accent)));
+    }
+
+    .kap-root .kap-wbs-due-soon {
+        color: var(--color-orange, var(--text-warning, var(--text-accent)));
+    }
+
+    .kap-root .kap-wbs-due-future {
+        color: var(--text-muted);
+    }
+
     .kap-root .kap-wbs-chip-btn:hover {
         background: var(--background-modifier-hover);
         color: var(--text-normal);
@@ -2643,9 +2687,15 @@
     }
 
     /* Narrow splits: shed meta columns before the title is squeezed out —
-       the fixed-width chip grid is ~26rem, wider than many side panes. */
-    @container (max-width: 44rem) {
+       the fixed-width chip grid is ~33rem, wider than many side panes. */
+    @container (max-width: 52rem) {
         .kap-root .kap-wbs-dates {
+            display: none;
+        }
+    }
+
+    @container (max-width: 42rem) {
+        .kap-root .kap-wbs-due {
             display: none;
         }
     }
@@ -2676,6 +2726,29 @@
     .kap-root .kap-wbs-empty-hint {
         @apply text-[0.85em] max-w-md;
         color: var(--text-faint);
+    }
+
+    /* Panel-as-drop-target: the detach hint appears only while a tree row
+       drags (drop-ready), and never on the collapsed rail (no room). */
+    .kap-root .kap-wbs-drop-hint {
+        @apply hidden m-2 p-2 rounded text-center text-[0.85em];
+        border: 1px dashed var(--background-modifier-border);
+        color: var(--text-muted);
+    }
+
+    .kap-root
+        .kap-wbs-panel.kap-wbs-drop-ready:not(.kap-scheduling-panel-collapsed)
+        .kap-wbs-drop-hint {
+        display: block;
+    }
+
+    .kap-root .kap-wbs-panel.kap-wbs-drop {
+        background: var(--background-modifier-hover);
+    }
+
+    .kap-root .kap-wbs-panel.kap-wbs-drop .kap-wbs-drop-hint {
+        border-color: var(--interactive-accent);
+        color: var(--text-normal);
     }
 
     /* Body-level drag-ghost wrapper (the .kap-root scope for portal nodes);
