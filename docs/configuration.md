@@ -184,6 +184,16 @@ Timeline** only sets the **Default range** (Quarter by default). Estimates are w
 plain numbers; fractional values are rounded up to whole days, minimum 1. Old per-view
 start/estimate/end/milestone keys in a `.base` file are simply ignored.
 
+## WBS mode
+
+The WBS reuses the properties you already have: the **start date** is your scheduled-date
+property, the **estimate** the timeline's estimate property (days), and the tree comes from
+your **parent/children** relationship link properties. One new global setting: **Progress
+property** (default `progress`) — a **number from 0 to 100** driving the per-node progress
+bars and their rollups. Progress and estimates are always written as plain numbers. There are
+no per-view WBS options; the collapsed nodes and panel state are remembered per view
+automatically.
+
 ## Card title
 
 The card heading is the **note name** by default. Per board, **Configure view → Cards →

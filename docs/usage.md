@@ -572,6 +572,72 @@ The toolbar [filter](#filtering-search-bar) and
 [zoom](#focus-on-a-cards-children-zoom) narrow the timeline like every other mode — zoom into a
 project and the timeline becomes that project's plan.
 
+## WBS mode
+
+Where the board answers "what state is everything in", the **WBS** (work breakdown structure)
+answers "**how does the work decompose**": your parent/child relationships rendered as a
+collapsible tree — goal → projects → tasks — with estimates, progress bars, and dates rolled
+up the hierarchy. Switch to it with the **WBS** button in the mode switch (or the **Toggle WBS
+mode** command).
+
+![The WBS tree with rolled-up estimates and progress]({{ '/images/wbs.png' | relative_url }})
+
+**What's in the tree:** every note (in this view's result set) that has children roots or
+joins a tree; notes without children appear only nested under their parent, never as
+standalone rows. A note with **several parents** shows under each of them (marked ⧉). Fold
+and unfold any node with the chevron (**←/→** on a focused row also work) — collapse state is
+remembered per view. Click a row to open the note (Ctrl/Cmd-click for a new tab).
+
+**One rollup model — own value wins, else derived from the children.** Estimates and progress
+work the same way, so you can plan **top-down** (estimate the goal, split it later),
+**bottom-up** (estimate the tasks, let the parents derive), or mix both:
+
+- **Estimate** — the row shows the note's own estimate (`5d`). A parent without one shows the
+  children's rollup instead (_`Σ 12d`_, italic = derived). A parent with its own estimate
+  also shows the children's rollup when it differs — an at-a-glance "does my budget match the
+  breakdown?" signal.
+- **Progress** — every row has a progress bar, driven by a **0–100 number** in the progress
+  property (`progress` by default, configurable in settings). A note without its own progress
+  (or at 0) derives the weighted combination of its children — derived bars render dimmed
+  with a dashed outline.
+- **Dates** — a row with a start date shows its span (start → start + estimate − 1). A parent
+  without one shows the span its subtree covers, in italics.
+
+**Rollups are displayed by default — persist them when you want.** Right-click a node and use
+**Save rolled-up estimate (Nd)** or **Save rolled-up progress (N%)** to write the derived
+value into the note. The **Set estimate…** / **Set progress…** dialogs pre-fill the derived
+value too, so adopting a rollup is open → **Set**. Because an own value _replaces_ its
+subtree's contribution (it never adds to it), saving a rollup never double-counts.
+
+**Top-down estimating:** right-click a node that has an estimate and children and choose
+**Distribute estimate to children** — what remains of the estimate (after the children's own
+coverage) is split equally, whole days, across the children that have no estimate yet.
+Existing values are never overwritten.
+
+**Editing per node:** click the estimate chip, the dates chip, or the progress bar on any row
+to set that value directly. The context menu offers the same (**Set estimate…**, **Set
+progress…**, **Set parent…**), plus everything the card menu has elsewhere.
+
+**Re-parenting by drag and drop:** drag a row onto another row to move it under a new parent
+— the wikilink in the relationship property is rewritten for you (whether the link lives on
+the child's `parent` property or the old parent's `children` list). Invalid targets — the
+node itself, its current parent, anything inside its own subtree — highlight red and refuse
+the drop. Relationships detected from the tag+link **heuristic** can't be un-linked
+automatically; the new parent link is added and a notice explains. Prefer menus? **Set
+parent…** and the **Relationships** submenu do the same without dragging.
+
+**The "Needs planning" panel** on the left lists every card missing a **start date or an
+estimate**, grouped by note type → status — your estimation backlog. Drag a card from the
+panel onto a tree node to give it a parent (and grow the breakdown). The panel collapses to a
+slim rail with **«** (remembered per view, auto-collapses on narrow panes).
+
+The toolbar [filter](#filtering-search-bar) and [zoom](#focus-on-a-cards-children-zoom) apply
+here too — zoom into a goal and the WBS shows just that subtree's breakdown. The tree stays
+within the Base's own result set: notes excluded by the Base's filters don't appear.
+
+The WBS never creates notes — it structures, estimates, and re-parents the ones the Base
+already selects.
+
 ## Keyboard
 
 Cards are fully keyboard-operable. **Tab** to a card, then:
@@ -627,11 +693,12 @@ saved into the `.base` file, like the Board/Calendar/Triage mode).
 
 Each Kanban view remembers how you left it, **per view**, across reloads and reopening Obsidian:
 
-- Board vs **Calendar** vs **Timeline** mode, and the calendar **range**
-  (Week/Month/Quarter/Year), **active tab**, **panel collapsed** state, and the
+- Board vs **Calendar** vs **Timeline** vs **Triage** vs **WBS** mode, and the calendar
+  **range** (Week/Month/Quarter/Year), **active tab**, **panel collapsed** state, and the
   **Scheduled/Deadlines** legend toggles.
 - The timeline **range** (Week/Month/Quarter/Year), its **panel collapsed** state, and its
   **hidden types**.
+- The WBS **collapsed nodes** and its **panel collapsed** state.
 - **Collapsed swimlanes** and **collapsed columns**.
 - **Compact cards** (titles only) on or off.
 - The toolbar **filter** query.
@@ -821,6 +888,7 @@ is active, and each can be given a hotkey in **Settings → Hotkeys**):
 
 - **Toggle board / calendar mode**
 - **Toggle timeline mode**
+- **Toggle WBS mode**
 - **Toggle triage mode** / **Configure triage**
 - **Focus filter**: jump to the filter box
 - **Clear filter**

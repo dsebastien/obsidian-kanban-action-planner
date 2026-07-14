@@ -28,7 +28,7 @@ import { groupByTypeAndStatus } from '../../domain/timeline'
 import { compareTabCards, coerceSortValue } from '../../domain/calendar-tabs'
 import type { SortDirection, TabSortKey, TabSortMode } from '../../domain/calendar-tabs'
 import type { Board, UnmappedPosition } from '../../domain/board-model'
-import { detectStatusProperty, normalizeStatusValue } from '../../domain/status'
+import { detectStatusProperty, normalizeStatusValue, splitStatusValue } from '../../domain/status'
 import { passesFilter } from '../../domain/filtering'
 import type { BlockedFilter, RelationalFilter } from '../../domain/filtering'
 import type { RelationshipSet } from '../../domain/relationships'
@@ -111,6 +111,10 @@ import { listNoteTypes } from '../../services/starter-kit.service'
 import { FilterBar } from '../../ui/filter-bar'
 import { TimelineController } from './timeline-controller'
 import type { TimelineViewState } from './timeline-controller'
+import { WbsController } from './wbs-controller'
+import type { WbsViewState } from './wbs-controller'
+import { WbsDnd } from '../../ui/wbs/wbs-dnd'
+import { resolveColor } from '../../services/colors.service'
 import { BoardSelection } from './board-selection'
 import { buildCardMenu, isNewTabEvent } from './card-menu'
 import type { CardMenuHost } from './card-menu'
@@ -241,6 +245,9 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
     private calendar: CalendarController | null = null
     // Timeline mode (issue #77) — state + rendering owned by TimelineController.
     private timeline: TimelineController | null = null
+    // WBS mode (issue #76) — state + rendering owned by WbsController.
+    private wbs: WbsController | null = null
+    private wbsDnd: WbsDnd | null = null
     private resizeObserver: ResizeObserver | null = null
     private readonly debouncedResize: Debouncer<[], void>
 
@@ -349,6 +356,42 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             restoreHiddenTypes: () => this.restoreTimelineHiddenTypes(),
             persistHiddenTypes: (ids) => this.persistTimelineHiddenTypes(ids)
         })
+        this.wbs = new WbsController({
+            app: this.app,
+            boardEl: () => this.boardEl,
+            rebuild: () => this.rebuild(),
+            refresh: () => this.applyFilterAndRender(),
+            isWbsMode: () => this.wbsMode(),
+            openCard: (card, newTab) => this.openCard(card, newTab),
+            showCardMenu: (card, event, extend) => this.showCardMenu(card, event, extend),
+            cardForKey: (key) => this.cardsByKey.get(key),
+            allCardForKey: (key) => this.allCards.find((c) => c.key === key),
+            relationshipSets: () => this.relationshipsByPath,
+            startProperty: () => this.resolveTimelineStartProperty(),
+            estimateProperty: () => this.resolveTimelineEstimateProperty(),
+            progressProperty: () => this.resolveProgressProperty(),
+            scheduledProperty: () => this.scheduledDateProperty,
+            parentProperty: () => this.relationshipProperties().parent,
+            childProperty: () => this.relationshipProperties().child,
+            dateFormat: () =>
+                this.noteType.calendar.dateFormat || this.plugin.settings.defaultDateFormat,
+            noteTypeFor: (card) => this.noteTypeByPath.get(card.key) ?? null,
+            statusColorFor: (card) => this.statusColorFor(card),
+            statusLabelFor: (card) => this.statusLabelFor(card),
+            comparator: () =>
+                this.cardComparator() ?? ((a, b) => a.display.title.localeCompare(b.display.title)),
+            restoreState: () => this.restoreWbsState(),
+            persistState: (state) => this.persistWbsState(state),
+            restoreCollapsedNodes: () => this.restoreWbsCollapsedNodes(),
+            persistCollapsedNodes: (paths) => this.persistWbsCollapsedNodes(paths),
+            addParentRelationship: (card) => this.addRelationship(card, 'parent')
+        })
+        this.wbsDnd = new WbsDnd(this.boardEl, {
+            canDrop: (sourceKey, sourceParentKey, targetKey) =>
+                this.wbs?.canDrop(sourceKey, sourceParentKey, targetKey) ?? false,
+            onDrop: (sourceKey, sourceParentKey, targetKey) =>
+                this.wbs?.handleDrop(sourceKey, sourceParentKey, targetKey)
+        })
         this.resizeObserver = new ResizeObserver(() => this.debouncedResize())
         this.resizeObserver.observe(this.boardEl)
         // Refresh when a note already on the board changes in place (issue #13).
@@ -431,6 +474,9 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         this.columnDnd = null
         this.calendarDnd?.destroy()
         this.calendarDnd = null
+        this.wbsDnd?.destroy()
+        this.wbsDnd = null
+        this.wbs = null
         this.calendar = null
         this.filterBar?.destroy()
         this.filterBar = null
@@ -464,6 +510,11 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
     /** Toggle timeline mode (returns to board when already in timeline) — issue #77. */
     toggleTimeline(): void {
         this.setViewMode(this.timelineMode() ? 'board' : 'timeline')
+    }
+
+    /** Toggle WBS mode (returns to board when already in WBS) — issue #76. */
+    toggleWbs(): void {
+        this.setViewMode(this.wbsMode() ? 'board' : 'wbs')
     }
 
     /** Put the cursor in the filter box. */
@@ -694,6 +745,12 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         // and the triage card keep their full layout).
         this.boardEl.toggleClass('kap-compact', this.compactMode() && this.viewMode() === 'board')
 
+        // Resolve the column set BEFORE the mode branches: `cardColumns` (the
+        // menu's Set-status list, the WBS status dots) reads `this.columns`,
+        // which would otherwise stay stale/empty until board mode renders
+        // once (e.g. a view whose .base opens straight into WBS).
+        this.columns = columnsFromValues(this.resolveColumnValues(), this.noteType, true)
+
         if (this.triageMode()) {
             this.renderToolbar(false)
             this.renderTriage()
@@ -712,8 +769,11 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             return
         }
 
-        const values = this.resolveColumnValues()
-        this.columns = columnsFromValues(values, this.noteType, true)
+        if (this.wbsMode()) {
+            this.renderToolbar(false)
+            this.wbs?.render(cards)
+            return
+        }
 
         // Per-lane column sets (mixed boards): each note-type lane carries its
         // own type's vocabulary/colors/WIP limits. Lane ids are the type NAMES
@@ -844,7 +904,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
      * card's natural height. Board mode only — the calendar has no cards.
      */
     private equalizeCardHeights(): void {
-        if (!this.boardEl || this.calendarMode()) return
+        if (!this.boardEl || this.calendarMode() || this.wbsMode()) return
         applyUniformCardHeight(this.boardEl)
     }
 
@@ -933,6 +993,48 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
 
     private persistTimelineHiddenTypes(ids: string[]): void {
         this.config.set('timelineHiddenTypes', ids)
+    }
+
+    /** Read the durable WBS UI state (defaults when unset) — issue #76. */
+    private restoreWbsState(): WbsViewState {
+        return { panelCollapsed: this.config.get('wbsPanelCollapsed') === true }
+    }
+
+    private persistWbsState(state: WbsViewState): void {
+        this.config.set('wbsPanelCollapsed', state.panelCollapsed)
+    }
+
+    /**
+     * Collapsed WBS node paths: a dedicated config key with a validated
+     * string[] read — deliberately NOT part of `WbsViewState`, whose
+     * `persistState({ panelCollapsed })` call sites would clobber the list
+     * (the `timelineHiddenTypes` pattern).
+     */
+    private restoreWbsCollapsedNodes(): string[] {
+        return readIdArray(this.config.get('wbsCollapsedNodes'))
+    }
+
+    private persistWbsCollapsedNodes(paths: string[]): void {
+        this.config.set('wbsCollapsedNodes', paths)
+    }
+
+    /** WBS progress property, 0–100 (global plugin setting; issue #76). */
+    private resolveProgressProperty(): string {
+        return this.plugin.settings.defaultProgressProperty
+    }
+
+    /** The status column color for a card's own value (WBS row dot). */
+    private statusColorFor(card: KanbanCard): string | null {
+        if (card.statusValue === null) return null
+        const column = this.cardColumns(card).find((c) => c.statusValue === card.statusValue)
+        return column ? resolveColor(column.color) : null
+    }
+
+    /** The status column label for a card's own value (WBS row tooltip). */
+    private statusLabelFor(card: KanbanCard): string | null {
+        if (card.statusValue === null) return null
+        const column = this.cardColumns(card).find((c) => c.statusValue === card.statusValue)
+        return column?.label ?? splitStatusValue(card.statusValue).label
     }
 
     // Timeline properties are GLOBAL (plugin settings) — no per-view overrides
@@ -1796,11 +1898,16 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         return this.viewMode() === 'timeline'
     }
 
-    /** The active view mode (triage wins, else calendar, else timeline, else board). */
+    private wbsMode(): boolean {
+        return this.viewMode() === 'wbs'
+    }
+
+    /** The active view mode (triage wins, else calendar, timeline, WBS, board). */
     private viewMode(): ViewMode {
         if (this.config.get('triageMode') === true) return 'triage'
         if (this.config.get('calendarMode') === true) return 'calendar'
         if (this.config.get('timelineMode') === true) return 'timeline'
+        if (this.config.get('wbsMode') === true) return 'wbs'
         return 'board'
     }
 
@@ -1810,6 +1917,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         this.config.set('calendarMode', mode === 'calendar')
         this.config.set('triageMode', mode === 'triage')
         this.config.set('timelineMode', mode === 'timeline')
+        this.config.set('wbsMode', mode === 'wbs')
         if (mode === 'triage') {
             // Fresh queue snapshot each time triage is (re)entered.
             this.triageQueueKeys = null
@@ -1823,6 +1931,10 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         if (mode === 'timeline') {
             this.timeline?.resetNarrow()
             this.timeline?.evaluatePanelAutoCollapse()
+        }
+        if (mode === 'wbs') {
+            this.wbs?.resetNarrow()
+            this.wbs?.evaluatePanelAutoCollapse()
         }
     }
 
@@ -2485,6 +2597,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
     private onResize(): void {
         this.calendar?.evaluatePanelAutoCollapse()
         this.timeline?.evaluatePanelAutoCollapse()
+        this.wbs?.evaluatePanelAutoCollapse()
         this.equalizeCardHeights()
         if (this.timelineMode()) this.rebuild()
     }

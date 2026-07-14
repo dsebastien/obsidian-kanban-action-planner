@@ -2441,6 +2441,253 @@
         color: var(--text-faint);
     }
 
+    /* ========================================================================
+       WBS mode (issue #76): the "Needs planning" panel (shared
+       .kap-scheduling-panel shell + the calendar's ugroup headers) beside a
+       flat indented tree — one .kap-wbs-row per visible node.
+       ======================================================================== */
+
+    .kap-root .kap-wbs {
+        @apply flex h-full min-h-0;
+        /* Size container so the row meta can adapt to narrow splits. */
+        container-type: inline-size;
+    }
+
+    .kap-root .kap-wbs-panel-body {
+        @apply flex flex-col gap-1 p-2 overflow-y-auto min-h-0;
+        flex: 1;
+    }
+
+    .kap-root .kap-wbs-pane-cards {
+        @apply flex flex-col gap-1;
+    }
+
+    .kap-root .kap-wbs-pane-card {
+        @apply flex w-full flex-none items-start rounded p-2 text-left cursor-grab overflow-hidden;
+        color: var(--text-normal);
+        background: var(--background-primary);
+        border: 1px solid var(--background-modifier-border);
+        /* Let the pointer DnD own touch gestures (drag to set a parent). */
+        touch-action: none;
+        transition:
+            background-color var(--kap-transition) var(--kap-ease),
+            border-color var(--kap-transition) var(--kap-ease);
+    }
+
+    .kap-root .kap-wbs-pane-card:hover {
+        background: var(--background-modifier-hover);
+        border-color: var(--interactive-accent);
+    }
+
+    .kap-root .kap-wbs-pane-cardtitle {
+        @apply w-full text-[0.8em] leading-snug overflow-hidden;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+    }
+
+    /* The tree scrolls on its own so the panel never squeezes it out. */
+    .kap-root .kap-wbs-tree {
+        @apply flex-1 min-w-0 overflow-y-auto p-2;
+    }
+
+    .kap-root .kap-wbs-row {
+        @apply flex items-center gap-1.5 rounded px-2 py-1 cursor-pointer select-none;
+        /* Depth indent, capped so deep trees stay usable on narrow panes. */
+        margin-inline-start: min(calc(var(--kap-wbs-depth, 0) * 1.25rem), 40%);
+        color: var(--text-normal);
+        border: 1px solid transparent;
+        /* Let the pointer DnD own touch gestures (drag to re-parent). */
+        touch-action: none;
+        transition:
+            background-color var(--kap-transition) var(--kap-ease),
+            border-color var(--kap-transition) var(--kap-ease);
+    }
+
+    .kap-root .kap-wbs-row:hover {
+        background: var(--background-modifier-hover);
+    }
+
+    .kap-root .kap-wbs-row:focus-visible {
+        border-color: var(--interactive-accent);
+        outline: none;
+    }
+
+    .kap-root .kap-wbs-row-root {
+        @apply font-medium;
+    }
+
+    /* Blocked keeps the board's red left-accent channel (issue #22 split). */
+    .kap-root .kap-wbs-row-blocked {
+        box-shadow: inset 3px 0 0 var(--text-error);
+    }
+
+    /* Live drop feedback: valid targets glow accent, invalid strike red. */
+    .kap-root .kap-wbs-drop {
+        background: var(--background-modifier-hover);
+        border-color: var(--interactive-accent);
+    }
+
+    .kap-root .kap-wbs-drop-invalid {
+        border-color: var(--text-error);
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+
+    .kap-root .kap-wbs-toggle {
+        @apply inline-flex items-center justify-center h-5 w-5 shrink-0 border-0 rounded cursor-pointer bg-transparent p-0 text-[0.8em];
+        color: var(--text-muted);
+    }
+
+    .kap-root .kap-wbs-toggle:hover {
+        background: var(--background-modifier-border);
+        color: var(--text-normal);
+    }
+
+    .kap-root .kap-wbs-toggle-leaf {
+        cursor: default;
+    }
+
+    .kap-root .kap-wbs-status-dot {
+        @apply inline-block h-2.5 w-2.5 shrink-0 rounded-full;
+        background: var(--background-modifier-border);
+    }
+
+    .kap-root .kap-wbs-title {
+        @apply truncate;
+    }
+
+    .kap-root .kap-wbs-dup {
+        @apply shrink-0 text-[0.8em];
+        color: var(--text-faint);
+    }
+
+    .kap-root .kap-wbs-childcount {
+        @apply shrink-0 rounded-full px-1.5 text-[0.75em];
+        color: var(--text-muted);
+        background: var(--background-modifier-hover);
+    }
+
+    /* Right-aligned per-row meta: progress bar, dates, estimate. Every chip
+       has a FIXED width so the three form aligned columns across rows —
+       scannability + visual stability (bars always at the same x). */
+    .kap-root .kap-wbs-meta {
+        @apply flex items-center gap-1.5 ml-auto shrink-0;
+    }
+
+    .kap-root .kap-wbs-chip-btn {
+        @apply inline-flex items-center gap-1 h-6 px-1.5 rounded border-0 cursor-pointer bg-transparent text-[0.8em] whitespace-nowrap;
+        color: var(--text-muted);
+        font-variant-numeric: tabular-nums;
+        transition: background-color var(--kap-transition) var(--kap-ease);
+    }
+
+    .kap-root .kap-wbs-progressbtn {
+        width: 7.5rem;
+        justify-content: flex-start;
+    }
+
+    .kap-root .kap-wbs-dates {
+        width: 11.5rem;
+        justify-content: flex-start;
+    }
+
+    .kap-root .kap-wbs-estimate {
+        width: 6.75rem;
+        justify-content: flex-start;
+    }
+
+    .kap-root .kap-wbs-chip-btn:hover {
+        background: var(--background-modifier-hover);
+        color: var(--text-normal);
+    }
+
+    .kap-root .kap-wbs-chip-unset {
+        color: var(--text-faint);
+    }
+
+    /* Derived (bottom-up rolled-up) chip values read apart from own values. */
+    .kap-root .kap-wbs-chip-derived {
+        font-style: italic;
+    }
+
+    .kap-root .kap-wbs-estimate-total {
+        color: var(--text-accent);
+    }
+
+    /* Progress bar: own values solid accent; derived (rolled up from
+       children) render dimmed with a dashed outline so the two read apart. */
+    .kap-root .kap-wbs-progress {
+        @apply h-1.5 w-16 overflow-hidden rounded;
+        background: var(--background-modifier-border);
+    }
+
+    .kap-root .kap-wbs-progress-fill {
+        @apply h-full rounded;
+        background: var(--interactive-accent);
+    }
+
+    .kap-root .kap-wbs-progress-derived {
+        outline: 1px dashed var(--text-faint);
+        outline-offset: 1px;
+    }
+
+    .kap-root .kap-wbs-progress-derived .kap-wbs-progress-fill {
+        opacity: 0.55;
+    }
+
+    .kap-root .kap-wbs-progress-caption {
+        @apply text-[0.95em];
+        min-width: 2.25rem;
+        text-align: right;
+    }
+
+    /* Narrow splits: shed meta columns before the title is squeezed out —
+       the fixed-width chip grid is ~26rem, wider than many side panes. */
+    @container (max-width: 44rem) {
+        .kap-root .kap-wbs-dates {
+            display: none;
+        }
+    }
+
+    @container (max-width: 34rem) {
+        .kap-root .kap-wbs-progressbtn {
+            width: auto;
+        }
+
+        .kap-root .kap-wbs-progress {
+            display: none;
+        }
+
+        .kap-root .kap-wbs-estimate {
+            width: auto;
+        }
+    }
+
+    .kap-root .kap-wbs-empty {
+        @apply flex flex-col items-center justify-center gap-1 h-full p-6 text-center;
+    }
+
+    .kap-root .kap-wbs-empty-title {
+        @apply font-medium;
+        color: var(--text-muted);
+    }
+
+    .kap-root .kap-wbs-empty-hint {
+        @apply text-[0.85em] max-w-md;
+        color: var(--text-faint);
+    }
+
+    /* Body-level drag-ghost wrapper (the .kap-root scope for portal nodes);
+       the transformed wrapper is the containing block for the fixed ghost. */
+    .kap-wbs-ghost-wrap {
+        position: fixed;
+        top: 0;
+        left: 0;
+        z-index: var(--layer-dragged, 1000);
+        pointer-events: none;
+    }
+
     /* Respect prefers-reduced-motion: every transition/animation duration in
        this layer is driven by the --kap-transition* variables, so zeroing them
        here disables all motion without per-rule overrides or !important. */

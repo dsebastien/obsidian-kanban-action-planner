@@ -97,6 +97,11 @@ export class KanbanActionPlannerPlugin extends Plugin {
             checkCallback: onActiveView((view) => view.toggleTimeline())
         })
         this.addCommand({
+            id: 'toggle-wbs-mode',
+            name: 'Toggle WBS mode',
+            checkCallback: onActiveView((view) => view.toggleWbs())
+        })
+        this.addCommand({
             id: 'configure-triage',
             name: 'Configure triage',
             checkCallback: onActiveView((view) => view.openTriageConfig())

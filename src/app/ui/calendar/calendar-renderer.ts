@@ -186,8 +186,11 @@ function renderPanel(
     }
 }
 
-/** A full-width collapsible group header: chevron + label + count badge. */
-function renderGroupHeader(
+/**
+ * A full-width collapsible group header: chevron + label + count badge.
+ * Shared with the WBS pane (same `kap-cal-ugroup*` chrome, custom `cls`).
+ */
+export function renderGroupHeader(
     parent: HTMLElement,
     cls: string,
     label: string,

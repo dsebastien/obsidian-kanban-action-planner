@@ -287,6 +287,12 @@ export class KanbanActionPlannerSettingTab extends PluginSettingTab {
             'milestones'
         )
         text(
+            'Progress property',
+            'Completion percentage 0–100 (drives the WBS progress bars).',
+            'defaultProgressProperty',
+            'progress'
+        )
+        text(
             'Date format',
             'Moment.js format used when writing scheduling dates to notes.',
             'defaultDateFormat',

@@ -232,6 +232,36 @@ deliberately outside `TimelineViewState` so `persistState({ range })` calls can'
 Zoom persists via the existing `timelineRangeOverride`. Context menus reuse `card-menu.ts`
 through an optional `extend(menu)` hook (`kap-timeline` section).
 
+**WBS mode (issue #76).** A fifth view mode (`wbsMode` flag, `toggle-wbs-mode` command) with
+the same three-layer split: pure math in `domain/wbs.ts` (`buildWbsForest` — roots = in-set
+children + no in-set parent, per-branch cycle guard, multi-parent duplication;
+`effectiveEstimate`/`childrenEstimate` — **own value wins, else recursive children rollup**,
+so persisting a rollup never double-counts; `effectiveProgress` — own > 0 wins, else the
+children's combination weighted by effective estimates; `subtreeSpan` — derived date span;
+`distributeEstimate` — top-down split over estimate-less children; `parseProgress` — 0–100
+clamp; `buildWbsNode` — single-path twin for menu-time math). DOM in `ui/wbs/wbs-renderer.ts`
+(shared `kap-scheduling-panel` shell + the calendar's exported `renderGroupHeader` for the
+"Needs planning" backlog; one flat `.kap-wbs-row` per visible node with `data-card-key` /
+`data-parent-key`; fixed-width right-aligned meta chips so progress bars / dates / estimates
+column-align across rows). State + writes in `views/kanban/wbs-controller.ts` (mirrors
+`TimelineController`: lazy `ensureLoaded`, full-object `persist()`, narrow-pane
+auto-collapse; node collapse under the dedicated `wbsCollapsedNodes` key, panel collapse
+under `wbsPanelCollapsed`; estimate/progress/start edits via `EstimatePromptModal` /
+`ProgressPromptModal` (`ui/wbs/progress-modal.ts`) / `DatePromptModal`, all writing numbers /
+formatted dates through `frontmatter.service`; menu extras in the `kap-wbs` section incl.
+**Save rolled-up estimate/progress** and **Distribute estimate to children**). DnD in
+`ui/wbs/wbs-dnd.ts` (a `CalendarDnd` sibling: sources `.kap-wbs-row` + `.kap-wbs-pane-card`,
+targets rows, live `canDrop` validation — self/existing-parent/own-subtree rejected with a
+red highlight). Re-parenting resolves where the old edge is physically stored via
+`directLinkTargets` (child-owned `parent` link vs parent-owned `children` link vs
+non-removable heuristic) and commits through `addRelationshipLink`/`removeRelationshipLink`;
+the controller mutates the view's live `relationshipsByPath` sets + card badge lists first
+and re-renders through a host `refresh()` closure (`applyFilterAndRender`, NOT `rebuild()` —
+a rebuild would re-derive from the not-yet-written frontmatter and snap back), so the echo
+rebuild re-derives identical state (#64). The progress property name is a global setting
+(`defaultProgressProperty`, default `progress`), matching the timeline's global-property
+decision.
+
 **Configure-board modal** (`ui/configure-board-modal.ts`): a two-pane dialog — a left section nav
 (Cards / Colors / Swimlanes / Relationships / Archiving) over a scrollable content pane; the
 active section renders into `this.body`. The Archive-folder field uses `ui/folder-suggest.ts`

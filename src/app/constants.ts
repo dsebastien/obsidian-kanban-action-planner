@@ -31,6 +31,8 @@ export const DEFAULT_DUE_DATE_PROPERTY = 'date_due'
 export const DEFAULT_ESTIMATE_PROPERTY = 'estimate'
 /** Milestone list entries (`<date> [label]`) rendered as timeline diamonds. */
 export const DEFAULT_MILESTONES_PROPERTY = 'milestones'
+/** Completion percentage 0–100 (drives the WBS progress bars; issue #76). */
+export const DEFAULT_PROGRESS_PROPERTY = 'progress'
 
 /** Default review (spaced-repetition) property names (issue #57; configurable). */
 export const DEFAULT_REVIEWED_DATE_PROPERTY = 'last_reviewed'

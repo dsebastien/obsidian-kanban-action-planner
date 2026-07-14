@@ -63,6 +63,7 @@ Defined in `src/app/types/plugin-settings.intf.ts`, seeded from `src/app/constan
 | `defaultDueDateProperty`       | `date_due`       | "No Deadline" tab / due date                                            |
 | `defaultEstimateProperty`      | `estimate`       | Timeline estimate in days (span = start + estimate − 1)                 |
 | `defaultMilestonesProperty`    | `milestones`     | Milestone list property (`<date> [label]` entries → timeline diamonds). |
+| `defaultProgressProperty`      | `progress`       | Completion percentage 0–100 (WBS progress bars + rollups)               |
 | `defaultDateFormat`            | `YYYY-MM-DD`     | momentjs format for dates written to notes                              |
 | `firstDayOfWeek`               | `1` (Monday)     | Day calendar weeks start on (0 = Sunday … 6 = Saturday)                 |
 

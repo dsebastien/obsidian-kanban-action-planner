@@ -83,6 +83,17 @@ column rule.
   Calendar/lane UI state (range override, anchor, focused day, active tab, panel/lane collapse)
   is currently in-memory per session.
 
+- **WbsNode / WBS rollups (issue #76)** — `domain/wbs.ts` (pure, unit-tested).
+  `buildWbsForest(paths, childrenOf, parentsOf, compare)` derives the WBS forest from the
+  resolved relationships: roots have in-set children and no in-set parent, multi-parent notes
+  duplicate under each parent, cycles stop where a branch re-enters itself. One rollup model
+  for estimates and progress: **a note's own value wins; without one it derives from its
+  children** (`effectiveEstimate`/`childrenEstimate`, `effectiveProgress` — weighted by
+  effective estimates; `parseProgress` clamps to 0–100). `subtreeSpan` derives a parent's
+  date span from its subtree; `distributeEstimate` splits an own estimate top-down over
+  estimate-less children. Derived values are display-only until explicitly persisted
+  ("Save rolled-up …").
+
 ## Property semantics
 
 - **Status** drives columns. Auto-detection prefers a property literally named `status`,

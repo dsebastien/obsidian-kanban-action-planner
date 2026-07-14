@@ -446,3 +446,40 @@ See `documentation/plans/kanban-action-planner-implementation-plan.md` for full 
     rectangles show the estimate as an inclusive day count (`5d`) — always in the tooltip, the
     in-bar span skipped on narrow bars. Out of scope (follow-ups):
     dependency arrows, hierarchy indentation, milestone notes.
+36. **WBS mode (issue #76).** A fifth view mode (Board / Calendar / Timeline / Triage /
+    **WBS**; `wbsMode` config flag, `toggle-wbs-mode` command) renders the resolved
+    parent/child hierarchy as a collapsible tree: roots are notes with at least one in-set
+    child and no in-set parent; leaf notes appear only nested (never as standalone rows);
+    multi-parent notes appear under **each** parent (⧉ marker); cycles stop where a branch
+    would re-enter itself; the tree respects the Base result set (rule 1) and renders the
+    already-filtered cards, so the toolbar filter and #74 zoom apply for free. **One rollup
+    model for estimates and progress (owner): a note's OWN value wins; a note without one
+    derives its value from its direct children, recursively** — so plans work **top-down,
+    bottom-up, or mixed**, and persisting a rollup to the parent never double-counts (an own
+    value replaces its subtree's contribution, never adds to it). Estimates follow rule 35
+    semantics (days, written as numbers); a node with an own estimate also shows the
+    children's rollup (`Σ Nd`) when it differs. **Progress** is a **0–100 number** in the
+    global `defaultProgressProperty` (`progress`): every row shows a progress bar; own > 0
+    wins, else the weighted combination of the children's effective progress (weights =
+    effective estimates when every child has one, equal otherwise); derived values render
+    dimmed/italic, distinctly from own values. **Rollups are display-only by default and
+    persisted on demand**: context-menu **Save rolled-up estimate/progress** writes the
+    derived value, and the estimate/progress modals pre-fill it. **Distribute estimate to
+    children** splits the own estimate's remainder equally over children whose subtree has no
+    estimate (≥ 1 whole day each; existing values never touched). A parent without its own
+    start date shows the **derived date span** its subtree covers. **Left "Needs planning"
+    panel**: the shared `kap-scheduling-panel` shell listing cards missing a start date or an
+    estimate, grouped note type → status (`groupByTypeAndStatus`, groups collapsed by
+    default, group collapse in-memory, pane collapse persisted `wbsPanelCollapsed`,
+    narrow-pane auto-collapse). **DnD re-parenting**: dragging a tree row onto another row
+    re-parents it; dragging a pane card onto a row sets its parent — the #14 write path
+    (child-owned `parent` link moves on the child; parent-owned `children` link moves across
+    the parents; a heuristic edge only gains the new link, with a Notice), optimistic per
+    rule 32 (in-memory relationship sets + badges mutate and re-render before the writes);
+    guards reject self, existing parents, and the node's own subtree (live red highlight).
+    Non-drag fallback: the Relationships submenu + **Set parent…** menu item. Row meta
+    (progress bar / dates / estimate) sits in **fixed-width right-aligned columns** so values
+    align across rows (scannability, owner priority). Node collapse persists per view under
+    the dedicated `wbsCollapsedNodes` key (string[], `readIdArray`). Estimate/start/progress
+    are editable per node (chip click → modal; menu items). The view never creates notes;
+    status writes from the tree stay out of v1 (context menu still offers them).
