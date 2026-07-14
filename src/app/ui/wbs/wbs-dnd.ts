@@ -23,7 +23,11 @@ const AUTOSCROLL_EDGE_PX = 48
 const AUTOSCROLL_MAX_STEP_PX = 14
 const HOVER_EXPAND_DELAY_MS = 600
 
-export type WbsDropTarget = { kind: 'row'; targetKey: string } | { kind: 'panel' }
+export type WbsDropTarget =
+    | { kind: 'row'; targetKey: string }
+    | { kind: 'panel' }
+    /** A pane status group (`data-pane-drop-*`): set the card's status. */
+    | { kind: 'paneGroup'; typeId: string; status: string }
 
 export interface WbsDndCallbacks {
     /**
@@ -202,19 +206,32 @@ export class WbsDnd {
 
         const el = activeDocument.elementFromPoint(e.clientX, e.clientY) as HTMLElement | null
         const rowEl = el?.closest<HTMLElement>('.kap-wbs-row[data-card-key]') ?? null
-        const panelEl = rowEl ? null : (el?.closest<HTMLElement>('.kap-wbs-panel') ?? null)
+        // Pane status groups accept PANE-CARD sources only (set status); a
+        // dragged tree row keeps the whole panel as its detach target.
+        const groupEl =
+            rowEl || this.sourceIsRow
+                ? null
+                : (el?.closest<HTMLElement>('[data-pane-drop-status]') ?? null)
+        const panelEl =
+            rowEl || !this.sourceIsRow ? null : (el?.closest<HTMLElement>('.kap-wbs-panel') ?? null)
         const targetKey = rowEl?.dataset['cardKey'] ?? null
 
         let target: WbsDropTarget | null = null
         if (rowEl && targetKey) target = { kind: 'row', targetKey }
-        else if (panelEl && this.sourceIsRow) target = { kind: 'panel' }
+        else if (groupEl) {
+            target = {
+                kind: 'paneGroup',
+                typeId: groupEl.dataset['paneDropType'] ?? '',
+                status: groupEl.dataset['paneDropStatus'] ?? ''
+            }
+        } else if (panelEl) target = { kind: 'panel' }
 
         const valid =
             target !== null &&
             this.sourceKey !== null &&
             this.callbacks.canDrop(this.sourceKey, this.sourceParentKey, target)
 
-        const nextDropEl = rowEl ?? (target?.kind === 'panel' ? panelEl : null)
+        const nextDropEl = rowEl ?? groupEl ?? (target?.kind === 'panel' ? panelEl : null)
         if (nextDropEl !== this.dropEl) {
             this.dropEl?.removeClass('kap-wbs-drop')
             this.dropEl?.removeClass('kap-wbs-drop-invalid')

@@ -77,6 +77,10 @@ export interface WbsPaneStatusGroupModel {
     label: string
     collapsed: boolean
     cards: KanbanCard[]
+    /** The owning note type id — pane-group drops are same-type only. */
+    typeId: string
+    /** The raw status value this group holds ('' = no status). */
+    status: string
 }
 
 export interface WbsPaneTypeGroupModel {
@@ -221,7 +225,7 @@ function buildPanel(model: WbsViewModel, callbacks: WbsCallbacks): HTMLElement {
             host = body.createDiv({ cls: 'kap-cal-ugroup-body' })
         }
         for (const sub of group.groups) {
-            renderGroupHeader(
+            const subHeader = renderGroupHeader(
                 host,
                 'kap-cal-usubgroup',
                 sub.label,
@@ -229,8 +233,14 @@ function buildPanel(model: WbsViewModel, callbacks: WbsCallbacks): HTMLElement {
                 sub.collapsed,
                 () => callbacks.onTogglePaneGroup(sub.key)
             )
+            // Pane-group DnD contract: a pane card dropped on another status
+            // group (header or card list) of the SAME type sets that status.
+            subHeader.dataset['paneDropType'] = sub.typeId
+            subHeader.dataset['paneDropStatus'] = sub.status
             if (sub.collapsed) continue
             const list = host.createDiv({ cls: 'kap-wbs-pane-cards' })
+            list.dataset['paneDropType'] = sub.typeId
+            list.dataset['paneDropStatus'] = sub.status
             for (const card of sub.cards) {
                 const cardEl = list.createEl('button', {
                     cls: 'kap-wbs-pane-card',

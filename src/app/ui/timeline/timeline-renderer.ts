@@ -89,6 +89,10 @@ export interface TimelineUndatedStatusGroupModel {
     label: string
     collapsed: boolean
     cards: KanbanCard[]
+    /** The owning note type id — pane-group drops are same-type only. */
+    typeId: string
+    /** The raw status value this group holds ('' = no status). */
+    status: string
 }
 
 /** One note-type group of undated cards (collapse key = the type id). */
@@ -161,6 +165,10 @@ export interface TimelineCallbacks {
     onZoom(direction: 1 | -1, anchorPct: number | null): void
     /** Undated card dropped on a track at `pct` (% of the window): set its start date. */
     onScheduleAt(card: KanbanCard, pct: number): void
+    /** Live validity for a pane-group hover (same type, different status). */
+    canPaneGroupDrop(card: KanbanCard, typeId: string, status: string): boolean
+    /** Undated card dropped on another panel status group: set that status. */
+    onPaneGroupDrop(card: KanbanCard, typeId: string, status: string): void
     /** Track double-clicked at `pct`: create a milestone there. */
     onAddMilestone(card: KanbanCard, pct: number): void
     /** Remove one milestone (the raw frontmatter list entry). */
@@ -859,8 +867,14 @@ function renderPanel(
                 attr: { 'type': 'button', 'aria-expanded': String(!sub.collapsed) }
             })
             subHeader.addEventListener('click', () => callbacks.onToggleUndatedGroup(sub.key))
+            // Pane-group DnD contract: an undated card dropped on another
+            // status group (header or card grid) of the SAME type sets it.
+            subHeader.dataset['paneDropType'] = sub.typeId
+            subHeader.dataset['paneDropStatus'] = sub.status
             if (sub.collapsed) continue
             const grid = host.createDiv({ cls: 'kap-tl-undated-cards' })
+            grid.dataset['paneDropType'] = sub.typeId
+            grid.dataset['paneDropStatus'] = sub.status
             for (const card of sub.cards) {
                 const cardEl = grid.createEl('button', {
                     cls: 'kap-tl-undated-card',
@@ -919,6 +933,22 @@ function makeCardSchedulable(
         // row's track would suggest the card lands on that row's line.
         const overChart = (x: number, y: number): boolean =>
             doc.elementFromPoint(x, y)?.closest('.kap-tl-chart') !== null
+        // Another panel status group (same type) is also a drop target: the
+        // drop sets that status (`data-pane-drop-*` contract, ghost is no-hit).
+        const groupAt = (x: number, y: number): HTMLElement | null =>
+            (doc.elementFromPoint(x, y) as HTMLElement | null)?.closest<HTMLElement>(
+                '[data-pane-drop-status]'
+            ) ?? null
+        let dropGroupEl: HTMLElement | null = null
+        const highlightGroup = (groupEl: HTMLElement | null, valid: boolean): void => {
+            if (dropGroupEl !== groupEl) {
+                dropGroupEl?.removeClass('kap-cal-drop')
+                dropGroupEl?.removeClass('kap-cal-drop-invalid')
+                dropGroupEl = groupEl
+            }
+            dropGroupEl?.toggleClass('kap-cal-drop', valid)
+            dropGroupEl?.toggleClass('kap-cal-drop-invalid', !valid)
+        }
         // The commit path floors pct → day (dayOffsetAtPct); mirror it exactly
         // so the label always names the date that would be written. The axis
         // mirrors every track's x-geometry.
@@ -959,6 +989,16 @@ function makeCardSchedulable(
             ghost.style.top = `${String(move.clientY + 10)}px`
             const hit = overChart(move.clientX, move.clientY)
             body?.toggleClass('kap-tl-drop-target', hit)
+            const groupEl = hit ? null : groupAt(move.clientX, move.clientY)
+            highlightGroup(
+                groupEl,
+                groupEl !== null &&
+                    callbacks.canPaneGroupDrop(
+                        card,
+                        groupEl.dataset['paneDropType'] ?? '',
+                        groupEl.dataset['paneDropStatus'] ?? ''
+                    )
+            )
             const rect = axis?.getBoundingClientRect()
             if (!hit || !rect || rect.width <= 0) {
                 hideLane()
@@ -978,6 +1018,7 @@ function makeCardSchedulable(
             doc.removeEventListener('pointercancel', onCancel)
             cardEl.removeClass('kap-tl-drag-source')
             body?.removeClass('kap-tl-drop-target')
+            highlightGroup(null, false)
             hideLane()
             ghostWrap?.remove()
             ghostWrap = null
@@ -988,10 +1029,19 @@ function makeCardSchedulable(
         const onUp = (up: PointerEvent): void => {
             // Same hit test as the hover feedback (the ghost is no-hit).
             const hit = moved && overChart(up.clientX, up.clientY)
+            const groupEl = moved && !hit ? groupAt(up.clientX, up.clientY) : null
             const rect = axis?.getBoundingClientRect()
             cleanup()
             if (!moved) {
                 callbacks.onOpen(card, up.ctrlKey || up.metaKey)
+                return
+            }
+            if (groupEl) {
+                const typeId = groupEl.dataset['paneDropType'] ?? ''
+                const status = groupEl.dataset['paneDropStatus'] ?? ''
+                if (callbacks.canPaneGroupDrop(card, typeId, status)) {
+                    callbacks.onPaneGroupDrop(card, typeId, status)
+                }
                 return
             }
             if (!hit || !rect || rect.width <= 0) return

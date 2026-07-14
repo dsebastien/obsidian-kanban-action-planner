@@ -25,6 +25,10 @@ export interface PanelStatusGroupModel {
     label: string
     collapsed: boolean
     cards: KanbanCard[]
+    /** The owning note type id — pane-group drops are same-type only. */
+    typeId: string
+    /** The raw status value this group holds ('' = no status). */
+    status: string
 }
 
 /** One note-type group of panel cards (collapse key = the type id). */
@@ -171,7 +175,7 @@ function renderPanel(
             host = list.createDiv({ cls: 'kap-cal-ugroup-body' })
         }
         for (const sub of group.groups) {
-            renderGroupHeader(
+            const subHeader = renderGroupHeader(
                 host,
                 'kap-cal-usubgroup',
                 sub.label,
@@ -179,9 +183,20 @@ function renderPanel(
                 sub.collapsed,
                 () => callbacks.onTogglePanelGroup(sub.key)
             )
+            // Pane-group DnD contract: a panel chip dropped on another status
+            // group (header or chip) of the SAME type sets that status.
+            subHeader.dataset['paneDropType'] = sub.typeId
+            subHeader.dataset['paneDropStatus'] = sub.status
             if (sub.collapsed) continue
-            for (const card of sub.cards)
-                renderChip(host, { card, kind: model.activeTab, overdue: false }, callbacks)
+            for (const card of sub.cards) {
+                const chip = renderChip(
+                    host,
+                    { card, kind: model.activeTab, overdue: false },
+                    callbacks
+                )
+                chip.dataset['paneDropType'] = sub.typeId
+                chip.dataset['paneDropStatus'] = sub.status
+            }
         }
     }
 }
@@ -197,7 +212,7 @@ export function renderGroupHeader(
     count: number,
     collapsed: boolean,
     onToggle: () => void
-): void {
+): HTMLElement {
     const header = parent.createEl('button', {
         cls: collapsed ? cls : `${cls} ${cls}-open`,
         attr: { 'type': 'button', 'aria-expanded': String(!collapsed) }
@@ -206,6 +221,7 @@ export function renderGroupHeader(
     header.createSpan({ cls: 'kap-cal-ugroup-label', text: label })
     header.createSpan({ cls: 'kap-cal-ugroup-count', text: String(count) })
     header.addEventListener('click', onToggle)
+    return header
 }
 
 function addTab(
@@ -401,7 +417,11 @@ function renderFocusedDay(
     for (const entry of entries) renderChip(dayEl, entry, callbacks)
 }
 
-function renderChip(parent: HTMLElement, entry: CalendarEntry, callbacks: CalendarCallbacks): void {
+function renderChip(
+    parent: HTMLElement,
+    entry: CalendarEntry,
+    callbacks: CalendarCallbacks
+): HTMLElement {
     const { card, kind, overdue } = entry
     const chip = parent.createDiv({ cls: 'kap-cal-card' })
     // Color-code by placement: scheduled = blue (default), deadline = orange,
@@ -437,6 +457,7 @@ function renderChip(parent: HTMLElement, entry: CalendarEntry, callbacks: Calend
         e.preventDefault()
         callbacks.onContextMenu(card, e)
     })
+    return chip
 }
 
 function navButton(parent: HTMLElement, text: string, label: string, onClick: () => void): void {

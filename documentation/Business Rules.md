@@ -524,3 +524,16 @@ See `documentation/plans/kanban-action-planner-implementation-plan.md` for full 
     CHILDREN are intentionally NOT rendered (owner: deferred). The math scope is unchanged:
     persisted numbers (save-rollup, distribute, prefills) still compute over the Base result
     set only.
+
+37. **Pane-group drag (owner).** In every scheduling panel that groups cards by note type →
+    status (calendar Unplanned / No-deadline, timeline Unplanned, WBS Needs planning),
+    dragging a pane card onto ANOTHER status group — its header or its card area
+    (`data-pane-drop-type` / `data-pane-drop-status` contract) — sets that status: the exact
+    Set-status menu semantics via `resolvePaneGroupDrop` (pure, `domain/pane-drop.ts`) +
+    `setCardStatus`/`applyMove` (optimistic, rule 32; manual order appended like a board
+    drop). **Same-type only** — each type has its own status vocabulary, so cross-type drops
+    highlight invalid and never commit; the "No status" group clears the status (Unmapped
+    semantics); a raw unmapped status value is not a valid destination. Only PANE-sourced
+    cards get group targets: a WBS tree row dropped on the panel still detaches (rule 36),
+    a calendar day-chip dropped on the panel still clears its date, and timeline bars still
+    unschedule — group targets never hijack those gestures.

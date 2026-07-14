@@ -99,6 +99,9 @@ export interface TimelineHost {
      */
     restoreHiddenTypes(): string[]
     persistHiddenTypes(ids: string[]): void
+    /** Pane-group DnD (drag between status groups): live validity + commit. */
+    canDropOnPaneGroup(cardKey: string, typeId: string, status: string): boolean
+    dropOnPaneGroup(cardKey: string, typeId: string, status: string): void
 }
 
 /**
@@ -322,6 +325,10 @@ export class TimelineController {
                 onUnschedule: (card) => void this.unschedule(card),
                 onZoom: (direction, anchorPct) => this.zoom(kind, window, direction, anchorPct),
                 onScheduleAt: (card, pct) => void this.scheduleAt(card, pct, window),
+                canPaneGroupDrop: (card, typeId, status) =>
+                    this.host.canDropOnPaneGroup(card.key, typeId, status),
+                onPaneGroupDrop: (card, typeId, status) =>
+                    this.host.dropOnPaneGroup(card.key, typeId, status),
                 onAddMilestone: (card, pct) => this.promptMilestone(card, pct, window),
                 onRemoveMilestone: (card, raw) =>
                     void removeFromListProperty(
@@ -423,7 +430,9 @@ export class TimelineController {
                     key,
                     label: statusGroup.label,
                     collapsed: this.undatedCollapsed.get(key) ?? true,
-                    cards: statusGroup.items
+                    cards: statusGroup.items,
+                    typeId: typeGroup.typeId,
+                    status: statusGroup.status
                 }
             })
         }))

@@ -185,7 +185,12 @@ flag (deadline before today → red). A card with two dates appears twice. The p
 now just **backlogs** (cards missing each date) and decide which date a _panel drag_ sets; a
 toolbar **legend** doubles as a per-dimension filter (`showScheduled`/`showDeadlines`). DnD:
 `ui/calendar/calendar-dnd.ts` reads the dragged chip's `data-dimension` and reports it, so
-dragging a chip moves _its own_ date (`both` moves both); dropping on the panel clears it.
+dragging a chip moves _its own_ date (`both` moves both); dropping on the panel clears it
+(day-sourced chips only). **Pane-group drag (rule 37, all scheduling panels):** the panel's
+status subgroup headers + card areas carry `data-pane-drop-type`/`-status`; dropping a
+PANE-sourced card there sets that status — validity + commit live on the view
+(`resolvePaneGroupDrop` in `domain/pane-drop.ts` → `setCardStatus`), same-type only, shared
+by `calendar-dnd`, `wbs-dnd`, and the timeline's `makeCardSchedulable`.
 Scheduling is also reachable from the **card right-click menu** (Schedule / Set deadline →
 today / tomorrow / pick-a-date via `ui/date-prompt-modal.ts` / clear), on the board too. A
 `ResizeObserver` on the board host **auto-collapses the panel** when the container is narrower

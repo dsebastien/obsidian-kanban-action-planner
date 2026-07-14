@@ -1382,7 +1382,8 @@
         outline-offset: 1px;
     }
 
-    /* Drop-target highlight for calendar DnD (day cells + panel list). */
+    /* Drop-target highlight for calendar DnD (day cells + panel list +
+       pane status groups; the timeline's group targets reuse it). */
     .kap-cal-drop {
         outline: 2px dashed var(--interactive-accent);
         outline-offset: -2px;
@@ -1390,6 +1391,13 @@
         transition:
             outline-color var(--kap-transition) var(--kap-ease),
             background-color var(--kap-transition) var(--kap-ease);
+    }
+
+    .kap-cal-drop-invalid {
+        outline: 2px dashed var(--text-error);
+        outline-offset: -2px;
+        opacity: 0.6;
+        cursor: not-allowed;
     }
 
     /* Zoomed-in single-day view. */

@@ -433,6 +433,9 @@ schedule it, or drag one out to the panel to clear its date.
 - **Drag a card from the panel onto a day** to set the date for the active backlog tab
   (Unplanned → scheduled date, No deadline → deadline).
 - **Drag a chip back onto the panel** to clear the date it represents.
+- **Drag a panel card onto another status group** (its header or its cards) to change its
+  status without leaving the panel — same effect as the menu's **Set status**. Groups belong
+  to a note type, so only same-type groups accept the drop (others highlight red).
 
 **Schedule from the right-click menu (any card, board or calendar).** Right-click a card for
 **Schedule for today / tomorrow / on a date… / Clear scheduled date** and the same for
@@ -488,7 +491,10 @@ panel on the left — named like the calendar's **Unplanned** tab and styled lik
 cards** (kanban-like), **grouped by note type, then by status** — the type level renders as
 full-width **tab-style headers** (count badge, accent tint when expanded), all groups
 **collapsed by default** (single-type boards skip the type level). Drag a card to
-schedule it, click to open, right-click for the menu. The panel scrolls on its own, so a big
+schedule it, click to open, right-click for the menu. You can also **drag a card onto
+another status group** (its header or its card area) to change its status right there —
+same effect as the menu's **Set status**; groups belong to a note type, so only same-type
+groups accept the drop (others highlight red). The panel scrolls on its own, so a big
 backlog never squeezes out the rows. Collapse it with the **«** toggle (the "Unplanned"
 title stays visible, turned vertical); on a narrow pane it **collapses automatically** and
 re-opens when there's room, with your manual choice always taking precedence. The collapse is
@@ -654,7 +660,10 @@ roots its own tree: with its children if it has any, as a standalone row otherwi
 **The "Needs planning" panel** on the left lists every card missing a **start date or an
 estimate**, grouped by note type → status and sorted by the view's card sort — your
 estimation backlog. Drag a card from the
-panel onto a tree node to give it a parent (and grow the breakdown). The panel collapses to a
+panel onto a tree node to give it a parent (and grow the breakdown), or **onto another
+status group** (its header or its card list) to change its status right there — same effect
+as the menu's **Set status**; only same-type groups accept the drop (others highlight red).
+The panel collapses to a
 slim rail with **«** (remembered per view, auto-collapses on narrow panes).
 
 The toolbar [filter](#filtering-search-bar) and [zoom](#focus-on-a-cards-children-zoom) apply

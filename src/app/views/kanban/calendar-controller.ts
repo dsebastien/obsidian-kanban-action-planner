@@ -357,7 +357,9 @@ export class CalendarController {
                     key,
                     label: statusGroup.label,
                     collapsed: this.panelCollapsedGroups.get(key) ?? true,
-                    cards: statusGroup.items
+                    cards: statusGroup.items,
+                    typeId: typeGroup.typeId,
+                    status: statusGroup.status
                 }
             })
         }))
@@ -416,6 +418,8 @@ export class CalendarController {
                 await deleteProperty(this.host.app, card.file, property)
             return
         }
+        // Pane-group drops (set status) are committed by the host view.
+        if (target.kind === 'paneGroup') return
 
         const date = parseFrontmatterDate(target.dayKey)
         if (!date) return

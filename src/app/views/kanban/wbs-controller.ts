@@ -466,7 +466,9 @@ export class WbsController {
                     key,
                     label: statusGroup.label,
                     collapsed: this.paneCollapsed.get(key) ?? true,
-                    cards: statusGroup.items
+                    cards: statusGroup.items,
+                    typeId: typeGroup.typeId,
+                    status: statusGroup.status
                 }
             })
         }))
@@ -495,6 +497,9 @@ export class WbsController {
             const storage = this.edgeStorage(sourceKey, sourceParentKey)
             return storage.childOwned || storage.parentOwned
         }
+        // Pane-group drops (set status) are validated and committed by the
+        // host view, never by this controller.
+        if (target.kind === 'paneGroup') return false
         if (sourceKey === target.targetKey) return false
         if (this.host.parentProperty() === '' && this.host.childProperty() === '') return false
         const rels = this.host.relationshipSets()
@@ -578,6 +583,7 @@ export class WbsController {
             if (sourceParentKey !== null) this.unparent(sourceKey, sourceParentKey)
             return
         }
+        if (dropTarget.kind === 'paneGroup') return // host-owned (canDrop is false anyway)
         const targetKey = dropTarget.targetKey
         const source = this.host.cardForKey(sourceKey)
         if (!source) return

@@ -24,7 +24,8 @@ import type {
 } from '../../domain/note-type'
 import { archiveFolderPrefixes } from '../../domain/archive-paths'
 import { buildBoard } from '../../domain/board-model'
-import { groupByTypeAndStatus } from '../../domain/timeline'
+import { NO_TYPE_ID, groupByTypeAndStatus } from '../../domain/timeline'
+import { resolvePaneGroupDrop } from '../../domain/pane-drop'
 import { compareTabCards, coerceSortValue } from '../../domain/calendar-tabs'
 import type { SortDirection, TabSortKey, TabSortMode } from '../../domain/calendar-tabs'
 import type { Board, UnmappedPosition } from '../../domain/board-model'
@@ -332,8 +333,18 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             persistState: (state) => this.persistCalendarState(state)
         })
         this.calendarDnd = new CalendarDnd(this.boardEl, {
-            onDrop: (cardKey, target, dimension) =>
+            onDrop: (cardKey, target, dimension) => {
+                if (target.kind === 'paneGroup') {
+                    this.dropOnPaneGroup(cardKey, target.typeId, target.status)
+                    return
+                }
                 void this.calendar?.handleDrop(cardKey, target, dimension)
+            },
+            // Day/panel drops keep their permissive legacy behavior (the
+            // controller validates on commit); groups validate live.
+            canDrop: (cardKey, target) =>
+                target.kind !== 'paneGroup' ||
+                this.canDropOnPaneGroup(cardKey, target.typeId, target.status)
         })
         this.timeline = new TimelineController({
             app: this.app,
@@ -355,7 +366,11 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             restoreState: () => this.restoreTimelineState(),
             persistState: (state) => this.persistTimelineState(state),
             restoreHiddenTypes: () => this.restoreTimelineHiddenTypes(),
-            persistHiddenTypes: (ids) => this.persistTimelineHiddenTypes(ids)
+            persistHiddenTypes: (ids) => this.persistTimelineHiddenTypes(ids),
+            canDropOnPaneGroup: (cardKey, typeId, status) =>
+                this.canDropOnPaneGroup(cardKey, typeId, status),
+            dropOnPaneGroup: (cardKey, typeId, status) =>
+                this.dropOnPaneGroup(cardKey, typeId, status)
         })
         this.wbs = new WbsController({
             app: this.app,
@@ -409,9 +424,16 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         })
         this.wbsDnd = new WbsDnd(this.boardEl, {
             canDrop: (sourceKey, sourceParentKey, target) =>
-                this.wbs?.canDrop(sourceKey, sourceParentKey, target) ?? false,
-            onDrop: (sourceKey, sourceParentKey, target) =>
-                this.wbs?.handleDrop(sourceKey, sourceParentKey, target),
+                target.kind === 'paneGroup'
+                    ? this.canDropOnPaneGroup(sourceKey, target.typeId, target.status)
+                    : (this.wbs?.canDrop(sourceKey, sourceParentKey, target) ?? false),
+            onDrop: (sourceKey, sourceParentKey, target) => {
+                if (target.kind === 'paneGroup') {
+                    this.dropOnPaneGroup(sourceKey, target.typeId, target.status)
+                    return
+                }
+                this.wbs?.handleDrop(sourceKey, sourceParentKey, target)
+            },
             onHoverExpand: (targetKey) => this.wbs?.hoverExpand(targetKey)
         })
         this.resizeObserver = new ResizeObserver(() => this.debouncedResize())
@@ -1855,6 +1877,41 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         const laneId = this.laneIdOf(card)
         const destCards = this.columnCards(laneId, columnId).filter((c) => c.key !== card.key)
         await this.applyMove(card, statusValue, laneId, columnId, destCards.length)
+    }
+
+    // ── Pane-group DnD (drag between the scheduling panels' status groups) ──
+
+    /**
+     * Whether dropping a pane card onto another status group commits, and to
+     * what — same-type only, resolved against the card's own column set, the
+     * "No status" group clearing the status (the Set-status menu semantics).
+     */
+    private resolvePaneDrop(
+        cardKey: string,
+        typeId: string,
+        status: string
+    ): { card: KanbanCard; statusValue: string | null; columnId: string } | null {
+        const card = this.cardsByKey.get(cardKey)
+        if (!card) return null
+        const resolved = resolvePaneGroupDrop(
+            {
+                typeId: this.noteTypeByPath.get(card.key)?.id ?? NO_TYPE_ID,
+                statusValue: card.statusValue
+            },
+            { typeId, status },
+            this.cardColumns(card)
+        )
+        return resolved ? { card, ...resolved } : null
+    }
+
+    private canDropOnPaneGroup(cardKey: string, typeId: string, status: string): boolean {
+        return this.resolvePaneDrop(cardKey, typeId, status) !== null
+    }
+
+    private dropOnPaneGroup(cardKey: string, typeId: string, status: string): void {
+        const resolved = this.resolvePaneDrop(cardKey, typeId, status)
+        if (resolved)
+            void this.setCardStatus(resolved.card, resolved.statusValue, resolved.columnId)
     }
 
     // ── Enum quick-set (issue #52) ────────────────────────────
