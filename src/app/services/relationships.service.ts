@@ -173,8 +173,16 @@ function toRecord(app: App, file: TFile, props: Record<RelationshipRole, string>
 }
 
 /**
- * Resolve relationships for every board file under the active note type. Returns a
- * map keyed by file path; missing files default to an empty set.
+ * Resolve relationships for every board file. Returns a map keyed by file
+ * path; missing files default to an empty set.
+ *
+ * **Per-type resolution (mixed boards):** when `noteTypeForPath` is given,
+ * each file's role link-properties, active roles, and heuristics come from
+ * its OWN recognized note type (a task reads `related_projects` while a
+ * project reads `related_goals` on the same board); unrecognized files fall
+ * back to the active `noteType`. Heuristic rules are collected from every
+ * type present and scoped to targets of their owning type. Without the
+ * resolver, the active type governs every file (single-type behavior).
  *
  * `archivePrefixes` are the static folder prefixes of the configured archive
  * folders (across note types). A `blocked_by` target whose note lives under one
@@ -186,15 +194,45 @@ export function resolveBoardRelationships(
     app: App,
     files: ReadonlyArray<TFile>,
     noteType: NoteType,
-    archivePrefixes: ReadonlyArray<string> = []
+    archivePrefixes: ReadonlyArray<string> = [],
+    noteTypeForPath?: (path: string) => NoteType | null
 ): Map<string, RelationshipSet> {
-    const props = roleProperties(noteType)
-    const records = files.map((file) => toRecord(app, file, props))
-    const resolved = resolveRelationships(
-        records,
-        heuristicRules(noteType),
-        activeRoles(noteType, props)
+    interface TypeFacts {
+        typeId: string
+        props: Record<RelationshipRole, string>
+        active: ReadonlySet<RelationshipRole>
+    }
+    const factsFor = (t: NoteType): TypeFacts => {
+        const props = roleProperties(t)
+        return { typeId: t.id, props, active: activeRoles(t, props) }
+    }
+    const fallback = factsFor(noteType)
+    const factsCache = new Map<string, TypeFacts>([[noteType.id, fallback]])
+    const typesSeen = new Map<string, NoteType>([[noteType.id, noteType]])
+    const records = files.map((file) => {
+        const own = noteTypeForPath?.(file.path) ?? null
+        let facts = fallback
+        if (own) {
+            const cached = factsCache.get(own.id)
+            if (cached) facts = cached
+            else {
+                facts = factsFor(own)
+                factsCache.set(own.id, facts)
+                typesSeen.set(own.id, own)
+            }
+        }
+        return {
+            ...toRecord(app, file, facts.props),
+            typeId: facts.typeId,
+            activeRoles: facts.active
+        }
+    })
+    // Every present type contributes its heuristic rules, each scoped to
+    // targets of that type (rule ownership = the type whose notes it relates).
+    const heuristics = [...typesSeen.values()].flatMap((t) =>
+        heuristicRules(t).map((rule) => ({ ...rule, targetTypeId: t.id }))
     )
+    const resolved = resolveRelationships(records, heuristics, fallback.active)
     if (archivePrefixes.length > 0) {
         for (const set of resolved.values()) {
             set.blocked_by = set.blocked_by.filter(

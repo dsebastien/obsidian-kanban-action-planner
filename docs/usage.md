@@ -265,6 +265,12 @@ are mutual). Configure which property feeds each role in the note type's **Relat
 You can also detect children by tag: a note carrying one of the chosen tags that links back to
 a card is treated as its child.
 
+**Each note resolves relationships with its own type's properties** — on a mixed board, a
+task can point at its project via `related_projects` while that project points at its goal
+via `related_goals`, and the whole chain resolves (badges, WBS tree, zoom). Edits work the
+same way: adding, removing, or drag-re-parenting always writes the owning note's own
+property.
+
 ![Editing relationships and statuses from the card menu]({{ '/images/card-menu.png' | relative_url }})
 
 On each card:

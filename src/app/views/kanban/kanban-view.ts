@@ -397,22 +397,10 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             scheduledProperty: () => this.scheduledDateProperty,
             deadlineProperty: () => this.dueDateProperty,
             dueSoonDays: () => this.plugin.settings.dueSoonThresholdDays,
-            parentProperty: () => this.relationshipProperties().parent,
-            childProperty: () => this.relationshipProperties().child,
-            // Ancestor climbing resolves each out-of-set note's OWN type
-            // (e.g. a project stores its parent in `related_goals` while the
-            // task board's parent property is `related_projects`).
-            parentPropertyForPath: (path) => {
-                const file = this.app.vault.getFileByPath(path)
-                if (!file) return ''
-                const local = recognizeLocalNoteType(this.app, this.plugin, file)
-                const noteType = local
-                    ? this.plugin.settings.noteTypes.find((t) => t.id === local.id)
-                    : undefined
-                return noteType
-                    ? roleProperties(noteType).parent
-                    : this.relationshipProperties().parent
-            },
+            // Per-path role properties: each note's OWN type decides where its
+            // parent/children links live (mixed boards + context ancestors).
+            parentPropertyForPath: (path) => this.relationshipPropertiesForPath(path).parent,
+            childPropertyForPath: (path) => this.relationshipPropertiesForPath(path).child,
             dateFormat: () =>
                 this.noteType.calendar.dateFormat || this.plugin.settings.defaultDateFormat,
             noteTypeFor: (card) => this.noteTypeByPath.get(card.key) ?? null,
@@ -728,11 +716,17 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         this.dueDateProperty = this.resolveDueDateProperty()
         this.scheduledDateProperty = this.resolveScheduledDateProperty()
 
+        // Per-type resolution (mixed boards): each file's role properties,
+        // active roles, and heuristics come from its OWN recognized type.
         this.relationshipsByPath = resolveBoardRelationships(
             this.app,
             files,
             this.noteType,
-            this.archiveFolderPrefixes()
+            this.archiveFolderPrefixes(),
+            (path) => {
+                const type = this.noteTypeByPath.get(path)
+                return type ? (findNoteType(this.plugin, type.id) ?? null) : null
+            }
         )
         this.loadFilterQuery()
         this.loadCollapseState()
@@ -1592,7 +1586,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             sendCardToEdge: (card, edge) => this.sendCardToEdge(card, edge),
             todayKey: () => toDateKey(startOfDay(new Date())),
             tomorrowKey: () => toDateKey(addDays(startOfDay(new Date()), 1)),
-            addableRelationshipRoles: () => this.addableRelationshipRoles(),
+            addableRelationshipRoles: (card) => this.addableRelationshipRoles(card),
             directRelationships: (card) => this.directRelationships(card),
             addRelationship: (card, role) => this.addRelationship(card, role),
             removeRelationship: (card, role, targetPath) =>
@@ -1602,14 +1596,26 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
 
     // ── Relationship editing (issue #14) ──────────────────────
 
-    /** The role→link-property map for the active note type (read+write agree). */
-    private relationshipProperties(): Record<RelationshipRole, string> {
-        return roleProperties(this.noteType)
+    /**
+     * The role→link-property map for a vault path, resolved from the note's
+     * OWN recognized type so reads and writes agree per card on mixed boards
+     * (issue #14 + per-type resolution). Board files use the recognition map;
+     * off-board paths (WBS context ancestors) recognize on demand; both fall
+     * back to the active note type.
+     */
+    private relationshipPropertiesForPath(path: string): Record<RelationshipRole, string> {
+        let type = this.noteTypeByPath.get(path) ?? null
+        if (type === null && !this.noteTypeByPath.has(path)) {
+            const file = this.app.vault.getFileByPath(path)
+            type = file ? recognizeLocalNoteType(this.app, this.plugin, file) : null
+        }
+        const noteType = type ? findNoteType(this.plugin, type.id) : undefined
+        return roleProperties(noteType ?? this.noteType)
     }
 
-    /** Roles whose link-property is non-empty, so a target can be linked. */
-    private addableRelationshipRoles(): ReadonlySet<RelationshipRole> {
-        const props = this.relationshipProperties()
+    /** Roles whose link-property is non-empty for THIS card's own type. */
+    private addableRelationshipRoles(card: KanbanCard): ReadonlySet<RelationshipRole> {
+        const props = this.relationshipPropertiesForPath(card.key)
         const roles = new Set<RelationshipRole>()
         for (const role of RELATIONSHIP_ROLES) {
             if (props[role].length > 0) roles.add(role)
@@ -1621,7 +1627,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
     private directRelationships(
         card: KanbanCard
     ): Array<{ role: RelationshipRole; target: { path: string; label: string } }> {
-        const props = this.relationshipProperties()
+        const props = this.relationshipPropertiesForPath(card.key)
         const out: Array<{ role: RelationshipRole; target: { path: string; label: string } }> = []
         for (const role of RELATIONSHIP_ROLES) {
             const property = props[role]
@@ -1635,7 +1641,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
 
     /** Open a note picker and link the chosen note in `role`'s property. */
     private addRelationship(card: KanbanCard, role: RelationshipRole): void {
-        const property = this.relationshipProperties()[role]
+        const property = this.relationshipPropertiesForPath(card.key)[role]
         if (property.length === 0) return
         const exclude = new Set<string>([card.file.path])
         for (const target of directLinkTargets(this.app, card.file, property)) {
@@ -1666,7 +1672,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         role: RelationshipRole,
         targetPath: string
     ): Promise<void> {
-        const property = this.relationshipProperties()[role]
+        const property = this.relationshipPropertiesForPath(card.key)[role]
         if (property.length === 0) return
         // Optimistic: drop the badge immediately, then write (issue #64).
         const before = card.relationships[role]

@@ -119,11 +119,24 @@ See `documentation/plans/kanban-action-planner-implementation-plan.md` for full 
    **Editable from the board (issue #14, supersedes the former read-only rule).** A card's
    right-click **Relationships** submenu can **add** (per role with a non-empty link-property — "None"
    roles are not addable) and **remove** a relationship. Writes manage **direct** links only — the
-   wikilinks physically stored in _this note's own_ role link-property — using the **active note
-   type's** `roleProperties` so writes and reads agree. Inverse-derived and heuristic relations stay
+   wikilinks physically stored in _this note's own_ role link-property — using the card's own
+   type's `roleProperties` so writes and reads agree. Inverse-derived and heuristic relations stay
    read-only (they live on the other note / are computed). Adds store the canonical `[[wikilink]]`
    form and dedup by resolved path; removes delete the property when it empties. The metadata-cache
    refresh above re-renders badges/blocked state live after a write.
+   **Per-type resolution on mixed boards (owner, supersedes the former dominant-type rule).**
+   Every file's role link-properties, active roles, and heuristics come from its **OWN
+   recognized note type** (`resolveBoardRelationships` with a `noteTypeForPath` resolver): on
+   one board a task reads/writes its parent in `related_projects` while a project uses
+   `related_goals` — so cross-type chains (goal ← project ← task) resolve fully in-board.
+   Unrecognized files fall back to the active note type. Inverse relations land on the
+   receiver only when the role is active **for the receiver's own type** (per-record
+   `activeRoles`); heuristic rules are collected from every type present and scoped to
+   **targets of their owning type** (`HeuristicRule.targetTypeId`). Every relationship
+   WRITE (menus, WBS re-parent/detach, Set parent…) targets the owning note's own role
+   property (`relationshipPropertiesForPath`); the WBS host exposes
+   `parentPropertyForPath`/`childPropertyForPath` so drag writes pick the source's parent
+   property and the (old/new) parent's children property, each per its own type.
 10. **Calendar mode.** A toggle adds a collapsible "Scheduling" panel (Unplanned /
     No-Deadline tabs; title always visible, vertical when collapsed; each tab's backlog is
     **grouped by note type → status** via `groupByTypeAndStatus`, type headers only on

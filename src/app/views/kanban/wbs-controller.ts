@@ -91,16 +91,15 @@ export interface WbsHost {
     deadlineProperty(): string
     /** The global "due soon" threshold (days) for the countdown tone ramp. */
     dueSoonDays(): number
-    /** Role link-properties for the active note type ('' = role disabled). */
-    parentProperty(): string
-    childProperty(): string
     /**
-     * The parent link-property for an arbitrary vault path, resolved from
-     * the note's OWN recognized type (context-ancestor climbing: a
-     * filtered-out project may store its parent under a different property
-     * than the board's cards do). '' when unresolvable or role disabled.
+     * The parent/children link-properties for an arbitrary vault path,
+     * resolved from the note's OWN recognized type (per-type resolution:
+     * a task stores its parent in `related_projects` while a project uses
+     * `related_goals` on the same board; context-ancestor climbing needs the
+     * same lookup for off-board notes). '' = role disabled.
      */
     parentPropertyForPath(path: string): string
+    childPropertyForPath(path: string): string
     dateFormat(): string
     noteTypeFor(card: KanbanCard): { id: string; name: string } | null
     /** Resolved status column color/label for the row's dot (null = neutral). */
@@ -501,7 +500,14 @@ export class WbsController {
         // host view, never by this controller.
         if (target.kind === 'paneGroup') return false
         if (sourceKey === target.targetKey) return false
-        if (this.host.parentProperty() === '' && this.host.childProperty() === '') return false
+        // The fresh edge lands on the source's parent property or the
+        // target's children property — each per its OWN note type.
+        if (
+            this.host.parentPropertyForPath(sourceKey) === '' &&
+            this.host.childPropertyForPath(target.targetKey) === ''
+        ) {
+            return false
+        }
         const rels = this.host.relationshipSets()
         if ((rels.get(sourceKey)?.parent ?? []).includes(target.targetKey)) return false
         return !this.isDescendant(sourceKey, target.targetKey)
@@ -524,8 +530,8 @@ export class WbsController {
         sourceKey: string,
         oldParentKey: string
     ): { childOwned: boolean; parentOwned: boolean } {
-        const parentProp = this.host.parentProperty()
-        const childProp = this.host.childProperty()
+        const parentProp = this.host.parentPropertyForPath(sourceKey)
+        const childProp = this.host.childPropertyForPath(oldParentKey)
         const source = this.host.allCardForKey(sourceKey)
         const oldParent = this.host.allCardForKey(oldParentKey)
         const childOwned =
@@ -594,8 +600,12 @@ export class WbsController {
         if (!targetFile) return
         const targetLabel = target?.display.title ?? labelForPath(targetKey)
         const oldParent = sourceParentKey ? this.host.cardForKey(sourceParentKey) : undefined
-        const parentProp = this.host.parentProperty()
-        const childProp = this.host.childProperty()
+        // Every write targets the OWNING note's role property: the source's
+        // parent property, the old parent's children property, the new
+        // target's children property — each per its own type.
+        const parentProp = this.host.parentPropertyForPath(sourceKey)
+        const oldChildProp = sourceParentKey ? this.host.childPropertyForPath(sourceParentKey) : ''
+        const targetChildProp = this.host.childPropertyForPath(targetKey)
 
         // Where is the old edge physically stored? A redundantly stored edge
         // (parent link on the child AND a children link on the old parent)
@@ -624,23 +634,23 @@ export class WbsController {
                     sourceParentKey
                 )
             }
-            if (parentOwned && oldParent) {
-                await removeRelationshipLink(this.host.app, oldParent.file, childProp, sourceKey)
+            if (parentOwned && oldParent && oldChildProp !== '') {
+                await removeRelationshipLink(this.host.app, oldParent.file, oldChildProp, sourceKey)
             }
             // Recreate the edge where it was stored (both sides when it was
             // redundant, preserving the vault's convention); a fresh edge
             // (pane drop / heuristic) prefers the child's parent property.
             let wrote = false
-            if (parentOwned && childProp !== '') {
-                await addRelationshipLink(this.host.app, targetFile, childProp, source.file)
+            if (parentOwned && targetChildProp !== '') {
+                await addRelationshipLink(this.host.app, targetFile, targetChildProp, source.file)
                 wrote = true
             }
             if ((childOwned || !parentOwned) && parentProp !== '') {
                 await addRelationshipLink(this.host.app, source.file, parentProp, targetFile)
                 wrote = true
             }
-            if (!wrote && childProp !== '') {
-                await addRelationshipLink(this.host.app, targetFile, childProp, source.file)
+            if (!wrote && targetChildProp !== '') {
+                await addRelationshipLink(this.host.app, targetFile, targetChildProp, source.file)
                 wrote = true
             }
             if (!wrote) return
@@ -685,7 +695,7 @@ export class WbsController {
                 await removeRelationshipLink(
                     this.host.app,
                     source.file,
-                    this.host.parentProperty(),
+                    this.host.parentPropertyForPath(sourceKey),
                     oldParentKey
                 )
             }
@@ -693,7 +703,7 @@ export class WbsController {
                 await removeRelationshipLink(
                     this.host.app,
                     oldParent.file,
-                    this.host.childProperty(),
+                    this.host.childPropertyForPath(oldParentKey),
                     sourceKey
                 )
             }
@@ -758,7 +768,7 @@ export class WbsController {
      * `kap-wbs` section so the sectioned menu groups them at the end.
      */
     private extendCardMenu(menu: Menu, card: KanbanCard): void {
-        if (this.host.parentProperty() !== '') {
+        if (this.host.parentPropertyForPath(card.key) !== '') {
             menu.addItem((item) =>
                 item
                     .setTitle('Set parent…')

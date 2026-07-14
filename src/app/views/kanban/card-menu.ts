@@ -52,8 +52,8 @@ export interface CardMenuHost {
     todayKey(): string
     tomorrowKey(): string
     // Relationship editing (issue #14).
-    /** Roles whose link-property is non-empty, so a target can be added. */
-    addableRelationshipRoles(): ReadonlySet<RelationshipRole>
+    /** Roles whose link-property is non-empty for THIS card's own type. */
+    addableRelationshipRoles(card: KanbanCard): ReadonlySet<RelationshipRole>
     /** Removable direct links currently on the card (per role + target). */
     directRelationships(card: KanbanCard): Array<{
         role: RelationshipRole
@@ -154,7 +154,7 @@ export function buildCardMenu(
 
 /** "Relationships" submenu to add/remove direct relationships (issue #14). */
 function addRelationshipEditItems(menu: Menu, card: KanbanCard, host: CardMenuHost): void {
-    const addable = host.addableRelationshipRoles()
+    const addable = host.addableRelationshipRoles(card)
     const direct = host.directRelationships(card)
     if (addable.size === 0 && direct.length === 0) return
 

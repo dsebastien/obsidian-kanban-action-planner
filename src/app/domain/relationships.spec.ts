@@ -210,3 +210,69 @@ describe('ancestorPaths', () => {
         expect(ancestorPaths('missing.md', new Map())).toEqual([])
     })
 })
+
+describe('resolveRelationships — per-type (mixed boards)', () => {
+    it('per-record activeRoles gate what each RECEIVER can get', () => {
+        // task → project via its own parent property; the project's type has
+        // child active, but a third note's type has child turned OFF.
+        const task: NoteRecord = {
+            ...record('task.md', { parent: ['project.md', 'frozen.md'] }),
+            activeRoles: new Set<RelationshipRole>(['parent', 'child'])
+        }
+        const project: NoteRecord = {
+            ...record('project.md'),
+            activeRoles: new Set<RelationshipRole>(['parent', 'child'])
+        }
+        const frozen: NoteRecord = {
+            ...record('frozen.md'),
+            activeRoles: new Set<RelationshipRole>(['parent'])
+        }
+        const rels = resolveRelationships([task, project, frozen])
+        expect(rels.get('task.md')?.parent).toEqual(['project.md', 'frozen.md'])
+        expect(rels.get('project.md')?.child).toEqual(['task.md'])
+        // 'frozen' has the child role off — the inverse never lands on it.
+        expect(rels.get('frozen.md')?.child).toEqual([])
+    })
+
+    it('records without their own activeRoles fall back to the call-level set', () => {
+        const rels = resolveRelationships(
+            [record('a.md', { parent: ['b.md'] }), record('b.md')],
+            [],
+            new Set<RelationshipRole>(['parent'])
+        )
+        expect(rels.get('a.md')?.parent).toEqual(['b.md'])
+        expect(rels.get('b.md')?.child).toEqual([]) // child inactive globally
+    })
+
+    it('type-scoped heuristics only relate notes to targets of their type', () => {
+        const heuristic: HeuristicRule = {
+            role: 'child',
+            allowedTypeTags: ['#task'],
+            requiresLinkToSource: true,
+            targetTypeId: 'projects'
+        }
+        const linker: NoteRecord = {
+            ...record('t.md', {}, ['#task'], ['proj.md', 'goal.md']),
+            typeId: 'tasks'
+        }
+        const proj: NoteRecord = { ...record('proj.md'), typeId: 'projects' }
+        const goal: NoteRecord = { ...record('goal.md'), typeId: 'goals' }
+        const rels = resolveRelationships([linker, proj, goal], [heuristic])
+        expect(rels.get('proj.md')?.child).toEqual(['t.md'])
+        // The goal is NOT a 'projects' target — the rule skips it.
+        expect(rels.get('goal.md')?.child).toEqual([])
+    })
+
+    it('unscoped heuristics keep relating to every target (legacy)', () => {
+        const heuristic: HeuristicRule = {
+            role: 'child',
+            allowedTypeTags: ['#task'],
+            requiresLinkToSource: true
+        }
+        const rels = resolveRelationships(
+            [record('t.md', {}, ['#task'], ['x.md']), record('x.md')],
+            [heuristic]
+        )
+        expect(rels.get('x.md')?.child).toEqual(['t.md'])
+    })
+})

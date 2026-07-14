@@ -45,6 +45,13 @@ export interface NoteRecord {
     roleLinks: Partial<Record<RelationshipRole, ReadonlyArray<string>>>
     /** All resolved outgoing link target keys (used by the heuristic). */
     outgoingLinks: ReadonlyArray<string>
+    /**
+     * Per-record active roles (mixed boards: each note's OWN type decides
+     * which roles it can receive). Absent = the call-level `activeRoles`.
+     */
+    activeRoles?: ReadonlySet<RelationshipRole>
+    /** The note's recognized type id (heuristic target scoping). */
+    typeId?: string
 }
 
 /** A secondary, tag-and-link-based detection rule for a role. */
@@ -54,6 +61,12 @@ export interface HeuristicRule {
     allowedTypeTags: ReadonlyArray<string>
     /** Only link-scoped heuristics are supported; `false` disables the rule. */
     requiresLinkToSource: boolean
+    /**
+     * The note type that owns the rule (mixed boards): the rule only relates
+     * notes to TARGETS of this type. Absent = every target (single-type
+     * boards / legacy callers).
+     */
+    targetTypeId?: string
 }
 
 export type RelationshipSet = Record<RelationshipRole, string[]>
@@ -84,11 +97,15 @@ export function resolveRelationships(
     activeRoles: ReadonlySet<RelationshipRole> = new Set(RELATIONSHIP_ROLES)
 ): Map<string, RelationshipSet> {
     const inSet = new Set(records.map((r) => r.key))
+    const byKey = new Map(records.map((r) => [r.key, r]))
     const result = new Map<string, RelationshipSet>()
     for (const r of records) result.set(r.key, emptyRelationshipSet())
 
+    // A relation lands on the RECEIVER only when the role is active for it —
+    // per-record roles when provided (mixed boards), else the call-level set.
     const add = (key: string, role: RelationshipRole, target: string): void => {
-        if (!activeRoles.has(role)) return
+        const receiverRoles = byKey.get(key)?.activeRoles ?? activeRoles
+        if (!receiverRoles.has(role)) return
         if (target === key) return
         const set = result.get(key)
         if (!set) return
@@ -119,6 +136,13 @@ export function resolveRelationships(
             if (!record.tags.some((t) => tags.has(t))) continue
             for (const target of record.outgoingLinks) {
                 if (!inSet.has(target) || target === record.key) continue
+                // A type-scoped rule only relates notes to targets of its type.
+                if (
+                    heuristic.targetTypeId !== undefined &&
+                    byKey.get(target)?.typeId !== heuristic.targetTypeId
+                ) {
+                    continue
+                }
                 add(target, heuristic.role, record.key)
                 const inverse = INVERSE[heuristic.role]
                 if (inverse) add(record.key, inverse, target)

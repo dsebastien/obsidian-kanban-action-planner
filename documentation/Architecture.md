@@ -296,7 +296,11 @@ filter) are unit-tested; `services/relationships.service.ts` reads tags/links fr
 cache and feeds the domain. **Editing (issue #14):** the card menu's **Relationships** submenu adds
 / removes **direct** links via `addRelationshipLink` / `removeRelationshipLink` / `directLinkTargets`
 (string parsing/formatting in the pure, unit-tested `domain/wikilinks.ts`; a `FuzzySuggestModal`
-note picker in `ui/relationship-target-modal.ts`). Writes use the active note type's `roleProperties`
+note picker in `ui/relationship-target-modal.ts`). **Per-type resolution (mixed boards):**
+`resolveBoardRelationships` takes a `noteTypeForPath` resolver — each file's role properties,
+active roles (per-record `NoteRecord.activeRoles`), and heuristics (scoped via
+`HeuristicRule.targetTypeId`) come from its own recognized type, falling back to the active type.
+Writes use the owning card's own type's `roleProperties` (`relationshipPropertiesForPath`)
 and the metadata-cache listener refreshes the board; inverse/heuristic relations stay read-only.
 **Off-board blockers count; archived ones drop (issue #13):** direct links resolve against the whole vault, so a task
 `blocked_by` a project on another board still shows blocked. `resolveBoardRelationships` then drops
