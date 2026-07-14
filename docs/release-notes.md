@@ -1,5 +1,12 @@
 # Release Notes
 
+## 1.2.0 (2026-07-14)
+
+### Features
+
+- **plugin:** add a WBS view mode with rollups, progress bars and drag re-parenting ([#76](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/76))
+- **plugin:** add WBS due dates, detach by drag and reconciled rendering ([#76](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/76))
+
 ## 1.1.0 (2026-07-03)
 
 ### Features

@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.0](https://github.com/dsebastien/obsidian-kanban-action-planner/compare/1.1.0...1.2.0) (2026-07-14)
+
+### Features
+
+* **plugin:** add a WBS view mode with rollups, progress bars and drag re-parenting ([#76](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/76)) ([d85b853](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/d85b853b3c209388a2a3f66f8329bb0709f51d70))
+* **plugin:** add WBS due dates, detach by drag and reconciled rendering ([#76](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/76)) ([9842c2a](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/9842c2a071006c93404738be8bd4a4947d7c1b11))
+
 ## [1.1.0](https://github.com/dsebastien/obsidian-kanban-action-planner/compare/1.0.0...1.1.0) (2026-07-03)
 
 ### Features
@@ -252,6 +259,7 @@ All notable changes to this project will be documented in this file.
 
 * **plugin:** match Starter Kit's {{quarter}} placeholder format (Q2, not 2) ([4fde618](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/4fde6185c5956e3f6fd2ca3a9b03e70cf5e16840))
 * **plugin:** persist discovered statuses so Show empty columns works ([cf91b81](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/cf91b81a1b0786e35c73f4885882e2dc33564c62))
+
 
 
 
