@@ -26,6 +26,7 @@ import { archiveFolderPrefixes } from '../../domain/archive-paths'
 import { buildBoard } from '../../domain/board-model'
 import { NO_TYPE_ID, groupByTypeAndStatus } from '../../domain/timeline'
 import { resolvePaneGroupDrop } from '../../domain/pane-drop'
+import type { EstimateConfig } from '../../domain/estimate'
 import { compareTabCards, coerceSortValue } from '../../domain/calendar-tabs'
 import type { SortDirection, TabSortKey, TabSortMode } from '../../domain/calendar-tabs'
 import type { Board, UnmappedPosition } from '../../domain/board-model'
@@ -318,7 +319,8 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             cardForKey: (key) => this.cardsByKey.get(key),
             scheduledProperty: () => this.scheduledDateProperty,
             deadlineProperty: () => this.dueDateProperty,
-            estimateProperty: () => this.resolveTimelineEstimateProperty(),
+            estimateConfigFor: (card) => this.estimateConfigFor(card),
+            minutesPerDay: () => this.plugin.settings.minutesPerDay,
             noteTypeFor: (card) => this.noteTypeByPath.get(card.key) ?? null,
             dateFormat: () =>
                 this.noteType.calendar.dateFormat || this.plugin.settings.defaultDateFormat,
@@ -354,7 +356,8 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             openCard: (card, newTab) => this.openCard(card, newTab),
             showCardMenu: (card, event, extend) => this.showCardMenu(card, event, extend),
             startProperty: () => this.resolveTimelineStartProperty(),
-            estimateProperty: () => this.resolveTimelineEstimateProperty(),
+            estimateConfigFor: (card) => this.estimateConfigFor(card),
+            minutesPerDay: () => this.plugin.settings.minutesPerDay,
             milestoneProperty: () => this.resolveTimelineMilestoneProperty(),
             scheduledProperty: () => this.scheduledDateProperty,
             deadlineProperty: () => this.dueDateProperty,
@@ -388,7 +391,8 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             allCardForKey: (key) => this.allCards.find((c) => c.key === key),
             relationshipSets: () => this.relationshipsByPath,
             startProperty: () => this.resolveTimelineStartProperty(),
-            estimateProperty: () => this.resolveTimelineEstimateProperty(),
+            estimateConfigFor: (card) => this.estimateConfigFor(card),
+            minutesPerDay: () => this.plugin.settings.minutesPerDay,
             progressProperty: () => this.resolveProgressProperty(),
             scheduledProperty: () => this.scheduledDateProperty,
             deadlineProperty: () => this.dueDateProperty,
@@ -1089,9 +1093,23 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         return this.scheduledDateProperty
     }
 
-    /** Timeline estimate property, in days (global plugin setting). */
-    private resolveTimelineEstimateProperty(): string {
-        return this.plugin.settings.defaultEstimateProperty
+    /**
+     * The estimate property + unit for a card: its note type's override
+     * (e.g. tasknotes-style `time_estimate` in minutes) when configured,
+     * else the global default property in days. An override with an empty
+     * property keeps the global name and only changes the unit.
+     */
+    private estimateConfigFor(card: KanbanCard): EstimateConfig {
+        const typeId = this.noteTypeByPath.get(card.key)?.id
+        const noteType = typeId ? findNoteType(this.plugin, typeId) : undefined
+        const override = noteType?.estimate
+        if (!override) {
+            return { property: this.plugin.settings.defaultEstimateProperty, unit: 'days' }
+        }
+        return {
+            property: override.property.trim() || this.plugin.settings.defaultEstimateProperty,
+            unit: override.unit
+        }
     }
 
     /** Milestone list property (global plugin setting). */

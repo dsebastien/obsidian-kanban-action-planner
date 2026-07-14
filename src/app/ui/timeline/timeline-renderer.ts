@@ -66,9 +66,9 @@ export interface TimelineRowModel {
      * off-window drags.
      */
     startDayOffset: number | null
-    /** Parsed estimate in days, or null (start-only square). */
+    /** Whole-day estimate SPAN (resize math + geometry), or null (square). */
     estimate: number | null
-    /** Estimate length ("12d"), only when an estimate is set. */
+    /** Unit-aware estimate label ("12d", "1h 30m"), only when set. */
     durationLabel: string | null
     /** Tooltip for the bar/row (title + date span). */
     tooltip: string

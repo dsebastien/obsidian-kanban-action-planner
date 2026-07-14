@@ -17,7 +17,6 @@ import {
     daysBetween,
     derivedEnd,
     groupByTypeAndStatus,
-    parseEstimate,
     parseMilestoneEntry,
     parseMilestones,
     pointPct,
@@ -47,6 +46,8 @@ import { MilestoneModal } from '../../ui/timeline/milestone-modal'
 import { EstimatePromptModal } from '../../ui/timeline/estimate-modal'
 import { DatePromptModal } from '../../ui/date-prompt-modal'
 import { formatDate } from '../../utils/momentjs'
+import { daysToUnit, readEstimate } from '../../domain/estimate'
+import type { EstimateConfig, ResolvedEstimate } from '../../domain/estimate'
 import type { KanbanCard } from '../../ui/board/types'
 
 /** Durable timeline UI state persisted per-view (the anchor stays transient). */
@@ -70,9 +71,12 @@ export interface TimelineHost {
     isTimelineMode(): boolean
     openCard(card: KanbanCard, newTab: boolean): void
     showCardMenu(card: KanbanCard, event: MouseEvent, extend?: (menu: Menu) => void): void
-    /** Resolved start date + estimate (days) + milestone list property names. */
+    /** Resolved start date + milestone list property names. */
     startProperty(): string
-    estimateProperty(): string
+    /** Per-card estimate property + unit (per-note-type override). */
+    estimateConfigFor(card: KanbanCard): EstimateConfig
+    /** Minutes one work day represents (minute-estimate → days conversion). */
+    minutesPerDay(): number
     milestoneProperty(): string
     /**
      * Resolved scheduled property (issue #80): when the timeline start
@@ -222,7 +226,6 @@ export class TimelineController {
         const window = periodRange(kind, anchor, firstDay)
 
         const startProperty = this.host.startProperty()
-        const estimateProperty = this.host.estimateProperty()
         const milestoneProperty = this.host.milestoneProperty()
 
         // The PRE-hiding type set: the Types menu and the grouping decision
@@ -249,9 +252,7 @@ export class TimelineController {
             // Hiding a type removes its rows AND its undated cards.
             if (this.hiddenTypes.has(type.id)) continue
             const start = this.readDate(card, startProperty)
-            const estimate = parseEstimate(
-                getFrontmatterValue(this.host.app, card.file, estimateProperty)
-            )
+            const estimate = this.readCardEstimate(card)
             const milestones = parseMilestones(
                 getFrontmatterValue(this.host.app, card.file, milestoneProperty)
             )
@@ -448,15 +449,16 @@ export class TimelineController {
     private async scheduleAt(card: KanbanCard, pct: number, window: TimelineRange): Promise<void> {
         const date = addDays(window.start, dayOffsetAtPct(pct, window))
         const start = formatDate(date, this.host.dateFormat())
-        const estimateProperty = this.host.estimateProperty()
-        const raw = getFrontmatterValue(this.host.app, card.file, estimateProperty)
+        const config = this.host.estimateConfigFor(card)
+        const raw = getFrontmatterValue(this.host.app, card.file, config.property)
         if (raw !== undefined && raw !== null && raw !== '') {
             await setProperty(this.host.app, card.file, this.host.startProperty(), start)
             return
         }
         await setProperties(this.host.app, card.file, {
             [this.host.startProperty()]: start,
-            [estimateProperty]: 1
+            // One day, written in the card's own unit (minutes → minutesPerDay).
+            [config.property]: daysToUnit(1, config.unit, this.host.minutesPerDay())
         })
     }
 
@@ -524,27 +526,26 @@ export class TimelineController {
         edge: 'start' | 'end',
         dayDelta: number
     ): Promise<void> {
-        const estimateProperty = this.host.estimateProperty()
-        const estimate = parseEstimate(
-            getFrontmatterValue(this.host.app, card.file, estimateProperty)
-        )
+        const config = this.host.estimateConfigFor(card)
+        const minutesPerDay = this.host.minutesPerDay()
+        const estimate = this.readCardEstimate(card)
         if (estimate === null) return
         if (edge === 'end') {
             await setProperty(
                 this.host.app,
                 card.file,
-                estimateProperty,
-                resizeEstimate(estimate, dayDelta)
+                config.property,
+                daysToUnit(resizeEstimate(estimate.spanDays, dayDelta), config.unit, minutesPerDay)
             )
             return
         }
         const startProperty = this.host.startProperty()
         const start = this.readDate(card, startProperty)
         if (!start) return
-        const resized = resizeFromStart(estimate, dayDelta)
+        const resized = resizeFromStart(estimate.spanDays, dayDelta)
         await setProperties(this.host.app, card.file, {
             [startProperty]: formatDate(addDays(start, resized.startDelta), this.host.dateFormat()),
-            [estimateProperty]: resized.estimate
+            [config.property]: daysToUnit(resized.estimate, config.unit, minutesPerDay)
         })
     }
 
@@ -664,23 +665,35 @@ export class TimelineController {
      * property (the card falls back to a start-only square).
      */
     private promptEstimate(card: KanbanCard): void {
-        const property = this.host.estimateProperty()
-        const current = parseEstimate(getFrontmatterValue(this.host.app, card.file, property))
+        const config = this.host.estimateConfigFor(card)
+        const current = this.readCardEstimate(card)
         new EstimatePromptModal(
             this.host.app,
             `Set estimate — ${card.display.title}`,
-            current,
-            (days) => void this.writeEstimate(card, days)
+            current?.raw ?? null,
+            (value) => void this.writeEstimate(card, value),
+            config.unit
         ).open()
     }
 
-    private async writeEstimate(card: KanbanCard, days: number | null): Promise<void> {
-        const property = this.host.estimateProperty()
-        if (days === null) {
-            await deleteProperty(this.host.app, card.file, property)
+    /** Write (or clear) the card's estimate, in the card's own unit. */
+    private async writeEstimate(card: KanbanCard, value: number | null): Promise<void> {
+        const config = this.host.estimateConfigFor(card)
+        if (value === null) {
+            await deleteProperty(this.host.app, card.file, config.property)
             return
         }
-        await setProperty(this.host.app, card.file, property, days)
+        await setProperty(this.host.app, card.file, config.property, value)
+    }
+
+    /** The card's parsed estimate (unit-aware; null when unset/unusable). */
+    private readCardEstimate(card: KanbanCard): ResolvedEstimate | null {
+        const config = this.host.estimateConfigFor(card)
+        return readEstimate(
+            getFrontmatterValue(this.host.app, card.file, config.property),
+            config.unit,
+            this.host.minutesPerDay()
+        )
     }
 
     /**
@@ -694,12 +707,13 @@ export class TimelineController {
     private buildRow(
         card: KanbanCard,
         start: Date | null,
-        estimate: number | null,
+        estimate: ResolvedEstimate | null,
         milestones: ReturnType<typeof parseMilestones>,
         window: TimelineRange,
         today: Date
     ): TimelineRowModel {
-        const end = start && estimate !== null ? derivedEnd(start, estimate) : null
+        // Geometry runs on whole days: a minute estimate spans ceil(days).
+        const end = start && estimate !== null ? derivedEnd(start, estimate.spanDays) : null
         const bar = start && end ? barGeometry(start, end, window) : null
         let square: TimelineRowModel['square'] = null
         if (start && estimate === null) {
@@ -744,7 +758,7 @@ export class TimelineController {
             .filter(Boolean)
             .join(' → ')
         if (end !== null && estimate !== null) {
-            span = `${span} — ${String(estimate)} day${estimate === 1 ? '' : 's'}`
+            span = `${span} — ${estimate.label}`
         }
         if (deadlineDate) {
             span = span
@@ -761,8 +775,9 @@ export class TimelineController {
             offSide,
             draggable: start !== null,
             startDayOffset: start ? daysBetween(window.start, start) : null,
-            estimate,
-            durationLabel: estimate !== null ? `${String(estimate)}d` : null,
+            // The renderer's resize math runs on the whole-day span.
+            estimate: estimate?.spanDays ?? null,
+            durationLabel: estimate?.label ?? null,
             tooltip: span ? `${card.display.title} (${span})` : card.display.title
         }
     }

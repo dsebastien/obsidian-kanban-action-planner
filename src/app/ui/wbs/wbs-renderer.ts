@@ -49,13 +49,17 @@ export interface WbsRowModel {
     blocked: boolean
     /** An extra instance of a multi-parent note (rendered under each parent). */
     duplicate: boolean
-    ownEstimate: number | null
+    /** Own estimate label in the note's unit ("3d", "1h 30m"); null = unset. */
+    ownEstimate: string | null
     /**
-     * The children's rollup (Σ of direct children's effective estimates);
-     * the node's displayed value when it has no own estimate, the coverage
-     * signal next to it when it does. Null when the subtree has nothing.
+     * The children's rollup (Σ of direct children's effective estimates, in
+     * days); the node's displayed value when it has no own estimate, the
+     * coverage signal next to it when it does. Null when the subtree has
+     * nothing.
      */
-    rollupEstimate: number | null
+    rollupEstimate: string | null
+    /** Whether the rollup meaningfully differs from the own value (in days). */
+    rollupDiffers: boolean
     /** Start date key (e.g. `2026-07-14`) when set (or derived). */
     startLabel: string | null
     /** End date key (start + estimate − 1, or the subtree's latest end). */
@@ -286,6 +290,7 @@ function rowSignature(row: WbsRowModel): string {
         dup: row.duplicate,
         oe: row.ownEstimate,
         re: row.rollupEstimate,
+        rd: row.rollupDiffers,
         s: row.startLabel,
         e: row.endLabel,
         dd: row.datesDerived,
@@ -569,11 +574,11 @@ function renderEstimateChip(parent: HTMLElement, row: WbsRowModel, callbacks: Wb
         attr: { type: 'button', title: card ? 'Set estimate (days)' : 'Children rollup (days)' }
     })
     if (row.ownEstimate !== null) {
-        btn.createSpan({ text: `${String(row.ownEstimate)}d` })
-        if (row.rollupEstimate !== null && row.rollupEstimate !== row.ownEstimate) {
+        btn.createSpan({ text: row.ownEstimate })
+        if (row.rollupEstimate !== null && row.rollupDiffers) {
             btn.createSpan({
                 cls: 'kap-wbs-estimate-total',
-                text: `Σ ${String(row.rollupEstimate)}d`,
+                text: `Σ ${row.rollupEstimate}`,
                 attr: { title: 'Children rollup — differs from the own estimate' }
             })
         }
@@ -581,7 +586,7 @@ function renderEstimateChip(parent: HTMLElement, row: WbsRowModel, callbacks: Wb
         btn.addClass('kap-wbs-chip-derived')
         btn.createSpan({
             cls: 'kap-wbs-estimate-total',
-            text: `Σ ${String(row.rollupEstimate)}d`,
+            text: `Σ ${row.rollupEstimate}`,
             attr: { title: 'Derived from children — click to persist or adjust' }
         })
     } else {

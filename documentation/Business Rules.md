@@ -537,3 +537,20 @@ See `documentation/plans/kanban-action-planner-implementation-plan.md` for full 
     cards get group targets: a WBS tree row dropped on the panel still detaches (rule 36),
     a calendar day-chip dropped on the panel still clears its date, and timeline bars still
     unschedule — group targets never hijack those gestures.
+
+38. **Estimate property + unit resolve per card (owner).** The global
+    `defaultEstimateProperty` (days) is the default for every note type; a note type may
+    override BOTH the property and the unit (`days` | `minutes`) via its `estimate` config
+    (`estimateConfigSchema`, plugin-owned like colors — editable for Starter Kit–mirrored
+    types, untouched by the SK mirror; empty property = global name, unit still applies).
+    All rollup/weighting math runs in **days** (`domain/estimate.ts`: `readEstimate` →
+    `ResolvedEstimate`); minute values convert via the global **`minutesPerDay`** setting
+    (default 480 = an 8-hour workday). Date **geometry** (timeline bars, calendar #86 spans,
+    WBS date spans) uses the whole-day `spanDays` = max(1, ceil(days)); day-unit values keep
+    the historical ceil-to-≥1 parse. **Displays are unit-aware** ("1h 30m" for minute notes,
+    "3d" for day notes; day-rollups show one decimal when fractional, e.g. "Σ 1.2d").
+    **Writes are always unit-native**: the estimate modal edits raw minutes/days, save-rollup
+    and distribute-to-children convert day amounts into each TARGET note's own unit
+    (`daysToUnit`, ≥ 1), timeline resizes/seeds write the card's unit (a fresh drop seeds 1
+    day = `minutesPerDay` minutes on a minute-based type). Older stored note types have no
+    `estimate` block and degrade to the global default (no backfill).

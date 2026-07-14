@@ -85,6 +85,19 @@ export const archiveConfigSchema = z
     })
 export type ArchiveConfig = z.infer<typeof archiveConfigSchema>
 
+/**
+ * Per-type estimate override: which frontmatter property holds the time
+ * estimate and in which unit. Absent = the global `defaultEstimateProperty`
+ * in days. Plugin-owned (like colors/relationships) — editable for Starter
+ * Kit–mirrored types too, and untouched by the SK mirror.
+ */
+export const estimateConfigSchema = z.object({
+    /** Property name; '' falls back to the global default property. */
+    property: z.string(),
+    unit: z.enum(['days', 'minutes'])
+})
+export type NoteTypeEstimateConfig = z.infer<typeof estimateConfigSchema>
+
 /** Calendar / scheduling config. */
 export const calendarConfigSchema = z.object({
     enabled: z.boolean(),
@@ -134,6 +147,11 @@ export const noteTypeSchema = z.object({
      * <property>" quick-set menu. Defaults to `{}` so older stored note types
      * degrade gracefully (no backfill).
      */
-    enumProperties: z.record(z.string(), z.array(z.string())).default({})
+    enumProperties: z.record(z.string(), z.array(z.string())).default({}),
+    /**
+     * Estimate property + unit override; absent (older stored types, no
+     * backfill) = the global default property in days.
+     */
+    estimate: estimateConfigSchema.optional()
 })
 export type NoteType = z.infer<typeof noteTypeSchema>

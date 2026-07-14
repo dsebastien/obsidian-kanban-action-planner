@@ -276,10 +276,30 @@ export class KanbanActionPlannerSettingTab extends PluginSettingTab {
         text('Due date property', 'Date a note is due.', 'defaultDueDateProperty', 'date_due')
         text(
             'Estimate property',
-            'Days a note is expected to take.',
+            'Days a note is expected to take. The default for every note type — a note ' +
+                'type can override the property and unit (days or minutes) in its ' +
+                'Configure dialog.',
             'defaultEstimateProperty',
             'estimate'
         )
+        new Setting(containerEl)
+            .setName('Minutes per day')
+            .setDesc(
+                'How many minutes one day of work represents. Converts minute-based ' +
+                    'estimates (note-type unit override) into days for rollups and ' +
+                    'timeline spans. Default 480 = an 8-hour workday.'
+            )
+            .addText((input) => {
+                input.inputEl.type = 'number'
+                input.inputEl.min = '1'
+                input
+                    .setPlaceholder('480')
+                    .setValue(String(this.plugin.settings.minutesPerDay))
+                    .onChange((value) => {
+                        const n = Number.parseInt(value, 10)
+                        if (Number.isFinite(n) && n > 0) void this.updateMinutesPerDay(n)
+                    })
+            })
         text(
             'Milestones property',
             'List of "<date> [label]" milestone entries.',
@@ -494,6 +514,13 @@ export class KanbanActionPlannerSettingTab extends PluginSettingTab {
             draft.dueSoonThresholdDays = days
         })
         await this.plugin.saveSettings('cards')
+    }
+
+    private async updateMinutesPerDay(minutes: number): Promise<void> {
+        this.plugin.settings = produce(this.plugin.settings, (draft) => {
+            draft.minutesPerDay = minutes
+        })
+        await this.plugin.saveSettings('full')
     }
 
     private renderFollowButton(containerEl: HTMLElement): void {

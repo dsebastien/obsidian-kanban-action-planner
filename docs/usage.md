@@ -459,7 +459,11 @@ command).
 properties are **global plugin settings** (no per-view overrides):
 
 - **Start date** — your scheduled-date property (`date_scheduled` by default).
-- **Estimate property** — a plain **number of days** (default `estimate`).
+- **Estimate property** — a plain **number of days** (default `estimate`). A note type can
+  override both the **property and the unit** (days or **minutes** — e.g. a
+  tasknotes-compatible `time_estimate`) in its Configure dialog; minute estimates convert to
+  days via the **Minutes per day** setting (default 480 = an 8-hour workday) and always span
+  at least one whole day on the timeline.
 - **Milestones property** — the list property holding milestone entries (default `milestones`).
 
 So a board already set up for calendar mode gets a working timeline with zero configuration.
@@ -612,10 +616,14 @@ sort** (name, any property, or title as the fallback).
 work the same way, so you can plan **top-down** (estimate the goal, split it later),
 **bottom-up** (estimate the tasks, let the parents derive), or mix both:
 
-- **Estimate** — the row shows the note's own estimate (`5d`). A parent without one shows the
-  children's rollup instead (_`Σ 12d`_, italic = derived). A parent with its own estimate
-  also shows the children's rollup when it differs — an at-a-glance "does my budget match the
-  breakdown?" signal.
+- **Estimate** — the row shows the note's own estimate in its own unit (`5d`, or `1h 30m`
+  for a minute-based note type). A parent without one shows the children's rollup instead
+  (_`Σ 12d`_, italic = derived; rollups are always in days, one decimal when fractional —
+  three 90-minute tasks under a project show `Σ 0.6d` with the default 8-hour day). A parent
+  with its own estimate also shows the children's rollup when it differs — an at-a-glance
+  "does my budget match the breakdown?" signal. Editing, **Save rolled-up estimate**, and
+  **Distribute estimate to children** all read and write each note's **own** property and
+  unit.
 - **Progress** — every row has a progress bar, driven by a **0–100 number** in the progress
   property (`progress` by default, configurable in settings). A note without its own progress
   (or at 0) derives the weighted combination of its children — derived bars render dimmed
@@ -794,12 +802,12 @@ date **property names** are set globally in plugin settings.)
 - **Default range**: Week, Month, Quarter, or Year. (The start/estimate/milestones property
   names are global plugin settings, not view options.)
 
-## Note type configuration (colors, enums, relationships, archiving)
+## Note type configuration (colors, enums, relationships, estimate, archiving)
 
 A note type's shared config lives **centrally** in **Settings → Community plugins → Kanban
 Action Planner → Note types**. Pick a type and click **Configure** to open a dialog with sections
 on the left (**Colors**, **Enums**, **WIP limits**, **Swimlanes**, **Relationships**,
-**Archiving**) that apply to **every** board showing that type. The **gear** in the board's
+**Estimate**, **Archiving**) that apply to **every** board showing that type. The **gear** in the board's
 top-right is a shortcut that jumps straight to these settings. (What each card _shows_ is set per
 view via the Bases **Properties** selection, see **Card content** above.)
 
@@ -813,6 +821,14 @@ is recognized as this type when **any** rule matches, by **tag** (including nest
 relationships, and archiving, and can drive **By note type** swimlanes, all without the Obsidian
 Starter Kit. Delete a local type with the trash icon (your notes are untouched). When the Starter
 Kit _is_ installed, its recognition is tried first and your local rules act as a fallback.
+
+The **Estimate** section lets a type use its **own estimate property and unit**: e.g. tasks
+tracking effort in a tasknotes-compatible `time_estimate` (**minutes**) while projects and
+goals keep the global day-based property. Leave the property empty to keep the global name
+and only change the unit. Minute estimates convert to days everywhere (rollups, timeline,
+spans) via the global **Minutes per day** setting (default 480 = an 8-hour workday), and all
+edits are written back in the note's own unit. This works for Starter Kit–loaded types too —
+the estimate association is owned by this plugin, not the Starter Kit.
 
 In the **WIP limits** section, set a soft per-column limit for any status (leave blank for no
 limit). The column header then shows **`count / limit`**, and a column over its limit turns its

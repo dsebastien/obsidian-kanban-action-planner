@@ -2,7 +2,9 @@ import { Notice } from 'obsidian'
 import type { App, Menu } from 'obsidian'
 import { parseFrontmatterDate, startOfDay, toDateKey } from '../../domain/calendar'
 import { formatCountdown } from '../../services/card-display.service'
-import { derivedEnd, groupByTypeAndStatus, parseEstimate } from '../../domain/timeline'
+import { derivedEnd, groupByTypeAndStatus } from '../../domain/timeline'
+import { daysToUnit, formatDaysLabel, formatUnitValue, readEstimate } from '../../domain/estimate'
+import type { EstimateConfig, ResolvedEstimate } from '../../domain/estimate'
 import {
     buildWbsForest,
     buildWbsNode,
@@ -79,7 +81,10 @@ export interface WbsHost {
     relationshipSets(): Map<string, RelationshipSet>
     /** Resolved property names (start = the scheduled date; the rest global). */
     startProperty(): string
-    estimateProperty(): string
+    /** Per-card estimate property + unit (per-note-type override). */
+    estimateConfigFor(card: KanbanCard): EstimateConfig
+    /** Minutes one work day represents (minute-estimate → days conversion). */
+    minutesPerDay(): number
     progressProperty(): string
     scheduledProperty(): string
     /** Resolved due-date property (the rows' due chip reads and writes it). */
@@ -234,24 +239,18 @@ export class WbsController {
         const compareCards = this.host.comparator()
 
         // Per-render frontmatter caches: one read per path, not per instance.
-        const estimateCache = new Map<string, number | null>()
-        const estimateOf = (path: string): number | null => {
+        const estimateCache = new Map<string, ResolvedEstimate | null>()
+        const resolvedEstimateOf = (path: string): ResolvedEstimate | null => {
             let value = estimateCache.get(path)
             if (value === undefined) {
                 const card = byKey.get(path)
-                value = card
-                    ? parseEstimate(
-                          getFrontmatterValue(
-                              this.host.app,
-                              card.file,
-                              this.host.estimateProperty()
-                          )
-                      )
-                    : null
+                value = card ? this.resolvedEstimateFor(card) : null
                 estimateCache.set(path, value)
             }
             return value
         }
+        // Rollup math runs in DAYS; minute estimates convert via minutesPerDay.
+        const estimateOf = (path: string): number | null => resolvedEstimateOf(path)?.days ?? null
         const progressCache = new Map<string, number | null>()
         const progressOf = (path: string): number | null => {
             let value = progressCache.get(path)
@@ -281,11 +280,12 @@ export class WbsController {
             }
             return value
         }
-        // A path's OWN end: start + own estimate − 1 (the timeline convention).
+        // A path's OWN end: start + own span − 1 (the timeline convention;
+        // a minute estimate covers ceil(days) whole days).
         const endOf = (path: string): Date | null => {
             const start = startOf(path)
-            const estimate = estimateOf(path)
-            return start && estimate !== null ? derivedEnd(start, estimate) : null
+            const estimate = resolvedEstimateOf(path)
+            return start && estimate ? derivedEnd(start, estimate.spanDays) : null
         }
 
         // Sibling order (owner rule): planned (start) dates win — dated
@@ -320,7 +320,7 @@ export class WbsController {
             // No card → a context ancestor (outside the view's results):
             // rendered from derived values only, never skipped.
             const card = byKey.get(node.path) ?? null
-            const own = estimateOf(node.path)
+            const own = resolvedEstimateOf(node.path)
             const rollup = childrenEstimate(node, estimateOf)
             const progress = effectiveProgress(node, progressOf, weightOf)
             const start = startOf(node.path)
@@ -328,7 +328,7 @@ export class WbsController {
             // own start shows the span its descendants cover, styled as
             // derived — top-down and bottom-up planning both work.
             let startLabel = start ? toDateKey(start) : null
-            let endLabel = start && own !== null ? toDateKey(derivedEnd(start, own)) : null
+            let endLabel = start && own ? toDateKey(derivedEnd(start, own.spanDays)) : null
             let datesDerived = false
             if (!start && node.children.length > 0) {
                 const span = subtreeSpan(node, startOf, endOf)
@@ -354,8 +354,10 @@ export class WbsController {
                 statusColor: card ? this.host.statusColorFor(card) : null,
                 blocked: card !== null && card.relationships.blocked_by.length > 0,
                 duplicate: seenPaths.has(node.path),
-                ownEstimate: own,
-                rollupEstimate: rollup,
+                ownEstimate: own?.label ?? null,
+                rollupEstimate: rollup !== null ? formatDaysLabel(rollup) : null,
+                rollupDiffers:
+                    own !== null && rollup !== null && Math.abs(rollup - own.days) > 0.05,
                 startLabel,
                 endLabel,
                 datesDerived,
@@ -445,9 +447,7 @@ export class WbsController {
         const needsPlanning = cards
             .filter((card) => {
                 const start = this.readDate(card, this.host.startProperty())
-                const estimate = parseEstimate(
-                    getFrontmatterValue(this.host.app, card.file, this.host.estimateProperty())
-                )
+                const estimate = this.resolvedEstimateFor(card)
                 return start === null || estimate === null
             })
             .sort(compare)
@@ -792,28 +792,29 @@ export class WbsController {
                 .setSection('kap-wbs')
                 .onClick(() => this.promptProgress(card))
         )
-        const own = parseEstimate(
-            getFrontmatterValue(this.host.app, card.file, this.host.estimateProperty())
-        )
+        const config = this.host.estimateConfigFor(card)
+        const own = this.resolvedEstimateFor(card)
         const node = this.nodeFor(card.key)
         // Save-the-rollup affordances (owner rule: rollups are displayed by
         // default, but easily persisted to the parent — bottom-up made
         // durable). Estimate: the children's rollup, when it differs from
         // the own value. Progress: the derived combination, when derived.
         const estimateRollup = childrenEstimate(node, this.estimateOfPath)
-        if (estimateRollup !== null && estimateRollup !== own) {
+        if (
+            estimateRollup !== null &&
+            (own === null || Math.abs(estimateRollup - own.days) > 0.05)
+        ) {
+            // Persist in the card's own unit (a minutes card saves minutes).
+            const rollupValue = daysToUnit(estimateRollup, config.unit, this.host.minutesPerDay())
             menu.addItem((item) =>
                 item
-                    .setTitle(`Save rolled-up estimate (${String(estimateRollup)}d)`)
+                    .setTitle(
+                        `Save rolled-up estimate (${formatUnitValue(rollupValue, config.unit)})`
+                    )
                     .setIcon('sigma')
                     .setSection('kap-wbs')
                     .onClick(() => {
-                        void setProperty(
-                            this.host.app,
-                            card.file,
-                            this.host.estimateProperty(),
-                            estimateRollup
-                        )
+                        void setProperty(this.host.app, card.file, config.property, rollupValue)
                     })
             )
         }
@@ -840,12 +841,13 @@ export class WbsController {
             )
         }
         if (own !== null && node.children.length > 0) {
+            const ownDays = own.days
             menu.addItem((item) =>
                 item
                     .setTitle('Distribute estimate to children')
                     .setIcon('divide')
                     .setSection('kap-wbs')
-                    .onClick(() => void this.distributeToChildren(card, own))
+                    .onClick(() => void this.distributeToChildren(card, ownDays))
             )
         }
     }
@@ -863,14 +865,20 @@ export class WbsController {
         )
     }
 
-    /** A path's own estimate, read from frontmatter (menu-time, uncached). */
+    /** A path's own estimate in DAYS, read from frontmatter (menu-time, uncached). */
     private readonly estimateOfPath = (path: string): number | null => {
         const card = this.host.allCardForKey(path)
-        return card
-            ? parseEstimate(
-                  getFrontmatterValue(this.host.app, card.file, this.host.estimateProperty())
-              )
-            : null
+        return card ? (this.resolvedEstimateFor(card)?.days ?? null) : null
+    }
+
+    /** A card's parsed estimate (per-type property + unit; null when unset). */
+    private resolvedEstimateFor(card: KanbanCard): ResolvedEstimate | null {
+        const config = this.host.estimateConfigFor(card)
+        return readEstimate(
+            getFrontmatterValue(this.host.app, card.file, config.property),
+            config.unit,
+            this.host.minutesPerDay()
+        )
     }
 
     /** A path's own progress, read from frontmatter (menu-time, uncached). */
@@ -903,9 +911,17 @@ export class WbsController {
         for (const [path, days] of shares) {
             const child = this.host.allCardForKey(path)
             if (!child) continue
-            await setProperty(this.host.app, child.file, this.host.estimateProperty(), days)
+            const childConfig = this.host.estimateConfigFor(child)
+            await setProperty(
+                this.host.app,
+                child.file,
+                childConfig.property,
+                daysToUnit(days, childConfig.unit, this.host.minutesPerDay())
+            )
         }
-        new Notice(`Distributed ${String(own)}d across ${String(shares.size)} child note(s).`)
+        new Notice(
+            `Distributed ${formatDaysLabel(own)} across ${String(shares.size)} child note(s).`
+        )
     }
 
     /**
@@ -914,18 +930,23 @@ export class WbsController {
      * bottom-up total is a two-click affair (open, Set).
      */
     private promptEstimate(card: KanbanCard): void {
-        const property = this.host.estimateProperty()
-        const current = parseEstimate(getFrontmatterValue(this.host.app, card.file, property))
-        const prefill = current ?? childrenEstimate(this.nodeFor(card.key), this.estimateOfPath)
+        const config = this.host.estimateConfigFor(card)
+        const current = this.resolvedEstimateFor(card)
+        const rollup = childrenEstimate(this.nodeFor(card.key), this.estimateOfPath)
+        // Pre-fill the own value, else the derived rollup — in the card's unit.
+        const prefill =
+            current?.raw ??
+            (rollup !== null ? daysToUnit(rollup, config.unit, this.host.minutesPerDay()) : null)
         new EstimatePromptModal(
             this.host.app,
             `Set estimate — ${card.display.title}`,
             prefill,
-            (days) => {
-                void (days === null
-                    ? deleteProperty(this.host.app, card.file, property)
-                    : setProperty(this.host.app, card.file, property, days))
-            }
+            (value) => {
+                void (value === null
+                    ? deleteProperty(this.host.app, card.file, config.property)
+                    : setProperty(this.host.app, card.file, config.property, value))
+            },
+            config.unit
         ).open()
     }
 

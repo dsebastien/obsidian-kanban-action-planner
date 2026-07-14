@@ -1,7 +1,13 @@
 import { getAllTags } from 'obsidian'
 import type { App, TFile } from 'obsidian'
 import { produce } from 'immer'
-import type { ColorSpec, ColumnDef, LaneGrouping, NoteType } from '../domain/note-type'
+import type {
+    ColorSpec,
+    ColumnDef,
+    LaneGrouping,
+    NoteType,
+    NoteTypeEstimateConfig
+} from '../domain/note-type'
 import { compareStatusValues, splitStatusValue } from '../domain/status'
 import { matchesAnyMapping } from '../domain/note-type-recognition'
 import type { RecognitionFile } from '../domain/note-type-recognition'
@@ -215,6 +221,25 @@ export async function setRelationships(
 }
 
 /** Replace a note type's swimlane grouping config. */
+/**
+ * Set (or clear, with `undefined`) a note type's estimate property + unit
+ * override. Plugin-owned config: valid for Starter Kit–mirrored types too.
+ */
+export async function setEstimateConfig(
+    plugin: KanbanActionPlannerPlugin,
+    noteTypeId: string,
+    estimate: NoteTypeEstimateConfig | undefined
+): Promise<void> {
+    const noteType = requireNoteType(plugin, noteTypeId)
+    if (!noteType) return
+    await upsertNoteType(
+        plugin,
+        produce(noteType, (draft) => {
+            draft.estimate = estimate
+        })
+    )
+}
+
 export async function setLaneGrouping(
     plugin: KanbanActionPlannerPlugin,
     noteTypeId: string,

@@ -7,6 +7,7 @@ import {
     DEFAULT_DUE_SOON_THRESHOLD_DAYS,
     DEFAULT_ESTIMATE_PROPERTY,
     DEFAULT_MILESTONES_PROPERTY,
+    DEFAULT_MINUTES_PER_DAY,
     DEFAULT_PROGRESS_PROPERTY,
     DEFAULT_FIRST_DAY_OF_WEEK,
     DEFAULT_ORDER_PROPERTY,
@@ -39,6 +40,11 @@ export const pluginSettingsSchema = z.object({
     defaultDueDateProperty: z.string(),
     /** Days a note is expected to take (timeline bar length; issue #80 rework). */
     defaultEstimateProperty: z.string(),
+    /**
+     * Minutes one day of work represents — converts minute-based estimates
+     * (per-note-type unit override) into days for rollups/spans. 480 = 8h.
+     */
+    minutesPerDay: z.number().int().positive(),
     /** Milestone list property (`<date> [label]` entries; timeline diamonds). */
     defaultMilestonesProperty: z.string(),
     /** Completion percentage 0–100 (WBS progress bars; issue #76). */
@@ -92,6 +98,7 @@ export const DEFAULT_SETTINGS: PluginSettings = {
     defaultScheduledDateProperty: DEFAULT_SCHEDULED_DATE_PROPERTY,
     defaultDueDateProperty: DEFAULT_DUE_DATE_PROPERTY,
     defaultEstimateProperty: DEFAULT_ESTIMATE_PROPERTY,
+    minutesPerDay: DEFAULT_MINUTES_PER_DAY,
     defaultMilestonesProperty: DEFAULT_MILESTONES_PROPERTY,
     defaultProgressProperty: DEFAULT_PROGRESS_PROPERTY,
     reviewedDateProperty: DEFAULT_REVIEWED_DATE_PROPERTY,

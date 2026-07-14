@@ -19,6 +19,7 @@ import {
     setArchiveConfig,
     setAutoAssign,
     setColorOverride,
+    setEstimateConfig,
     setLaneGrouping,
     setNoteTypeName,
     setEnumProperty,
@@ -39,6 +40,7 @@ type SectionId =
     | 'relationships'
     | 'archiving'
     | 'limits'
+    | 'estimate'
 
 const SECTIONS: ReadonlyArray<{ id: SectionId; label: string; icon: string }> = [
     { id: 'recognition', label: 'Note type', icon: 'scan-search' },
@@ -47,6 +49,7 @@ const SECTIONS: ReadonlyArray<{ id: SectionId; label: string; icon: string }> = 
     { id: 'limits', label: 'WIP limits', icon: 'gauge' },
     { id: 'swimlanes', label: 'Swimlanes', icon: 'rows-3' },
     { id: 'relationships', label: 'Relationships', icon: 'git-fork' },
+    { id: 'estimate', label: 'Estimate', icon: 'ruler' },
     { id: 'archiving', label: 'Archiving', icon: 'archive' }
 ]
 
@@ -177,7 +180,55 @@ export class ConfigureBoardModal extends Modal {
             case 'limits':
                 this.renderLimits(noteType)
                 return
+            case 'estimate':
+                this.renderEstimate(noteType)
+                return
         }
+    }
+
+    // ── Estimate property + unit (per-type override; plugin-owned) ────
+
+    private renderEstimate(noteType: NoteType): void {
+        new Setting(this.body).setName('Estimate').setHeading()
+        this.body.createEl('p', {
+            cls: 'kap-modal-subtitle',
+            text:
+                `Which frontmatter property holds the time estimate for ${noteType.name} ` +
+                'notes, and its unit. Leave the property empty to use the global default ' +
+                `("${this.plugin.settings.defaultEstimateProperty}"). Minute-based estimates ` +
+                'convert to days for rollups and timeline spans via the global ' +
+                '"Minutes per day" setting.'
+        })
+        const current = noteType.estimate
+        const persist = (property: string, unit: 'days' | 'minutes'): void => {
+            const trimmed = property.trim()
+            // Empty property + days = pure global default → store nothing.
+            const next = trimmed === '' && unit === 'days' ? undefined : { property: trimmed, unit }
+            void setEstimateConfig(this.plugin, this.noteTypeId, next).then(() => this.onChange())
+        }
+        new Setting(this.body)
+            .setName('Estimate property')
+            .setDesc('Empty = the global default property.')
+            .addText((text) => {
+                text.setPlaceholder(this.plugin.settings.defaultEstimateProperty)
+                    .setValue(current?.property ?? '')
+                    .onChange((value) => persist(value, this.noteType()?.estimate?.unit ?? 'days'))
+            })
+        new Setting(this.body)
+            .setName('Unit')
+            .setDesc('How the stored number is interpreted (and written).')
+            .addDropdown((dropdown) => {
+                dropdown
+                    .addOption('days', 'Days')
+                    .addOption('minutes', 'Minutes')
+                    .setValue(current?.unit ?? 'days')
+                    .onChange((value) => {
+                        persist(
+                            this.noteType()?.estimate?.property ?? '',
+                            value === 'minutes' ? 'minutes' : 'days'
+                        )
+                    })
+            })
     }
 
     // ── Note type recognition (issue #31; local types only) ───

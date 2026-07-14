@@ -61,7 +61,8 @@ Defined in `src/app/types/plugin-settings.intf.ts`, seeded from `src/app/constan
 | `defaultBlockedByProperty`     | `blocked_by`     | Property listing blockers                                               |
 | `defaultScheduledDateProperty` | `date_scheduled` | "Unplanned" tab / scheduling date                                       |
 | `defaultDueDateProperty`       | `date_due`       | "No Deadline" tab / due date                                            |
-| `defaultEstimateProperty`      | `estimate`       | Timeline estimate in days (span = start + estimate − 1)                 |
+| `defaultEstimateProperty`      | `estimate`       | Estimate property in days — the per-type default (rule 38 overrides)    |
+| `minutesPerDay`                | `480`            | Minutes one work day represents (minute-estimate → days conversion)     |
 | `defaultMilestonesProperty`    | `milestones`     | Milestone list property (`<date> [label]` entries → timeline diamonds). |
 | `defaultProgressProperty`      | `progress`       | Completion percentage 0–100 (WBS progress bars + rollups)               |
 | `defaultDateFormat`            | `YYYY-MM-DD`     | momentjs format for dates written to notes                              |

@@ -29,6 +29,8 @@ export const DEFAULT_SCHEDULED_DATE_PROPERTY = 'date_scheduled'
 export const DEFAULT_DUE_DATE_PROPERTY = 'date_due'
 /** Days a note is expected to take (drives the timeline's bar length). */
 export const DEFAULT_ESTIMATE_PROPERTY = 'estimate'
+/** Minutes one work day represents (minute-estimate → days conversion). */
+export const DEFAULT_MINUTES_PER_DAY = 480
 /** Milestone list entries (`<date> [label]`) rendered as timeline diamonds. */
 export const DEFAULT_MILESTONES_PROPERTY = 'milestones'
 /** Completion percentage 0–100 (drives the WBS progress bars; issue #76). */
