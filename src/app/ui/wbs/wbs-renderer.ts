@@ -22,6 +22,7 @@ import { renderGroupHeader } from '../calendar/calendar-renderer'
 import { planReconcile } from '../board/reconcile'
 import { cssEscapeAttr } from '../../utils/css-escape'
 import type { KanbanCard, CountdownTone } from '../board/types'
+import type { DurationParts } from '../../domain/estimate'
 
 /** One visible tree row (collapse already applied by the controller). */
 export interface WbsRowModel {
@@ -49,17 +50,20 @@ export interface WbsRowModel {
     blocked: boolean
     /** An extra instance of a multi-parent note (rendered under each parent). */
     duplicate: boolean
-    /** Own estimate label in the note's unit ("3d", "1h 30m"); null = unset. */
-    ownEstimate: string | null
     /**
-     * The children's rollup (Σ of direct children's effective estimates, in
-     * days); the node's displayed value when it has no own estimate, the
-     * coverage signal next to it when it does. Null when the subtree has
-     * nothing.
+     * The chip's primary estimate (the own value, else the derived rollup),
+     * segmented per unit so days/hours/minutes render in fixed slots that
+     * align vertically across rows. Null = unset (dash).
      */
-    rollupEstimate: string | null
-    /** Whether the rollup meaningfully differs from the own value (in days). */
-    rollupDiffers: boolean
+    estimateParts: DurationParts | null
+    /** The parts come from the children's rollup, not an own value. */
+    estimateDerived: boolean
+    /**
+     * Full "Σ …" rollup text, only when an own value exists AND the rollup
+     * meaningfully differs — the budget-vs-breakdown signal, rendered in the
+     * chip's fixed leading slot.
+     */
+    rollupSuffix: string | null
     /** Start date key (e.g. `2026-07-14`) when set (or derived). */
     startLabel: string | null
     /** End date key (start + estimate − 1, or the subtree's latest end). */
@@ -288,9 +292,9 @@ function rowSignature(row: WbsRowModel): string {
         sc: row.statusColor,
         b: row.blocked,
         dup: row.duplicate,
-        oe: row.ownEstimate,
-        re: row.rollupEstimate,
-        rd: row.rollupDiffers,
+        ep: row.estimateParts,
+        ed: row.estimateDerived,
+        rs: row.rollupSuffix,
         s: row.startLabel,
         e: row.endLabel,
         dd: row.datesDerived,
@@ -569,29 +573,39 @@ function renderDueChip(parent: HTMLElement, row: WbsRowModel, callbacks: WbsCall
  */
 function renderEstimateChip(parent: HTMLElement, row: WbsRowModel, callbacks: WbsCallbacks): void {
     const card = row.card
+    const title = !card
+        ? 'Children rollup'
+        : row.rollupSuffix !== null
+          ? `Set estimate — children rollup ${row.rollupSuffix.slice(2)} differs`
+          : row.estimateDerived
+            ? 'Derived from children — click to persist or adjust'
+            : 'Set estimate'
     const btn = parent.createEl('button', {
         cls: 'kap-wbs-chip-btn kap-wbs-estimate',
-        attr: { type: 'button', title: card ? 'Set estimate (days)' : 'Children rollup (days)' }
+        attr: { type: 'button', title }
     })
-    if (row.ownEstimate !== null) {
-        btn.createSpan({ text: row.ownEstimate })
-        if (row.rollupEstimate !== null && row.rollupDiffers) {
-            btn.createSpan({
-                cls: 'kap-wbs-estimate-total',
-                text: `Σ ${row.rollupEstimate}`,
-                attr: { title: 'Children rollup — differs from the own estimate' }
-            })
-        }
-    } else if (row.rollupEstimate !== null) {
-        btn.addClass('kap-wbs-chip-derived')
-        btn.createSpan({
-            cls: 'kap-wbs-estimate-total',
-            text: `Σ ${row.rollupEstimate}`,
-            attr: { title: 'Derived from children — click to persist or adjust' }
-        })
+    // Fixed slots — [Σ signal][days][hours][minutes] — so every unit sits at
+    // the same x across rows (scannability): "2d 6h" and "1h 30m" align by
+    // unit, not by string start. The grid lives on an inner div: Obsidian's
+    // UNLAYERED `button { display: inline-flex }` would beat any layered
+    // display on the button itself.
+    const grid = btn.createDiv({ cls: 'kap-wbs-est-grid' })
+    const lead = grid.createSpan({ cls: 'kap-wbs-est-lead' })
+    if (row.rollupSuffix !== null) {
+        lead.setText(row.rollupSuffix)
+        lead.addClass('kap-wbs-estimate-total')
+    } else if (row.estimateDerived) {
+        lead.setText('Σ')
+        lead.addClass('kap-wbs-estimate-total')
+    }
+    if (row.estimateParts) {
+        if (row.estimateDerived) btn.addClass('kap-wbs-chip-derived')
+        grid.createSpan({ cls: 'kap-wbs-est-seg', text: row.estimateParts.d ?? '' })
+        grid.createSpan({ cls: 'kap-wbs-est-seg', text: row.estimateParts.h ?? '' })
+        grid.createSpan({ cls: 'kap-wbs-est-seg', text: row.estimateParts.m ?? '' })
     } else {
         btn.addClass('kap-wbs-chip-unset')
-        btn.createSpan({ text: '–d' })
+        grid.createSpan({ cls: 'kap-wbs-est-empty', text: '–' })
     }
     if (card) btn.addEventListener('click', () => callbacks.onEditEstimate(card))
     else btn.disabled = true

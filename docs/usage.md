@@ -629,7 +629,9 @@ work the same way, so you can plan **top-down** (estimate the goal, split it lat
   children's rollup instead (_`Σ 4h 30m`_, italic = derived — three 90-minute tasks under a
   project). A parent with its own estimate also shows the rollup when it differs — an
   at-a-glance "does my budget match the breakdown?" signal. Long values cap at the two
-  largest units (`1d 1h 30m` displays as `1d 2h`) to keep the columns tight. Editing, **Save rolled-up estimate**, and
+  largest units (`1d 1h 30m` displays as `1d 2h`) to keep the columns tight, and each unit
+  renders in its own fixed slot, so days, hours, and minutes line up vertically as you scan
+  down the tree (a plain `–` marks notes with no estimate). Editing, **Save rolled-up estimate**, and
   **Distribute estimate to children** all read and write each note's **own** property and
   unit.
 - **Progress** — every row has a progress bar, driven by a **0–100 number** in the progress

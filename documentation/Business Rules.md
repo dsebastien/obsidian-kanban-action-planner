@@ -563,7 +563,13 @@ See `documentation/plans/kanban-action-planner-implementation-plan.md` for full 
     the historical ceil-to-≥1 parse. **Displays share ONE composite grammar** (`formatDuration`):
     every estimate renders as `d / h / m` ("3d", "1h 30m", "Σ 5h 30m") — never decimal days —
     capped at the two most significant units (day-present values round to hour resolution,
-    "1d 1h 30m" → "1d 2h") for chip alignment and scannability.
+    "1d 1h 30m" → "1d 2h") for chip alignment and scannability. **The WBS estimate chip
+    renders fixed unit SLOTS** (`durationParts` → `[Σ signal][d][h][m]` grid on an inner div —
+    Obsidian's unlayered `button{display:inline-flex}` beats layered display on the button):
+    days, hours, and minutes each align vertically across rows; the primary value is the own
+    estimate (else the derived rollup, Σ-marked + dimmed), the leading slot carries the full
+    "Σ …" rollup only on budget-mismatch rows, and unset shows a plain "–" dash (the old
+    "–d" placeholder is gone).
     **Writes are always unit-native**: the estimate modal edits raw minutes/days, save-rollup
     and distribute-to-children convert day amounts into each TARGET note's own unit
     (`daysToUnit`, ≥ 1), timeline resizes/seeds write the card's unit (a fresh drop seeds 1

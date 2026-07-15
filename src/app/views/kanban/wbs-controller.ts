@@ -3,7 +3,13 @@ import type { App, Menu } from 'obsidian'
 import { parseFrontmatterDate, startOfDay, toDateKey } from '../../domain/calendar'
 import { formatCountdown } from '../../services/card-display.service'
 import { derivedEnd, groupByTypeAndStatus } from '../../domain/timeline'
-import { daysToUnit, formatDuration, formatUnitValue, readEstimate } from '../../domain/estimate'
+import {
+    daysToUnit,
+    durationParts,
+    formatDuration,
+    formatUnitValue,
+    readEstimate
+} from '../../domain/estimate'
 import type { EstimateConfig, ResolvedEstimate } from '../../domain/estimate'
 import {
     buildWbsForest,
@@ -322,6 +328,11 @@ export class WbsController {
             const card = byKey.get(node.path) ?? null
             const own = resolvedEstimateOf(node.path)
             const rollup = childrenEstimate(node, estimateOf)
+            // The chip's primary value: the own estimate, else the derived
+            // rollup — segmented into fixed unit slots (d/h/m alignment).
+            const primaryDays = own?.days ?? rollup
+            const rollupDiffers =
+                own !== null && rollup !== null && Math.abs(rollup - own.days) > 0.05
             const progress = effectiveProgress(node, progressOf, weightOf)
             const start = startOf(node.path)
             // Bottom-up date derivation (owner rule): a parent without its
@@ -354,10 +365,10 @@ export class WbsController {
                 statusColor: card ? this.host.statusColorFor(card) : null,
                 blocked: card !== null && card.relationships.blocked_by.length > 0,
                 duplicate: seenPaths.has(node.path),
-                ownEstimate: own?.label ?? null,
-                rollupEstimate: rollup !== null ? formatDuration(rollup, minutesPerDay) : null,
-                rollupDiffers:
-                    own !== null && rollup !== null && Math.abs(rollup - own.days) > 0.05,
+                estimateParts:
+                    primaryDays !== null ? durationParts(primaryDays, minutesPerDay) : null,
+                estimateDerived: own === null && rollup !== null,
+                rollupSuffix: rollupDiffers ? `Σ ${formatDuration(rollup, minutesPerDay)}` : null,
                 startLabel,
                 endLabel,
                 datesDerived,

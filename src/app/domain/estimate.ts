@@ -82,6 +82,24 @@ export function readEstimate(
  * exactly. Never decimal days.
  */
 export function formatDuration(days: number, minutesPerDay: number): string {
+    const parts = durationParts(days, minutesPerDay)
+    const joined = [parts.d, parts.h, parts.m].filter((p) => p !== null).join(' ')
+    return joined !== '' ? joined : '0m'
+}
+
+/**
+ * The composite's unit components ("2d 6h" → d:"2d", h:"6h", m:null) — the
+ * WBS estimate column renders each unit in its own fixed slot so days,
+ * hours, and minutes always align vertically across rows. Same two-unit
+ * cap and rounding as {@link formatDuration}.
+ */
+export interface DurationParts {
+    d: string | null
+    h: string | null
+    m: string | null
+}
+
+export function durationParts(days: number, minutesPerDay: number): DurationParts {
     const perDay = minutesPerDay > 0 ? minutesPerDay : 1
     let total = Math.max(1, Math.round(days * perDay))
     // Day-present values round to hour resolution (two-unit cap); the
@@ -91,11 +109,11 @@ export function formatDuration(days: number, minutesPerDay: number): string {
     const rest = total - d * perDay
     const h = Math.floor(rest / 60)
     const m = rest % 60
-    const parts: string[] = []
-    if (d > 0) parts.push(`${String(d)}d`)
-    if (h > 0) parts.push(`${String(h)}h`)
-    if (m > 0) parts.push(`${String(m)}m`)
-    return parts.length > 0 ? parts.join(' ') : '0m'
+    return {
+        d: d > 0 ? `${String(d)}d` : null,
+        h: h > 0 ? `${String(h)}h` : null,
+        m: m > 0 ? `${String(m)}m` : null
+    }
 }
 
 /** {@link formatDuration} over a unit-native value (modal hint, menu labels). */

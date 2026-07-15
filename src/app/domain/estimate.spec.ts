@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 import {
     daysToUnit,
+    durationParts,
     formatDuration,
     formatUnitValue,
     parseEstimateInput,
@@ -70,6 +71,13 @@ describe('formatting', () => {
     test('formatDuration honours the configured day length', () => {
         expect(formatDuration(0.5, 600)).toBe('5h')
         expect(formatDuration(1, 600)).toBe('1d')
+    })
+
+    test('durationParts splits units into fixed slots', () => {
+        expect(durationParts(2.2, 480)).toEqual({ d: '2d', h: '2h', m: null })
+        expect(durationParts(90 / 480, 480)).toEqual({ d: null, h: '1h', m: '30m' })
+        expect(durationParts(45 / 480, 480)).toEqual({ d: null, h: null, m: '45m' })
+        expect(durationParts(3, 480)).toEqual({ d: '3d', h: null, m: null })
     })
 
     test('formatUnitValue converts unit-native values into the same grammar', () => {

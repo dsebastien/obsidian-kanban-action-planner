@@ -2650,9 +2650,33 @@
         justify-content: flex-start;
     }
 
+    /* Fixed unit slots — [Σ signal][d][h][m] — so days, hours, and minutes
+       align vertically across rows regardless of which units a value has.
+       The grid sits on an inner div (kap-wbs-est-grid): Obsidian's unlayered
+       `button { display: inline-flex }` beats any layered display set on the
+       chip button itself. */
     .kap-root .kap-wbs-estimate {
-        width: 6.75rem;
-        justify-content: flex-start;
+        width: 9.5rem;
+    }
+
+    .kap-root .kap-wbs-est-grid {
+        @apply w-full items-center;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 1.6rem 1.6rem 1.8rem;
+        column-gap: 0.1rem;
+    }
+
+    .kap-root .kap-wbs-est-lead {
+        @apply truncate text-right;
+    }
+
+    .kap-root .kap-wbs-est-seg {
+        @apply text-right;
+    }
+
+    .kap-root .kap-wbs-est-empty {
+        grid-column: 2 / 5;
+        @apply text-right;
     }
 
     /* Due chip: countdown text on the issue-#62 tone ramp (color only). */
