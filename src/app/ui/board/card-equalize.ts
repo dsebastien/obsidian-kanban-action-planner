@@ -26,6 +26,18 @@ export function uniformCardHeight(naturalHeights: readonly number[]): number | n
 }
 
 /**
+ * The value to (re)stamp as {@link CARD_HEIGHT_VAR}: the freshly measured max
+ * when there is one, else the PREVIOUS value ('' when there was none). A null
+ * measurement means every card measured 0 — a hidden tab, not a real layout —
+ * so the stale height is kept rather than destroyed; it is re-measured on
+ * reveal (issue #105, finding 5.5). Returns '' when there is nothing to set.
+ */
+export function cardHeightVarValue(measuredMax: number | null, previous: string): string {
+    if (measuredMax !== null) return `${String(measuredMax)}px`
+    return previous
+}
+
+/**
  * Equalize every `.kap-card` under `boardEl` to the tallest card's height.
  *
  * Clears any prior override first so cards re-measure at their natural height
@@ -33,7 +45,9 @@ export function uniformCardHeight(naturalHeights: readonly number[]): number | n
  * shared height as {@link CARD_HEIGHT_VAR} for the stylesheet to apply as
  * `min-height`. Reading `offsetHeight` forces the reflow that applies the
  * cleared override, so each card is measured at its natural content height.
- * Cards in collapsed (hidden) columns measure `0` and are ignored.
+ * Cards in collapsed (hidden) columns measure `0` and are ignored. When EVERY
+ * card measures 0 (a hidden tab) the previous height is kept instead of being
+ * destroyed — see {@link cardHeightVarValue}.
  *
  * During the intermediate natural-height layout every column/lane scroller's
  * scrollHeight shrinks, so the browser silently clamps any scrollTop past the
@@ -47,12 +61,14 @@ export function applyUniformCardHeight(boardEl: HTMLElement): void {
     ).map((el, i) => [String(i), el] as const)
     const scrollSnapshot = captureScrollEntries(scrollers)
 
+    const previous = boardEl.style.getPropertyValue(CARD_HEIGHT_VAR)
     boardEl.style.removeProperty(CARD_HEIGHT_VAR)
     const cards = Array.from(boardEl.querySelectorAll<HTMLElement>('.kap-card'))
-    if (cards.length > 0) {
-        const height = uniformCardHeight(cards.map((el) => el.offsetHeight))
-        if (height !== null) boardEl.style.setProperty(CARD_HEIGHT_VAR, `${String(height)}px`)
-    }
+    const value = cardHeightVarValue(
+        uniformCardHeight(cards.map((el) => el.offsetHeight)),
+        previous
+    )
+    if (value !== '') boardEl.style.setProperty(CARD_HEIGHT_VAR, value)
 
     restoreScrollEntries(scrollers, scrollSnapshot)
 }

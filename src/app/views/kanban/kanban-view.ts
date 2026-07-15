@@ -281,6 +281,12 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
     private wbsDnd: WbsDnd | null = null
     private resizeObserver: ResizeObserver | null = null
     private readonly debouncedResize: Debouncer<[], void>
+    /**
+     * Board width (px) at the last equalize pass — width-unchanged resize
+     * ticks skip the redundant clear→measure→set cycle (issue #105, finding
+     * 5.5). -1 = never equalized.
+     */
+    private lastEqualizeWidth = -1
 
     constructor(
         controller: QueryController,
@@ -955,13 +961,17 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         )
         if (scrolls) restoreBoardScroll(this.boardEl, scrolls)
         if (anchors) this.restoreColumnAnchors(anchors)
-        this.applyRefocus()
         this.selection?.refresh()
 
         // All cards share one height (the tallest card's), recomputed here since
         // the card set / content just changed. Synchronous (before paint) so
         // cards never flash at uneven heights.
         this.equalizeCardHeights()
+        // AFTER equalize (issue #105, finding N2): the refocus reveal-scroll
+        // must be computed against the final layout — before it, equalize
+        // invalidates the scroll and the focus scroll can override the
+        // anchors just restored.
+        this.applyRefocus()
     }
 
     /**
@@ -1050,14 +1060,21 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         return renderPassSignature([...common, modeState ?? '', cardsPart])
     }
 
-    /** Refocus the card a keyboard move/reorder acted on, so focus follows it. */
+    /**
+     * Refocus the card a keyboard move/reorder acted on, so focus follows it.
+     * Runs after {@link equalizeCardHeights} with the focus scroll suppressed,
+     * then a scoped minimal reveal — so the browser's focus reveal never scrolls
+     * ancestors against a pre-equalize layout (issue #105, finding N2).
+     */
     private applyRefocus(): void {
         if (!this.refocusCardKey || !this.boardEl) return
         const el = this.boardEl.querySelector<HTMLElement>(
             `.kap-card[data-card-key="${cssEscapeAttr(this.refocusCardKey)}"]`
         )
         this.refocusCardKey = null
-        el?.focus()
+        if (!el) return
+        el.focus({ preventScroll: true })
+        el.scrollIntoView({ block: 'nearest', inline: 'nearest' })
     }
 
     // ── Multi-select + bulk actions (issue #18) ───────────────
@@ -1128,6 +1145,9 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
      */
     private equalizeCardHeights(): void {
         if (!this.boardEl || this.calendarMode() || this.wbsMode()) return
+        // Remember the width this pass measured at, so width-unchanged resize
+        // ticks can skip the clear→measure→set cycle (issue #105, finding 5.5).
+        this.lastEqualizeWidth = this.boardEl.offsetWidth
         applyUniformCardHeight(this.boardEl)
     }
 
@@ -1962,6 +1982,11 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
     onSettingsChanged(scope: SettingsRefreshScope = 'full'): void {
         if (scope === 'chrome') {
             this.applyChipStyle()
+            // Chip styles have different geometry, so natural card heights
+            // change immediately — re-equalize NOW so the board-wide height
+            // shift lands with its cause instead of riding along with the
+            // next unrelated rebuild (issue #105, finding 5.6).
+            this.equalizeCardHeights()
             return
         }
         if (scope === 'cards') {
@@ -3018,11 +3043,23 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
      * (memoized), so the resize render storm never fights it.
      */
     private onResize(): void {
+        // A hidden leaf measures 0×0: every card/track would read 0, so any
+        // work here is wasted or destructive (issue #105, finding 5.5). The
+        // reveal fires the observer again with real dimensions.
+        const boardEl = this.boardEl
+        if (!boardEl || (boardEl.offsetWidth === 0 && boardEl.offsetHeight === 0)) return
         this.calendar?.evaluatePanelAutoCollapse()
         this.timeline?.evaluatePanelAutoCollapse()
         this.wbs?.evaluatePanelAutoCollapse()
-        this.equalizeCardHeights()
-        if (this.timelineMode()) this.applyFilterAndRender()
+        // Height-only resizes (selection bar, empty-state toggles) cannot
+        // change card wrapping — re-equalize only when the width changed
+        // since the last pass (finding 5.5).
+        if (boardEl.offsetWidth !== this.lastEqualizeWidth) this.equalizeCardHeights()
+        // Timeline: %-geometry reflows in pure CSS — re-render only when the
+        // new width flips a px-gated affordance (finding N1).
+        if (this.timelineMode() && (this.timeline?.resizeNeedsRender() ?? true)) {
+            this.applyFilterAndRender()
+        }
     }
 
     // ── Archiving ─────────────────────────────────────────────

@@ -251,7 +251,11 @@
     }
     /* stylelint-enable declaration-no-important */
 
-    /* Multi-select action bar (issue #18) — under the toolbar when ≥1 selected. */
+    /* Multi-select action bar (issue #18) — under the toolbar for the whole
+       select session. It appears/disappears on the MODE toggle (the
+       deliberate layout moment), never on first-select/last-deselect, so
+       selection count changes never shift the board (issue #105, finding
+       5.4). */
     .kap-root .kap-selection-bar {
         @apply flex flex-none items-center gap-2 flex-wrap px-3 py-2;
         background: var(--background-secondary);
@@ -277,6 +281,18 @@
 
     .kap-root .kap-selection-btn:hover {
         background: var(--interactive-hover);
+    }
+
+    /* Nothing selected yet: the bar keeps its height (see above) but the bulk
+       actions read as unavailable. Doubled class so the disabled look also
+       beats the :hover rule. */
+    .kap-root .kap-selection-btn.kap-selection-btn:disabled {
+        @apply opacity-50;
+        background: var(--interactive-normal);
+        /* stylelint-disable-next-line declaration-no-important -- must beat the
+           `.kap-root button { cursor: pointer !important }` rule above (itself
+           !important to outrank Obsidian's unlayered button cursor). */
+        cursor: default !important;
     }
 
     /* Selected cards (multi-select): an inset accent ring. Uses box-shadow rather
@@ -361,10 +377,13 @@
     }
     /* stylelint-enable declaration-no-important */
 
-    /* Board: horizontal row of columns, scrolls horizontally when needed. */
+    /* Board: horizontal row of columns, scrolls horizontally when needed.
+       Positioned so the column drop indicator can overlay it without joining
+       the flex row (issue #105, finding 5.7). */
     .kap-board {
         display: flex;
         flex-direction: row;
+        position: relative;
         gap: var(--size-4-3, 0.75rem);
         align-items: flex-start;
         height: 100%;
@@ -422,9 +441,15 @@
         box-shadow: var(--shadow-l);
     }
 
+    /* Overlay (not in the flex row): an in-flow spacer would re-width every
+       column on each slot change (issue #105, finding 5.7). Positioned by the
+       controller in the board's content coordinates, so it scrolls with it. */
     .kap-column-drop-indicator {
-        flex: 0 0 3px;
-        align-self: stretch;
+        position: absolute;
+        top: var(--size-4-3, 0.75rem);
+        bottom: var(--size-4-3, 0.75rem);
+        width: 3px;
+        pointer-events: none;
         background: var(--interactive-accent);
         border-radius: 2px;
     }
@@ -491,6 +516,9 @@
     .kap-column-cards {
         display: flex;
         flex-direction: column;
+        /* Containing block for the absolute drop placeholder line, so it can
+           overlay a slot without displacing cards (issue #105, finding 5.7). */
+        position: relative;
         gap: var(--size-4-2, 0.5rem);
         padding: var(--size-4-2, 0.5rem);
         overflow-y: auto;
@@ -1007,9 +1035,17 @@
         box-shadow: var(--shadow-l);
     }
 
+    /* Overlay (not in the card flow): an in-flow line would shift every card
+       below the slot on each reposition and change both columns' scroll
+       extents (issue #105, finding 5.7 — the calendar's .kap-cal-drop outline
+       is the same non-displacing idea). The controller sets `top` in the card
+       list's content coordinates, so the line scrolls with the cards. */
     .kap-card-placeholder {
+        position: absolute;
+        left: var(--size-4-2, 0.5rem);
+        right: var(--size-4-2, 0.5rem);
         height: 2px;
-        margin: 2px 0;
+        pointer-events: none;
         background: var(--interactive-accent);
         border-radius: 1px;
     }
@@ -1574,6 +1610,28 @@
     .kap-cal-focus-day {
         scrollbar-width: thin;
         scrollbar-color: var(--background-modifier-border) transparent;
+    }
+
+    /* Reserve the scrollbar gutter in EVERY plugin scroller (issue #105,
+       finding 5.2): on classic-scrollbar platforms a container crossing its
+       overflow threshold otherwise steals ~14px of content width, rewrapping
+       chips/titles, changing natural card heights and republishing the
+       board-wide --kap-card-height — all without any content change in that
+       container. Reserved space makes the width identical with and without a
+       scrollbar. */
+    .kap-root .kap-board,
+    .kap-root .kap-column-cards,
+    .kap-root .kap-lanes,
+    .kap-root .kap-calendar,
+    .kap-root .kap-panel-list,
+    .kap-root .kap-cal-focus-day,
+    .kap-root .kap-tl-body,
+    .kap-root .kap-tl-panel-body,
+    .kap-root .kap-triage-body,
+    .kap-root .kap-wbs-panel-body,
+    .kap-root .kap-wbs-tree,
+    .kap-config-modal .kap-settings-content {
+        scrollbar-gutter: stable;
     }
 
     /* ========================================

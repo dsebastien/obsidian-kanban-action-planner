@@ -137,27 +137,39 @@ export class BoardSelection {
         const bar = this.host.barEl()
         if (!bar) return
         bar.empty()
-        if (!this.mode || this.keys.size === 0) {
+        // The bar's height is reserved for the whole select session (issue
+        // #105, finding 5.4): it appears/disappears on the MODE toggle — the
+        // deliberate layout moment — never on first-select/last-deselect, so
+        // selection count changes cannot shift the board under the pointer.
+        // With nothing selected the actions render disabled.
+        if (!this.mode) {
             bar.addClass('kap-hidden')
             return
         }
         bar.removeClass('kap-hidden')
+        const disabled = this.keys.size === 0
         bar.createSpan({ cls: 'kap-selection-count', text: `${String(this.keys.size)} selected` })
         const actions = bar.createDiv({ cls: 'kap-selection-actions' })
         const statusBtn = actions.createEl('button', {
             cls: 'kap-selection-btn',
             text: 'Set status'
         })
+        statusBtn.disabled = disabled
         statusBtn.addEventListener('click', (e) => this.openBulkStatusMenu(e))
-        this.addButton(actions, 'Archive', () => void this.bulkArchive())
-        this.addButton(actions, 'Open', () => this.bulkOpen())
-        this.addButton(actions, 'Clear', () => this.clear())
+        this.addButton(actions, 'Archive', disabled, () => void this.bulkArchive())
+        this.addButton(actions, 'Open', disabled, () => this.bulkOpen())
+        this.addButton(actions, 'Clear', disabled, () => this.clear())
     }
 
-    private addButton(parent: HTMLElement, label: string, onClick: () => void): void {
-        parent
-            .createEl('button', { cls: 'kap-selection-btn', text: label })
-            .addEventListener('click', onClick)
+    private addButton(
+        parent: HTMLElement,
+        label: string,
+        disabled: boolean,
+        onClick: () => void
+    ): void {
+        const btn = parent.createEl('button', { cls: 'kap-selection-btn', text: label })
+        btn.disabled = disabled
+        btn.addEventListener('click', onClick)
     }
 
     private openBulkStatusMenu(event: MouseEvent): void {

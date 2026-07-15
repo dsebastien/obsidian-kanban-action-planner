@@ -5,14 +5,22 @@
  * `.kap-card`. Pointer events cover mouse, trackpad, and touch from a single
  * path. A drag begins only after the pointer moves past a small threshold (so
  * clicks still open notes). The drop target column + index are computed by
- * hit-testing column/card geometry, and shown with a placeholder line.
+ * hit-testing column/card geometry, and shown with a placeholder line — an
+ * absolutely positioned overlay in the card list, so repositioning it never
+ * shifts cards or changes scroll extents (issue #105, finding 5.7).
  *
  * Accessibility: a non-drag fallback (right-click / long-press menu) is provided
  * by the renderer; this controller honours `prefers-reduced-motion` by skipping
  * the float-follow animation.
  */
 
+import { insertionLineOffset } from './drop-indicator'
+
 const DRAG_THRESHOLD_PX = 5
+/** Placeholder line thickness (px) — keep in sync with `.kap-card-placeholder`. */
+const PLACEHOLDER_THICKNESS_PX = 2
+/** Empty-list fallback offset ≈ the `.kap-column-cards` padding (0.5rem). */
+const PLACEHOLDER_FALLBACK_PX = 8
 
 export interface DropTarget {
     /** Destination swimlane id (`''` for a single-lane board). */
@@ -102,6 +110,11 @@ export class BoardDnd {
         const ghost = this.sourceCardEl.cloneNode(true) as HTMLElement
         ghost.addClass('kap-card-ghost')
         ghost.style.width = `${String(this.sourceCardEl.offsetWidth)}px`
+        // The board's --kap-card-height var doesn't reach the body-parented
+        // ghost, so copy the equalized height too — otherwise the ghost falls
+        // back to the min-height floor and visibly shrinks at drag start
+        // (issue #105, finding 5.8).
+        ghost.style.height = `${String(this.sourceCardEl.offsetHeight)}px`
         activeDocument.body.appendChild(ghost)
         this.ghostEl = ghost
 
@@ -137,8 +150,21 @@ export class BoardDnd {
             }
         }
 
-        const ref = cardEls[index] ?? null
-        listEl.insertBefore(this.placeholderEl, ref)
+        // Overlay the insertion line on the slot (the card list is the
+        // placeholder's containing block): cards never move to make room.
+        const next = cardEls[index] ?? null
+        const prev = cardEls[index - 1] ?? null
+        if (this.placeholderEl.parentElement !== listEl) listEl.appendChild(this.placeholderEl)
+        this.placeholderEl.style.top = `${String(
+            insertionLineOffset(
+                {
+                    prevEnd: prev ? prev.offsetTop + prev.offsetHeight : null,
+                    nextStart: next ? next.offsetTop : null
+                },
+                PLACEHOLDER_THICKNESS_PX,
+                PLACEHOLDER_FALLBACK_PX
+            )
+        )}px`
         this.currentTarget = { laneId, columnId, index }
     }
 

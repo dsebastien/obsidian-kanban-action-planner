@@ -2,6 +2,7 @@ import { Menu } from 'obsidian'
 import type { CalendarRange } from '../../domain/calendar'
 import { resizeEstimate, resizeFromStart } from '../../domain/timeline'
 import type { AxisTick, BarGeometry } from '../../domain/timeline'
+import { BAR_DURATION_TAG_MIN_PX, BAR_HANDLES_MIN_PX } from './width-gates'
 import type { KanbanCard } from '../board/types'
 
 /**
@@ -368,7 +369,7 @@ function renderRow(
         const barWidthPx = (row.bar.widthPct / 100) * trackWidth
         // No title inside the bar — the row label already names the card. Only
         // the duration tag renders, and only when it has room (else tooltip).
-        if (row.durationLabel !== null && barWidthPx >= 32) {
+        if (row.durationLabel !== null && barWidthPx >= BAR_DURATION_TAG_MIN_PX) {
             const text = bar.createDiv({ cls: 'kap-tl-bartext' })
             text.createSpan({ cls: 'kap-tl-barduration', text: row.durationLabel })
         }
@@ -377,7 +378,7 @@ function renderRow(
         // off-window) and none at all under 24px rendered width — two 7px
         // zones would swallow a 1–3-day bar's move-drag and click. Narrow bars
         // fall back to the context menu.
-        if (barWidthPx >= 24) {
+        if (barWidthPx >= BAR_HANDLES_MIN_PX) {
             const geometry = row.bar
             if (!geometry.clippedStart) {
                 const handle = bar.createDiv({ cls: 'kap-tl-handle kap-tl-handle-start' })

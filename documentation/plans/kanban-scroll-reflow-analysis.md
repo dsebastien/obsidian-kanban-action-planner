@@ -69,7 +69,31 @@ All confirmed findings were verified against the code by three independent revie
   stale until the echo), render immediately, `refocusCardKey` in board mode. `applyCardWrite`
   resolves the LIVE card by key — reused DOM nodes keep menu closures over card objects from
   older renders, so mutating the passed card can be a no-op (found live).
-- All other findings: not yet implemented.
+- **Themes 4 + 5 (reserve space / guard the resize path) — IMPLEMENTED** for findings
+  **5.2, 5.4, 5.7, 5.8, 5.5, 5.6, N1, N2** (live-verified except the hidden-tab legs, which
+  need a backgrounded window): 5.2: `scrollbar-gutter: stable` on every plugin scroller
+  (board, column cards, lanes, calendar grid + panel list + focus day, timeline body +
+  undated panel, triage body, WBS panel + tree, config-modal content). 5.4: the selection
+  bar now appears/disappears on the SELECT-MODE toggle (the deliberate layout moment) with
+  its actions disabled at 0 selected — first-select/last-deselect no longer shifts the
+  board (live: board top delta 0 on first select). 5.7: the card drag placeholder and the
+  column drop indicator are absolutely positioned overlays (pure `insertionLineOffset` in
+  `ui/board/drop-indicator.ts`, unit-tested) — repositioning them no longer shifts cards
+  or re-widths columns (live: target-column card offset delta 0 mid-drag). 5.8: the drag
+  ghost copies the source card's `offsetHeight` alongside width. 5.5: `onResize` skips
+  everything at 0×0 and skips equalize when the board width is unchanged since the last
+  pass (`lastEqualizeWidth`); `applyUniformCardHeight` keeps the previous
+  `--kap-card-height` when every card measures 0 (hidden tab) instead of destroying it
+  (`cardHeightVarValue`, unit-tested). N1: timeline resize re-renders only when a bar
+  crosses the 24/32px affordance gates (pure `timelineWidthGatesCrossed` in
+  `ui/timeline/width-gates.ts`, unit-tested; the renderer consumes the same constants) —
+  everything else is %-positioned and reflows in pure CSS. 5.6: the settings 'chrome'
+  branch calls `equalizeCardHeights()` so the chip-style height shift lands with its
+  cause. N2: `applyRefocus` runs AFTER `equalizeCardHeights` with
+  `focus({ preventScroll: true })` + a scoped `scrollIntoView({ block/inline: 'nearest' })`
+  against the final layout.
+- All other findings: not yet implemented (5.1 and 5.3 need a maintainer decision on the
+  uniform-height / equal-grow invariants; 3.4, 5.9, N3, N4 remain open).
 
 ## Render pipeline overview
 

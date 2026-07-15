@@ -36,6 +36,7 @@ import {
     setProperty
 } from '../../services/frontmatter.service'
 import { renderTimeline } from '../../ui/timeline/timeline-renderer'
+import { timelineWidthGatesCrossed } from '../../ui/timeline/width-gates'
 import {
     TIMELINE_SCROLLER_SELECTORS,
     captureScrollBySelector,
@@ -148,6 +149,14 @@ export class TimelineController {
     private readonly typeGroupsCollapsed = new Map<string, boolean>()
     /** Hidden note-type ids (persisted per view via the host). */
     private hiddenTypes = new Set<string>()
+    /**
+     * What the last render decided its px-gated affordances (issue #80) at:
+     * every bar's width in % of the track, and the track width itself. A
+     * resize tick re-renders only when some bar crosses a gate between that
+     * width and the new one (issue #105, finding N1).
+     */
+    private lastRenderedBarPcts: number[] = []
+    private lastRenderedTrackWidth = 0
     // Durable state loads lazily: config is unavailable at construction.
     private loaded = false
 
@@ -411,6 +420,31 @@ export class TimelineController {
             }
         )
         restoreScrollBySelector(boardEl, scrolls)
+        // Resize gating (finding N1): remember the geometry this render
+        // decided its px-gated affordances at.
+        this.lastRenderedBarPcts = rows.flatMap((r) => (r.row.bar ? [r.row.bar.widthPct] : []))
+        this.lastRenderedTrackWidth =
+            boardEl.querySelector<HTMLElement>('.kap-tl-axis')?.clientWidth ?? 0
+    }
+
+    /**
+     * Whether a container resize requires a timeline re-render (issue #105,
+     * finding N1): only when some bar crosses one of the px affordance gates
+     * (issue #80) between the width it was rendered at and the width the
+     * fluid layout now shows. Everything else about the timeline is
+     * %-positioned and reflows in pure CSS — the already-rendered axis
+     * element measures the NEW track width without a rebuild.
+     */
+    resizeNeedsRender(): boolean {
+        const axis = this.host.boardEl()?.querySelector<HTMLElement>('.kap-tl-axis')
+        if (!axis) return true // not rendered yet — let the render pass decide
+        const width = axis.clientWidth
+        if (width === 0) return false // hidden; the reveal resize re-evaluates
+        return timelineWidthGatesCrossed(
+            this.lastRenderedBarPcts,
+            this.lastRenderedTrackWidth,
+            width
+        )
     }
 
     /** Types alphabetical, the No type bucket always last. */

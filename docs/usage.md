@@ -718,8 +718,10 @@ commands above, which are hotkey-bindable.)
 Press the **Select** button (the checklist icon next to the gear) to enter **select mode**:
 
 - **Click** cards to select or deselect them. **Shift-click** selects a range.
-- An action bar shows how many are selected, with bulk actions: **Set status** (pick a column,
-  or clear), **Archive**, **Open** (each in a new tab), and **Clear**.
+- An action bar appears under the toolbar for the whole select session, showing how many cards
+  are selected, with bulk actions: **Set status** (pick a column, or clear), **Archive**,
+  **Open** (each in a new tab), and **Clear**. The actions are disabled until at least one card
+  is selected; the bar keeps its place so the board never jumps as you select.
 - Press **Select** again to leave select mode.
 
 Bulk writes are applied to each note and a summary notice reports how many succeeded (and any

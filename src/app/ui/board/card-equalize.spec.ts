@@ -1,5 +1,5 @@
 import { test, expect, describe } from 'bun:test'
-import { uniformCardHeight } from './card-equalize'
+import { cardHeightVarValue, uniformCardHeight } from './card-equalize'
 
 describe('uniformCardHeight', () => {
     test('returns the tallest height', () => {
@@ -20,5 +20,19 @@ describe('uniformCardHeight', () => {
 
     test('handles a single card', () => {
         expect(uniformCardHeight([56])).toBe(56)
+    })
+})
+
+describe('cardHeightVarValue', () => {
+    test('uses the fresh measurement when there is one', () => {
+        expect(cardHeightVarValue(120, '93px')).toBe('120px')
+    })
+
+    test('keeps the stale value when nothing measured (hidden tab)', () => {
+        expect(cardHeightVarValue(null, '93px')).toBe('93px')
+    })
+
+    test('sets nothing when nothing measured and there was no prior value', () => {
+        expect(cardHeightVarValue(null, '')).toBe('')
     })
 })
