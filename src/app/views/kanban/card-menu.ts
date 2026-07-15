@@ -119,6 +119,33 @@ export function buildCardMenu(
         )
     }
     menu.addSeparator()
+    addStatusMenuItems(menu, card, host)
+    addEnumSetMenuItems(menu, card, host)
+    addSchedulingMenuItems(menu, card, host)
+    if (host.archivingConfigured(card)) {
+        menu.addSeparator()
+        menu.addItem((item) =>
+            item
+                .setTitle('Archive')
+                .setIcon('archive')
+                .onClick(() => void host.archiveCard(card))
+        )
+    }
+    addRelationshipMenuItems(menu, card, host)
+    addRelationshipEditItems(menu, card, host)
+    extend?.(menu)
+    return menu
+}
+
+/** The slice of {@link CardMenuHost} the status items need (issue #98 reuse). */
+export type StatusMenuHost = Pick<CardMenuHost, 'columnsFor' | 'setCardStatus'>
+
+/**
+ * "Set status: …" items — the card's OWN type's status vocabulary (rule 2)
+ * with the current value checked, plus Clear. Shared by the full card menu
+ * and the WBS status-dot quick menu (issue #98) so both use one write path.
+ */
+export function addStatusMenuItems(menu: Menu, card: KanbanCard, host: StatusMenuHost): void {
     for (const col of host.columnsFor(card)) {
         menu.addItem((item) =>
             item
@@ -135,20 +162,12 @@ export function buildCardMenu(
                 .onClick(() => void host.setCardStatus(card, null, UNMAPPED_COLUMN_ID))
         )
     }
-    addEnumSetMenuItems(menu, card, host)
-    addSchedulingMenuItems(menu, card, host)
-    if (host.archivingConfigured(card)) {
-        menu.addSeparator()
-        menu.addItem((item) =>
-            item
-                .setTitle('Archive')
-                .setIcon('archive')
-                .onClick(() => void host.archiveCard(card))
-        )
-    }
-    addRelationshipMenuItems(menu, card, host)
-    addRelationshipEditItems(menu, card, host)
-    extend?.(menu)
+}
+
+/** The status-only quick menu the WBS status dot opens (issue #98). */
+export function buildStatusMenu(card: KanbanCard, host: StatusMenuHost): Menu {
+    const menu = new Menu()
+    addStatusMenuItems(menu, card, host)
     return menu
 }
 

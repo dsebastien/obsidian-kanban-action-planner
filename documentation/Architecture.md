@@ -261,7 +261,11 @@ under `wbsPanelCollapsed`; estimate/start/due/progress edits via `EstimatePrompt
 formatted dates through `frontmatter.service`; menu extras in the `kap-wbs` section incl.
 **Save rolled-up estimate/progress** and **Distribute estimate to children**; standard
 Set-status menu items work in the tree because `applyFilterAndRender` resolves
-`this.columns` before the mode branches). Sibling order: planned starts first
+`this.columns` before the mode branches; the row's status dot is a button (#98) opening a
+status-only quick menu — `buildStatusMenu`/`addStatusMenuItems` in `card-menu.ts`, shared
+with the full card menu, wired `onStatusDot` → `WbsHost.showStatusMenu` → the view's
+`cardMenuHost`, so both affordances use one `setCardStatus` write path; context rows keep a
+plain span dot). Sibling order: planned starts first
 (chronological), then the view's card sort; the panel sorts its status groups the same way.
 Rows carry a due-countdown chip (`formatCountdown`, #62 tone ramp). **Incremental refresh:**
 `renderWbs` keeps the shell; the panel re-renders only on a content-signature change and

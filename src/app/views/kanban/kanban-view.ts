@@ -119,7 +119,7 @@ import type { WbsViewState } from './wbs-controller'
 import { WbsDnd } from '../../ui/wbs/wbs-dnd'
 import { resolveColor } from '../../services/colors.service'
 import { BoardSelection } from './board-selection'
-import { buildCardMenu, isNewTabEvent } from './card-menu'
+import { buildCardMenu, buildStatusMenu, isNewTabEvent } from './card-menu'
 import type { CardMenuHost } from './card-menu'
 import { CalendarController } from './calendar-controller'
 import type { CalendarViewState } from './calendar-controller'
@@ -387,6 +387,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
                 if (file) void this.app.workspace.getLeaf(newTab ? 'tab' : false).openFile(file)
             },
             showCardMenu: (card, event, extend) => this.showCardMenu(card, event, extend),
+            showStatusMenu: (card, event) => this.showStatusMenu(card, event),
             cardForKey: (key) => this.cardsByKey.get(key),
             allCardForKey: (key) => this.allCards.find((c) => c.key === key),
             relationshipSets: () => this.relationshipsByPath,
@@ -1562,6 +1563,18 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
     private showCardMenuAt(card: KanbanCard, cardEl: HTMLElement): void {
         const rect = cardEl.getBoundingClientRect()
         buildCardMenu(card, this.cardMenuHost).showAtPosition({ x: rect.left, y: rect.bottom })
+    }
+
+    /** Status-only quick menu (WBS status dot, issue #98) — same write path. */
+    private showStatusMenu(card: KanbanCard, event: MouseEvent): void {
+        const menu = buildStatusMenu(card, this.cardMenuHost)
+        // Keyboard activation synthesizes a click at (0,0) — anchor to the dot.
+        if (event.detail === 0 && event.currentTarget instanceof HTMLElement) {
+            const rect = event.currentTarget.getBoundingClientRect()
+            menu.showAtPosition({ x: rect.left, y: rect.bottom })
+        } else {
+            menu.showAtMouseEvent(event)
+        }
     }
 
     /** Closures over the card actions the {@link buildCardMenu} builder triggers. */

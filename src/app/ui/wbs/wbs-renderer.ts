@@ -114,6 +114,8 @@ export interface WbsCallbacks {
     /** Open a context row's note (no card exists for it in the result set). */
     onOpenPath: (path: string, newTab: boolean) => void
     onContextMenu: (card: KanbanCard, event: MouseEvent) => void
+    /** Status dot clicked (issue #98) — open the status quick menu. */
+    onStatusDot: (card: KanbanCard, event: MouseEvent) => void
     onToggleNode: (key: string) => void
     onTogglePanel: () => void
     onTogglePaneGroup: (key: string) => void
@@ -420,9 +422,32 @@ function buildRowNode(row: WbsRowModel, callbacks: WbsCallbacks): HTMLElement {
         el.createSpan({ cls: 'kap-wbs-toggle kap-wbs-toggle-leaf' })
     }
 
-    const dot = el.createSpan({ cls: 'kap-wbs-status-dot' })
-    if (row.statusColor) dot.style.backgroundColor = row.statusColor
-    if (row.statusLabel) dot.setAttribute('title', row.statusLabel)
+    // Status dot — the row's single status affordance (issue #98): on card
+    // rows it's a button opening the status quick menu; context rows keep a
+    // plain slot-aligned placeholder (no card to write to).
+    const statusCard = row.card
+    if (statusCard) {
+        const statusTitle = row.statusLabel
+            ? `Status: ${row.statusLabel} — click to change`
+            : 'Set status'
+        const dotBtn = el.createEl('button', {
+            cls: 'kap-wbs-status-btn',
+            attr: {
+                'type': 'button',
+                'title': statusTitle,
+                'aria-label': statusTitle,
+                'aria-haspopup': 'menu'
+            }
+        })
+        const dot = dotBtn.createSpan({ cls: 'kap-wbs-status-dot' })
+        if (row.statusColor) dot.style.backgroundColor = row.statusColor
+        dotBtn.addEventListener('click', (e) => {
+            e.stopPropagation()
+            callbacks.onStatusDot(statusCard, e)
+        })
+    } else {
+        el.createSpan({ cls: 'kap-wbs-status-btn' }).createSpan({ cls: 'kap-wbs-status-dot' })
+    }
 
     el.createSpan({ cls: 'kap-wbs-title', text: row.title })
     if (row.card === null) {
@@ -454,14 +479,24 @@ function buildRowNode(row: WbsRowModel, callbacks: WbsCallbacks): HTMLElement {
         else callbacks.onOpenPath(row.key, newTab)
     }
     el.addEventListener('click', (e) => {
-        if ((e.target as HTMLElement).closest('.kap-wbs-chip-btn, .kap-wbs-toggle')) return
+        if (
+            (e.target as HTMLElement).closest(
+                '.kap-wbs-chip-btn, .kap-wbs-toggle, .kap-wbs-status-btn'
+            )
+        )
+            return
         open(e.ctrlKey || e.metaKey)
     })
     el.addEventListener('keydown', (e) => {
         // Keys pressed on a nested chip/toggle button belong to that button
         // (its native activation opens the modal / toggles) — the row must
         // not also open the note (same guard as the click handler).
-        if ((e.target as HTMLElement).closest('.kap-wbs-chip-btn, .kap-wbs-toggle')) return
+        if (
+            (e.target as HTMLElement).closest(
+                '.kap-wbs-chip-btn, .kap-wbs-toggle, .kap-wbs-status-btn'
+            )
+        )
+            return
         if (e.key === 'Enter') {
             e.preventDefault()
             open(e.ctrlKey || e.metaKey)

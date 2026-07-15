@@ -73,6 +73,8 @@ export interface WbsHost {
     /** Open a note by vault path — context rows have no card to open with. */
     openPath(path: string, newTab: boolean): void
     showCardMenu(card: KanbanCard, event: MouseEvent, extend?: (menu: Menu) => void): void
+    /** Status-only quick menu on the row's status dot (issue #98). */
+    showStatusMenu(card: KanbanCard, event: MouseEvent): void
     cardForKey(key: string): KanbanCard | undefined
     /**
      * Lookup over the UNFILTERED result set. Write paths (distribute,
@@ -407,6 +409,7 @@ export class WbsController {
                 onOpenPath: (path, newTab) => this.host.openPath(path, newTab),
                 onContextMenu: (card, event) =>
                     this.host.showCardMenu(card, event, (menu) => this.extendCardMenu(menu, card)),
+                onStatusDot: (card, event) => this.host.showStatusMenu(card, event),
                 onToggleNode: (key) => this.toggleNode(key),
                 onTogglePanel: () => {
                     this.panelCollapsed = !this.panelCollapsed

@@ -2606,6 +2606,22 @@
         cursor: default;
     }
 
+    /* The dot's click wrapper (issue #98): a toggle-sized hit target around
+       the 10px dot; a button on card rows (opens the status quick menu), a
+       plain span on context rows so the slot stays aligned. */
+    .kap-root .kap-wbs-status-btn {
+        @apply inline-flex items-center justify-center h-5 w-5 shrink-0 border-0 rounded-full bg-transparent p-0 shadow-none;
+        transition: background-color var(--kap-transition) var(--kap-ease);
+    }
+
+    .kap-root button.kap-wbs-status-btn {
+        @apply cursor-pointer;
+    }
+
+    .kap-root button.kap-wbs-status-btn:hover {
+        background: var(--background-modifier-border);
+    }
+
     .kap-root .kap-wbs-status-dot {
         @apply inline-block h-2.5 w-2.5 shrink-0 rounded-full;
         background: var(--background-modifier-border);

@@ -511,8 +511,11 @@ See `documentation/plans/kanban-action-planner-implementation-plan.md` for full 
     branch, incl. ones hidden inside collapsed subtrees). Node collapse persists per view
     under the dedicated `wbsCollapsedNodes` key (string[], `readIdArray`).
     Estimate/start/due/progress are editable per node (chip click → modal; menu items), and
-    **status is writable from the tree** via the standard context-menu Set-status items
-    (rule 2 semantics; the dot updates optimistically). **Reconciled rendering (owner: no
+    **status is writable from the tree** via the standard context-menu Set-status items AND
+    the row's **status dot** (#98): clicking the dot opens a status-only quick menu — the
+    card's own type's values with the current one checked, plus Clear — on the same write
+    path (rule 2 semantics; the dot updates optimistically). Context rows keep a plain
+    non-interactive dot. **Reconciled rendering (owner: no
     needless re-renders):** the WBS never tears down on refresh — the panel re-renders only
     when its content signature changes, and tree rows reconcile via the board's pure
     `planReconcile` over per-instance keys (`parentKey::path`) + content signatures, so

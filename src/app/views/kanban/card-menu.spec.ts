@@ -1,7 +1,9 @@
 import { describe, expect, it, mock } from 'bun:test'
 import type { Menu, TFile } from 'obsidian'
+import { UNMAPPED_COLUMN_ID } from '../../constants'
+import type { ColumnDef } from '../../domain/note-type'
 import type { KanbanCard } from '../../ui/board/types'
-import { buildCardMenu, type CardMenuHost } from './card-menu'
+import { buildCardMenu, buildStatusMenu, type CardMenuHost } from './card-menu'
 
 /** Shape of the recording Menu/MenuItem mocks from `src/test-setup.ts`. */
 interface MenuItemRecord {
@@ -96,6 +98,59 @@ describe('buildCardMenu — send to top/bottom (issue #78)', () => {
         const titles = items.map((i) => i.title)
         expect(titles).not.toContain('Send to top')
         expect(titles).not.toContain('Send to bottom')
+    })
+})
+
+describe('buildStatusMenu — status-only quick menu (issue #98)', () => {
+    const COLUMNS: ColumnDef[] = [
+        {
+            id: 'todo',
+            statusValue: 'todo',
+            label: 'To do',
+            sortKey: '0',
+            color: { kind: 'palette', token: 'blue' }
+        },
+        {
+            id: 'done',
+            statusValue: 'done',
+            label: 'Done',
+            sortKey: '1',
+            color: { kind: 'palette', token: 'green' }
+        }
+    ]
+
+    const statusItems = (card: KanbanCard, host: CardMenuHost): MenuItemRecord[] =>
+        (buildStatusMenu(card, host) as unknown as { items: MenuItemRecord[] }).items
+
+    it("lists the card's own status vocabulary with the current value checked", () => {
+        const items = statusItems(makeCard(), makeHost({ columnsFor: () => COLUMNS }))
+        expect(items.map((i) => i.title)).toEqual([
+            'Set status: To do',
+            'Set status: Done',
+            'Clear status'
+        ])
+        expect(items.map((i) => i.checked)).toEqual([true, false, null])
+    })
+
+    it('omits Clear status when the card has no status', () => {
+        const card = { ...makeCard(), statusValue: null }
+        const items = statusItems(card, makeHost({ columnsFor: () => COLUMNS }))
+        expect(items.map((i) => i.title)).toEqual(['Set status: To do', 'Set status: Done'])
+    })
+
+    it('routes clicks through the shared setCardStatus write path', () => {
+        const setCardStatus = mock((_card: KanbanCard, _status: string | null, _columnId: string) =>
+            Promise.resolve()
+        )
+        const card = makeCard()
+        const items = statusItems(card, makeHost({ columnsFor: () => COLUMNS, setCardStatus }))
+        const click = {} as MouseEvent
+        items.find((i) => i.title === 'Set status: Done')?.clickHandler?.(click)
+        items.find((i) => i.title === 'Clear status')?.clickHandler?.(click)
+        expect(setCardStatus.mock.calls).toEqual([
+            [card, 'done', 'done'],
+            [card, null, UNMAPPED_COLUMN_ID]
+        ])
     })
 })
 

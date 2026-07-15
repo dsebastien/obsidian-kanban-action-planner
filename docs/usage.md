@@ -663,7 +663,9 @@ note's own unit **or any duration** — `2h`, `90m`, `0.5d`, `1d 4h` — and con
 that will be written. The context menu offers the same (**Set
 estimate…**, **Set progress…**, **Set parent…**), plus everything the card menu has
 elsewhere — including **Set status**, so you can move work through its workflow without
-leaving the tree (the status dot updates instantly).
+leaving the tree (the status dot updates instantly). Even faster: **click a row's status
+dot** to open a compact status menu — the note's own status values with the current one
+checked, plus **Clear status** — no right-click needed.
 
 **Re-parenting by drag and drop:** drag a row onto another row to move it under a new parent
 — the wikilink in the relationship property is rewritten for you (whether the link lives on
