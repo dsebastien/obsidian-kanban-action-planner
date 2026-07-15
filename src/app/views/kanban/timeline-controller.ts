@@ -36,6 +36,11 @@ import {
     setProperty
 } from '../../services/frontmatter.service'
 import { renderTimeline } from '../../ui/timeline/timeline-renderer'
+import {
+    TIMELINE_SCROLLER_SELECTORS,
+    captureScrollBySelector,
+    restoreScrollBySelector
+} from '../../ui/scroll-preservation'
 import type {
     TimelineRowModel,
     TimelineTypeGroupModel,
@@ -307,6 +312,13 @@ export class TimelineController {
             return a.row.card.display.title.localeCompare(b.row.card.display.title)
         })
 
+        // renderTimeline tears the whole mode down (root.empty()), which
+        // would reset the row list / undated panel scroll on every re-render.
+        // Snapshot those scrollers and pin them back right after the
+        // synchronous rebuild, clamped to the new extent (issue #105,
+        // finding 2.2). Content-identical passes are already skipped by the
+        // view's render-signature gate — this covers the renders that DO run.
+        const scrolls = captureScrollBySelector(boardEl, TIMELINE_SCROLLER_SELECTORS)
         renderTimeline(
             boardEl,
             {
@@ -390,6 +402,7 @@ export class TimelineController {
                 }
             }
         )
+        restoreScrollBySelector(boardEl, scrolls)
     }
 
     /** Types alphabetical, the No type bucket always last. */

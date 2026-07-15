@@ -89,7 +89,8 @@ import {
 import type { CardSearchRecord, FilterContext, FilterQuery } from '../../domain/filter-query'
 import { CalendarDnd } from '../../ui/calendar/calendar-dnd'
 import { formatDate } from '../../utils/momentjs'
-import { patchBoard } from '../../ui/board/board-renderer'
+import { boardStructureWillChange, patchBoard } from '../../ui/board/board-renderer'
+import { captureBoardScroll, restoreBoardScroll } from '../../ui/scroll-preservation'
 import { boardRenderSignature, cardSignature, renderPassSignature } from '../../ui/board/signatures'
 import { applyUniformCardHeight } from '../../ui/board/card-equalize'
 import { BoardDnd } from '../../ui/board/dnd-controller'
@@ -886,10 +887,18 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             'debug'
         )
 
-        // Anchor the horizontal scroll on the column the user is looking at, so a
-        // structural change (notably the Unmapped column appearing/disappearing at
-        // the left edge) doesn't shift the visible columns sideways (issue #12).
-        const anchor = this.captureColumnAnchor()
+        // Only a structure flip forces the full renderBoard teardown — the
+        // keyed patch path reuses nodes in place and preserves scroll by
+        // construction. Across that teardown, capture and pin back (same
+        // task, no frame paints at scroll 0):
+        // - per-lane horizontal column anchors, so a structural change
+        //   (notably the Unmapped column appearing/disappearing at the left
+        //   edge) doesn't shift the visible columns sideways (issue #12), and
+        // - every column's and the lane stack's vertical scrollTop
+        //   (issue #105, findings 3.1/3.3).
+        const structureChanged = boardStructureWillChange(this.boardEl, this.board)
+        const anchors = structureChanged ? this.captureColumnAnchors() : null
+        const scrolls = structureChanged ? captureBoardScroll(this.boardEl) : null
         patchBoard(
             this.boardEl,
             this.board,
@@ -907,7 +916,8 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             this.collapsedLanes,
             this.collapsedColumns
         )
-        this.restoreColumnAnchor(anchor)
+        if (scrolls) restoreBoardScroll(this.boardEl, scrolls)
+        if (anchors) this.restoreColumnAnchors(anchors)
         this.applyRefocus()
         this.selection?.refresh()
 
@@ -1022,34 +1032,52 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         }
     }
 
-    /**
-     * Record the leftmost on-screen column and its offset from the scroller's
-     * left edge, so the same column can be pinned back to that spot after a
-     * re-render. Reads the first column board; with per-lane column sets
-     * (mixed boards) the restore is best-effort — lanes lacking the anchored
-     * id are simply left alone.
-     */
-    private captureColumnAnchor(): { id: string; offset: number } | null {
-        const scroller = this.boardEl?.querySelector<HTMLElement>('.kap-board')
-        if (!scroller) return null
-        const sRect = scroller.getBoundingClientRect()
-        const cols = Array.from(scroller.querySelectorAll<HTMLElement>(':scope > .kap-column'))
-        const anchorEl =
-            cols.find((c) => c.getBoundingClientRect().right > sRect.left + 1) ?? cols[0]
-        const id = anchorEl?.dataset['columnId']
-        if (!anchorEl || !id) return null
-        return { id, offset: anchorEl.getBoundingClientRect().left - sRect.left }
+    /** The owning lane id of a lane's `.kap-board` scroller ('' on single-lane boards). */
+    private laneIdForBoardScroller(scroller: HTMLElement): string {
+        return scroller.closest<HTMLElement>('.kap-lane')?.dataset['laneId'] ?? ''
     }
 
-    /** Pin the anchored column back to its captured offset, in every lane board. */
-    private restoreColumnAnchor(anchor: { id: string; offset: number } | null): void {
-        if (!anchor || !this.boardEl) return
-        const escaped = cssEscapeAttr(anchor.id)
+    /**
+     * Record, PER LANE, the leftmost on-screen column and its offset from
+     * that lane's scroller left edge — lanes are independent horizontal
+     * scrollers, so each needs its own anchor (issue #105, finding 3.1).
+     * Collapsed lanes (their board measures 0×0 behind `display: none`) are
+     * skipped: every rect in them is zero and would capture a bogus
+     * left-edge anchor. With per-lane column sets (mixed boards) the restore
+     * is best-effort — lanes lacking their anchored id are left alone.
+     */
+    private captureColumnAnchors(): Map<string, { id: string; offset: number }> {
+        const anchors = new Map<string, { id: string; offset: number }>()
+        if (!this.boardEl) return anchors
         for (const scroller of Array.from(
             this.boardEl.querySelectorAll<HTMLElement>('.kap-board')
         )) {
+            if (scroller.offsetWidth === 0 && scroller.offsetHeight === 0) continue
+            const sRect = scroller.getBoundingClientRect()
+            const cols = Array.from(scroller.querySelectorAll<HTMLElement>(':scope > .kap-column'))
+            const anchorEl =
+                cols.find((c) => c.getBoundingClientRect().right > sRect.left + 1) ?? cols[0]
+            const id = anchorEl?.dataset['columnId']
+            if (!anchorEl || !id) continue
+            anchors.set(this.laneIdForBoardScroller(scroller), {
+                id,
+                offset: anchorEl.getBoundingClientRect().left - sRect.left
+            })
+        }
+        return anchors
+    }
+
+    /** Pin each lane's anchored column back to its own captured offset. */
+    private restoreColumnAnchors(anchors: Map<string, { id: string; offset: number }>): void {
+        if (anchors.size === 0 || !this.boardEl) return
+        for (const scroller of Array.from(
+            this.boardEl.querySelectorAll<HTMLElement>('.kap-board')
+        )) {
+            if (scroller.offsetWidth === 0 && scroller.offsetHeight === 0) continue
+            const anchor = anchors.get(this.laneIdForBoardScroller(scroller))
+            if (!anchor) continue
             const el = scroller.querySelector<HTMLElement>(
-                `:scope > .kap-column[data-column-id="${escaped}"]`
+                `:scope > .kap-column[data-column-id="${cssEscapeAttr(anchor.id)}"]`
             )
             if (!el) continue
             const delta = el.getBoundingClientRect().left - scroller.getBoundingClientRect().left

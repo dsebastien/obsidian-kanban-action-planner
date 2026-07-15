@@ -148,13 +148,23 @@ unchanged cards keep their exact DOM node (so scroll, focus, and an in-flight dr
 only changed/new cards are rebuilt, gone cards removed, and order is fixed with a React-style
 cursor. Shape changes (config edits, a new status column, calendar↔board switch, the empty
 state) fall back to a full `renderBoard()`. Lane collapse/counts are synced in place. **Scroll
-anchoring (issue #12):** around each render the view captures the leftmost on-screen column and
-re-pins it to the same offset afterwards (`captureColumnAnchor`/`restoreColumnAnchor`), so the
-Unmapped column appearing/disappearing at the left edge never shifts the columns you're viewing. **Sizing
+preservation across teardowns (issues #12, #105):** only on a structure flip
+(`boardStructureWillChange()` — the patch path preserves scroll by node identity) the view
+captures, per lane, the leftmost on-screen column + offset
+(`captureColumnAnchors`/`restoreColumnAnchors`, skipping collapsed 0×0 lanes) plus every
+column's and the lane stack's vertical scrollTop keyed by lane+column id
+(`ui/scroll-preservation.ts` `captureBoardScroll`/`restoreBoardScroll`), and pins both back
+right after the full render, in the same task. The calendar/timeline controllers wrap their
+full-teardown renderers the same way with selector-keyed snapshots
+(`CALENDAR_SCROLLER_SELECTORS`/`TIMELINE_SCROLLER_SELECTORS`). Restores clamp to the new
+extent and skip no-op writes; the pure helpers are unit-tested
+(`ui/scroll-preservation.spec.ts`). **Sizing
 invariants:** every column is a fixed equal width; cards are a single uniform height board-wide,
 computed at runtime by `ui/board/card-equalize.ts` `applyUniformCardHeight()` as the tallest
 card's natural height (published as the `--kap-card-height` CSS var, applied as `min-height`;
-re-run after every `patchBoard` and on resize). Cards never shrink below their content
+re-run after every `patchBoard` and on resize; the clear→measure→set cycle snapshots each
+column/lane scroller's scrollTop first and restores it after the re-set, so the intermediate
+shrunken layout never clamps it away). Cards never shrink below their content
 (`flex: none`) so nothing is clipped — the column body scrolls instead; sparser cards get
 matching whitespace. The pure max-picking helper `uniformCardHeight()` is unit-tested.
 

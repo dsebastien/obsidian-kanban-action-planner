@@ -18,6 +18,11 @@ import { readEstimate } from '../../domain/estimate'
 import type { EstimateConfig } from '../../domain/estimate'
 import { renderCalendar } from '../../ui/calendar/calendar-renderer'
 import type { CalendarEntry, PanelTypeGroupModel } from '../../ui/calendar/calendar-renderer'
+import {
+    CALENDAR_SCROLLER_SELECTORS,
+    captureScrollBySelector,
+    restoreScrollBySelector
+} from '../../ui/scroll-preservation'
 import type { CalendarDropTarget } from '../../ui/calendar/calendar-dnd'
 import {
     deleteProperty,
@@ -286,6 +291,13 @@ export class CalendarController {
         }
         const firstDay = this.host.firstDayOfWeek()
 
+        // renderCalendar tears the whole mode down (rootEl.empty()), which
+        // would reset the backlog panel / grid / focused-day scroll on every
+        // re-render. Snapshot those scrollers and pin them back right after
+        // the synchronous rebuild, clamped to the new extent (issue #105,
+        // finding 2.1). Content-identical passes are already skipped by the
+        // view's render-signature gate — this covers the renders that DO run.
+        const scrolls = captureScrollBySelector(boardEl, CALENDAR_SCROLLER_SELECTORS)
         renderCalendar(
             boardEl,
             {
@@ -364,6 +376,7 @@ export class CalendarController {
                 }
             }
         )
+        restoreScrollBySelector(boardEl, scrolls)
     }
 
     /** Long label for the focused day (empty when no day is focused). */

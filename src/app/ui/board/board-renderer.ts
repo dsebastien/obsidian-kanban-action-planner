@@ -31,6 +31,18 @@ export interface BoardRenderCallbacks {
 const STRUCT_ATTR = 'boardStruct'
 
 /**
+ * Whether {@link patchBoard} would take the full-render (`rootEl.empty()`)
+ * path for `board`: no board DOM mounted yet, or the lane/column shape
+ * differs from the recorded one. The view uses this to decide when scroll
+ * capture/restore across the teardown is needed (issue #105) — the keyed
+ * patch path preserves node identity and therefore scroll by construction.
+ */
+export function boardStructureWillChange(rootEl: HTMLElement, board: Board<KanbanCard>): boolean {
+    const hasBoardDom = rootEl.querySelector(':scope > .kap-board, :scope > .kap-lanes') !== null
+    return !hasBoardDom || rootEl.dataset[STRUCT_ATTR] !== structureSignature(board)
+}
+
+/**
  * Render the board into `rootEl` (full render). A single-lane board draws columns
  * chrome-free; a multi-lane board draws one collapsible swimlane per lane.
  *

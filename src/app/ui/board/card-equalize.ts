@@ -7,6 +7,8 @@
  * card stylesheet reads for its `min-height`.
  */
 
+import { captureScrollEntries, restoreScrollEntries } from '../scroll-preservation'
+
 /** CSS custom property the card stylesheet reads for its shared min-height. */
 const CARD_HEIGHT_VAR = '--kap-card-height'
 
@@ -32,11 +34,25 @@ export function uniformCardHeight(naturalHeights: readonly number[]): number | n
  * `min-height`. Reading `offsetHeight` forces the reflow that applies the
  * cleared override, so each card is measured at its natural content height.
  * Cards in collapsed (hidden) columns measure `0` and are ignored.
+ *
+ * During the intermediate natural-height layout every column/lane scroller's
+ * scrollHeight shrinks, so the browser silently clamps any scrollTop past the
+ * shrunken extent — and re-setting the variable does NOT bring it back
+ * (issue #105, finding 3.2). The scrollers are snapshotted before the clear
+ * and pinned back after the re-set, in the same task.
  */
 export function applyUniformCardHeight(boardEl: HTMLElement): void {
+    const scrollers = Array.from(
+        boardEl.querySelectorAll<HTMLElement>('.kap-column-cards, .kap-lanes')
+    ).map((el, i) => [String(i), el] as const)
+    const scrollSnapshot = captureScrollEntries(scrollers)
+
     boardEl.style.removeProperty(CARD_HEIGHT_VAR)
     const cards = Array.from(boardEl.querySelectorAll<HTMLElement>('.kap-card'))
-    if (cards.length === 0) return
-    const height = uniformCardHeight(cards.map((el) => el.offsetHeight))
-    if (height !== null) boardEl.style.setProperty(CARD_HEIGHT_VAR, `${String(height)}px`)
+    if (cards.length > 0) {
+        const height = uniformCardHeight(cards.map((el) => el.offsetHeight))
+        if (height !== null) boardEl.style.setProperty(CARD_HEIGHT_VAR, `${String(height)}px`)
+    }
+
+    restoreScrollEntries(scrollers, scrollSnapshot)
 }

@@ -22,6 +22,21 @@ All confirmed findings were verified against the code by three independent revie
   gate also absorb 1.6's duplicate `commitFilter` render and 1.7's irrelevant settings fan-out
   for the gated modes. Optimistic renders are unaffected (mutations change the signature; a
   pending keyboard refocus forces a render).
+- **Theme 2 (scroll capture/restore across genuine teardowns) — IMPLEMENTED** for findings
+  **3.1, 3.2, 3.3** and the **scroll legs of 2.1/2.2**: shared helper `ui/scroll-preservation.ts`
+  (pure clamp/restore/keying, unit-tested) with DOM adapters. 3.1: `captureColumnAnchors`/
+  `restoreColumnAnchors` in `kanban-view.ts` now key the horizontal anchor per lane, skip
+  0×0 (collapsed) lane boards, and run ONLY when `boardStructureWillChange()` (exported from
+  `board-renderer.ts`) says the full-render path will be taken. 3.3: the same gate wraps
+  `patchBoard` with `captureBoardScroll`/`restoreBoardScroll` — per-column scrollTop keyed by
+  lane+column id plus the `.kap-lanes` stack — restored synchronously after the render (no
+  frame paints at scroll 0). 3.2: `applyUniformCardHeight` snapshots every `.kap-column-cards`/
+  `.kap-lanes` scrollTop before the clear→measure→set cycle and restores after, killing the
+  silent clamp. 2.1/2.2 scroll legs: the calendar and timeline controllers wrap their
+  full-teardown renderers with selector-keyed snapshots (`.kap-panel-list`/`.kap-calendar`/
+  `.kap-cal-focus-day`; `.kap-tl-panel-body`/`.kap-tl-body`), clamped to the new extent.
+  The signature-gate parts of 2.1/2.2 were already covered by theme 1; their optimistic-drop
+  legs remain open under theme 3.
 - All other findings: not yet implemented.
 
 ## Render pipeline overview
