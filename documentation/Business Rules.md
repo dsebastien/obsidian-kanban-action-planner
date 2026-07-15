@@ -473,9 +473,10 @@ See `documentation/plans/kanban-action-planner-implementation-plan.md` for full 
     semantics (days, written as numbers); a node with an own estimate also shows the
     children's rollup (`Σ Nd`) when it differs. **Progress** is a **0–100 number** in the
     global `defaultProgressProperty` (`progress`): every row shows a progress bar; own > 0
-    wins, else the weighted combination of the children's effective progress (weights =
-    effective estimates when every child has one, equal otherwise); derived values render
-    dimmed/italic, distinctly from own values. **Rollups are display-only by default and
+    wins, else the weighted combination of the children's effective progress — any child with
+    an EXPLICIT progress (including 0) counts as signal, so all-0% children derive a 0%
+    parent, never a blank (weights = effective estimates when every child has one, equal
+    otherwise); derived values render dimmed/italic, distinctly from own values. **Rollups are display-only by default and
     persisted on demand**: context-menu **Save rolled-up estimate/progress** writes the
     derived value, and the estimate/progress modals pre-fill it. **Distribute estimate to
     children** splits the own estimate's remainder equally over children whose subtree has no

@@ -234,12 +234,13 @@ export function parseProgress(raw: unknown): number | null {
 /**
  * A node's effective progress (issue #76, owner rule): the node's OWN value
  * wins when set and > 0. When the own value is missing, null, or 0, and at
- * least one descendant reports progress > 0, the node derives the weighted
- * combination of its direct children's effective progress — weighted by each
- * child's effective estimate when EVERY child has one (> 0), equally
- * otherwise. `derived` marks a combined value so it can be styled distinctly.
- * A node with no signal anywhere keeps its own value (possibly 0/null),
- * underived.
+ * least one descendant reports an EXPLICIT progress (an actual 0 counts —
+ * children at "0%" roll a derived "0%" up, never a blank), the node derives
+ * the weighted combination of its direct children's effective progress —
+ * weighted by each child's effective estimate when EVERY child has one
+ * (> 0), equally otherwise. `derived` marks a combined value so it can be
+ * styled distinctly. A node with no signal anywhere keeps its own value
+ * (possibly 0/null), underived.
  */
 export function effectiveProgress(
     node: WbsNode,
@@ -253,7 +254,7 @@ export function effectiveProgress(
         progress: effectiveProgress(child, progressOf, estimateWeightOf).value,
         weight: estimateWeightOf(child)
     }))
-    if (!children.some((c) => c.progress !== null && c.progress > 0)) {
+    if (!children.some((c) => c.progress !== null)) {
         return { value: own, derived: false }
     }
     const weighted = children.every((c) => c.weight !== null && c.weight > 0)

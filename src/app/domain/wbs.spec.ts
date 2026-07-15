@@ -299,7 +299,7 @@ describe('effectiveProgress', () => {
         expect(result).toEqual({ value: 50, derived: true })
     })
 
-    test('no descendant progress > 0 → own value kept, underived', () => {
+    test('no descendant progress at all → own value kept, underived', () => {
         const tree = node('p', node('a'))
         expect(effectiveProgress(tree, progress({}), estimates({}))).toEqual({
             value: null,
@@ -308,6 +308,14 @@ describe('effectiveProgress', () => {
         expect(effectiveProgress(tree, progress({ p: 0 }), estimates({}))).toEqual({
             value: 0,
             derived: false
+        })
+    })
+
+    test('children with an explicit 0% derive a 0% parent (not a blank)', () => {
+        const tree = node('p', node('a'), node('b'))
+        expect(effectiveProgress(tree, progress({ a: 0, b: 0 }), estimates({}))).toEqual({
+            value: 0,
+            derived: true
         })
     })
 

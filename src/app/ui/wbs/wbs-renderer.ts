@@ -551,7 +551,17 @@ function renderDatesChip(parent: HTMLElement, row: WbsRowModel, callbacks: WbsCa
 /** Due chip: the countdown (`in 3d` / `2d overdue`), tone-colored (issue #62 scale). */
 function renderDueChip(parent: HTMLElement, row: WbsRowModel, callbacks: WbsCallbacks): void {
     const card = row.card
-    if (!card) return // context rows carry no due date
+    if (!card) {
+        // Context rows track no due date, but the SLOT must stay: every row
+        // renders the same four fixed-width chips or the columns drift.
+        const placeholder = parent.createEl('button', {
+            cls: 'kap-wbs-chip-btn kap-wbs-due kap-wbs-chip-unset',
+            text: '–',
+            attr: { type: 'button' }
+        })
+        placeholder.disabled = true
+        return
+    }
     const btn = parent.createEl('button', {
         cls: 'kap-wbs-chip-btn kap-wbs-due',
         text: row.dueLabel ?? 'no due',
