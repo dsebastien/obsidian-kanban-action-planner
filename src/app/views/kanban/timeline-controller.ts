@@ -672,7 +672,8 @@ export class TimelineController {
             `Set estimate — ${card.display.title}`,
             current?.raw ?? null,
             (value) => void this.writeEstimate(card, value),
-            config.unit
+            config.unit,
+            this.host.minutesPerDay()
         ).open()
     }
 

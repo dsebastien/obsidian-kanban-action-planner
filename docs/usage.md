@@ -579,7 +579,8 @@ choosing the new window around the date under your cursor. The zoom level is rem
 like the range buttons. Rows are sorted by start date.
 
 **More from the right-click menu:** timeline rows and unplanned cards add **Add milestone…**,
-**Set estimate…** (a number of days, minimum 1; **Clear estimate** removes the property), and
+**Set estimate…** (a number in the note's own unit, or any duration like `2h`, `90m`, `0.5d`
+— converted for you, with a live preview; **Clear estimate** removes the property), and
 **Clear start date** (same effect as dragging off, shown only when a start exists) to the usual
 card menu. When the timeline uses a **custom start property**, **Set start date…** appears too —
 with the default scheduled property, the existing **Schedule** items already write that date.
@@ -652,7 +653,10 @@ coverage) is split equally, whole days, across the children that have no estimat
 Existing values are never overwritten.
 
 **Editing per node:** click the estimate chip, the dates chip, the due chip, or the progress
-bar on any row to set that value directly. The context menu offers the same (**Set
+bar on any row to set that value directly. The estimate prompt takes a plain number in the
+note's own unit **or any duration** — `2h`, `90m`, `0.5d`, `1d 4h` — and converts it for you
+(days ↔ minutes via the **Minutes per day** setting), with a live preview of the exact value
+that will be written. The context menu offers the same (**Set
 estimate…**, **Set progress…**, **Set parent…**), plus everything the card menu has
 elsewhere — including **Set status**, so you can move work through its workflow without
 leaving the tree (the status dot updates instantly).

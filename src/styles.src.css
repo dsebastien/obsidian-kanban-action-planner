@@ -1459,6 +1459,17 @@
         @apply w-full;
     }
 
+    /* Estimate modal: live "what Set will write" conversion feedback. */
+    .kap-estimate-hint {
+        @apply mt-1 min-h-[1.4em] text-[0.85em];
+        color: var(--text-muted);
+        font-variant-numeric: tabular-nums;
+    }
+
+    .kap-estimate-hint.kap-estimate-hint-invalid {
+        color: var(--text-error);
+    }
+
     .kap-date-actions {
         @apply flex items-center justify-end gap-2 mt-4;
     }

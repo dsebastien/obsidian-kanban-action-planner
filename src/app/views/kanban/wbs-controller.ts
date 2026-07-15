@@ -956,7 +956,8 @@ export class WbsController {
                     ? deleteProperty(this.host.app, card.file, config.property)
                     : setProperty(this.host.app, card.file, config.property, value))
             },
-            config.unit
+            config.unit,
+            this.host.minutesPerDay()
         ).open()
     }
 

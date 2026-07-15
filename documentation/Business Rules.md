@@ -565,5 +565,11 @@ See `documentation/plans/kanban-action-planner-implementation-plan.md` for full 
     **Writes are always unit-native**: the estimate modal edits raw minutes/days, save-rollup
     and distribute-to-children convert day amounts into each TARGET note's own unit
     (`daysToUnit`, ≥ 1), timeline resizes/seeds write the card's unit (a fresh drop seeds 1
-    day = `minutesPerDay` minutes on a minute-based type). Older stored note types have no
+    day = `minutesPerDay` minutes on a minute-based type). **The estimate modal accepts a
+    generic duration syntax** (`parseEstimateInput`): a bare number is taken in the card's
+    own unit (historical rounding), while `d`/`h`/`m` suffixes convert to it — `2h` on a
+    minute task writes 120, `0.5d` writes `minutesPerDay`/2, `4h` on a day note rounds up to
+    1 day; tokens combine (`1d 4h`, `1h30m`), `.` and `,` decimals both parse, and a live
+    hint previews the exact value Set will write (invalid input renders red and never
+    submits). Older stored note types have no
     `estimate` block and degrade to the global default (no backfill).

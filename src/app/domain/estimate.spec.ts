@@ -1,5 +1,11 @@
 import { describe, expect, test } from 'bun:test'
-import { daysToUnit, formatDaysLabel, formatUnitValue, readEstimate } from './estimate'
+import {
+    daysToUnit,
+    formatDaysLabel,
+    formatUnitValue,
+    parseEstimateInput,
+    readEstimate
+} from './estimate'
 
 describe('readEstimate', () => {
     test('days keep the historical semantics: ceil, minimum 1', () => {
@@ -65,5 +71,49 @@ describe('daysToUnit', () => {
         expect(daysToUnit(0.5, 'minutes', 480)).toBe(240)
         expect(daysToUnit(2, 'minutes', 480)).toBe(960)
         expect(daysToUnit(0.001, 'minutes', 480)).toBe(1)
+    })
+})
+
+describe('parseEstimateInput', () => {
+    test('bare numbers stay in the target unit (historical rounding)', () => {
+        expect(parseEstimateInput('120', 'minutes', 480)).toBe(120)
+        expect(parseEstimateInput('3', 'days', 480)).toBe(3)
+        expect(parseEstimateInput('2.2', 'days', 480)).toBe(3)
+        expect(parseEstimateInput('0', 'days', 480)).toBeNull()
+    })
+
+    test('hour/minute suffixes convert to a minutes target', () => {
+        expect(parseEstimateInput('2h', 'minutes', 480)).toBe(120)
+        expect(parseEstimateInput('120m', 'minutes', 480)).toBe(120)
+        expect(parseEstimateInput('1.5h', 'minutes', 480)).toBe(90)
+        expect(parseEstimateInput('1,5h', 'minutes', 480)).toBe(90)
+    })
+
+    test('day suffix converts via minutesPerDay', () => {
+        expect(parseEstimateInput('0.5d', 'minutes', 480)).toBe(240)
+        expect(parseEstimateInput('0.5d', 'minutes', 600)).toBe(300)
+        expect(parseEstimateInput('2d', 'minutes', 480)).toBe(960)
+    })
+
+    test('suffixed input on a days target rounds up to whole days', () => {
+        expect(parseEstimateInput('4h', 'days', 480)).toBe(1)
+        expect(parseEstimateInput('12h', 'days', 480)).toBe(2)
+        expect(parseEstimateInput('0.5d', 'days', 480)).toBe(1)
+        expect(parseEstimateInput('3d', 'days', 480)).toBe(3)
+    })
+
+    test('tokens combine, with or without spaces', () => {
+        expect(parseEstimateInput('1h 30m', 'minutes', 480)).toBe(90)
+        expect(parseEstimateInput('1h30m', 'minutes', 480)).toBe(90)
+        expect(parseEstimateInput('1d 4h', 'minutes', 480)).toBe(720)
+        expect(parseEstimateInput('1D 4H', 'minutes', 480)).toBe(720)
+    })
+
+    test('unrecognized input is rejected', () => {
+        expect(parseEstimateInput('', 'minutes', 480)).toBeNull()
+        expect(parseEstimateInput('abc', 'minutes', 480)).toBeNull()
+        expect(parseEstimateInput('2x', 'minutes', 480)).toBeNull()
+        expect(parseEstimateInput('h', 'minutes', 480)).toBeNull()
+        expect(parseEstimateInput('-2h', 'minutes', 480)).toBeNull()
     })
 })

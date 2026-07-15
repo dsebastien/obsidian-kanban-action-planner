@@ -90,3 +90,40 @@ export function daysToUnit(days: number, unit: EstimateUnit, minutesPerDay: numb
     const perDay = minutesPerDay > 0 ? minutesPerDay : 1
     return Math.max(1, Math.round(days * perDay))
 }
+
+/**
+ * Parse a human duration input into the TARGET unit's writable value.
+ *
+ * A bare number is already in the target unit (the historical behavior:
+ * days round UP to whole days, minutes round to the minute — both ≥ 1).
+ * `d` / `h` / `m` suffixes convert regardless of the target unit — days via
+ * `minutesPerDay` (so "0.5d" → 240 minutes at the 480 default, and "4h" on a
+ * day-based note → 1 day). Tokens combine ("1d 4h", "1h30m"); decimals with
+ * `.` or `,` both parse. Returns null for anything unrecognized.
+ */
+export function parseEstimateInput(
+    raw: string,
+    targetUnit: EstimateUnit,
+    minutesPerDay: number
+): number | null {
+    const text = raw.trim().toLowerCase().replace(/,/g, '.')
+    if (text === '') return null
+    const perDay = minutesPerDay > 0 ? minutesPerDay : 1
+    if (/^\d+(?:\.\d+)?$/.test(text)) {
+        const value = Number(text)
+        if (!Number.isFinite(value) || value <= 0) return null
+        return targetUnit === 'days' ? Math.ceil(value) : Math.max(1, Math.round(value))
+    }
+    if (!/^(?:\d+(?:\.\d+)?\s*[dhm]\s*)+$/.test(text)) return null
+    let minutes = 0
+    for (const match of text.matchAll(/(\d+(?:\.\d+)?)\s*([dhm])/g)) {
+        const value = Number(match[1])
+        if (!Number.isFinite(value)) return null
+        const unit = match[2]
+        minutes += unit === 'd' ? value * perDay : unit === 'h' ? value * 60 : value
+    }
+    if (minutes <= 0) return null
+    return targetUnit === 'days'
+        ? Math.max(1, Math.ceil(minutes / perDay))
+        : Math.max(1, Math.round(minutes))
+}
