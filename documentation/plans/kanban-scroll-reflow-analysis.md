@@ -9,6 +9,21 @@ All confirmed findings were verified against the code by three independent revie
 2. **Visual stability is a top priority.** Content must not move, resize, or lose scroll position without a user-visible reason.
 3. **Snappiness is equally important.** No fixes that trade latency for stability: no added debounce delays on user-initiated actions, no deferring visible feedback. Stability comes from doing LESS redundant work (diffing, scoped updates, reserved space), not from doing the same work later.
 
+## Implementation status
+
+- **Theme 1 (render-signature gate) — IMPLEMENTED** for findings **1.1, 1.2, 1.3** (live-verified):
+  `skipUnchangedRenderPass`/`renderPassSignature` in `kanban-view.ts` gate the board, calendar and
+  timeline funnels before `applyFilterAndRender`'s side effects; pure `boardRenderSignature` +
+  `renderPassSignature` live in `ui/board/signatures.ts` (unit-tested), and the calendar/timeline
+  controllers expose `renderStateSignature()` covering their render-time state (range, anchor,
+  tab, collapse maps, hidden types, resolved properties, today, track width). Calendar/timeline
+  signatures also hash per-card raw frontmatter + tags (those renderers read the note at render
+  time). Triage keeps its own `lastTriageSignature` guard; WBS stays ungated. Side effects of the
+  gate also absorb 1.6's duplicate `commitFilter` render and 1.7's irrelevant settings fan-out
+  for the gated modes. Optimistic renders are unaffected (mutations change the signature; a
+  pending keyboard refocus forces a render).
+- All other findings: not yet implemented.
+
 ## Render pipeline overview
 
 - **Triggers into one funnel:** `onDataUpdated` (kanban-view.ts:436-438), `metadataCache 'changed'` + vault rename/delete (344-364, gated only by path via `affectsBoard` 397-410) all call `debouncedRebuild` (249, 250ms, non-resetting).

@@ -214,6 +214,37 @@ export class TimelineController {
         return this.host.noteTypeFor(card) ?? { id: NO_TYPE_ID, name: 'No type' }
     }
 
+    /**
+     * A deterministic signature of every timeline-render input that does NOT
+     * live in the card set (issue #105 render gate): the controller's own
+     * state (range, anchor, panel + group collapse, hidden types), the
+     * host-resolved property names the render reads, today's date (the today
+     * line / overdue tint), and the track width — the px-gated affordances
+     * (resize handles, duration tag — issue #80) are decided at render time,
+     * so a width change must re-render. Any state a render() callback mutates
+     * before calling `host.rebuild()` MUST be represented here, or that
+     * interaction would be swallowed by the gate.
+     */
+    renderStateSignature(): string {
+        this.ensureLoaded()
+        return JSON.stringify([
+            this.effectiveRange(),
+            toDateKey(this.anchor ?? startOfDay(new Date())),
+            toDateKey(startOfDay(new Date())),
+            this.panelCollapsed,
+            [...this.undatedCollapsed.entries()].sort(),
+            [...this.typeGroupsCollapsed.entries()].sort(),
+            [...this.hiddenTypes].sort(),
+            this.host.startProperty(),
+            this.host.milestoneProperty(),
+            this.host.scheduledProperty(),
+            this.host.deadlineProperty(),
+            this.host.firstDayOfWeek(),
+            this.host.minutesPerDay(),
+            this.host.boardEl()?.clientWidth ?? 0
+        ])
+    }
+
     /** Build the view model from the (already filtered) cards and render it. */
     render(cards: KanbanCard[]): void {
         const boardEl = this.host.boardEl()

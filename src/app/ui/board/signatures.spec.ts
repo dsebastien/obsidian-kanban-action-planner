@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'bun:test'
-import { cardSignature, structureSignature } from './signatures'
+import {
+    boardRenderSignature,
+    cardSignature,
+    renderPassSignature,
+    structureSignature
+} from './signatures'
 import type { Board, BoardCardBase } from '../../domain/board-model'
-import type { ColumnDef } from '../../domain/note-type'
+import type { ColorSpec, ColumnDef } from '../../domain/note-type'
 import type { CardDisplay } from './types'
 import type { CardRelationships } from '../../services/relationships.service'
 
@@ -132,5 +137,174 @@ describe('cardSignature', () => {
                 '#abc'
             )
         ).not.toBe(withCountdown)
+    })
+})
+
+// ── boardRenderSignature (issue #105 render gate) ─────────────────────────
+
+type SigCard = BoardCardBase & { display: CardDisplay; relationships: CardRelationships }
+
+function sigCard(key: string, over: Partial<SigCard> = {}): SigCard {
+    return {
+        key,
+        statusValue: 'todo',
+        order: null,
+        display: display({ title: key }),
+        relationships: emptyRels,
+        ...over
+    }
+}
+
+interface SigColumnSpec {
+    id: string
+    cards?: SigCard[]
+    label?: string
+    color?: ColorSpec
+    wipLimit?: number
+}
+
+function sigBoard(
+    lanes: Array<{ id: string; columns: SigColumnSpec[]; label?: string }>,
+    isMultiLane = false
+): Board<SigCard> {
+    return {
+        isMultiLane,
+        lanes: lanes.map((l) => ({
+            lane: { id: l.id, label: l.label ?? l.id, isUngrouped: false },
+            columns: l.columns.map((c) => ({
+                column: {
+                    ...column(c.id),
+                    label: c.label ?? c.id,
+                    ...(c.color ? { color: c.color } : {}),
+                    ...(c.wipLimit === undefined ? {} : { wipLimit: c.wipLimit })
+                },
+                cards: c.cards ?? []
+            })),
+            cardCount: l.columns.reduce((sum, c) => sum + (c.cards?.length ?? 0), 0)
+        }))
+    }
+}
+
+const none = new Set<string>()
+
+describe('boardRenderSignature', () => {
+    const base = (): Board<SigCard> =>
+        sigBoard([{ id: '', columns: [{ id: 'a', cards: [sigCard('x.md')] }, { id: 'b' }] }])
+
+    it('is stable for identical board + collapse state', () => {
+        expect(boardRenderSignature(base(), none, none)).toBe(
+            boardRenderSignature(base(), none, none)
+        )
+    })
+
+    it('changes when a card is added, removed, or edited', () => {
+        const sig = boardRenderSignature(base(), none, none)
+        const added = sigBoard([
+            {
+                id: '',
+                columns: [{ id: 'a', cards: [sigCard('x.md'), sigCard('y.md')] }, { id: 'b' }]
+            }
+        ])
+        const removed = sigBoard([{ id: '', columns: [{ id: 'a' }, { id: 'b' }] }])
+        const edited = sigBoard([
+            {
+                id: '',
+                columns: [
+                    { id: 'a', cards: [sigCard('x.md', { display: display({ title: 'New' }) })] },
+                    { id: 'b' }
+                ]
+            }
+        ])
+        expect(boardRenderSignature(added, none, none)).not.toBe(sig)
+        expect(boardRenderSignature(removed, none, none)).not.toBe(sig)
+        expect(boardRenderSignature(edited, none, none)).not.toBe(sig)
+    })
+
+    it('changes when a card moves column or order flips within a column', () => {
+        const two = (cards: [SigCard[], SigCard[]]): Board<SigCard> =>
+            sigBoard([
+                {
+                    id: '',
+                    columns: [
+                        { id: 'a', cards: cards[0] },
+                        { id: 'b', cards: cards[1] }
+                    ]
+                }
+            ])
+        const x = sigCard('x.md')
+        const y = sigCard('y.md')
+        const sig = boardRenderSignature(two([[x, y], []]), none, none)
+        expect(boardRenderSignature(two([[y, x], []]), none, none)).not.toBe(sig)
+        expect(boardRenderSignature(two([[x], [y]]), none, none)).not.toBe(sig)
+    })
+
+    it('changes when column label, color, or WIP limit change', () => {
+        const sig = boardRenderSignature(base(), none, none)
+        const relabeled = sigBoard([
+            {
+                id: '',
+                columns: [{ id: 'a', cards: [sigCard('x.md')], label: 'Renamed' }, { id: 'b' }]
+            }
+        ])
+        const recolored = sigBoard([
+            {
+                id: '',
+                columns: [
+                    { id: 'a', cards: [sigCard('x.md')], color: { kind: 'hex', value: '#123456' } },
+                    { id: 'b' }
+                ]
+            }
+        ])
+        const limited = sigBoard([
+            { id: '', columns: [{ id: 'a', cards: [sigCard('x.md')], wipLimit: 3 }, { id: 'b' }] }
+        ])
+        expect(boardRenderSignature(relabeled, none, none)).not.toBe(sig)
+        expect(boardRenderSignature(recolored, none, none)).not.toBe(sig)
+        expect(boardRenderSignature(limited, none, none)).not.toBe(sig)
+    })
+
+    it('changes when lane/column collapse state changes', () => {
+        const multi = (): Board<SigCard> =>
+            sigBoard([{ id: 'L1', columns: [{ id: 'a', cards: [sigCard('x.md')] }] }], true)
+        const sig = boardRenderSignature(multi(), none, none)
+        expect(boardRenderSignature(multi(), new Set(['L1']), none)).not.toBe(sig)
+        expect(boardRenderSignature(multi(), none, new Set(['a']))).not.toBe(sig)
+    })
+
+    it('changes when a lane appears or its label changes', () => {
+        const one = sigBoard([{ id: 'L1', columns: [{ id: 'a' }] }], true)
+        const two = sigBoard(
+            [
+                { id: 'L1', columns: [{ id: 'a' }] },
+                { id: 'L2', columns: [{ id: 'a' }] }
+            ],
+            true
+        )
+        const renamed = sigBoard([{ id: 'L1', columns: [{ id: 'a' }], label: 'Lane one' }], true)
+        const sig = boardRenderSignature(one, none, none)
+        expect(boardRenderSignature(two, none, none)).not.toBe(sig)
+        expect(boardRenderSignature(renamed, none, none)).not.toBe(sig)
+    })
+})
+
+describe('renderPassSignature', () => {
+    it('is stable for equal parts and changes when any part changes', () => {
+        const sig = renderPassSignature(['board', 'query', false, 'content'])
+        expect(renderPassSignature(['board', 'query', false, 'content'])).toBe(sig)
+        expect(renderPassSignature(['calendar', 'query', false, 'content'])).not.toBe(sig)
+        expect(renderPassSignature(['board', 'other', false, 'content'])).not.toBe(sig)
+        expect(renderPassSignature(['board', 'query', true, 'content'])).not.toBe(sig)
+        expect(renderPassSignature(['board', 'query', false, 'CONTENT'])).not.toBe(sig)
+    })
+
+    it('distinguishes nested per-card tuples', () => {
+        const cards = [
+            ['x.md', 'todo', null, 'type', 'sig', '{"a":1}', '', 'estimate', 'days', null]
+        ]
+        const sig = renderPassSignature(['calendar', '', false, 'state', cards])
+        const changedFm = [
+            ['x.md', 'todo', null, 'type', 'sig', '{"a":2}', '', 'estimate', 'days', null]
+        ]
+        expect(renderPassSignature(['calendar', '', false, 'state', changedFm])).not.toBe(sig)
     })
 })

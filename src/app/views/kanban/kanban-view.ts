@@ -1,4 +1,4 @@
-import { BasesView, debounce, Menu, Notice, TFile } from 'obsidian'
+import { BasesView, debounce, getAllTags, Menu, Notice, TFile } from 'obsidian'
 import type {
     BasesEntry,
     BasesPropertyId,
@@ -90,6 +90,7 @@ import type { CardSearchRecord, FilterContext, FilterQuery } from '../../domain/
 import { CalendarDnd } from '../../ui/calendar/calendar-dnd'
 import { formatDate } from '../../utils/momentjs'
 import { patchBoard } from '../../ui/board/board-renderer'
+import { boardRenderSignature, cardSignature, renderPassSignature } from '../../ui/board/signatures'
 import { applyUniformCardHeight } from '../../ui/board/card-equalize'
 import { BoardDnd } from '../../ui/board/dnd-controller'
 import type { DropTarget } from '../../ui/board/dnd-controller'
@@ -214,6 +215,14 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
     // data is identical to what's already on screen — skip the teardown so the view
     // doesn't flash/lose focus for a no-op. Reset on mode switch / view recreation.
     private lastTriageSignature: string | null = null
+    // Render-signature gate (issue #105): signature of the last completed
+    // board/calendar/timeline render pass. When a rebuild (typically the Bases
+    // echo of the plugin's own frontmatter/config write, or a body-only edit)
+    // re-derives content-identical state, the pass is skipped entirely —
+    // no toolbar teardown, no calendar/timeline teardown, no column-anchor
+    // restore, no equalize. Null = next pass always renders (triage/WBS
+    // passes and view creation reset it).
+    private lastRenderSignature: string | null = null
     // Left-pane group collapse (issue: triage navigation pane), keyed
     // `typeId` / `typeId::status`. In-memory; groups default EXPANDED (the pane
     // is a navigation list, so the queue is visible without clicking to expand).
@@ -795,24 +804,39 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         this.columns = columnsFromValues(this.resolveColumnValues(), this.noteType, true)
 
         if (this.triageMode()) {
+            // Triage keeps its own no-op guard inside renderTriage
+            // (lastTriageSignature, computed from the actual triage data —
+            // which reads more of the note than the card set covers). Clear
+            // the pass signature so a later gated mode always renders over
+            // the triage DOM.
+            this.lastRenderSignature = null
             this.renderToolbar(false)
             this.renderTriage()
             return
         }
 
         if (this.calendarMode()) {
+            if (this.skipUnchangedRenderPass('calendar', cards, ':scope > .kap-calendar-root')) {
+                return
+            }
             this.renderToolbar(false)
             this.calendar?.render(cards)
             return
         }
 
         if (this.timelineMode()) {
+            if (this.skipUnchangedRenderPass('timeline', cards, ':scope > .kap-timeline')) {
+                return
+            }
             this.renderToolbar(false)
             this.timeline?.render(cards)
             return
         }
 
         if (this.wbsMode()) {
+            // WBS is not gated (its render inputs — tree expansion, off-board
+            // context ancestors — are not covered by the pass signature).
+            this.lastRenderSignature = null
             this.renderToolbar(false)
             this.wbs?.render(cards)
             return
@@ -850,6 +874,11 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             }
         }
         this.board = board
+        // The board MODEL above is always refreshed (handlers resolve cards
+        // through it and cardsByKey), but when nothing the render would draw
+        // changed, the DOM pass and its side effects are skipped.
+        const boardSelector = ':scope > .kap-board, :scope > .kap-lanes, :scope > .kap-empty'
+        if (this.skipUnchangedRenderPass('board', cards, boardSelector)) return
         this.renderToolbar(this.board.lanes.length > 1)
 
         log(
@@ -886,6 +915,92 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         // the card set / content just changed. Synchronous (before paint) so
         // cards never flash at uneven heights.
         this.equalizeCardHeights()
+    }
+
+    /**
+     * The render-signature gate (issue #105): skip the render pass — and all
+     * of its side effects (toolbar teardown, full calendar/timeline teardown,
+     * column-anchor restore, equalize, selection refresh) — when everything
+     * the pass would draw is identical to the last completed pass and the
+     * mode's DOM is already mounted. This absorbs the Bases echo of the
+     * plugin's own frontmatter/config writes and body-only edits as true
+     * no-ops. Optimistic in-memory mutations (applyMove, relationship edits,
+     * refreshCardDisplay) change the signature by construction, so their
+     * immediate render always proceeds; a pending keyboard refocus also
+     * always renders (applyRefocus must run).
+     */
+    private skipUnchangedRenderPass(
+        mode: ViewMode,
+        cards: KanbanCard[],
+        mountedSelector: string
+    ): boolean {
+        const signature = this.renderPassSignature(mode, cards)
+        if (signature === null) {
+            this.lastRenderSignature = null
+            return false
+        }
+        const mounted = this.boardEl ? this.boardEl.querySelector(mountedSelector) !== null : false
+        if (mounted && this.refocusCardKey === null && signature === this.lastRenderSignature) {
+            log(`Kanban render skipped (${mode}): signature unchanged`, 'debug')
+            return true
+        }
+        this.lastRenderSignature = signature
+        return false
+    }
+
+    /**
+     * A cheap, deterministic signature of everything the current render pass
+     * consumes, or null for ungated modes (triage guards itself inside
+     * renderTriage; WBS is ungated). Keep the enumerated inputs in sync with
+     * {@link applyFilterAndRender} and the mode renderers:
+     *
+     * - All gated modes: the view mode, the filter query (drives the card
+     *   set, the match count and the zoom chip) and the compact flag.
+     * - Board: the grouped/sorted board model — lane/column structure,
+     *   labels, counts, colors, WIP limits, lane/column collapse state, and
+     *   every card's rendered content signature in position
+     *   ({@link boardRenderSignature}).
+     * - Calendar/timeline: the controller's render-state signature (range,
+     *   anchor, tab, panel/group collapse, legend toggles, hidden types,
+     *   resolved date properties, today, track width), plus — because those
+     *   renderers read the note directly at render time (dates, estimates,
+     *   milestones, sort values, tags) — each card's raw frontmatter, tags,
+     *   note type, status, order, estimate config, panel sort value and
+     *   content signature.
+     */
+    private renderPassSignature(mode: ViewMode, cards: KanbanCard[]): string | null {
+        if (mode !== 'board' && mode !== 'calendar' && mode !== 'timeline') return null
+        const common: unknown[] = [mode, this.filterQuery, this.compactMode()]
+        if (mode === 'board') {
+            return renderPassSignature([
+                ...common,
+                boardRenderSignature(this.board, this.collapsedLanes, this.collapsedColumns)
+            ])
+        }
+        const sortRef =
+            mode === 'calendar' ? parsePropertyRef(this.config.get('calendarSortProperty')) : null
+        const cardsPart = cards.map((card) => {
+            const cache = this.app.metadataCache.getFileCache(card.file)
+            const estimate = this.estimateConfigFor(card)
+            return [
+                card.key,
+                card.statusValue,
+                card.order,
+                this.noteTypeByPath.get(card.key)?.id ?? '',
+                cardSignature(card, ''),
+                // The dated renderers read these straight from the note.
+                JSON.stringify(cache?.frontmatter ?? null),
+                cache ? (getAllTags(cache) ?? []).join(',') : '',
+                estimate.property,
+                estimate.unit,
+                sortRef ? this.readScalarProperty(card, sortRef) : null
+            ]
+        })
+        const modeState =
+            mode === 'calendar'
+                ? this.calendar?.renderStateSignature()
+                : this.timeline?.renderStateSignature()
+        return renderPassSignature([...common, modeState ?? '', cardsPart])
     }
 
     /** Refocus the card a keyboard move/reorder acted on, so focus follows it. */

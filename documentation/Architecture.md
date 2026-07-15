@@ -158,6 +158,22 @@ re-run after every `patchBoard` and on resize). Cards never shrink below their c
 (`flex: none`) so nothing is clipped — the column body scrolls instead; sparser cards get
 matching whitespace. The pure max-picking helper `uniformCardHeight()` is unit-tested.
 
+**Render-signature gate (issue #105).** Before the board/calendar/timeline render (and its side
+effects: toolbar teardown, calendar/timeline full teardown, column-anchor restore, equalize,
+refocus, selection refresh), `applyFilterAndRender` computes a deterministic signature of
+everything the pass would draw (`skipUnchangedRenderPass`/`renderPassSignature` in the view;
+pure `boardRenderSignature`/`renderPassSignature` in `ui/board/signatures.ts`;
+`renderStateSignature()` on the calendar/timeline controllers). When it matches the last
+completed pass and the mode's DOM is mounted, the pass is a true no-op — this absorbs the Bases
+echo of the plugin's own frontmatter/config writes, body-only edits, and irrelevant settings
+fan-out. Calendar/timeline signatures also hash each card's raw frontmatter + tags because those
+renderers read the note at render time. The model bookkeeping (`cardsByKey`, `this.board`,
+filter count/zoom chip) still refreshes on skipped passes. Optimistic in-memory mutations change
+the signature by construction, so their immediate render always proceeds; a pending keyboard
+refocus forces a render. Triage keeps its own `lastTriageSignature` guard inside `renderTriage`;
+WBS is ungated (both branches reset the pass signature so a later gated mode always renders over
+their DOM).
+
 **Hover preview.** The plugin registers a hover-link source (`registerHoverLinkSource`, Mod-gated by
 default) and a delegated `pointerover` on the board host triggers the core Page-preview popover for
 the card under the pointer (the view implements `HoverParent`).

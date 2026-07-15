@@ -189,6 +189,36 @@ export class CalendarController {
         return this.anchor ?? startOfDay(new Date())
     }
 
+    /**
+     * A deterministic signature of every calendar-render input that does NOT
+     * live in the card set (issue #105 render gate): the controller's own
+     * state (range, tab, anchor, focused day, panel + group collapse, legend
+     * toggles), the host-resolved config the render reads (date properties,
+     * first day of week, panel sort mode, minutes per day), and today's date
+     * (the grid highlights it). Any state a render() callback mutates before
+     * calling `host.rebuild()` MUST be represented here, or that interaction
+     * would be swallowed by the gate.
+     */
+    renderStateSignature(): string {
+        this.ensureLoaded()
+        return JSON.stringify([
+            this.effectiveRange(),
+            this.tab,
+            toDateKey(this.effectiveAnchor()),
+            toDateKey(startOfDay(new Date())),
+            this.panelCollapsed,
+            this.showScheduled,
+            this.showDeadlines,
+            this.focusedDay,
+            [...this.panelCollapsedGroups.entries()].sort(),
+            this.host.scheduledProperty(),
+            this.host.deadlineProperty(),
+            this.host.firstDayOfWeek(),
+            this.host.minutesPerDay(),
+            this.host.sortMode()
+        ])
+    }
+
     /** Compute the calendar/scheduling model and render it into the board host. */
     render(cards: KanbanCard[]): void {
         const boardEl = this.host.boardEl()
