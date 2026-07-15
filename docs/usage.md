@@ -636,8 +636,9 @@ work the same way, so you can plan **top-down** (estimate the goal, split it lat
   unit.
 - **Progress** — every row has a progress bar, driven by a **0–100 number** in the progress
   property (`progress` by default, configurable in settings). A note without its own progress
-  (or at 0) derives the weighted combination of its children — derived bars render dimmed
-  with a dashed outline.
+  (or at 0) derives the weighted combination of its children — an explicit `0` on a child
+  counts, so a parent of all-0% children shows a derived `0%` rather than a blank — and
+  derived bars render dimmed with a dashed outline.
 - **Dates** — a row with a start date shows its span (start → start + estimate − 1). A parent
   without one shows the span its subtree covers, in italics.
 - **Due dates** — every row also shows a due chip with the countdown (`In 3d`, `2d overdue`,

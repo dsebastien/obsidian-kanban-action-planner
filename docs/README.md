@@ -49,12 +49,21 @@ every change written straight back into your notes.
 - **Calendar mode.** Switch a board to a calendar that plots scheduled dates and deadlines
   together. Drag a card onto a day to schedule it.
 - **Timeline mode.** A Gantt-style view: one row per card placed by its start date and an
-  estimate in days, milestone diamonds from a configurable list property, and
-  drag-to-reschedule. The Unplanned panel groups cards by note type, then status.
+  estimate (days by default; a note type can use its own property and unit — e.g. minutes),
+  milestone diamonds from a configurable list property, and drag-to-reschedule. The Unplanned
+  panel groups cards by note type, then status.
+- **WBS mode.** Break work down as a tree — goals over projects over tasks — with estimates,
+  progress, and dates rolling up the hierarchy, drag re-parenting, and a "Needs planning"
+  backlog. Works on filtered and flat views too: out-of-view ancestors show as context rows,
+  and unlinked notes stay visible as standalone rows.
+- **Drag between status groups.** In every scheduling panel (calendar, timeline, WBS), drop a
+  card onto another status group to change its status in place.
 
 ![Calendar mode]({{ '/images/calendar.png' | relative_url }})
 
 ![Timeline mode]({{ '/images/timeline.png' | relative_url }})
+
+![WBS mode]({{ '/images/wbs.png' | relative_url }})
 
 - **Archiving.** Move a finished note to a placeholder-driven archive folder, manually or
   automatically when it reaches a chosen status.
