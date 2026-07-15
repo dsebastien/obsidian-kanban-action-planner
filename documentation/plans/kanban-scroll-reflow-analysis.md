@@ -37,6 +37,19 @@ All confirmed findings were verified against the code by three independent revie
   `.kap-cal-focus-day`; `.kap-tl-panel-body`/`.kap-tl-body`), clamped to the new extent.
   The signature-gate parts of 2.1/2.2 were already covered by theme 1; their optimistic-drop
   legs remain open under theme 3.
+- **Theme "render-from-cached-cards" (findings 2.3, 2.4) — IMPLEMENTED**: the
+  calendar/timeline host interfaces replaced `rebuild()` with `refresh()`, wired in
+  `kanban-view.ts` to `applyFilterAndRender()` — every controller callback (tab switch,
+  legend toggle, range/anchor/Today, panel + group toggles, focus day, zoom, type
+  hide) and the resize-driven panel auto-collapse now re-render synchronously from the
+  ALREADY-DERIVED card set instead of re-deriving relationships/cards/search index.
+  Audit result: no calendar/timeline callback changes which cards exist (type hiding
+  filters at render time), so none kept the full rebuild. Persists still happen; the
+  echo is absorbed by the theme-1 signature gate, whose calendar/timeline signatures
+  already cover all callback-mutated state — the state change renders exactly once.
+  The timeline's resize-tick re-render (`onResize`) also switched from `rebuild()` to
+  `applyFilterAndRender()` (partial N1: width-unchanged ticks are now gated no-ops;
+  the px-threshold gating remains open).
 - All other findings: not yet implemented.
 
 ## Render pipeline overview

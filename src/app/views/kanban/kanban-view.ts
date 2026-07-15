@@ -322,7 +322,11 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         this.calendar = new CalendarController({
             app: this.app,
             boardEl: () => this.boardEl,
-            rebuild: () => this.rebuild(),
+            // UI-state-only changes re-render from the already-derived card
+            // set — no re-derivation of relationships/cards/search index
+            // (issue #105, finding 2.3). The render-signature gate makes the
+            // state change render once and absorbs the config-persist echo.
+            refresh: () => this.applyFilterAndRender(),
             isCalendarMode: () => this.calendarMode(),
             openCard: (card, newTab) => this.openCard(card, newTab),
             showCardMenu: (card, event) => this.showCardMenu(card, event),
@@ -361,7 +365,9 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         this.timeline = new TimelineController({
             app: this.app,
             boardEl: () => this.boardEl,
-            rebuild: () => this.rebuild(),
+            // Same render-from-cached-cards hook as the calendar (issue #105,
+            // finding 2.4) — timeline callbacks change only view/UI state.
+            refresh: () => this.applyFilterAndRender(),
             isTimelineMode: () => this.timelineMode(),
             openCard: (card, newTab) => this.openCard(card, newTab),
             showCardMenu: (card, event, extend) => this.showCardMenu(card, event, extend),
@@ -2848,17 +2854,20 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
      * The timeline re-renders outright — its px width gates (resize handles,
      * duration tag) are decided at render time and go stale as bars re-flow
      * (issue #80); this also covers a hidden→visible leaf, which measures 0
-     * while hidden and fires the ResizeObserver when revealed. The timeline
-     * panel evaluation runs BEFORE that unconditional rebuild — it only
-     * rebuilds itself on a width-CATEGORY change (memoized), so the resize
-     * rebuild storm never fights it.
+     * while hidden and fires the ResizeObserver when revealed. That re-render
+     * goes through {@link applyFilterAndRender}, NOT the full rebuild — a
+     * resize never changes the card set (issue #105, finding 2.4), and the
+     * render-signature gate (which includes the track width) turns
+     * width-unchanged ticks into no-ops. The timeline panel evaluation runs
+     * BEFORE it — it only re-renders itself on a width-CATEGORY change
+     * (memoized), so the resize render storm never fights it.
      */
     private onResize(): void {
         this.calendar?.evaluatePanelAutoCollapse()
         this.timeline?.evaluatePanelAutoCollapse()
         this.wbs?.evaluatePanelAutoCollapse()
         this.equalizeCardHeights()
-        if (this.timelineMode()) this.rebuild()
+        if (this.timelineMode()) this.applyFilterAndRender()
     }
 
     // ── Archiving ─────────────────────────────────────────────

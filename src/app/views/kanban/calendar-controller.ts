@@ -53,8 +53,16 @@ export interface CalendarViewState {
 export interface CalendarHost {
     readonly app: App
     boardEl(): HTMLElement | null
-    /** Re-resolve + re-render (the controller mutates its own state, then asks for a render). */
-    rebuild(): void
+    /**
+     * Re-render the current mode from the ALREADY-DERIVED card set (issue
+     * #105, finding 2.3). Every controller callback changes only view/UI
+     * state — never which cards exist — so none needs the host's full
+     * re-derivation (relationships, card set, search index). The state change
+     * renders exactly once through the view's render-signature gate (all
+     * mutated state is covered by {@link CalendarController.renderStateSignature}),
+     * and the config-persist echo is absorbed by that same gate.
+     */
+    refresh(): void
     /** Whether the view is currently in calendar mode (guards auto-collapse). */
     isCalendarMode(): boolean
     openCard(card: KanbanCard, newTab: boolean): void
@@ -170,12 +178,12 @@ export class CalendarController {
             this.panelCollapsed = true
             this.panelAutoCollapsed = true
             this.persist()
-            this.host.rebuild()
+            this.host.refresh()
         } else if (!narrow && this.panelAutoCollapsed) {
             this.panelCollapsed = false
             this.panelAutoCollapsed = false
             this.persist()
-            this.host.rebuild()
+            this.host.refresh()
         }
     }
 
@@ -322,57 +330,57 @@ export class CalendarController {
                 onSwitchTab: (dim) => {
                     this.tab = dim
                     this.persist()
-                    this.host.rebuild()
+                    this.host.refresh()
                 },
                 onToggleDimension: (dim) => {
                     if (dim === 'scheduled') this.showScheduled = !this.showScheduled
                     else this.showDeadlines = !this.showDeadlines
                     this.persist()
-                    this.host.rebuild()
+                    this.host.refresh()
                 },
                 onSetRange: (r) => {
                     this.rangeOverride = r
                     this.focusedDay = null // leaving the focused day on a range change
                     this.persist()
-                    this.host.rebuild()
+                    this.host.refresh()
                 },
                 onShiftAnchor: (direction) => {
                     this.anchor = shiftAnchor(this.effectiveAnchor(), range, direction)
-                    this.host.rebuild()
+                    this.host.refresh()
                 },
                 onToday: () => {
                     this.anchor = null
-                    this.host.rebuild()
+                    this.host.refresh()
                 },
                 onTogglePanel: () => {
                     this.panelCollapsed = !this.panelCollapsed
                     this.panelAutoCollapsed = false
                     this.persist()
-                    this.host.rebuild()
+                    this.host.refresh()
                 },
                 onTogglePanelGroup: (key) => {
                     this.panelCollapsedGroups.set(
                         key,
                         !(this.panelCollapsedGroups.get(key) ?? true)
                     )
-                    this.host.rebuild()
+                    this.host.refresh()
                 },
                 onFocusDay: (dayKey) => {
                     this.focusedDay = dayKey
-                    this.host.rebuild()
+                    this.host.refresh()
                 },
                 onClearFocus: () => {
                     this.focusedDay = null
-                    this.host.rebuild()
+                    this.host.refresh()
                 },
                 onFocusShift: (direction) => {
                     const current = parseFrontmatterDate(this.focusedDay)
                     if (current) this.focusedDay = toDateKey(addDays(current, direction))
-                    this.host.rebuild()
+                    this.host.refresh()
                 },
                 onFocusToday: () => {
                     this.focusedDay = toDateKey(startOfDay(new Date()))
-                    this.host.rebuild()
+                    this.host.refresh()
                 }
             }
         )

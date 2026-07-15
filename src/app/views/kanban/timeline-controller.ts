@@ -70,8 +70,16 @@ export interface TimelineViewState {
 export interface TimelineHost {
     readonly app: App
     boardEl(): HTMLElement | null
-    /** Re-render after a controller state change. */
-    rebuild(): void
+    /**
+     * Re-render the current mode from the ALREADY-DERIVED card set (issue
+     * #105, finding 2.4). Every controller callback changes only view/UI
+     * state — never which cards exist (type hiding filters at render time) —
+     * so none needs the host's full re-derivation. The state change renders
+     * exactly once through the view's render-signature gate (all mutated
+     * state is covered by {@link TimelineController.renderStateSignature}),
+     * and the config-persist echo is absorbed by that same gate.
+     */
+    refresh(): void
     /** Whether the view is currently in timeline mode (guards auto-collapse). */
     isTimelineMode(): boolean
     openCard(card: KanbanCard, newTab: boolean): void
@@ -194,12 +202,12 @@ export class TimelineController {
             this.panelCollapsed = true
             this.panelAutoCollapsed = true
             this.persist()
-            this.host.rebuild()
+            this.host.refresh()
         } else if (!narrow && this.panelAutoCollapsed) {
             this.panelCollapsed = false
             this.panelAutoCollapsed = false
             this.persist()
-            this.host.rebuild()
+            this.host.refresh()
         }
     }
 
@@ -340,7 +348,7 @@ export class TimelineController {
                 onSetRange: (range) => {
                     this.rangeOverride = range
                     this.persist()
-                    this.host.rebuild()
+                    this.host.refresh()
                 },
                 onShiftAnchor: (direction) => {
                     this.anchor = shiftAnchor(
@@ -348,18 +356,18 @@ export class TimelineController {
                         kind,
                         direction
                     )
-                    this.host.rebuild()
+                    this.host.refresh()
                 },
                 onToday: () => {
                     this.anchor = null
-                    this.host.rebuild()
+                    this.host.refresh()
                 },
                 onTogglePanel: () => {
                     this.panelCollapsed = !this.panelCollapsed
                     // A manual toggle wins over any earlier auto-collapse.
                     this.panelAutoCollapsed = false
                     this.persist()
-                    this.host.rebuild()
+                    this.host.refresh()
                 },
                 // Works for ANY signed offset — clipped bars carry a negative
                 // startDayOffset and drags may leave the window entirely.
@@ -385,20 +393,20 @@ export class TimelineController {
                     void this.moveMilestone(card, raw, dayDelta),
                 onToggleUndatedGroup: (key) => {
                     this.undatedCollapsed.set(key, !(this.undatedCollapsed.get(key) ?? true))
-                    this.host.rebuild()
+                    this.host.refresh()
                 },
                 onToggleTypeGroup: (typeId) => {
                     this.typeGroupsCollapsed.set(
                         typeId,
                         !(this.typeGroupsCollapsed.get(typeId) ?? false)
                     )
-                    this.host.rebuild()
+                    this.host.refresh()
                 },
                 onToggleTypeHidden: (typeId) => {
                     if (this.hiddenTypes.has(typeId)) this.hiddenTypes.delete(typeId)
                     else this.hiddenTypes.add(typeId)
                     this.host.persistHiddenTypes([...this.hiddenTypes])
-                    this.host.rebuild()
+                    this.host.refresh()
                 }
             }
         )
@@ -623,7 +631,7 @@ export class TimelineController {
         }
         this.rangeOverride = next
         this.persist()
-        this.host.rebuild()
+        this.host.refresh()
     }
 
     /**
