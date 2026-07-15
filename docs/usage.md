@@ -623,12 +623,13 @@ sort** (name, any property, or title as the fallback).
 work the same way, so you can plan **top-down** (estimate the goal, split it later),
 **bottom-up** (estimate the tasks, let the parents derive), or mix both:
 
-- **Estimate** — the row shows the note's own estimate in its own unit (`5d`, or `1h 30m`
-  for a minute-based note type). A parent without one shows the children's rollup instead
-  (_`Σ 12d`_, italic = derived; rollups are always in days, one decimal when fractional —
-  three 90-minute tasks under a project show `Σ 0.6d` with the default 8-hour day). A parent
-  with its own estimate also shows the children's rollup when it differs — an at-a-glance
-  "does my budget match the breakdown?" signal. Editing, **Save rolled-up estimate**, and
+- **Estimate** — every estimate shows in one uniform duration format (`45m`, `1h 30m`,
+  `1d 2h`, `5d` — the day component sized by **Minutes per day**), so day-based and
+  minute-based notes read the same at a glance. A parent without its own estimate shows the
+  children's rollup instead (_`Σ 4h 30m`_, italic = derived — three 90-minute tasks under a
+  project). A parent with its own estimate also shows the rollup when it differs — an
+  at-a-glance "does my budget match the breakdown?" signal. Long values cap at the two
+  largest units (`1d 1h 30m` displays as `1d 2h`) to keep the columns tight. Editing, **Save rolled-up estimate**, and
   **Distribute estimate to children** all read and write each note's **own** property and
   unit.
 - **Progress** — every row has a progress bar, driven by a **0–100 number** in the progress

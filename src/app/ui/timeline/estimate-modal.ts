@@ -51,7 +51,7 @@ export class EstimatePromptModal extends Modal {
             hint.setText(
                 parsed === null
                     ? 'Unrecognized — try 2h, 90m, 0.5d or a plain number'
-                    : `= ${String(parsed)} ${this.unit} (${formatUnitValue(parsed, this.unit)})`
+                    : `= ${String(parsed)} ${this.unit} (${formatUnitValue(parsed, this.unit, this.minutesPerDay)})`
             )
             hint.toggleClass('kap-estimate-hint-invalid', parsed === null)
         }

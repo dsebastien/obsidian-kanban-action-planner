@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 import {
     daysToUnit,
-    formatDaysLabel,
+    formatDuration,
     formatUnitValue,
     parseEstimateInput,
     readEstimate
@@ -34,7 +34,7 @@ describe('readEstimate', () => {
         const r = readEstimate(960, 'minutes', 480)
         expect(r?.days).toBe(2)
         expect(r?.spanDays).toBe(2)
-        expect(r?.label).toBe('16h')
+        expect(r?.label).toBe('2d')
     })
 
     test('minutes below 1 are rejected; strings parse', () => {
@@ -48,16 +48,35 @@ describe('readEstimate', () => {
 })
 
 describe('formatting', () => {
-    test('formatDaysLabel: whole days plain, fractional to one decimal', () => {
-        expect(formatDaysLabel(3)).toBe('3d')
-        expect(formatDaysLabel(1.1875)).toBe('1.2d')
-        expect(formatDaysLabel(0.96)).toBe('1d')
+    test('formatDuration: one composite grammar, never decimal days', () => {
+        expect(formatDuration(3, 480)).toBe('3d')
+        expect(formatDuration(45 / 480, 480)).toBe('45m')
+        expect(formatDuration(90 / 480, 480)).toBe('1h 30m')
+        expect(formatDuration(150 / 480, 480)).toBe('2h 30m')
+        expect(formatDuration(1, 480)).toBe('1d')
+        // Sub-day exactness: hours + minutes render to the minute.
+        expect(formatDuration(0.6875, 480)).toBe('5h 30m')
     })
 
-    test('formatUnitValue minutes: m / h / h m', () => {
-        expect(formatUnitValue(45, 'minutes')).toBe('45m')
-        expect(formatUnitValue(60, 'minutes')).toBe('1h')
-        expect(formatUnitValue(150, 'minutes')).toBe('2h 30m')
+    test('formatDuration: day-present values cap at two units (hour resolution)', () => {
+        // 1.1875d = 1d 1h 30m exactly → rounds to hour resolution.
+        expect(formatDuration(1.1875, 480)).toBe('1d 2h')
+        // 2.2d = 2d 1h 36m → "2d 2h".
+        expect(formatDuration(2.2, 480)).toBe('2d 2h')
+        // Rounding cascades into a clean day.
+        expect(formatDuration(1435 / 480, 480)).toBe('3d')
+    })
+
+    test('formatDuration honours the configured day length', () => {
+        expect(formatDuration(0.5, 600)).toBe('5h')
+        expect(formatDuration(1, 600)).toBe('1d')
+    })
+
+    test('formatUnitValue converts unit-native values into the same grammar', () => {
+        expect(formatUnitValue(45, 'minutes', 480)).toBe('45m')
+        expect(formatUnitValue(150, 'minutes', 480)).toBe('2h 30m')
+        expect(formatUnitValue(960, 'minutes', 480)).toBe('2d')
+        expect(formatUnitValue(3, 'days', 480)).toBe('3d')
     })
 })
 

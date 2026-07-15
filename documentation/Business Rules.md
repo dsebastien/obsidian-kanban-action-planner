@@ -560,8 +560,10 @@ See `documentation/plans/kanban-action-planner-implementation-plan.md` for full 
     `ResolvedEstimate`); minute values convert via the global **`minutesPerDay`** setting
     (default 480 = an 8-hour workday). Date **geometry** (timeline bars, calendar #86 spans,
     WBS date spans) uses the whole-day `spanDays` = max(1, ceil(days)); day-unit values keep
-    the historical ceil-to-≥1 parse. **Displays are unit-aware** ("1h 30m" for minute notes,
-    "3d" for day notes; day-rollups show one decimal when fractional, e.g. "Σ 1.2d").
+    the historical ceil-to-≥1 parse. **Displays share ONE composite grammar** (`formatDuration`):
+    every estimate renders as `d / h / m` ("3d", "1h 30m", "Σ 5h 30m") — never decimal days —
+    capped at the two most significant units (day-present values round to hour resolution,
+    "1d 1h 30m" → "1d 2h") for chip alignment and scannability.
     **Writes are always unit-native**: the estimate modal edits raw minutes/days, save-rollup
     and distribute-to-children convert day amounts into each TARGET note's own unit
     (`daysToUnit`, ≥ 1), timeline resizes/seeds write the card's unit (a fresh drop seeds 1

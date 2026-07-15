@@ -3,7 +3,7 @@ import type { App, Menu } from 'obsidian'
 import { parseFrontmatterDate, startOfDay, toDateKey } from '../../domain/calendar'
 import { formatCountdown } from '../../services/card-display.service'
 import { derivedEnd, groupByTypeAndStatus } from '../../domain/timeline'
-import { daysToUnit, formatDaysLabel, formatUnitValue, readEstimate } from '../../domain/estimate'
+import { daysToUnit, formatDuration, formatUnitValue, readEstimate } from '../../domain/estimate'
 import type { EstimateConfig, ResolvedEstimate } from '../../domain/estimate'
 import {
     buildWbsForest,
@@ -238,6 +238,7 @@ export class WbsController {
         const compareCards = this.host.comparator()
 
         // Per-render frontmatter caches: one read per path, not per instance.
+        const minutesPerDay = this.host.minutesPerDay()
         const estimateCache = new Map<string, ResolvedEstimate | null>()
         const resolvedEstimateOf = (path: string): ResolvedEstimate | null => {
             let value = estimateCache.get(path)
@@ -354,7 +355,7 @@ export class WbsController {
                 blocked: card !== null && card.relationships.blocked_by.length > 0,
                 duplicate: seenPaths.has(node.path),
                 ownEstimate: own?.label ?? null,
-                rollupEstimate: rollup !== null ? formatDaysLabel(rollup) : null,
+                rollupEstimate: rollup !== null ? formatDuration(rollup, minutesPerDay) : null,
                 rollupDiffers:
                     own !== null && rollup !== null && Math.abs(rollup - own.days) > 0.05,
                 startLabel,
@@ -819,7 +820,7 @@ export class WbsController {
             menu.addItem((item) =>
                 item
                     .setTitle(
-                        `Save rolled-up estimate (${formatUnitValue(rollupValue, config.unit)})`
+                        `Save rolled-up estimate (${formatUnitValue(rollupValue, config.unit, this.host.minutesPerDay())})`
                     )
                     .setIcon('sigma')
                     .setSection('kap-wbs')
@@ -930,7 +931,7 @@ export class WbsController {
             )
         }
         new Notice(
-            `Distributed ${formatDaysLabel(own)} across ${String(shares.size)} child note(s).`
+            `Distributed ${formatDuration(own, this.host.minutesPerDay())} across ${String(shares.size)} child note(s).`
         )
     }
 

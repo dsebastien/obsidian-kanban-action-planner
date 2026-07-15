@@ -1,6 +1,11 @@
 /**
  * Unit-aware estimate resolution — pure, unit-tested.
  *
+ * **One display grammar** ({@link formatDuration}): every estimate renders
+ * as a `d / h / m` composite ("3d", "1h 30m", "1d 2h") — never decimal days
+ * — capped at the two most significant units (day-present values round to
+ * hour resolution) so chips stay short, aligned, and scannable.
+ *
  * Estimates live in frontmatter in one of two units: **days** (the default;
  * the global `defaultEstimateProperty`) or **minutes** (per-note-type
  * override — e.g. tasknotes-compatible `time_estimate`). All rollup /
@@ -54,7 +59,7 @@ export function readEstimate(
     if (unit === 'days') {
         const days = Math.ceil(value)
         if (days < 1) return null
-        return { days, spanDays: days, raw: days, label: formatUnitValue(days, 'days') }
+        return { days, spanDays: days, raw: days, label: formatDuration(days, minutesPerDay) }
     }
     const minutes = Math.round(value)
     if (minutes < 1) return null
@@ -64,24 +69,39 @@ export function readEstimate(
         days,
         spanDays: Math.max(1, Math.ceil(days)),
         raw: minutes,
-        label: formatUnitValue(minutes, 'minutes')
+        label: formatDuration(days, minutesPerDay)
     }
 }
 
-/** Label for a days quantity ("3d"; fractional rollups get one decimal). */
-export function formatDaysLabel(days: number): string {
-    const rounded = Math.round(days * 10) / 10
-    return Number.isInteger(rounded) ? `${String(rounded)}d` : `${rounded.toFixed(1)}d`
+/**
+ * THE estimate display format — a `d / h / m` composite over a days
+ * quantity ("45m", "1h 30m", "1d", "1d 2h", "3d"), with the day component
+ * sized by `minutesPerDay`. For scannability the label shows at most the
+ * two largest units: once a day component exists, the remainder rounds to
+ * whole hours ("1d 1h 30m" → "1d 2h"); below a day, hours + minutes render
+ * exactly. Never decimal days.
+ */
+export function formatDuration(days: number, minutesPerDay: number): string {
+    const perDay = minutesPerDay > 0 ? minutesPerDay : 1
+    let total = Math.max(1, Math.round(days * perDay))
+    // Day-present values round to hour resolution (two-unit cap); the
+    // rounding may cascade into a clean extra hour/day, which is the point.
+    if (total >= perDay) total = Math.round(total / 60) * 60
+    const d = Math.floor(total / perDay)
+    const rest = total - d * perDay
+    const h = Math.floor(rest / 60)
+    const m = rest % 60
+    const parts: string[] = []
+    if (d > 0) parts.push(`${String(d)}d`)
+    if (h > 0) parts.push(`${String(h)}h`)
+    if (m > 0) parts.push(`${String(m)}m`)
+    return parts.length > 0 ? parts.join(' ') : '0m'
 }
 
-/** Label for a unit-native value ("3d", "45m", "1h", "1h 30m"). */
-export function formatUnitValue(value: number, unit: EstimateUnit): string {
-    if (unit === 'days') return formatDaysLabel(value)
-    const minutes = Math.round(value)
-    const hours = Math.floor(minutes / 60)
-    const rest = minutes % 60
-    if (hours === 0) return `${String(rest)}m`
-    return rest === 0 ? `${String(hours)}h` : `${String(hours)}h ${String(rest)}m`
+/** {@link formatDuration} over a unit-native value (modal hint, menu labels). */
+export function formatUnitValue(value: number, unit: EstimateUnit, minutesPerDay: number): string {
+    const perDay = minutesPerDay > 0 ? minutesPerDay : 1
+    return formatDuration(unit === 'days' ? value : value / perDay, minutesPerDay)
 }
 
 /** Convert a days quantity into a writable unit-native value (≥ 1). */
