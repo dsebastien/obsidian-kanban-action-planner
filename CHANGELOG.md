@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.4.0](https://github.com/dsebastien/obsidian-kanban-action-planner/compare/1.3.0...1.4.0) (2026-07-15)
+
+### Features
+
+* **plugin:** accept generic duration syntax in the estimate prompt ([5a6e56f](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/5a6e56fa63f7ff9b4909ab22ecdf5c5d44f44d98))
+* **plugin:** align estimate units in fixed slots in the WBS column ([bc33b57](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/bc33b575c7835688304bfdf62bb2e4748abf9981))
+* **plugin:** drag cards between status groups in the scheduling panels ([b9789e7](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/b9789e7a624fa2e6e3d4e89dce0243392de3a60f))
+* **plugin:** one composite duration format for every estimate display ([6f7d9df](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/6f7d9df5662fb6d24d3640e70d13261a53f4b995))
+* **plugin:** per-note-type estimate property and unit (days or minutes) ([9e28ccc](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/9e28ccc9b71167f1f31c287aa5d266ebc655b693))
+* **plugin:** per-type relationship resolution on mixed boards ([4d0f996](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/4d0f996ecea3d876a74acb2c49d8cc0b583f7575))
+
+### Bug Fixes
+
+* **plugin:** drop view names from the scheduling property descriptions ([84d3c08](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/84d3c08ef3b3274c34868dd8b9335d0602f8f704))
+* **plugin:** keep WBS columns aligned on context rows and roll up 0% progress ([29d7370](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/29d737056daae8773cfecf4c4430d62a1607669f))
+* **plugin:** sentence-case the chip placeholder and countdown copy ([327ddae](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/327ddae3957b06e4f0736d88d3cc7830a7d22483))
+
 ## [1.3.0](https://github.com/dsebastien/obsidian-kanban-action-planner/compare/1.2.0...1.3.0) (2026-07-14)
 
 ### Features
@@ -265,6 +282,7 @@ All notable changes to this project will be documented in this file.
 
 * **plugin:** match Starter Kit's {{quarter}} placeholder format (Q2, not 2) ([4fde618](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/4fde6185c5956e3f6fd2ca3a9b03e70cf5e16840))
 * **plugin:** persist discovered statuses so Show empty columns works ([cf91b81](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/cf91b81a1b0786e35c73f4885882e2dc33564c62))
+
 
 
 

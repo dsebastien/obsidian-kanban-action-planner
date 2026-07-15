@@ -1,5 +1,22 @@
 # Release Notes
 
+## 1.4.0 (2026-07-15)
+
+### Features
+
+- **plugin:** accept generic duration syntax in the estimate prompt
+- **plugin:** align estimate units in fixed slots in the WBS column
+- **plugin:** drag cards between status groups in the scheduling panels
+- **plugin:** one composite duration format for every estimate display
+- **plugin:** per-note-type estimate property and unit (days or minutes)
+- **plugin:** per-type relationship resolution on mixed boards
+
+### Bug Fixes
+
+- **plugin:** drop view names from the scheduling property descriptions
+- **plugin:** keep WBS columns aligned on context rows and roll up 0% progress
+- **plugin:** sentence-case the chip placeholder and countdown copy
+
 ## 1.3.0 (2026-07-14)
 
 ### Features
