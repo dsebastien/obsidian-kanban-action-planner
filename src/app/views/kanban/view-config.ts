@@ -124,6 +124,18 @@ export function normalizeLaneValue(raw: unknown): string | null {
     return null
 }
 
+/**
+ * The in-memory lane value a card gets when optimistically reassigned to a
+ * lane (issue #105, finding 4.1): the Ungrouped lane clears it; any other
+ * lane id IS the lane's property value, run through the SAME normalization
+ * the echo's re-derivation applies ({@link normalizeLaneValue}), so the
+ * optimistic model matches what the Bases echo re-derives and the
+ * render-signature gate absorbs it.
+ */
+export function laneValueForLaneId(laneId: string, ungroupedLaneId: string): string | null {
+    return laneId === ungroupedLaneId ? null : normalizeLaneValue(laneId)
+}
+
 /** Extract a frontmatter property name from a stored Bases property id. */
 export function basesPropToName(value: unknown): string | null {
     if (typeof value !== 'string' || value.length === 0) return null

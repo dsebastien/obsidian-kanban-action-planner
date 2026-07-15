@@ -29,6 +29,26 @@ export interface SelectionHost {
     archiveConfigFor(card: KanbanCard): ArchiveConfig
     /** Re-render the toolbar so the Select toggle reflects the new mode. */
     onModeChanged(): void
+    /**
+     * Optimistically apply a bulk status change (issue #105, finding 1.4):
+     * mutate every card in the in-memory model and render ONCE, before the
+     * sequential writes. The write echoes re-derive the same state and are
+     * absorbed by the render-signature gate.
+     */
+    applyBulkStatus(cards: KanbanCard[], statusValue: string | null): void
+    /**
+     * Optimistically drop cards from the in-memory model and render once
+     * (issue #105, finding 1.4) — archived notes leave the board, so the
+     * board reflects the whole bulk archive up front instead of streaming
+     * intermediate rebuilds.
+     */
+    removeCardsFromModel(keys: string[]): void
+    /**
+     * Re-derive the model from the current data — the rollback path when a
+     * bulk write failed, so an optimistic mutation never sticks around for a
+     * write that didn't land.
+     */
+    requestRebuild(): void
 }
 
 /**
@@ -166,16 +186,31 @@ export class BoardSelection {
         menu.showAtMouseEvent(event)
     }
 
-    /** Bulk-write the status on all selected cards (sequential; summary notice). */
+    /**
+     * Bulk-write the status on all selected cards. Optimistic (issue #105,
+     * finding 1.4): every writeable card is mutated in the model and rendered
+     * ONCE up front (the applyMove pattern), then the writes run sequentially
+     * (parallel vault writes risk races) — their echoes re-derive the same
+     * state. A failed write triggers a rebuild so the board never keeps an
+     * optimistic status that didn't land.
+     */
     private async bulkSetStatus(statusValue: string | null): Promise<void> {
-        let ok = 0
         let failed = 0
+        const writes: Array<{ card: KanbanCard; property: string }> = []
         for (const card of this.selectedCards()) {
             const property = this.host.statusPropertyFor(card)
             if (!property) {
                 failed++
                 continue
             }
+            writes.push({ card, property })
+        }
+        this.host.applyBulkStatus(
+            writes.map((w) => w.card),
+            statusValue
+        )
+        let ok = 0
+        for (const { card, property } of writes) {
             try {
                 if (statusValue === null) await deleteProperty(this.host.app, card.file, property)
                 else await setProperty(this.host.app, card.file, property, statusValue)
@@ -184,26 +219,38 @@ export class BoardSelection {
                 failed++
             }
         }
+        if (failed > 0) this.host.requestRebuild()
         new Notice(
             `Set status on ${String(ok)} card(s)${failed ? `, ${String(failed)} failed` : ''}.`
         )
         this.clear()
     }
 
+    /**
+     * Bulk archive. Optimistic (issue #105, finding 1.4): the archivable
+     * cards leave the model in ONE render up front, then the moves run
+     * sequentially. A failed move triggers a rebuild so its card reappears.
+     */
     private async bulkArchive(): Promise<void> {
-        let ok = 0
         let skipped = 0
-        let failed = 0
+        const targets: Array<{ card: KanbanCard; archive: ArchiveConfig }> = []
         for (const card of this.selectedCards()) {
             const archive = this.host.archiveConfigFor(card)
             if (archive.archiveFolder.trim().length === 0) {
                 skipped++
                 continue
             }
+            targets.push({ card, archive })
+        }
+        this.host.removeCardsFromModel(targets.map((t) => t.card.key))
+        let ok = 0
+        let failed = 0
+        for (const { card, archive } of targets) {
             const result = await archiveNote(this.host.app, card.file, archive)
             if (result.ok) ok++
             else failed++
         }
+        if (failed > 0) this.host.requestRebuild()
         const parts = [`Archived ${String(ok)}`]
         if (skipped) parts.push(`${String(skipped)} skipped (no folder)`)
         if (failed) parts.push(`${String(failed)} failed`)

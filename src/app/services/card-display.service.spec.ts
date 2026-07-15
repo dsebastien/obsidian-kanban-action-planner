@@ -81,6 +81,64 @@ describe('buildCardDisplay title property (issue #4)', () => {
     })
 })
 
+describe('buildCardDisplay write overrides (issue #105, finding 4.3)', () => {
+    // eslint-disable-next-line obsidianmd/no-tfile-tfolder-cast -- test fake: only .basename is read
+    const file = { basename: 'the-note' } as unknown as TFile
+    const config = {
+        getOrder: (): BasesPropertyId[] => ['note.Priority', 'note.status'],
+        getDisplayName: (id: BasesPropertyId): string => id.split('.')[1] ?? id
+    }
+    const entry = entryOf({ 'note.Priority': '30 - High', 'note.status': 'Doing' })
+    const build = (
+        overrides?: ReadonlyMap<string, string | null>,
+        dueDateProperty: string | null = null,
+        show = false
+    ) =>
+        buildCardDisplay(
+            {} as App,
+            file,
+            entry,
+            config,
+            null,
+            dueDateProperty,
+            TODAY,
+            { show, soonDays: 7, placement: 'title' },
+            () => [],
+            overrides
+        )
+
+    it('substitutes a just-written value for the stale entry read (case-insensitive)', () => {
+        const display = build(new Map([['priority', '10 - Top']]))
+        expect(display.fields.map((f) => f.text)).toEqual(['Top', 'Doing'])
+    })
+
+    it('drops the field when the written value cleared the property', () => {
+        const display = build(new Map<string, string | null>([['priority', null]]))
+        expect(display.fields.map((f) => f.text)).toEqual(['Doing'])
+    })
+
+    it('leaves non-matching fields on the stale entry read', () => {
+        const display = build(new Map([['unrelated', 'x']]))
+        expect(display.fields.map((f) => f.text)).toEqual(['High', 'Doing'])
+    })
+
+    it('recomputes the due state and countdown from a written due date', () => {
+        const display = build(new Map([['date_due', '2026-06-28']]), 'date_due', true)
+        expect(display.dueState).toBe('today')
+        expect(display.countdown?.text).toBe('Today')
+    })
+
+    it('clears the due state and countdown when the due date was cleared', () => {
+        const display = build(
+            new Map<string, string | null>([['date_due', null]]),
+            'date_due',
+            true
+        )
+        expect(display.dueState).toBe('none')
+        expect(display.countdown).toBeNull()
+    })
+})
+
 describe('formatCountdown (issue #62)', () => {
     const SOON = 7
     const at = (offsetDays: number): Date => {

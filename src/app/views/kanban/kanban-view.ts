@@ -127,6 +127,7 @@ import { CalendarController } from './calendar-controller'
 import type { CalendarViewState } from './calendar-controller'
 import {
     basesPropToName,
+    laneValueForLaneId,
     normalizeLaneValue,
     readCompactMode,
     readIdArray,
@@ -147,6 +148,23 @@ import { log } from '../../../utils/log'
 interface ObsidianSettings {
     open(): void
     openTabById(id: string): void
+}
+
+/**
+ * A triage value that was JUST written (issue #105, finding 4.2). Obsidian's
+ * metadata cache is stale until the Bases echo lands, so the immediate
+ * post-write render substitutes this value for the matching property read —
+ * the click shows at once, and the echo (which re-derives the identical
+ * state) is absorbed by the triage signature guard instead of tearing the
+ * view down.
+ */
+interface TriageValueOverride {
+    /** The card the value was written to (card key = vault path). */
+    cardKey: string
+    /** The written note property's name. */
+    name: string
+    /** The written value (null = cleared). */
+    value: string | null
 }
 
 /**
@@ -306,7 +324,20 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             columnsForSelection: (cards) => this.columnsForSelection(cards),
             statusPropertyFor: (card) => this.statusPropertyFor(card),
             archiveConfigFor: (card) => this.archiveConfigFor(card),
-            onModeChanged: () => this.renderToolbar(this.board.lanes.length > 1)
+            onModeChanged: () => this.renderToolbar(this.board.lanes.length > 1),
+            // Optimistic bulk actions (issue #105, finding 1.4): one model
+            // mutation + one render up front; the write echoes re-derive the
+            // same state and are absorbed by the render-signature gate.
+            applyBulkStatus: (cards, statusValue) => {
+                for (const card of cards) card.statusValue = statusValue
+                this.applyFilterAndRender()
+            },
+            removeCardsFromModel: (keys) => {
+                const dropped = new Set(keys)
+                this.allCards = this.allCards.filter((c) => !dropped.has(c.key))
+                this.applyFilterAndRender()
+            },
+            requestRebuild: () => this.rebuild()
         })
         this.filterEmptyEl = this.rootEl.createDiv({
             cls: 'kap-filter-empty kap-hidden',
@@ -1490,7 +1521,11 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
      * Extracted so a lightweight presentational refresh ({@link refreshCardDisplay})
      * can recompute just the display without re-deriving the whole card.
      */
-    private cardDisplayFor(file: TFile): CardDisplay {
+    private cardDisplayFor(
+        file: TFile,
+        /** Just-written values by lowercase property name (finding 4.3). */
+        overrides?: ReadonlyMap<string, string | null>
+    ): CardDisplay {
         return buildCardDisplay(
             this.app,
             file,
@@ -1504,7 +1539,8 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
                 soonDays: this.plugin.settings.dueSoonThresholdDays,
                 placement: this.plugin.settings.dueCountdownStyle
             },
-            (id) => this.allowedValuesForCardField(file, id)
+            (id) => this.allowedValuesForCardField(file, id),
+            overrides
         )
     }
 
@@ -1600,6 +1636,16 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             return false
         }
         const property = ref.name
+        // Optimistic model mutation (issue #105, finding 4.1): update the
+        // card's in-memory lane value BEFORE the write, so the immediate
+        // render applyMove performs draws the card in the TARGET lane (no
+        // snap-back to the source lane while the write round-trips). The
+        // value gets the same normalization computeLaneValues applies on the
+        // echo, so the re-derived state is identical and the echo is absorbed
+        // by the render-signature gate.
+        const laneValue = laneValueForLaneId(targetLaneId, UNGROUPED_LANE_ID)
+        card.laneValue = laneValue
+        this.laneValueByPath.set(card.key, laneValue)
         if (targetLaneId === UNGROUPED_LANE_ID) {
             await deleteProperty(this.app, card.file, property)
         } else {
@@ -1735,7 +1781,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
                 this.setCardStatus(card, statusValue, columnId),
             enumPropertiesFor: (card) => this.enumPropertiesFor(card),
             setCardProperty: (card, propertyName, value) =>
-                this.setCardProperty(card, propertyName, value),
+                this.setCardPropertyFromMenu(card, propertyName, value),
             archivingConfigured: (card) => this.archivingConfigured(card),
             archiveCard: (card) => this.archiveCard(card),
             cardDate: (card, dimension) => this.cardDate(card, dimension),
@@ -1970,7 +2016,12 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         }).open()
     }
 
-    /** Write (or clear, when `isoDate` is null) a card's scheduled date or deadline. */
+    /**
+     * Write (or clear, when `isoDate` is null) a card's scheduled date or
+     * deadline, then refresh the card optimistically (issue #105, finding
+     * 4.3) — the due state/countdown recompute from the EXACT string written,
+     * so the echo re-derives the identical display and is absorbed.
+     */
     private async writeCardDate(
         card: KanbanCard,
         dimension: DateDimension,
@@ -1980,13 +2031,16 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             dimension === 'scheduled' ? this.scheduledDateProperty : this.dueDateProperty
         if (isoDate === null) {
             await deleteProperty(this.app, card.file, property)
+            this.applyCardWrite(card, property, null)
             return
         }
         const date = parseFrontmatterDate(isoDate)
         if (!date) return
         const dateFormat =
             this.noteType.calendar.dateFormat || this.plugin.settings.defaultDateFormat
-        await setProperty(this.app, card.file, property, formatDate(date, dateFormat))
+        const formatted = formatDate(date, dateFormat)
+        await setProperty(this.app, card.file, property, formatted)
+        this.applyCardWrite(card, property, formatted)
     }
 
     /**
@@ -2149,6 +2203,48 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         else await setProperty(this.app, card.file, propertyName, value)
     }
 
+    /**
+     * Card-menu enum write: persist, then refresh optimistically (issue #105,
+     * finding 4.3). Triage has its own optimistic path over the raw
+     * {@link setCardProperty}, so the refresh lives on the menu boundary.
+     */
+    private async setCardPropertyFromMenu(
+        card: KanbanCard,
+        propertyName: string,
+        value: string | null
+    ): Promise<void> {
+        await this.setCardProperty(card, propertyName, value)
+        this.applyCardWrite(card, propertyName, value)
+    }
+
+    /**
+     * Optimistic refresh after a card-menu frontmatter write (issue #105,
+     * finding 4.3): recompute the card's display with the just-written value
+     * substituted (the Bases entry and metadata cache are stale until the
+     * echo) and render immediately, so the chip/countdown updates at once
+     * instead of landing on the echo as a node swap. In board mode the card
+     * is also re-focused, so the keyboard path keeps focus on the node the
+     * reconciler replaces. When the echo re-derives the identical display it
+     * is absorbed by the render-signature gate; a differing derivation
+     * simply renders once more, exactly as before this shortcut existed.
+     */
+    private applyCardWrite(card: KanbanCard, propertyName: string, value: string | null): void {
+        // Resolve the LIVE card object by key: reused DOM nodes keep menu
+        // handlers that close over the card from the render that created
+        // them, so after any rebuild `card` can be a stale object whose
+        // mutation the next render would never see.
+        const live =
+            this.cardsByKey.get(card.key) ?? this.allCards.find((c) => c.key === card.key) ?? card
+        live.display = this.cardDisplayFor(
+            live.file,
+            new Map<string, string | null>([[propertyName.toLowerCase(), value]])
+        )
+        // refocusCardKey is consumed by the board patch path only — setting it
+        // in other modes would linger and defeat the render-signature gate.
+        if (this.viewMode() === 'board') this.refocusCardKey = live.key
+        this.applyFilterAndRender()
+    }
+
     // ── Calendar mode ─────────────────────────────────────────
 
     private calendarMode(): boolean {
@@ -2216,8 +2312,12 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
 
     // ── Triage mode (issue #53) ───────────────────────────────
 
-    /** Render the triage queue into the board host from a stable snapshot. */
-    private renderTriage(): void {
+    /**
+     * Render the triage queue into the board host from a stable snapshot.
+     * `override` carries a just-written value (the metadata cache is stale
+     * until the echo) so the immediate render reflects the click — finding 4.2.
+     */
+    private renderTriage(override?: TriageValueOverride): void {
         if (!this.boardEl) return
         this.triageTypeProps.clear() // rebuild per-type property sets for this render
         const cfg = readTriageConfig(this.config)
@@ -2246,9 +2346,15 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         const currentKey = this.triageQueueKeys[this.triageCursor]
         const current = currentKey ? this.cardsByKey.get(currentKey) : undefined
         const data = current
-            ? this.buildTriageData(current, cfg, this.triageCursor + 1, this.triageQueueKeys.length)
+            ? this.buildTriageData(
+                  current,
+                  cfg,
+                  this.triageCursor + 1,
+                  this.triageQueueKeys.length,
+                  override && override.cardKey === current.key ? override : undefined
+              )
             : null
-        const pane = this.buildTriagePane(cfg, currentKey ?? null)
+        const pane = this.buildTriagePane(cfg, currentKey ?? null, override)
         // Skip an identical re-render (optimistic UI): if the rendered card data,
         // scope and pane match what's already mounted, there's nothing to change on
         // screen — re-tearing it down would only flash and steal focus. The
@@ -2321,7 +2427,11 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
      * in this scope muted. Type headers only on multi-type boards; group
      * collapse lives on the instance (default expanded — it's a nav list).
      */
-    private buildTriagePane(cfg: TriageConfig, currentKey: string | null): TriagePaneModel {
+    private buildTriagePane(
+        cfg: TriageConfig,
+        currentKey: string | null,
+        override?: TriageValueOverride
+    ): TriagePaneModel {
         const collapsed = this.triagePaneCollapsed()
         const keys = this.triageQueueKeys ?? []
         const cards = keys.map((k) => this.cardsByKey.get(k)).filter((c): c is KanbanCard => !!c)
@@ -2346,7 +2456,11 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
                         key: card.key,
                         title: card.display.title,
                         selected: card.key === currentKey,
-                        needsTriage: this.triageRank(card, cfg).include
+                        needsTriage: this.triageRank(
+                            card,
+                            cfg,
+                            override && override.cardKey === card.key ? override : undefined
+                        ).include
                     }))
                 }
             })
@@ -2354,12 +2468,16 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         return { collapsed, grouped, groups, total: cards.length }
     }
 
-    /** Advance the triage cursor (Next/Skip); past the end shows the done state. */
-    private triageAdvance(): void {
+    /**
+     * Advance the triage cursor (Next/Skip); past the end shows the done state.
+     * `override` propagates a just-written value into the render so the LEFT
+     * pane reflects the completed card despite the stale cache (finding 4.2).
+     */
+    private triageAdvance(override?: TriageValueOverride): void {
         this.triageCursor += 1
         // A new card starts at the top — don't inherit the scroll of the last one.
         this.triageResetScroll = true
-        this.renderTriage()
+        this.renderTriage(override)
     }
 
     /** Persist the triage scope, reset the queue snapshot, and re-render. */
@@ -2456,16 +2574,20 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         const cfg = readTriageConfig(this.config)
         const wasComplete = this.cardUnsetCount(card, cfg) === 0
         await this.setCardProperty(card, name, value)
-        // Use the value we just wrote for `nowComplete` — the metadata cache hasn't
-        // reparsed yet, so re-reading it here would still see the old value.
-        const nowComplete = this.cardUnsetCount(card, cfg, { name, value }) === 0
+        // Use the value we just wrote everywhere below — the metadata cache
+        // hasn't reparsed yet, so re-reading it here would still see the old
+        // value. Without the override the immediate render recomputes data
+        // identical to the pre-write screen, the signature guard skips it, and
+        // the visible change lands only on the echo teardown (finding 4.2).
+        const override: TriageValueOverride = { cardKey: card.key, name, value }
+        const nowComplete = this.cardUnsetCount(card, cfg, override) === 0
         if (!wasComplete && nowComplete) {
             // Card fully clarified — celebrate, then jump to the next card (or the
             // done state when this was the last one).
             this.celebrateTriageComplete()
-            this.triageAdvance()
+            this.triageAdvance(override)
         } else {
-            this.renderTriage()
+            this.renderTriage(override)
         }
     }
 
@@ -2597,12 +2719,17 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
     }
 
     /** Rank a card for the active scope: membership + worst-first weight. */
-    private triageRank(card: KanbanCard, cfg: TriageConfig): TriageRank {
+    private triageRank(
+        card: KanbanCard,
+        cfg: TriageConfig,
+        /** Just-written value for one gate (stale cache — see {@link cardUnsetCount}). */
+        override?: { name: string; value: string | null }
+    ): TriageRank {
         if (cfg.scope === 'review') {
             const state = this.cardReviewState(card)
             return { include: state.due, weight: state.weight }
         }
-        const n = this.cardUnsetCount(card, cfg)
+        const n = this.cardUnsetCount(card, cfg, override)
         return { include: cfg.scope === 'all' ? true : n > 0, weight: n }
     }
 
@@ -2655,17 +2782,41 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         ]
     }
 
+    /**
+     * Read a card scalar, substituting a just-written value for the matching
+     * note property (finding 4.2). The override goes through the SAME
+     * coercion the echo's re-read applies ({@link coerceSortValue} on the
+     * frontmatter value), so the post-write render and the echo derive
+     * identical data and the echo is absorbed by the signature guard.
+     */
+    private readScalarWithOverride(
+        card: KanbanCard,
+        ref: PropertyRef,
+        override?: { name: string; value: string | null }
+    ): number | string | null {
+        if (
+            override &&
+            ref.kind === 'note' &&
+            ref.name.toLowerCase() === override.name.toLowerCase()
+        ) {
+            return coerceSortValue(override.value)
+        }
+        return this.readScalarProperty(card, ref)
+    }
+
     /** Assemble the render data for one triage card. */
     private buildTriageData(
         card: KanbanCard,
         cfg: TriageConfig,
         position: number,
-        total: number
+        total: number,
+        /** Just-written value substituted for the matching property (stale cache). */
+        override?: { name: string; value: string | null }
     ): TriageCardData {
         const baseContext: TriageContextField[] =
             cfg.seeProps.length > 0
                 ? cfg.seeProps
-                      .map((id) => this.triageContextField(card, id))
+                      .map((id) => this.triageContextField(card, id, override))
                       .filter((f): f is TriageContextField => f !== null)
                 : card.display.fields.map((f) => ({
                       label: f.label ?? '',
@@ -2684,7 +2835,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             if (!parsed || parsed.ref.kind !== 'note') continue
             const values = this.allowedValuesForRef(card, parsed.ref)
             if (values.length === 0) continue
-            const raw = this.readScalarProperty(card, parsed.ref)
+            const raw = this.readScalarWithOverride(card, parsed.ref, override)
             const current = raw === null || raw === '' ? null : String(raw)
             editable.push({
                 name: parsed.ref.name,
@@ -2699,10 +2850,14 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
     }
 
     /** Build one read-only context field from a stored property id, or null. */
-    private triageContextField(card: KanbanCard, id: string): TriageContextField | null {
+    private triageContextField(
+        card: KanbanCard,
+        id: string,
+        override?: { name: string; value: string | null }
+    ): TriageContextField | null {
         const parsed = this.triageRef(id)
         if (!parsed) return null
-        const scalar = this.readScalarProperty(card, parsed.ref)
+        const scalar = this.readScalarWithOverride(card, parsed.ref, override)
         if (scalar === null || scalar === '') return null
         const text = String(scalar)
         return { label: parsed.label, text, progress: parseProgressField(parsed.label, text) }

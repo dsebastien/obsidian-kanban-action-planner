@@ -1,5 +1,6 @@
 import { setIcon } from 'obsidian'
 import type { TriageScope } from '../../views/kanban/triage'
+import { cssEscapeAttr } from '../../utils/css-escape'
 
 /** One read-only context field shown above the editable controls. */
 export interface TriageContextField {
@@ -124,6 +125,24 @@ export function renderTriageView(
         ? 0
         : (container.querySelector<HTMLElement>('.kap-triage-body')?.scrollTop ?? 0)
 
+    // Preserve keyboard focus across the full teardown (issue #105, finding
+    // 4.2): interactive elements carry a stable `data-kap-focus` key; when one
+    // is focused, its re-rendered counterpart is re-focused after the rebuild,
+    // so a value click / Next / queue selection doesn't drop focus to <body>.
+    const active = container.ownerDocument.activeElement
+    const focusKey =
+        active instanceof HTMLElement && container.contains(active)
+            ? (active.closest<HTMLElement>('[data-kap-focus]')?.dataset['kapFocus'] ?? null)
+            : null
+    const restoreFocus = (): void => {
+        if (!focusKey) return
+        // preventScroll: the body scroll was already restored above — focusing
+        // must not shift it (visual stability).
+        container
+            .querySelector<HTMLElement>(`[data-kap-focus="${cssEscapeAttr(focusKey)}"]`)
+            ?.focus({ preventScroll: true })
+    }
+
     container.empty()
     // The triage view fills the host and owns its own scroll: a fixed header above
     // a scrollable body, so nothing gets clipped however tall the card grows or how
@@ -141,6 +160,7 @@ export function renderTriageView(
 
     if (!data) {
         renderEmptyState(body, options.completedAll ?? false)
+        restoreFocus()
         return
     }
 
@@ -183,6 +203,7 @@ export function renderTriageView(
     // Restore the scroll the predecessor body had — done last, once the body has
     // content (an empty body has no scroll range, so it would clamp to 0).
     if (prevScroll > 0) body.scrollTop = prevScroll
+    restoreFocus()
 }
 
 /**
@@ -204,7 +225,10 @@ function renderQueuePane(
     const toggle = header.createEl('button', {
         cls: 'kap-panel-toggle',
         text: pane.collapsed ? '»' : '«',
-        attr: { 'aria-label': pane.collapsed ? 'Expand queue' : 'Collapse queue' }
+        attr: {
+            'aria-label': pane.collapsed ? 'Expand queue' : 'Collapse queue',
+            'data-kap-focus': 'pane-toggle'
+        }
     })
     toggle.addEventListener('click', () => callbacks.onTogglePane())
     header.createSpan({ cls: 'kap-panel-title', text: `Queue (${String(pane.total)})` })
@@ -224,6 +248,7 @@ function renderQueuePane(
                 group.label,
                 group.count,
                 group.collapsed,
+                `group:${group.key}`,
                 () => callbacks.onTogglePaneGroup(group.key)
             )
             if (group.collapsed) continue
@@ -236,13 +261,18 @@ function renderQueuePane(
                 sub.label,
                 sub.items.length,
                 sub.collapsed,
+                `group:${sub.key}`,
                 () => callbacks.onTogglePaneGroup(sub.key)
             )
             if (sub.collapsed) continue
             for (const item of sub.items) {
                 const row = host.createEl('button', {
                     cls: 'kap-triage-queue-item',
-                    attr: { type: 'button', title: item.title }
+                    attr: {
+                        'type': 'button',
+                        'title': item.title,
+                        'data-kap-focus': `queue:${item.key}`
+                    }
                 })
                 if (item.selected) row.addClass('kap-triage-queue-item-active')
                 if (!item.needsTriage) row.addClass('kap-triage-queue-item-done')
@@ -260,11 +290,16 @@ function renderPaneHeader(
     label: string,
     count: number,
     collapsed: boolean,
+    focusKey: string,
     onToggle: () => void
 ): void {
     const header = parent.createEl('button', {
         cls: collapsed ? cls : `${cls} ${cls}-open`,
-        attr: { 'type': 'button', 'aria-expanded': String(!collapsed) }
+        attr: {
+            'type': 'button',
+            'aria-expanded': String(!collapsed),
+            'data-kap-focus': focusKey
+        }
     })
     header.createSpan({ cls: 'kap-cal-ugroup-chevron', text: collapsed ? '▸' : '▾' })
     header.createSpan({ cls: 'kap-cal-ugroup-label', text: label })
@@ -363,7 +398,7 @@ function renderEditableProp(
         const active = prop.current === value
         const btn = options.createEl('button', {
             cls: active ? 'kap-triage-option kap-triage-option-active' : 'kap-triage-option',
-            attr: { 'aria-pressed': String(active) }
+            attr: { 'aria-pressed': String(active), 'data-kap-focus': `opt:${prop.name}:${value}` }
         })
         // The selected value gets accent fill; a check is added only when it's a
         // real, handled value (not a still-needs-triage selection like TBD).
@@ -372,14 +407,24 @@ function renderEditableProp(
         btn.addEventListener('click', () => callbacks.onSetProperty(prop.name, value))
     }
     if (prop.current !== null) {
-        const clear = options.createEl('button', { cls: 'kap-triage-option-clear', text: 'Clear' })
+        const clear = options.createEl('button', {
+            cls: 'kap-triage-option-clear',
+            text: 'Clear',
+            attr: { 'data-kap-focus': `clear:${prop.name}` }
+        })
         clear.addEventListener('click', () => callbacks.onSetProperty(prop.name, null))
     }
 }
 
-/** Build a labelled action button with a leading icon. */
-function actionButton(parent: HTMLElement, cls: string, icon: string, label: string): HTMLElement {
-    const btn = parent.createEl('button', { cls })
+/** Build a labelled action button with a leading icon (+ focus-restore key). */
+function actionButton(
+    parent: HTMLElement,
+    cls: string,
+    icon: string,
+    label: string,
+    focusKey: string
+): HTMLElement {
+    const btn = parent.createEl('button', { cls, attr: { 'data-kap-focus': focusKey } })
     setIcon(btn.createSpan({ cls: 'kap-triage-action-icon' }), icon)
     btn.createSpan({ text: label })
     return btn
@@ -393,20 +438,29 @@ function renderActions(
     const actions = layout.createDiv({ cls: 'kap-triage-actions' })
     // Primary action on top: advance to the next card (review scope stamps first).
     if (data.scope === 'review') {
-        actionButton(actions, 'kap-triage-next', 'check', 'Reviewed').addEventListener(
-            'click',
-            () => callbacks.onMarkReviewed()
-        )
+        actionButton(
+            actions,
+            'kap-triage-next',
+            'check',
+            'Reviewed',
+            'action:next'
+        ).addEventListener('click', () => callbacks.onMarkReviewed())
     } else {
-        actionButton(actions, 'kap-triage-next', 'arrow-right', 'Next').addEventListener(
-            'click',
-            () => callbacks.onNext()
-        )
+        actionButton(
+            actions,
+            'kap-triage-next',
+            'arrow-right',
+            'Next',
+            'action:next'
+        ).addEventListener('click', () => callbacks.onNext())
     }
-    actionButton(actions, 'kap-triage-skip', 'chevrons-right', 'Skip').addEventListener(
-        'click',
-        () => callbacks.onSkip()
-    )
+    actionButton(
+        actions,
+        'kap-triage-skip',
+        'chevrons-right',
+        'Skip',
+        'action:skip'
+    ).addEventListener('click', () => callbacks.onSkip())
 }
 
 function addScopeButton(

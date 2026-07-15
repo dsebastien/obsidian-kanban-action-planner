@@ -50,6 +50,25 @@ All confirmed findings were verified against the code by three independent revie
   The timeline's resize-tick re-render (`onResize`) also switched from `rebuild()` to
   `applyFilterAndRender()` (partial N1: width-unchanged ticks are now gated no-ops;
   the px-threshold gating remains open).
+- **Theme 3 (complete the optimistic model) — IMPLEMENTED** for findings **4.1, 1.4, 4.2, 4.3**
+  (live-verified except the triage value-click override, which needs enum fixtures):
+  4.1: `applyLaneChange` now mutates `card.laneValue` + `laneValueByPath` BEFORE the write via
+  pure `laneValueForLaneId` (view-config.ts, unit-tested — same normalization as the echo's
+  `computeLaneValues`), so the optimistic render draws the card in the target lane (live: card
+  in target lane at t+150ms, no snap-back). 1.4: `bulkSetStatus`/`bulkArchive`
+  (board-selection.ts) mutate the model for all selected cards and render ONCE up front via new
+  host hooks (`applyBulkStatus`/`removeCardsFromModel`); writes stay sequential; a failed write
+  triggers `requestRebuild()` so optimistic state never sticks (live: both cards in the target
+  column at t+100ms). 4.2: `triageSetProperty` feeds a `TriageValueOverride` through
+  `renderTriage` → `buildTriageData`/`buildTriagePane`/`triageRank` (override value coerced with
+  `coerceSortValue`, matching the echo's re-read), so the click renders immediately and the echo
+  is absorbed; `renderTriageView` also saves/restores keyboard focus across its teardown via
+  `data-kap-focus` keys (live: focus stays on Next across an advance). 4.3: card-menu enum/date
+  writes go through `applyCardWrite` — recompute the card's display with the just-written value
+  substituted (`buildCardDisplay` gained an `overrides` map, unit-tested; the entry/cache are
+  stale until the echo), render immediately, `refocusCardKey` in board mode. `applyCardWrite`
+  resolves the LIVE card by key — reused DOM nodes keep menu closures over card objects from
+  older renders, so mutating the passed card can be a no-op (found live).
 - All other findings: not yet implemented.
 
 ## Render pipeline overview

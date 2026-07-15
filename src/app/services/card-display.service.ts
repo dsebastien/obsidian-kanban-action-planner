@@ -166,13 +166,29 @@ export function buildCardDisplay(
     /** Due-countdown config (issue #62): show flag, soon-threshold, placement. */
     countdown: { show: boolean; soonDays: number; placement: CountdownPlacement },
     /** Allowed values for a property id (for heat ranking); defaults to none. */
-    allowedValuesFor: (id: BasesPropertyId) => ReadonlyArray<string> = () => []
+    allowedValuesFor: (id: BasesPropertyId) => ReadonlyArray<string> = () => [],
+    /**
+     * Just-written note-property values (issue #105, finding 4.3), keyed by
+     * LOWERCASE property name (`null` = cleared). The Bases entry and the
+     * metadata cache are both stale right after a frontmatter write, so an
+     * optimistic display recompute substitutes these for the matching reads —
+     * card fields AND the due-date state/countdown.
+     */
+    overrides?: ReadonlyMap<string, string | null>
 ): CardDisplay {
+    /** The override for a `note.*` property id, or undefined when none applies. */
+    const noteOverride = (id: BasesPropertyId): string | null | undefined => {
+        if (!overrides || overrides.size === 0 || !id.startsWith('note.')) return undefined
+        const key = id.slice('note.'.length).toLowerCase()
+        return overrides.has(key) ? (overrides.get(key) ?? null) : undefined
+    }
+
     const fields: CardFieldView[] = []
     for (const id of config.getOrder()) {
         if (id === TITLE_PROPERTY_ID || id === titleProperty) continue // shown as the title
         // Skip empty/unset so cards don't show "Field: null".
-        const text = entryText(entry, id)
+        const override = noteOverride(id)
+        const text = override === undefined ? entryText(entry, id) : (override ?? '').trim()
         if (!text) continue
         const label = config.getDisplayName(id)
         const progress = parseProgressField(label, text)
@@ -211,7 +227,13 @@ export function buildCardDisplay(
         })
     }
 
-    const dueRaw = dueDateProperty ? getFrontmatterValue(app, file, dueDateProperty) : null
+    let dueRaw: unknown = null
+    if (dueDateProperty) {
+        const dueKey = dueDateProperty.toLowerCase()
+        dueRaw = overrides?.has(dueKey)
+            ? (overrides.get(dueKey) ?? null)
+            : getFrontmatterValue(app, file, dueDateProperty)
+    }
     const due = parseFrontmatterDate(dueRaw)
     return {
         title: resolveCardTitle(entry, titleProperty, file.basename),

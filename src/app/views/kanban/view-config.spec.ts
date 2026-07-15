@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 import {
     basesPropToName,
+    laneValueForLaneId,
     normalizeLaneValue,
     readCompactMode,
     readIdArray,
@@ -169,6 +170,22 @@ describe('normalizeLaneValue', () => {
     it('stringifies numbers and booleans', () => {
         expect(normalizeLaneValue(3)).toBe('3')
         expect(normalizeLaneValue(false)).toBe('false')
+    })
+})
+
+describe('laneValueForLaneId (issue #105, finding 4.1)', () => {
+    const UNGROUPED = '__ungrouped__'
+
+    it('clears the value for the Ungrouped lane', () => {
+        expect(laneValueForLaneId(UNGROUPED, UNGROUPED)).toBeNull()
+    })
+
+    it('normalizes any other lane id exactly like the echo re-derivation', () => {
+        // The optimistic in-memory value must equal normalizeLaneValue(written
+        // frontmatter), so the render-signature gate absorbs the echo.
+        expect(laneValueForLaneId('Work', UNGROUPED)).toBe('Work')
+        expect(laneValueForLaneId('  Work ', UNGROUPED)).toBe(normalizeLaneValue('  Work '))
+        expect(laneValueForLaneId('3', UNGROUPED)).toBe(normalizeLaneValue(3))
     })
 })
 
