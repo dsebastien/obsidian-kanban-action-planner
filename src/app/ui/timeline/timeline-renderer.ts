@@ -420,7 +420,7 @@ function renderRow(
     if (row.offSide) {
         track.createSpan({
             cls: `kap-tl-off kap-tl-off-${row.offSide}`,
-            text: row.offSide === 'before' ? '‹ out of view' : 'out of view ›',
+            text: row.offSide === 'before' ? '‹ Out of view' : 'Out of view ›',
             attr: { title: row.tooltip }
         })
     }

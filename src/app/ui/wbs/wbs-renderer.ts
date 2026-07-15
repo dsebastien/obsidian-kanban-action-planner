@@ -525,7 +525,7 @@ function renderProgress(parent: HTMLElement, row: WbsRowModel, callbacks: WbsCal
 function renderDatesChip(parent: HTMLElement, row: WbsRowModel, callbacks: WbsCallbacks): void {
     const text =
         row.startLabel === null
-            ? 'no start'
+            ? 'No start date'
             : row.endLabel === null
               ? row.startLabel
               : `${row.startLabel} → ${row.endLabel}`
@@ -564,7 +564,7 @@ function renderDueChip(parent: HTMLElement, row: WbsRowModel, callbacks: WbsCall
     }
     const btn = parent.createEl('button', {
         cls: 'kap-wbs-chip-btn kap-wbs-due',
-        text: row.dueLabel ?? 'no due',
+        text: row.dueLabel ?? 'No due date',
         attr: {
             type: 'button',
             title: row.dueDateKey ? `Due ${row.dueDateKey} — click to change` : 'Set due date'

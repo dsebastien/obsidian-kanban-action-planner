@@ -322,7 +322,7 @@ See `documentation/plans/kanban-action-planner-implementation-plan.md` for full 
     per-view config** — it works on any Kanban view via the scope switch.
 30. **Due countdown (issue #62).** The card display carries an optional pure `countdown`
     (`{ text, tone, placement }`) from `formatCountdown(due, today, soonDays, placement)` (in
-    `card-display.service.ts`, unit-tested): `today` / `in 3d` / `2d overdue` / `in 2w` / `in 3mo` —
+    `card-display.service.ts`, unit-tested): `Today` / `In 3d` / `2d overdue` / `In 2w` / `In 3mo` —
     **auto granularity** (days under 2 weeks, then weeks under ~2 months, then months). `tone`
     extends the #22 `dueState` scale — `overdue` (red) / `today` (amber) / `soon` (orange, within the
     threshold) / `future` (muted) — and drives **color, not visibility**. Reuses the already-resolved
@@ -398,7 +398,7 @@ See `documentation/plans/kanban-action-planner-implementation-plan.md` for full 
     derived end < today. **Deadline line (issue #85):** each row also renders its resolved due-date property as a vertical red line in its own lane (`kap-tl-deadline`, pointer-inert, above the bar), omitted when the date is unset or outside the window; the row tooltip carries `· due <date>` either way. **Milestones** come from the global milestones **list property**; each entry is
     `"<date> [label…]"` (wikilink brackets tolerated, `parseFrontmatterDate` semantics,
     non-parseable entries skipped) → diamond markers on the row. Bars crossing the window edge
-    are clamped with a dashed clipped edge; dates all outside the window → "out of view" hint;
+    are clamped with a dashed clipped edge; dates all outside the window → "Out of view" hint;
     cards with an estimate but no start are **unplanned**. **Unplanned panel** (named like the
     calendar's Unplanned tab): a calendar-style
     **collapsible left side panel** (same shell/behavior as the calendar's Scheduling panel:

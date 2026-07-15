@@ -494,7 +494,7 @@ So a board already set up for calendar mode gets a working timeline with zero co
 - A card with a **deadline** (your due-date property) shows a vertical **red deadline line** in
   its own lane — hover the row for the date, which also sits in the tooltip when the line falls
   outside the window.
-- Cards whose dates all fall outside the window show a small _out of view_ hint.
+- Cards whose dates all fall outside the window show a small _Out of view_ hint.
 
 **The Unplanned panel.** Cards with **no start date** collect in the collapsible **Unplanned**
 panel on the left — named like the calendar's **Unplanned** tab and styled like its **Scheduling** panel — as **fixed-size
@@ -640,7 +640,7 @@ work the same way, so you can plan **top-down** (estimate the goal, split it lat
   with a dashed outline.
 - **Dates** — a row with a start date shows its span (start → start + estimate − 1). A parent
   without one shows the span its subtree covers, in italics.
-- **Due dates** — every row also shows a due chip with the countdown (`in 3d`, `2d overdue`,
+- **Due dates** — every row also shows a due chip with the countdown (`In 3d`, `2d overdue`,
   color-coded by urgency like the board's due countdown). Click it to set or change the due
   date; the dates chip does the same for the planned date.
 
@@ -919,7 +919,7 @@ overdue shows both signals. The state updates whenever the board refreshes (e.g.
 rolls over).
 
 **Due countdown.** Turn on **Show due countdown** in a board's view options (**Configure view →
-Cards**) to add a compact badge that says **how soon** a card is due: `today`, `in 3d`,
+Cards**) to add a compact badge that says **how soon** a card is due: `Today`, `In 3d`,
 `2d overdue`, `in 2w`, `in 3mo` (the unit scales automatically, days, then weeks, then months).
 The badge is color-coded by urgency: **red** overdue, **amber** today, **orange** soon, and a
 **muted** tone further out. The toggle is **per board** (off by default), reusing the same due

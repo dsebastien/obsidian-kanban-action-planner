@@ -208,7 +208,7 @@ property is not repeated as a body field, and clicking the card still opens the 
 
 ## Due countdown
 
-A card can show a compact **countdown to its due date** (`today`, `in 3d`, `2d overdue`,
+A card can show a compact **countdown to its due date** (`Today`, `In 3d`, `2d overdue`,
 `in 2w`, `in 3mo` — the unit auto-scales from days to weeks to months), color-coded by urgency
 (red overdue, amber today, orange soon, muted further out). It reuses the same **Due date**
 property as the overdue emphasis — no extra property to configure.

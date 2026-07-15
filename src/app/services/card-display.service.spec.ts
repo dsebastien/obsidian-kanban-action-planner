@@ -95,7 +95,7 @@ describe('formatCountdown (issue #62)', () => {
 
     it('is "today" (amber) on the due day', () => {
         expect(formatCountdown(TODAY, TODAY, SOON, 'title')).toEqual({
-            text: 'today',
+            text: 'Today',
             tone: 'today',
             placement: 'title'
         })
@@ -116,18 +116,18 @@ describe('formatCountdown (issue #62)', () => {
 
     it('is "soon" within the threshold, "future" beyond it', () => {
         expect(formatCountdown(at(3), TODAY, SOON, 'title')).toEqual({
-            text: 'in 3d',
+            text: 'In 3d',
             tone: 'soon',
             placement: 'title'
         })
         // Boundary: exactly the threshold is still "soon"; one day past is "future".
         expect(formatCountdown(at(7), TODAY, SOON, 'title')).toEqual({
-            text: 'in 7d',
+            text: 'In 7d',
             tone: 'soon',
             placement: 'title'
         })
         expect(formatCountdown(at(8), TODAY, SOON, 'title')).toEqual({
-            text: 'in 8d',
+            text: 'In 8d',
             tone: 'future',
             placement: 'title'
         })
@@ -136,11 +136,11 @@ describe('formatCountdown (issue #62)', () => {
     it('auto-scales granularity: days → weeks → months', () => {
         const text = (offset: number): string | undefined =>
             formatCountdown(at(offset), TODAY, SOON, 'title')?.text
-        expect(text(13)).toBe('in 13d')
-        expect(text(14)).toBe('in 2w')
-        expect(text(21)).toBe('in 3w')
-        expect(text(60)).toBe('in 2mo')
-        expect(text(90)).toBe('in 3mo')
+        expect(text(13)).toBe('In 13d')
+        expect(text(14)).toBe('In 2w')
+        expect(text(21)).toBe('In 3w')
+        expect(text(60)).toBe('In 2mo')
+        expect(text(90)).toBe('In 3mo')
     })
 
     it('carries the placement through unchanged', () => {

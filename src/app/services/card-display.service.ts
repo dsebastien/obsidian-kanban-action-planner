@@ -50,10 +50,10 @@ export function formatCountdown(
 ): CardCountdown | null {
     if (!due) return null
     const days = Math.round((startOfDay(due).getTime() - startOfDay(today).getTime()) / DAY_MS)
-    if (days === 0) return { text: 'today', tone: 'today', placement }
+    if (days === 0) return { text: 'Today', tone: 'today', placement }
     if (days < 0) return { text: `${formatDaySpan(-days)} overdue`, tone: 'overdue', placement }
     return {
-        text: `in ${formatDaySpan(days)}`,
+        text: `In ${formatDaySpan(days)}`,
         tone: days <= soonDays ? 'soon' : 'future',
         placement
     }
