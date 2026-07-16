@@ -1,5 +1,11 @@
 # Release Notes
 
+## 1.6.0 (2026-07-16)
+
+### Features
+
+- **plugin:** per-note-type automation rules on status, done, archive and property triggers
+
 ## 1.5.0 (2026-07-16)
 
 ### Features
