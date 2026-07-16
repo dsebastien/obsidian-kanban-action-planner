@@ -387,6 +387,8 @@ actions whenever a note hits a trigger. The classic example — one rule on your
 `date_completed` to `{{date}}`** — and every way of completing a task (dragging it to Done,
 the card menu, the WBS status dot, a bulk edit, triage) stamps the note for you.
 
+![Automation rules on a note type]({{ '/images/automations.png' | relative_url }})
+
 Each rule is a **trigger** plus a list of **actions** that run in order:
 
 - Triggers: **enters a status**, **leaves a status** (toggle any of the type's statuses),

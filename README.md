@@ -40,6 +40,10 @@ When a backlog gets overwhelming, work through it one card at a time in Triage m
 
 ![Triage mode](docs/images/triage.png)
 
+Let the board do the bookkeeping with per-note-type automation rules — enter a done state and the progress, dates, tags, or even the note's folder update themselves:
+
+![Automation rules](docs/images/automations.png)
+
 Configure statuses, colors, relationships, and archiving per note type, synced from the Obsidian Starter Kit when it's present:
 
 ![Note types](docs/images/note-types.png)
