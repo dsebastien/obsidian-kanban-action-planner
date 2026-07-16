@@ -23,7 +23,8 @@ import { renderGroupHeader } from '../calendar/calendar-renderer'
 import { planReconcile } from '../board/reconcile'
 import { cssEscapeAttr } from '../../utils/css-escape'
 import type { KanbanCard, CountdownTone } from '../board/types'
-import type { DurationParts } from '../../domain/estimate'
+import { parseEstimateInput } from '../../domain/estimate'
+import type { DurationParts, EstimateUnit } from '../../domain/estimate'
 
 /** One visible tree row (collapse already applied by the controller). */
 export interface WbsRowModel {
@@ -65,6 +66,14 @@ export interface WbsRowModel {
      * chip's fixed leading slot.
      */
     rollupSuffix: string | null
+    /** The card's estimate unit — the inline editor parses input against it. */
+    estimateUnit: EstimateUnit
+    /**
+     * The inline editor's prefill in the card's unit (issue #106): the own
+     * raw value, else the derived rollup — same as the estimate modal, so
+     * persisting the bottom-up total stays a two-keystroke affair.
+     */
+    estimatePrefill: number | null
     /** Start date key (e.g. `2026-07-14`) when set (or derived). */
     startLabel: string | null
     /** End date key (start + estimate − 1, or the subtree's latest end). */
@@ -108,6 +117,8 @@ export interface WbsViewModel {
     /** Whether the pane nests status groups under type headers (multi-type). */
     paneGrouped: boolean
     panelCollapsed: boolean
+    /** Minutes one work day represents — inline estimate parsing (issue #106). */
+    minutesPerDay: number
 }
 
 export interface WbsCallbacks {
@@ -120,7 +131,8 @@ export interface WbsCallbacks {
     onToggleNode: (key: string) => void
     onTogglePanel: () => void
     onTogglePaneGroup: (key: string) => void
-    onEditEstimate: (card: KanbanCard) => void
+    /** Inline estimate edit committed (issue #106): a value, or null = clear. */
+    onCommitEstimate: (card: KanbanCard, value: number | null) => void
     onEditStart: (card: KanbanCard) => void
     onEditDue: (card: KanbanCard) => void
     onEditProgress: (card: KanbanCard) => void
@@ -374,6 +386,8 @@ function rowSignature(row: WbsRowModel): string {
         ep: row.estimateParts,
         ed: row.estimateDerived,
         rs: row.rollupSuffix,
+        eu: row.estimateUnit,
+        ef: row.estimatePrefill,
         s: row.startLabel,
         e: row.endLabel,
         dd: row.datesDerived,
@@ -436,7 +450,7 @@ function reconcileTree(shell: HTMLElement, model: WbsViewModel, callbacks: WbsCa
         let node: HTMLElement | undefined
         if (entry.create || entry.update) {
             const row = rowByKey.get(entry.key)
-            if (row) node = buildRowNode(row, callbacks)
+            if (row) node = buildRowNode(row, callbacks, model.minutesPerDay)
         } else {
             node = nodeByKey.get(entry.key)
         }
@@ -453,7 +467,11 @@ function reconcileTree(shell: HTMLElement, model: WbsViewModel, callbacks: WbsCa
 }
 
 /** Build one fully-wired, detached tree row and stamp its diff signature. */
-function buildRowNode(row: WbsRowModel, callbacks: WbsCallbacks): HTMLElement {
+function buildRowNode(
+    row: WbsRowModel,
+    callbacks: WbsCallbacks,
+    minutesPerDay: number
+): HTMLElement {
     const el = createDiv({
         cls: 'kap-wbs-row',
         attr: {
@@ -549,7 +567,7 @@ function buildRowNode(row: WbsRowModel, callbacks: WbsCallbacks): HTMLElement {
     renderProgress(meta, row, callbacks)
     renderDatesChip(meta, row, callbacks)
     renderDueChip(meta, row, callbacks)
-    renderEstimateChip(meta, row, callbacks)
+    renderEstimateChip(meta, row, callbacks, minutesPerDay)
 
     const open = (newTab: boolean): void => {
         if (row.card) callbacks.onOpen(row.card, newTab)
@@ -693,7 +711,12 @@ function renderDueChip(parent: HTMLElement, row: WbsRowModel, callbacks: WbsCall
  * derived rollup (bottom-up), or an unset placeholder when the subtree has
  * nothing.
  */
-function renderEstimateChip(parent: HTMLElement, row: WbsRowModel, callbacks: WbsCallbacks): void {
+function renderEstimateChip(
+    parent: HTMLElement,
+    row: WbsRowModel,
+    callbacks: WbsCallbacks,
+    minutesPerDay: number
+): void {
     const card = row.card
     const title = !card
         ? 'Children rollup'
@@ -729,6 +752,114 @@ function renderEstimateChip(parent: HTMLElement, row: WbsRowModel, callbacks: Wb
         btn.addClass('kap-wbs-chip-unset')
         grid.createSpan({ cls: 'kap-wbs-est-empty', text: '–' })
     }
-    if (card) btn.addEventListener('click', () => callbacks.onEditEstimate(card))
-    else btn.disabled = true
+    if (card) {
+        btn.addEventListener('click', () =>
+            startEstimateEdit(btn, row, card, callbacks, minutesPerDay)
+        )
+    } else btn.disabled = true
+}
+
+/**
+ * The one open inline editor's cancel hook — opening another editor closes
+ * the previous one first (normally blur does this, but a failed focus — an
+ * unfocused window, a modal stealing focus — must not leave two inputs).
+ */
+let cancelOpenEstimateEdit: (() => void) | null = null
+
+/**
+ * Inline estimate editing (issue #106): clicking the chip swaps it for a
+ * slot-sized text input pre-filled with the chip's value (own, else the
+ * derived rollup), accepting the same grammar as the estimate modal (a bare
+ * number in the card's unit, or "2h" / "90m" / "0.5d"). Enter commits —
+ * empty clears when an own value exists; Escape cancels; blur commits a
+ * valid CHANGE and cancels anything else (never clears — a stray click
+ * away must not delete an estimate). The chip button is kept aside and
+ * restored on cancel; a commit's frontmatter echo rebuilds the row anyway.
+ */
+function startEstimateEdit(
+    btn: HTMLElement,
+    row: WbsRowModel,
+    card: KanbanCard,
+    callbacks: WbsCallbacks,
+    minutesPerDay: number
+): void {
+    const hasOwn = row.estimateParts !== null && !row.estimateDerived
+    const initial = row.estimatePrefill !== null ? String(row.estimatePrefill) : ''
+    // A div carrying the chip classes: keeps the slot width AND the row's
+    // click/keydown/drag guards (they match `.kap-wbs-chip-btn`) — an input
+    // nested inside the <button> would be invalid HTML.
+    const wrap = createDiv({ cls: 'kap-wbs-chip-btn kap-wbs-estimate kap-wbs-est-editwrap' })
+    const unitLabel = row.estimateUnit === 'minutes' ? 'minutes' : 'days'
+    const input = wrap.createEl('input', {
+        type: 'text',
+        cls: 'kap-wbs-est-input',
+        value: initial,
+        attr: {
+            'aria-label': `Estimate (${unitLabel}, or a duration like 2h)`,
+            'placeholder': `${unitLabel} — 2h, 0.5d`,
+            'autocomplete': 'off',
+            'inputmode': 'text',
+            'title': 'Enter saves (empty clears), Esc cancels'
+        }
+    })
+    cancelOpenEstimateEdit?.()
+    btn.replaceWith(wrap)
+    input.focus()
+    input.select()
+    let done = false
+    const finish = (): void => {
+        if (done) return
+        done = true
+        if (cancelOpenEstimateEdit === finish) cancelOpenEstimateEdit = null
+        wrap.replaceWith(btn)
+    }
+    cancelOpenEstimateEdit = finish
+    const parse = (): number | null =>
+        parseEstimateInput(input.value, row.estimateUnit, minutesPerDay)
+    input.addEventListener('input', () => {
+        input.toggleClass(
+            'kap-wbs-est-input-invalid',
+            input.value.trim() !== '' && parse() === null
+        )
+    })
+    input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault()
+            const raw = input.value.trim()
+            if (raw === '') {
+                finish()
+                btn.focus()
+                // Nothing to clear on a derived/unset chip — just cancel.
+                if (hasOwn) callbacks.onCommitEstimate(card, null)
+                return
+            }
+            const value = parse()
+            if (value === null) {
+                input.addClass('kap-wbs-est-input-invalid')
+                return
+            }
+            finish()
+            btn.focus()
+            callbacks.onCommitEstimate(card, value)
+        }
+        if (e.key === 'Escape') {
+            e.preventDefault()
+            e.stopPropagation()
+            finish()
+            btn.focus()
+        }
+    })
+    input.addEventListener('blur', () => {
+        if (done) return
+        const raw = input.value.trim()
+        if (raw !== '' && raw !== initial) {
+            const value = parse()
+            if (value !== null) {
+                finish()
+                callbacks.onCommitEstimate(card, value)
+                return
+            }
+        }
+        finish()
+    })
 }

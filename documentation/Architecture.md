@@ -293,9 +293,16 @@ per render instead of re-walked for every ancestor row, issue #100). DOM in `ui/
 column-align across rows). State + writes in `views/kanban/wbs-controller.ts` (mirrors
 `TimelineController`: lazy `ensureLoaded`, full-object `persist()`, narrow-pane
 auto-collapse; node collapse under the dedicated `wbsCollapsedNodes` key, panel collapse
-under `wbsPanelCollapsed`; estimate/start/due/progress edits via `EstimatePromptModal` /
-`DatePromptModal` / `ProgressPromptModal` (`ui/wbs/progress-modal.ts`), all writing numbers /
-formatted dates through `frontmatter.service`; menu extras in the `kap-wbs` section incl.
+under `wbsPanelCollapsed`; start/due/progress edits via `DatePromptModal` /
+`ProgressPromptModal` (`ui/wbs/progress-modal.ts`), all writing numbers /
+formatted dates through `frontmatter.service`; the estimate chip edits INLINE (issue #106):
+`startEstimateEdit` swaps the chip button for a slot-sized input (a div wearing the chip
+classes keeps the row's click/keydown/drag guards), pre-filled own-raw-else-rollup,
+parsing the modal grammar via `parseEstimateInput` — Enter commits (empty clears only an
+own value), Esc cancels, blur commits a valid change and never clears, a module-level
+`cancelOpenEstimateEdit` hook guarantees one open editor; commits flow through
+`onCommitEstimate` → the controller's `commitEstimate`; the card menu's "Set estimate…"
+keeps `EstimatePromptModal`; menu extras in the `kap-wbs` section incl.
 **Save rolled-up estimate/progress** and **Distribute estimate to children**; standard
 Set-status menu items work in the tree because `applyFilterAndRender` resolves
 `this.columns` before the mode branches; the row's status dot is a button (#98) opening a

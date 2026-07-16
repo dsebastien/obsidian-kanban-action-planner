@@ -343,6 +343,7 @@ export class WbsController {
             // No card → a context ancestor (outside the view's results):
             // rendered from derived values only, never skipped.
             const card = byKey.get(node.path) ?? null
+            const estimateConfig = card ? this.host.estimateConfigFor(card) : null
             const own = resolvedEstimateOf(node.path)
             const rollup = rollups.childrenEstimate(node)
             // The chip's primary value: the own estimate, else the derived
@@ -386,6 +387,14 @@ export class WbsController {
                     primaryDays !== null ? durationParts(primaryDays, minutesPerDay) : null,
                 estimateDerived: own === null && rollup !== null,
                 rollupSuffix: rollupDiffers ? `Σ ${formatDuration(rollup, minutesPerDay)}` : null,
+                estimateUnit: estimateConfig?.unit ?? 'days',
+                // Inline-edit prefill (issue #106): the own raw value, else
+                // the rollup in the card's unit — the modal's prefill rule.
+                estimatePrefill:
+                    own?.raw ??
+                    (rollup !== null && estimateConfig
+                        ? daysToUnit(rollup, estimateConfig.unit, minutesPerDay)
+                        : null),
                 startLabel,
                 endLabel,
                 datesDerived,
@@ -417,7 +426,8 @@ export class WbsController {
                 rootCount: forest.length,
                 paneGroups: this.buildPaneGroups(cards),
                 paneGrouped: this.distinctTypeCount(cards) > 1,
-                panelCollapsed: this.panelCollapsed
+                panelCollapsed: this.panelCollapsed,
+                minutesPerDay
             } satisfies WbsViewModel,
             {
                 onOpen: (card, newTab) => this.host.openCard(card, newTab),
@@ -437,7 +447,7 @@ export class WbsController {
                     this.paneCollapsed.set(key, !(this.paneCollapsed.get(key) ?? true))
                     this.host.refresh()
                 },
-                onEditEstimate: (card) => this.promptEstimate(card),
+                onCommitEstimate: (card, value) => this.commitEstimate(card, value),
                 onEditStart: (card) => this.promptStartDate(card),
                 onEditDue: (card) => this.promptDueDate(card),
                 onEditProgress: (card) => this.promptProgress(card),
@@ -975,9 +985,20 @@ export class WbsController {
     }
 
     /**
-     * "Set estimate…": days ≥ 1, written as a NUMBER; Clear deletes. A node
-     * without an own value pre-fills the derived rollup, so persisting the
-     * bottom-up total is a two-click affair (open, Set).
+     * Inline chip commit (issue #106): write the unit-native NUMBER the
+     * renderer's inline editor parsed; null clears the property.
+     */
+    private commitEstimate(card: KanbanCard, value: number | null): void {
+        const config = this.host.estimateConfigFor(card)
+        void (value === null
+            ? deleteProperty(this.host.app, card.file, config.property)
+            : setProperty(this.host.app, card.file, config.property, value))
+    }
+
+    /**
+     * "Set estimate…" (card menu): days ≥ 1, written as a NUMBER; Clear
+     * deletes. A node without an own value pre-fills the derived rollup, so
+     * persisting the bottom-up total is a two-click affair (open, Set).
      */
     private promptEstimate(card: KanbanCard): void {
         const config = this.host.estimateConfigFor(card)

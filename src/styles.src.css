@@ -2779,6 +2779,25 @@
         @apply text-right;
     }
 
+    /* Inline estimate editor (issue #106): a div wearing the chip classes
+       swaps in for the button (same fixed slot), holding a slot-filling
+       input. Enter saves, Esc cancels; invalid input tints the border. */
+    .kap-root .kap-wbs-est-editwrap {
+        @apply p-0;
+    }
+
+    .kap-root .kap-wbs-est-input {
+        @apply w-full h-full min-w-0 rounded border px-1.5 text-[1em];
+        background: var(--background-primary);
+        border-color: var(--interactive-accent);
+        color: var(--text-normal);
+        font-variant-numeric: tabular-nums;
+    }
+
+    .kap-root .kap-wbs-est-input-invalid {
+        border-color: var(--text-error);
+    }
+
     /* Due chip: countdown text on the issue-#62 tone ramp (color only). */
     .kap-root .kap-wbs-due {
         width: 7rem;
