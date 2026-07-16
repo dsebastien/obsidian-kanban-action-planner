@@ -98,6 +98,22 @@ export const estimateConfigSchema = z.object({
 })
 export type NoteTypeEstimateConfig = z.infer<typeof estimateConfigSchema>
 
+/**
+ * Per-type done-state definition (issue #56): which frontmatter property and
+ * value(s) mark a note of this type as done. `property` '' falls back to the
+ * type's status property; an empty `values` list treats a boolean `true` as
+ * done (checkbox properties). Absent (older stored types, no backfill) =
+ * disabled. Plugin-owned — editable for Starter Kit–mirrored types too.
+ */
+export const doneConfigSchema = z.object({
+    enabled: z.boolean(),
+    /** Property name; '' falls back to the type's status property. */
+    property: z.string(),
+    /** Values meaning done (case-insensitive); empty = boolean `true`. */
+    values: z.array(z.string())
+})
+export type DoneConfig = z.infer<typeof doneConfigSchema>
+
 /** Calendar / scheduling config. */
 export const calendarConfigSchema = z.object({
     enabled: z.boolean(),
@@ -152,6 +168,11 @@ export const noteTypeSchema = z.object({
      * Estimate property + unit override; absent (older stored types, no
      * backfill) = the global default property in days.
      */
-    estimate: estimateConfigSchema.optional()
+    estimate: estimateConfigSchema.optional(),
+    /**
+     * Done-state definition (issue #56); absent (older stored types, no
+     * backfill) = no done state configured.
+     */
+    done: doneConfigSchema.optional()
 })
 export type NoteType = z.infer<typeof noteTypeSchema>

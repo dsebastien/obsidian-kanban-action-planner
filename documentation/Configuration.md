@@ -13,7 +13,9 @@ Effective value for any setting resolves in this order (first match wins):
    panel state.
 2. **Local note types** — the `noteTypes` store in plugin settings, edited via the
    Configure-board modal: colors, swimlane grouping, relationships, archiving, calendar
-   mappings, plus local overrides of mirrored fields.
+   mappings, estimate property/unit, done-state definition (rule 39: `done` config —
+   property + values marking a note done; WBS rollups read done cards as 100%), plus local
+   overrides of mirrored fields.
 3. **Starter Kit mirror** — when `obsidian-starter-kit` is installed and enabled, its
    note-type config (status `allowedValues` → columns, property names, recognition mappings)
    is the read-only source of truth, mirrored into the local snapshot.

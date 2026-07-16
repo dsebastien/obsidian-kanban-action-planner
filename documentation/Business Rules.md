@@ -472,7 +472,9 @@ See `documentation/plans/kanban-action-planner-implementation-plan.md` for full 
     value replaces its subtree's contribution, never adds to it). Estimates follow rule 35
     semantics (days, written as numbers); a node with an own estimate also shows the
     children's rollup (`Σ Nd`) when it differs. **Progress** is a **0–100 number** in the
-    global `defaultProgressProperty` (`progress`): every row shows a progress bar; own > 0
+    global `defaultProgressProperty` (`progress`): every row shows a progress bar; a card
+    matching its type's done definition reads as 100% (rule 39, beats a stale progress
+    number), else own > 0
     wins, else the weighted combination of the children's effective progress — any child with
     an EXPLICIT progress (including 0) counts as signal, so all-0% children derive a 0%
     parent, never a blank (weights = effective estimates when every child has one, equal
@@ -585,3 +587,17 @@ See `documentation/plans/kanban-action-planner-implementation-plan.md` for full 
     hint previews the exact value Set will write (invalid input renders red and never
     submits). Older stored note types have no
     `estimate` block and degrade to the global default (no backfill).
+
+39. **Per-type done state (issue #56).** A note type may declare a **done definition** via
+    its plugin-owned `done` config (`doneConfigSchema`: `enabled` + `property` + `values`;
+    Configure board → **Done state**; editable for Starter Kit–mirrored types, untouched by
+    the SK mirror): a note is **done** when the configured frontmatter property matches any
+    configured value (trimmed, case-insensitive; list properties match on ANY element). An
+    empty property falls back to the type's **status property** (the UI then offers
+    per-status toggles instead of free-text values); an empty values list means **checkbox
+    semantics** (boolean `true` / `"yes"` counts as done). Older stored note types have no
+    `done` block and degrade to "no done state" (no backfill). Untyped cards fall back to
+    the active/default note type's done config (the archive-config pattern, rule 11).
+    Consumers: the **WBS progress rollup** (rule 36) reads a done card as **100%** — the
+    done signal is the card's OWN value and beats a stale `progress` number — so a goal
+    with 2 of 4 done children derives 50% without per-task progress numbers.

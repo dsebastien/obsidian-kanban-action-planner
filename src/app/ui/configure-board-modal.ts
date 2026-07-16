@@ -4,6 +4,7 @@ import type { KanbanActionPlannerPlugin } from '../plugin'
 import type {
     ArchiveConfig,
     ColorSpec,
+    DoneConfig,
     LaneGrouping,
     NoteType,
     RelationshipRole,
@@ -19,6 +20,7 @@ import {
     setArchiveConfig,
     setAutoAssign,
     setColorOverride,
+    setDoneConfig,
     setEstimateConfig,
     setLaneGrouping,
     setNoteTypeName,
@@ -41,6 +43,7 @@ type SectionId =
     | 'archiving'
     | 'limits'
     | 'estimate'
+    | 'done'
 
 const SECTIONS: ReadonlyArray<{ id: SectionId; label: string; icon: string }> = [
     { id: 'recognition', label: 'Note type', icon: 'scan-search' },
@@ -50,6 +53,7 @@ const SECTIONS: ReadonlyArray<{ id: SectionId; label: string; icon: string }> = 
     { id: 'swimlanes', label: 'Swimlanes', icon: 'rows-3' },
     { id: 'relationships', label: 'Relationships', icon: 'git-fork' },
     { id: 'estimate', label: 'Estimate', icon: 'ruler' },
+    { id: 'done', label: 'Done state', icon: 'circle-check' },
     { id: 'archiving', label: 'Archiving', icon: 'archive' }
 ]
 
@@ -183,7 +187,108 @@ export class ConfigureBoardModal extends Modal {
             case 'estimate':
                 this.renderEstimate(noteType)
                 return
+            case 'done':
+                this.renderDone(noteType)
+                return
         }
+    }
+
+    // ── Done state (issue #56; per-type done definition) ──────
+
+    private renderDone(noteType: NoteType): void {
+        new Setting(this.body).setName('Done state').setHeading()
+        this.body.createEl('p', {
+            cls: 'kap-modal-subtitle',
+            text:
+                `What marks a ${noteType.name} note as done. A done note counts as ` +
+                '100% complete in WBS progress rollups, so a parent’s progress can ' +
+                'derive from done children even when they carry no progress number.'
+        })
+
+        const done = noteType.done
+        new Setting(this.body)
+            .setName('Has a done state')
+            .setDesc('Enable to define the property and value(s) that mean done.')
+            .addToggle((toggle) =>
+                toggle.setValue(done?.enabled ?? false).onChange((on) => {
+                    const current = this.noteType()?.done
+                    void this.mutate(() =>
+                        setDoneConfig(this.plugin, this.noteTypeId, {
+                            enabled: on,
+                            property: current?.property ?? '',
+                            values: current?.values ?? []
+                        })
+                    )
+                })
+            )
+
+        if (!done?.enabled) return
+
+        const statusProperty = noteType.statusProperty
+        new Setting(this.body)
+            .setName('Done property')
+            .setDesc(
+                `Frontmatter property holding the done signal. Empty = the status property ("${statusProperty}").`
+            )
+            .addText((input) => {
+                input
+                    .setPlaceholder(statusProperty)
+                    .setValue(done.property)
+                    // Persist without re-rendering so typing keeps focus; the
+                    // value editor below depends on the property, so refresh
+                    // it once the field loses focus.
+                    .onChange((value) => void this.patchDone({ property: value.trim() }, false))
+                input.inputEl.addEventListener('blur', () => this.render())
+            })
+
+        const usesStatusProperty = (done.property.trim() || statusProperty) === statusProperty
+        if (usesStatusProperty && this.statusValues.length > 0) {
+            new Setting(this.body)
+                .setName('Done statuses')
+                .setDesc('A note in any toggled status is done.')
+                .setHeading()
+            for (const statusValue of this.statusValues) {
+                new Setting(this.body)
+                    .setName(splitStatusValue(statusValue).label)
+                    .addToggle((toggle) =>
+                        toggle.setValue(done.values.includes(statusValue)).onChange((on) => {
+                            const values = new Set(this.noteType()?.done?.values ?? [])
+                            if (on) values.add(statusValue)
+                            else values.delete(statusValue)
+                            void this.patchDone({ values: [...values] }, false)
+                        })
+                    )
+            }
+            return
+        }
+
+        new Setting(this.body)
+            .setName('Done values')
+            .setClass('kap-enum-row')
+            .setDesc(
+                'One value per line, case-insensitive. Leave empty to treat a checkbox "true" as done.'
+            )
+            .addTextArea((area) => {
+                area.inputEl.rows = Math.max(3, done.values.length)
+                area.inputEl.addClass('kap-enum-values')
+                area.setPlaceholder('80 - Done\n60 - Completed')
+                    .setValue(done.values.join('\n'))
+                    // Persist without re-rendering so the textarea keeps focus.
+                    .onChange((text) => void this.patchDone({ values: splitLines(text) }, false))
+            })
+    }
+
+    /**
+     * Apply a partial change to the done config, reading the freshest stored
+     * copy so property + value edits don't clobber each other. `rerender`
+     * re-renders (skip it for text fields to keep focus).
+     */
+    private async patchDone(patch: Partial<DoneConfig>, rerender: boolean): Promise<void> {
+        const current = this.noteType()?.done
+        if (!current) return
+        await setDoneConfig(this.plugin, this.noteTypeId, { ...current, ...patch })
+        this.onChange()
+        if (rerender) this.render()
     }
 
     // ── Estimate property + unit (per-type override; plugin-owned) ────

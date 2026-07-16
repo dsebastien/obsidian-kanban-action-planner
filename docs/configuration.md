@@ -212,6 +212,16 @@ bars and their rollups. Progress and estimates are always written as plain numbe
 no per-view WBS options; the collapsed nodes and panel state are remembered per view
 automatically.
 
+### Done state
+
+Per note type, **Configure board → Done state** defines what "done" means: turn on **Has a
+done state**, then pick the property and value(s) that mark a note of that type as done. By
+default the property is the type's **status property**, and you toggle the statuses that count
+(e.g. **Completed** and **Done**). Point it at another property to match its values instead
+(one per line, case-insensitive); with no values listed, a checkbox `true` counts as done. A
+done note reads as **100% complete** in the WBS progress rollups — even without a `progress`
+number — so parents show real momentum as their children complete.
+
 ## Card title
 
 The card heading is the **note name** by default. Per board, **Configure view → Cards →

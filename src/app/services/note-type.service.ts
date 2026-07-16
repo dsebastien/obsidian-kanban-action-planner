@@ -4,6 +4,7 @@ import { produce } from 'immer'
 import type {
     ColorSpec,
     ColumnDef,
+    DoneConfig,
     LaneGrouping,
     NoteType,
     NoteTypeEstimateConfig
@@ -236,6 +237,25 @@ export async function setEstimateConfig(
         plugin,
         produce(noteType, (draft) => {
             draft.estimate = estimate
+        })
+    )
+}
+
+/**
+ * Set (or clear, with `undefined`) a note type's done-state definition (issue
+ * #56). Plugin-owned config: valid for Starter Kit–mirrored types too.
+ */
+export async function setDoneConfig(
+    plugin: KanbanActionPlannerPlugin,
+    noteTypeId: string,
+    done: DoneConfig | undefined
+): Promise<void> {
+    const noteType = requireNoteType(plugin, noteTypeId)
+    if (!noteType) return
+    await upsertNoteType(
+        plugin,
+        produce(noteType, (draft) => {
+            draft.done = done
         })
     )
 }

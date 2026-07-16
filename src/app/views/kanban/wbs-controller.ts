@@ -23,6 +23,8 @@ import {
     subtreeSpan
 } from '../../domain/wbs'
 import type { WbsNode } from '../../domain/wbs'
+import { isDoneValue } from '../../domain/done'
+import type { ResolvedDoneConfig } from '../../domain/done'
 import type { RelationshipSet } from '../../domain/relationships'
 import {
     deleteProperty,
@@ -91,6 +93,12 @@ export interface WbsHost {
     startProperty(): string
     /** Per-card estimate property + unit (per-note-type override). */
     estimateConfigFor(card: KanbanCard): EstimateConfig
+    /**
+     * Per-card done-state definition (issue #56), resolved from the card's
+     * note type; null = no done state. A done card reads as 100% progress in
+     * rollups (its own signal, overriding any stale `progress` number).
+     */
+    doneConfigFor(card: KanbanCard): ResolvedDoneConfig | null
     /** Minutes one work day represents (minute-estimate → days conversion). */
     minutesPerDay(): number
     progressProperty(): string
@@ -264,14 +272,18 @@ export class WbsController {
             let value = progressCache.get(path)
             if (value === undefined) {
                 const card = byKey.get(path)
+                // A done card (per-type done definition, issue #56) is 100%
+                // regardless of a stale `progress` number.
                 value = card
-                    ? parseProgress(
-                          getFrontmatterValue(
-                              this.host.app,
-                              card.file,
-                              this.host.progressProperty()
+                    ? this.isCardDone(card)
+                        ? 100
+                        : parseProgress(
+                              getFrontmatterValue(
+                                  this.host.app,
+                                  card.file,
+                                  this.host.progressProperty()
+                              )
                           )
-                      )
                     : null
                 progressCache.set(path, value)
             }
@@ -909,11 +921,21 @@ export class WbsController {
     /** A path's own progress, read from frontmatter (menu-time, uncached). */
     private readonly progressOfPath = (path: string): number | null => {
         const card = this.host.allCardForKey(path)
-        return card
-            ? parseProgress(
-                  getFrontmatterValue(this.host.app, card.file, this.host.progressProperty())
-              )
-            : null
+        if (!card) return null
+        if (this.isCardDone(card)) return 100
+        return parseProgress(
+            getFrontmatterValue(this.host.app, card.file, this.host.progressProperty())
+        )
+    }
+
+    /** Whether a card matches its note type's done definition (issue #56). */
+    private isCardDone(card: KanbanCard): boolean {
+        const config = this.host.doneConfigFor(card)
+        if (!config) return false
+        return isDoneValue(
+            getFrontmatterValue(this.host.app, card.file, config.property),
+            config.values
+        )
     }
 
     /**
