@@ -283,7 +283,10 @@ targets, derived rollups, `data-wbs-context` opts them out of drag sourcing);
 so persisting a rollup never double-counts; `effectiveProgress` — own > 0 wins, else the
 children's combination weighted by effective estimates; `subtreeSpan` — derived date span;
 `distributeEstimate` — top-down split over estimate-less children; `parseProgress` — 0–100
-clamp; `buildWbsNode` — single-path twin for menu-time math). DOM in `ui/wbs/wbs-renderer.ts`
+clamp; `buildWbsNode` — single-path twin for menu-time math; `createWbsRollups` — per-render
+memoized twins of the three rollups, cached per NODE INSTANCE (never per path — a
+cycle-pruned duplicate can carry different children), so each node's rollup is computed once
+per render instead of re-walked for every ancestor row, issue #100). DOM in `ui/wbs/wbs-renderer.ts`
 (shared `kap-scheduling-panel` shell + the calendar's exported `renderGroupHeader` for the
 "Needs planning" backlog; one flat `.kap-wbs-row` per visible node with `data-card-key` /
 `data-parent-key`; fixed-width right-aligned meta chips so progress bars / dates / estimates
@@ -302,10 +305,13 @@ with the full card menu, wired `onStatusDot` → `WbsHost.showStatusMenu` → th
 plain span dot). Sibling order: planned starts first
 (chronological), then the view's card sort; the panel sorts its status groups the same way.
 Rows carry a due-countdown chip (`formatCountdown`, #62 tone ramp). **Incremental refresh:**
-`renderWbs` keeps the shell; the panel re-renders only on a content-signature change and
-tree rows reconcile via the board's pure `planReconcile` over `parentKey::path` instance
-keys + row signatures (`data-wbs-key`/`data-wbs-sig`) — unchanged rows keep their DOM node,
-so the post-write echo rebuild no-ops and scroll/focus/in-flight drags survive. DnD in
+`renderWbs` keeps the shell (incl. the panel chrome — header/toggle/title update in place);
+panel body groups and tree rows both reconcile via the board's pure `planReconcile` — rows
+over `parentKey::path` instance keys + signatures (`data-wbs-key`/`data-wbs-sig`), panel
+body over per-group `.kap-wbs-pane-section` blocks (one per type group when grouped, per
+status subgroup otherwise; `data-wbs-pane-key`/`-sig`, keys prefixed `t:`/`s:` so a
+grouped↔flat flip never aliases, issue #100) — unchanged nodes keep their DOM, so the
+post-write echo rebuild no-ops and scroll/focus/in-flight drags survive. DnD in
 `ui/wbs/wbs-dnd.ts` (a `CalendarDnd` sibling: sources `.kap-wbs-row` + `.kap-wbs-pane-card`,
 targets rows **and the panel** — a panel drop detaches the row from its context parent; live
 `canDrop` validation rejects self/existing-parent/own-subtree/heuristic-detach with a red

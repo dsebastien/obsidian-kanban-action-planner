@@ -2554,6 +2554,13 @@
         flex: 1;
     }
 
+    /* One reconcilable panel body block (a type/status group, issue #100):
+       reproduces the body's column rhythm inside the wrapper so grouping
+       markup stays visually identical to the pre-section flat layout. */
+    .kap-root .kap-wbs-pane-section {
+        @apply flex flex-col gap-1;
+    }
+
     .kap-root .kap-wbs-pane-cards {
         @apply flex flex-col gap-1;
     }

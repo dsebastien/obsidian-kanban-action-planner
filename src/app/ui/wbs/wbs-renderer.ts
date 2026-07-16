@@ -8,13 +8,14 @@
  * list), indented by depth, carrying `data-card-key` + `data-parent-key` for
  * the DnD hit-testing contract.
  *
- * **Incremental refresh:** the shell (panel + tree bar + tree) is built once
- * and kept. The panel re-renders only when its content signature changes;
- * tree rows are reconciled with the board's pure `planReconcile` over a
- * per-instance key (`parentKey::path` — duplicated multi-parent instances
- * stay distinct) plus a content signature — unchanged rows keep their exact
- * DOM node, so scroll, focus, and an in-flight drag survive every refresh,
- * and the echo rebuild after an optimistic write no-ops.
+ * **Incremental refresh:** the shell (panel chrome + tree bar + tree) is
+ * built once and kept. Panel body groups and tree rows are both reconciled
+ * with the board's pure `planReconcile` over keyed content signatures (rows
+ * key per instance — `parentKey::path` — so duplicated multi-parent
+ * instances stay distinct; the panel keys per type/status group, issue
+ * #100) — unchanged nodes keep their exact DOM, so scroll, focus, and an
+ * in-flight drag survive every refresh, and the echo rebuild after an
+ * optimistic write no-ops.
  */
 
 import { setIcon } from 'obsidian'
@@ -139,10 +140,22 @@ export function renderWbs(root: HTMLElement, model: WbsViewModel, callbacks: Wbs
     reconcileTree(shell, model, callbacks)
 }
 
-/** The persistent skeleton: panel placeholder + tree bar + scrolling tree. */
+/** The persistent skeleton: panel chrome + tree bar + scrolling tree. */
 function buildShell(shell: HTMLElement, callbacks: WbsCallbacks): void {
-    // The panel is (re)built by reconcilePanel; reserve its slot first.
-    shell.createDiv({ cls: 'kap-scheduling-panel kap-wbs-panel' })
+    // Panel chrome is permanent; reconcilePanel updates its state in place
+    // and reconciles the body groups (issue #100).
+    const panel = shell.createDiv({ cls: 'kap-scheduling-panel kap-wbs-panel' })
+    const header = panel.createDiv({ cls: 'kap-panel-header' })
+    const toggle = header.createEl('button', {
+        cls: 'kap-panel-toggle',
+        attr: { type: 'button' }
+    })
+    toggle.addEventListener('click', () => callbacks.onTogglePanel())
+    // Cards missing a start date or an estimate — the WBS backlog to plan.
+    header.createSpan({ cls: 'kap-panel-title' })
+    // Revealed while a tree row drags (CSS on .kap-wbs-drop-ready); dropping
+    // detaches the row from its parent. The collapsed rail has no room.
+    panel.createDiv({ cls: 'kap-wbs-drop-hint', text: 'Drop here to detach from parent' })
     const wrap = shell.createDiv({ cls: 'kap-wbs-treewrap' })
     const bar = wrap.createDiv({ cls: 'kap-wbs-treebar' })
     const expand = bar.createEl('button', {
@@ -162,116 +175,180 @@ function buildShell(shell: HTMLElement, callbacks: WbsCallbacks): void {
 
 // ── Panel ─────────────────────────────────────────────────────
 
-/** Everything the panel renders, for the skip-unchanged signature. */
-function panelSignature(model: WbsViewModel): string {
-    return JSON.stringify({
-        collapsed: model.panelCollapsed,
-        grouped: model.paneGrouped,
-        groups: model.paneGroups.map((g) => ({
-            k: g.key,
-            l: g.label,
-            n: g.count,
-            c: g.collapsed,
-            s: g.groups.map((s) => ({
-                k: s.key,
-                l: s.label,
-                c: s.collapsed,
-                i: s.cards.map((card) => `${card.key}|${card.display.title}`)
-            }))
-        }))
-    })
+/** One reconcilable panel body block: a group section, or the empty hint. */
+interface PanelSection {
+    key: string
+    signature: string
+    build: () => HTMLElement
 }
 
-/** Rebuild the panel only when its signature changed (in-place replace). */
-function reconcilePanel(shell: HTMLElement, model: WbsViewModel, callbacks: WbsCallbacks): void {
-    const existing = shell.querySelector<HTMLElement>(':scope > .kap-wbs-panel')
-    const signature = panelSignature(model)
-    if (existing && existing.dataset['wbsPanelSig'] === signature) return
-    const panel = buildPanel(model, callbacks)
-    panel.dataset['wbsPanelSig'] = signature
-    if (existing) existing.replaceWith(panel)
-    else shell.insertBefore(panel, shell.firstChild)
+/** Everything one status subgroup renders (nested into type signatures too). */
+function statusGroupSignature(sub: WbsPaneStatusGroupModel): unknown {
+    return {
+        k: sub.key,
+        l: sub.label,
+        c: sub.collapsed,
+        i: sub.cards.map((card) => `${card.key}|${card.display.title}`)
+    }
 }
 
-function buildPanel(model: WbsViewModel, callbacks: WbsCallbacks): HTMLElement {
+/**
+ * The panel body as an ordered list of keyed sections (issue #100): one per
+ * note-type group when the pane is grouped, one per status subgroup
+ * otherwise, or the single empty hint. Keys are prefixed per shape so a
+ * grouped↔flat flip never aliases a type key with a subgroup key.
+ */
+function panelSections(model: WbsViewModel, callbacks: WbsCallbacks): PanelSection[] {
     const total = model.paneGroups.reduce((sum, g) => sum + g.count, 0)
-    const panel = createDiv({ cls: 'kap-scheduling-panel kap-wbs-panel' })
-    if (model.panelCollapsed) panel.addClass('kap-scheduling-panel-collapsed')
-
-    const header = panel.createDiv({ cls: 'kap-panel-header' })
-    const toggle = header.createEl('button', {
-        cls: 'kap-panel-toggle',
-        text: model.panelCollapsed ? '»' : '«',
-        attr: { 'aria-label': model.panelCollapsed ? 'Expand panel' : 'Collapse panel' }
-    })
-    toggle.addEventListener('click', () => callbacks.onTogglePanel())
-    // Cards missing a start date or an estimate — the WBS backlog to plan.
-    header.createSpan({ cls: 'kap-panel-title', text: `Needs planning (${String(total)})` })
-    // Revealed while a tree row drags (CSS on .kap-wbs-drop-ready); dropping
-    // detaches the row from its parent. The collapsed rail has no room.
-    panel.createDiv({ cls: 'kap-wbs-drop-hint', text: 'Drop here to detach from parent' })
-    if (model.panelCollapsed) return panel
-
-    const body = panel.createDiv({ cls: 'kap-wbs-panel-body' })
     if (total === 0) {
-        body.createDiv({
-            cls: 'kap-panel-empty',
-            text: 'Everything has a start date and estimate.'
-        })
-        return panel
-    }
-    for (const group of model.paneGroups) {
-        let host = body
-        if (model.paneGrouped) {
-            renderGroupHeader(
-                body,
-                'kap-cal-ugroup',
-                group.label,
-                group.count,
-                group.collapsed,
-                () => callbacks.onTogglePaneGroup(group.key)
-            )
-            if (group.collapsed) continue
-            host = body.createDiv({ cls: 'kap-cal-ugroup-body' })
-        }
-        for (const sub of group.groups) {
-            const subHeader = renderGroupHeader(
-                host,
-                'kap-cal-usubgroup',
-                sub.label,
-                sub.cards.length,
-                sub.collapsed,
-                () => callbacks.onTogglePaneGroup(sub.key)
-            )
-            // Pane-group DnD contract: a pane card dropped on another status
-            // group (header or card list) of the SAME type sets that status.
-            subHeader.dataset['paneDropType'] = sub.typeId
-            subHeader.dataset['paneDropStatus'] = sub.status
-            if (sub.collapsed) continue
-            const list = host.createDiv({ cls: 'kap-wbs-pane-cards' })
-            list.dataset['paneDropType'] = sub.typeId
-            list.dataset['paneDropStatus'] = sub.status
-            for (const card of sub.cards) {
-                const cardEl = list.createEl('button', {
-                    cls: 'kap-wbs-pane-card',
-                    attr: {
-                        type: 'button',
-                        title: 'Drag onto a tree node to set its parent'
-                    }
-                })
-                cardEl.dataset['cardKey'] = card.key
-                cardEl.createSpan({ cls: 'kap-wbs-pane-cardtitle', text: card.display.title })
-                cardEl.addEventListener('click', (e) =>
-                    callbacks.onOpen(card, e.ctrlKey || e.metaKey)
-                )
-                cardEl.addEventListener('contextmenu', (e) => {
-                    e.preventDefault()
-                    callbacks.onContextMenu(card, e)
-                })
+        return [
+            {
+                key: '__empty__',
+                signature: 'empty',
+                build: () =>
+                    createDiv({
+                        cls: 'kap-panel-empty',
+                        text: 'Everything has a start date and estimate.'
+                    })
             }
-        }
+        ]
     }
-    return panel
+    if (model.paneGrouped) {
+        return model.paneGroups.map((group) => ({
+            key: `t:${group.key}`,
+            signature: JSON.stringify({
+                l: group.label,
+                n: group.count,
+                c: group.collapsed,
+                s: group.groups.map(statusGroupSignature)
+            }),
+            build: () => buildTypeSection(group, callbacks)
+        }))
+    }
+    return model.paneGroups.flatMap((group) =>
+        group.groups.map((sub) => ({
+            key: `s:${sub.key}`,
+            signature: JSON.stringify(statusGroupSignature(sub)),
+            build: (): HTMLElement => {
+                const section = createDiv({ cls: 'kap-wbs-pane-section' })
+                buildStatusGroup(section, sub, callbacks)
+                return section
+            }
+        }))
+    )
+}
+
+/**
+ * Update the persistent panel chrome in place (collapsed state, title count)
+ * and reconcile the body's group sections — an unchanged group keeps its
+ * exact DOM, so panel scroll and unrelated groups survive every refresh.
+ */
+function reconcilePanel(shell: HTMLElement, model: WbsViewModel, callbacks: WbsCallbacks): void {
+    const panel = shell.querySelector<HTMLElement>(':scope > .kap-wbs-panel')
+    if (!panel) return
+    const total = model.paneGroups.reduce((sum, g) => sum + g.count, 0)
+    panel.toggleClass('kap-scheduling-panel-collapsed', model.panelCollapsed)
+    const toggle = panel.querySelector<HTMLElement>('.kap-panel-toggle')
+    if (toggle) {
+        toggle.setText(model.panelCollapsed ? '»' : '«')
+        toggle.setAttribute('aria-label', model.panelCollapsed ? 'Expand panel' : 'Collapse panel')
+    }
+    panel
+        .querySelector<HTMLElement>('.kap-panel-title')
+        ?.setText(`Needs planning (${String(total)})`)
+
+    let body = panel.querySelector<HTMLElement>(':scope > .kap-wbs-panel-body')
+    if (model.panelCollapsed) {
+        body?.remove()
+        return
+    }
+    if (!body) body = panel.createDiv({ cls: 'kap-wbs-panel-body' })
+
+    const sections = panelSections(model, callbacks)
+    const existingEls = Array.from(
+        body.querySelectorAll<HTMLElement>(':scope > [data-wbs-pane-key]')
+    )
+    const nodeByKey = new Map<string, HTMLElement>()
+    const existing = existingEls.map((el) => {
+        const key = el.dataset['wbsPaneKey'] ?? ''
+        nodeByKey.set(key, el)
+        return { key, signature: el.dataset['wbsPaneSig'] ?? '' }
+    })
+    const sectionByKey = new Map(sections.map((s) => [s.key, s]))
+    const plan = planReconcile(
+        existing,
+        sections.map((s) => ({ key: s.key, signature: s.signature }))
+    )
+    for (const key of plan.remove) nodeByKey.get(key)?.remove()
+    let cursor = body.firstElementChild
+    for (const entry of plan.ordered) {
+        let node: HTMLElement | undefined
+        if (entry.create || entry.update) {
+            const section = sectionByKey.get(entry.key)
+            if (section) {
+                node = section.build()
+                node.dataset['wbsPaneKey'] = section.key
+                node.dataset['wbsPaneSig'] = section.signature
+            }
+        } else {
+            node = nodeByKey.get(entry.key)
+        }
+        if (!node) continue
+        if (node === cursor) cursor = cursor.nextElementSibling
+        else body.insertBefore(node, cursor)
+    }
+}
+
+/** One note-type section: the type header plus its status subgroups. */
+function buildTypeSection(group: WbsPaneTypeGroupModel, callbacks: WbsCallbacks): HTMLElement {
+    const section = createDiv({ cls: 'kap-wbs-pane-section' })
+    renderGroupHeader(section, 'kap-cal-ugroup', group.label, group.count, group.collapsed, () =>
+        callbacks.onTogglePaneGroup(group.key)
+    )
+    if (group.collapsed) return section
+    const host = section.createDiv({ cls: 'kap-cal-ugroup-body' })
+    for (const sub of group.groups) buildStatusGroup(host, sub, callbacks)
+    return section
+}
+
+/** One status subgroup: its header plus (when expanded) the card list. */
+function buildStatusGroup(
+    host: HTMLElement,
+    sub: WbsPaneStatusGroupModel,
+    callbacks: WbsCallbacks
+): void {
+    const subHeader = renderGroupHeader(
+        host,
+        'kap-cal-usubgroup',
+        sub.label,
+        sub.cards.length,
+        sub.collapsed,
+        () => callbacks.onTogglePaneGroup(sub.key)
+    )
+    // Pane-group DnD contract: a pane card dropped on another status
+    // group (header or card list) of the SAME type sets that status.
+    subHeader.dataset['paneDropType'] = sub.typeId
+    subHeader.dataset['paneDropStatus'] = sub.status
+    if (sub.collapsed) return
+    const list = host.createDiv({ cls: 'kap-wbs-pane-cards' })
+    list.dataset['paneDropType'] = sub.typeId
+    list.dataset['paneDropStatus'] = sub.status
+    for (const card of sub.cards) {
+        const cardEl = list.createEl('button', {
+            cls: 'kap-wbs-pane-card',
+            attr: {
+                type: 'button',
+                title: 'Drag onto a tree node to set its parent'
+            }
+        })
+        cardEl.dataset['cardKey'] = card.key
+        cardEl.createSpan({ cls: 'kap-wbs-pane-cardtitle', text: card.display.title })
+        cardEl.addEventListener('click', (e) => callbacks.onOpen(card, e.ctrlKey || e.metaKey))
+        cardEl.addEventListener('contextmenu', (e) => {
+            e.preventDefault()
+            callbacks.onContextMenu(card, e)
+        })
+    }
 }
 
 // ── Tree ──────────────────────────────────────────────────────

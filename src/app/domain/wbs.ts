@@ -269,6 +269,98 @@ export function effectiveProgress(
     return { value: Math.round(sum / weightSum), derived: true }
 }
 
+/** Memoized rollup math over one forest — see {@link createWbsRollups}. */
+export interface WbsRollups {
+    effectiveEstimate(node: WbsNode): { value: number | null; derived: boolean }
+    childrenEstimate(node: WbsNode): number | null
+    effectiveProgress(node: WbsNode): { value: number | null; derived: boolean }
+}
+
+/**
+ * Per-render memoized twins of {@link effectiveEstimate},
+ * {@link childrenEstimate}, and {@link effectiveProgress} (issue #100):
+ * rendering calls the rollups once per visible row, and `effectiveProgress`
+ * additionally re-walks every child's subtree for its weights — without a
+ * memo the same subtree is recomputed for every ancestor row (quadratic on
+ * deep or dense multi-parent forests). Results are cached per NODE INSTANCE,
+ * not per path: a cycle-pruned duplicate can carry different children than
+ * its twin, so a path-keyed cache could serve it the wrong subtree's value.
+ * Progress weights follow the render convention: a child's weight is its
+ * effective estimate. Create one instance per render pass — the caches
+ * assume `estimateOf`/`progressOf` are stable for the instance's lifetime.
+ */
+export function createWbsRollups(
+    estimateOf: (path: string) => number | null,
+    progressOf: (path: string) => number | null
+): WbsRollups {
+    // Contributor maps (path → own estimate) memoized per node, preserving
+    // childrenEstimate's dedupe-by-path semantics: a shared (multi-parent)
+    // subtree inside the subtree still counts once.
+    const contributorsCache = new Map<WbsNode, ReadonlyMap<string, number>>()
+    const contributorsOf = (node: WbsNode): ReadonlyMap<string, number> => {
+        const hit = contributorsCache.get(node)
+        if (hit) return hit
+        const out = new Map<string, number>()
+        for (const child of node.children) {
+            const own = estimateOf(child.path)
+            if (own !== null) out.set(child.path, own)
+            else for (const [path, value] of contributorsOf(child)) out.set(path, value)
+        }
+        contributorsCache.set(node, out)
+        return out
+    }
+    const childrenEstimateMemo = (node: WbsNode): number | null => {
+        const contributors = contributorsOf(node)
+        if (contributors.size === 0) return null
+        let sum = 0
+        for (const value of contributors.values()) sum += value
+        return sum
+    }
+    const effectiveEstimateMemo = (node: WbsNode): { value: number | null; derived: boolean } => {
+        const own = estimateOf(node.path)
+        if (own !== null) return { value: own, derived: false }
+        const rollup = childrenEstimateMemo(node)
+        return rollup === null ? { value: null, derived: false } : { value: rollup, derived: true }
+    }
+    const progressCache = new Map<WbsNode, { value: number | null; derived: boolean }>()
+    const effectiveProgressMemo = (node: WbsNode): { value: number | null; derived: boolean } => {
+        const hit = progressCache.get(node)
+        if (hit) return hit
+        // Same algorithm as the pure effectiveProgress, recursing through the
+        // memo so every node in the forest is computed exactly once.
+        const compute = (): { value: number | null; derived: boolean } => {
+            const own = progressOf(node.path)
+            if (own !== null && own > 0) return { value: own, derived: false }
+            if (node.children.length === 0) return { value: own, derived: false }
+            const children = node.children.map((child) => ({
+                progress: effectiveProgressMemo(child).value,
+                weight: effectiveEstimateMemo(child).value
+            }))
+            if (!children.some((c) => c.progress !== null)) {
+                return { value: own, derived: false }
+            }
+            const weighted = children.every((c) => c.weight !== null && c.weight > 0)
+            let sum = 0
+            let weightSum = 0
+            for (const child of children) {
+                const weight = weighted ? (child.weight ?? 1) : 1
+                sum += (child.progress ?? 0) * weight
+                weightSum += weight
+            }
+            if (weightSum === 0) return { value: own, derived: false }
+            return { value: Math.round(sum / weightSum), derived: true }
+        }
+        const result = compute()
+        progressCache.set(node, result)
+        return result
+    }
+    return {
+        effectiveEstimate: effectiveEstimateMemo,
+        childrenEstimate: childrenEstimateMemo,
+        effectiveProgress: effectiveProgressMemo
+    }
+}
+
 /**
  * The date span a node's subtree covers (issue #76, owner rule: derive
  * smartly when a parent carries no info of its own): the earliest start and

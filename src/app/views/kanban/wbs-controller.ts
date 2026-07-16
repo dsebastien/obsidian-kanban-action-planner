@@ -16,6 +16,7 @@ import {
     buildWbsNode,
     childrenEstimate,
     collectContextAncestors,
+    createWbsRollups,
     distributeEstimate,
     effectiveEstimate,
     effectiveProgress,
@@ -289,7 +290,9 @@ export class WbsController {
             }
             return value
         }
-        const weightOf = (node: WbsNode): number | null => effectiveEstimate(node, estimateOf).value
+        // Memoized rollups (issue #100): each node's estimate/progress rollup
+        // is computed once per render, not re-walked for every ancestor row.
+        const rollups = createWbsRollups(estimateOf, progressOf)
         const startCache = new Map<string, Date | null>()
         const startOf = (path: string): Date | null => {
             let value = startCache.get(path)
@@ -341,13 +344,13 @@ export class WbsController {
             // rendered from derived values only, never skipped.
             const card = byKey.get(node.path) ?? null
             const own = resolvedEstimateOf(node.path)
-            const rollup = childrenEstimate(node, estimateOf)
+            const rollup = rollups.childrenEstimate(node)
             // The chip's primary value: the own estimate, else the derived
             // rollup — segmented into fixed unit slots (d/h/m alignment).
             const primaryDays = own?.days ?? rollup
             const rollupDiffers =
                 own !== null && rollup !== null && Math.abs(rollup - own.days) > 0.05
-            const progress = effectiveProgress(node, progressOf, weightOf)
+            const progress = rollups.effectiveProgress(node)
             const start = startOf(node.path)
             // Bottom-up date derivation (owner rule): a parent without its
             // own start shows the span its descendants cover, styled as

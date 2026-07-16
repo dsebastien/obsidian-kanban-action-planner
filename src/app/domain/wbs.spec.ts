@@ -4,6 +4,7 @@ import {
     buildWbsNode,
     childrenEstimate,
     collectContextAncestors,
+    createWbsRollups,
     descendantPaths,
     distributeEstimate,
     effectiveEstimate,
@@ -415,5 +416,83 @@ describe('descendantPaths', () => {
     test('collects distinct descendants across a diamond', () => {
         const [tree] = forest(['g', 'a', 'b', 't'], { g: ['a', 'b'], a: ['t'], b: ['t'] })
         expect([...descendantPaths(tree as WbsNode)].sort()).toEqual(['a', 'b', 't'])
+    })
+})
+
+describe('createWbsRollups', () => {
+    /** Every node instance in the forest, parents before their children. */
+    const allNodes = (trees: WbsNode[]): WbsNode[] =>
+        trees.flatMap((t) => [t, ...allNodes(t.children)])
+
+    test('matches the pure rollups on every node of a mixed forest', () => {
+        // Mixed top-down/bottom-up values, an estimate-less middle layer,
+        // a done-like 100% leaf, a 0% child, and a diamond (shared under
+        // p1 AND p2) — the shapes the render pass actually meets.
+        const trees = forest(['g', 'p1', 'p2', 't1', 't2', 't3', 'shared'], {
+            g: ['p1', 'p2'],
+            p1: ['t1', 't2', 'shared'],
+            p2: ['t3', 'shared']
+        })
+        const estimates: Record<string, number> = { t1: 2, t3: 4, shared: 5, p2: 10 }
+        const estimateOf = (p: string): number | null => estimates[p] ?? null
+        const progresses: Record<string, number> = { t1: 50, t2: 0, shared: 100, p2: 20, g: 0 }
+        const progressOf = (p: string): number | null => progresses[p] ?? null
+        const weightOf = (n: WbsNode): number | null => effectiveEstimate(n, estimateOf).value
+
+        const rollups = createWbsRollups(estimateOf, progressOf)
+        for (const node of allNodes(trees)) {
+            expect(rollups.childrenEstimate(node)).toBe(childrenEstimate(node, estimateOf))
+            expect(rollups.effectiveEstimate(node)).toEqual(effectiveEstimate(node, estimateOf))
+            expect(rollups.effectiveProgress(node)).toEqual(
+                effectiveProgress(node, progressOf, weightOf)
+            )
+        }
+    })
+
+    test('a diamond inside the subtree still counts once', () => {
+        const [tree] = forest(['g', 'a', 'b', 't'], { g: ['a', 'b'], a: ['t'], b: ['t'] })
+        const rollups = createWbsRollups(
+            (p) => (p === 't' ? 5 : null),
+            () => null
+        )
+        expect(rollups.childrenEstimate(tree as WbsNode)).toBe(5)
+        expect(rollups.effectiveEstimate(tree as WbsNode)).toEqual({ value: 5, derived: true })
+    })
+
+    test('cycle-pruned duplicate instances keep instance-correct values', () => {
+        // r → a, r → b, a → b, b → a: path 'a' renders twice — under r with
+        // child b, and under b with its re-entering child pruned. A per-PATH
+        // cache would serve both the same rollup; per-instance must not.
+        const trees = forest(['r', 'a', 'b'], { r: ['a', 'b'], a: ['b'], b: ['a'] })
+        const rollups = createWbsRollups(
+            (p) => (p === 'b' ? 3 : null),
+            () => null
+        )
+        const root = trees[0] as WbsNode
+        const aUnderR = root.children.find((c) => c.path === 'a') as WbsNode
+        const bUnderR = root.children.find((c) => c.path === 'b') as WbsNode
+        const aUnderB = bUnderR.children[0] as WbsNode
+        expect(aUnderR.children.map((c) => c.path)).toEqual(['b'])
+        expect(aUnderB.children).toEqual([])
+        expect(rollups.childrenEstimate(aUnderR)).toBe(3)
+        expect(rollups.childrenEstimate(aUnderB)).toBeNull()
+    })
+
+    test('computes each node once — progress is read once per instance', () => {
+        // Chain c0 → … → c4: querying every row must not re-walk subtrees
+        // (the pure function would read progress quadratically often).
+        const paths = ['c0', 'c1', 'c2', 'c3', 'c4']
+        const edges = { c0: ['c1'], c1: ['c2'], c2: ['c3'], c3: ['c4'] }
+        const trees = forest(paths, edges)
+        let reads = 0
+        const rollups = createWbsRollups(
+            () => null,
+            () => {
+                reads++
+                return 40
+            }
+        )
+        for (const node of allNodes(trees)) rollups.effectiveProgress(node)
+        expect(reads).toBe(paths.length)
     })
 })
