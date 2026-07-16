@@ -180,7 +180,15 @@ fan-out. Calendar/timeline signatures also hash each card's raw frontmatter + ta
 renderers read the note at render time. The model bookkeeping (`cardsByKey`, `this.board`,
 filter count/zoom chip) still refreshes on skipped passes. Optimistic in-memory mutations change
 the signature by construction, so their immediate render always proceeds; a pending keyboard
-refocus forces a render. Triage keeps its own `lastTriageSignature` guard inside `renderTriage`;
+refocus forces a render. The signature is committed only when the pass **finishes**
+(`commitRenderPass`) — a renderer throwing partway leaves it cleared, so the next trigger repaints
+over the partial DOM. Multi-file write sequences (drag renumber, bulk status/archive) run inside
+`withRebuildsSuppressed`, deferring the non-resetting 250ms data-event debounce to the end of the
+sequence so a mid-sequence rebuild can never render a partial on-disk state. Every optimistic
+mutation path resolves its card through `liveCard()` first — reused DOM nodes keep handlers that
+close over pre-rebuild card objects, whose mutation no render would see. Failed writes roll back
+precisely: `applyLaneChange` reverts the lane value, bulk paths revert/restore only the cards
+whose write failed. Triage keeps its own `lastTriageSignature` guard inside `renderTriage`;
 WBS is ungated (both branches reset the pass signature so a later gated mode always renders over
 their DOM).
 

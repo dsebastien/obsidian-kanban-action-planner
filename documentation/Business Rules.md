@@ -17,8 +17,6 @@ When a new business rule is mentioned:
 
 ## Product Invariants (Kanban Action Planner)
 
-See `documentation/plans/kanban-action-planner-implementation-plan.md` for full detail.
-
 1. **Bases-native view.** The plugin's core is a custom Obsidian Bases view registered via
    `registerBasesView`; a Base may host `0..n` Kanban views, and the Base's own filters
    select the notes. Notes are read from `this.data.data`; per-view state lives in
@@ -350,8 +348,13 @@ See `documentation/plans/kanban-action-planner-implementation-plan.md` for full 
     **relationship add/remove** mutates `card.relationships[role]` then re-renders. **Excluded:**
     status-triggered **auto-archive** transitions stay on the write-then-rebuild path (terminal —
     the note leaves the board and its file moves; the archived note must carry the new status).
-    Property-chip / triage-value edits (derived from the Bases entry, not the in-memory model) are
-    not yet optimistic.
+    Property-chip and triage-value edits are optimistic too (issue #105): `applyCardWrite`
+    recomputes the card's display with the just-written value substituted, and triage feeds the
+    written value as an override into `buildTriageData`. Every optimistic mutation path resolves
+    its card through `liveCard()` first — reused DOM nodes keep handlers that close over
+    pre-rebuild card objects. Failed writes roll back precisely (lane value revert; bulk paths
+    revert/restore only the failed cards) — optimistic state never outlives a write that didn't
+    land.
 33. **Card title source (issue #4).** The card heading is the **note name by default**, or a
     **per-view `titleProperty`** (Configure view → Cards; any `note.*`/`formula.*`/`file.*` id,
     read-only) when set. Resolution is `resolveCardTitle` in `card-display.service.ts`
@@ -601,3 +604,17 @@ See `documentation/plans/kanban-action-planner-implementation-plan.md` for full 
     Consumers: the **WBS progress rollup** (rule 36) reads a done card as **100%** — the
     done signal is the card's OWN value and beats a stale `progress` number — so a goal
     with 2 of 4 done children derives 50% without per-task progress numbers.
+40. **Render-performance invariants (issue #105).** Three fixed constraints govern every render
+    change: (a) **optimistic updates stay** — nothing may wait for the Bases echo for visible
+    feedback; (b) **visual stability** — content must not move, resize, or lose scroll position
+    without a user-visible reason; (c) **snappiness** — no added debounces or deferral on
+    user-initiated actions; stability comes from doing LESS redundant work, never from doing the
+    same work later. Mechanisms: the **render-signature gate** (skip content-identical passes,
+    committed only on pass completion), **scroll capture/restore** across genuinely-needed
+    teardowns (per-lane anchors, per-column scrollTop, calendar/timeline body — restored to a pane
+    only while it shows the SAME content; navigation starts at the top), **render-from-cached-cards**
+    for calendar/timeline UI-state changes, **reserved space** (`scrollbar-gutter: stable`,
+    session-long selection bar, overlay drop indicators), and **guarded resize paths** (0×0 and
+    width-unchanged skips, timeline px-gates). Deliberately deferred pending a maintainer decision:
+    per-column card-height equalization (conflicts with the uniform-card-envelope design) and
+    fixed column widths (conflicts with the issue-#73 equal-grow invariant).
