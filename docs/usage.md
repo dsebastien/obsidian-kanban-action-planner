@@ -677,8 +677,9 @@ work the same way, so you can plan **top-down** (estimate the goal, split it lat
 
 **Rollups are displayed by default — persist them when you want.** Right-click a node and use
 **Save rolled-up estimate (Nd)** or **Save rolled-up progress (N%)** to write the derived
-value into the note. The **Set estimate…** / **Set progress…** dialogs pre-fill the derived
-value too, so adopting a rollup is open → **Set**. Because an own value _replaces_ its
+value into the note. The estimate chip's inline editor and the **Set estimate…** /
+**Set progress…** dialogs pre-fill the derived value too, so adopting a rollup is
+click → **Enter** (or open → **Set**). Because an own value _replaces_ its
 subtree's contribution (it never adds to it), saving a rollup never double-counts.
 
 **Top-down estimating:** right-click a node that has an estimate and children and choose
@@ -687,10 +688,13 @@ coverage) is split equally, whole days, across the children that have no estimat
 Existing values are never overwritten.
 
 **Editing per node:** click the estimate chip, the dates chip, the due chip, or the progress
-bar on any row to set that value directly. The estimate prompt takes a plain number in the
-note's own unit **or any duration** — `2h`, `90m`, `0.5d`, `1d 4h` — and converts it for you
-(days ↔ minutes via the **Minutes per day** setting), with a live preview of the exact value
-that will be written. The context menu offers the same (**Set
+bar on any row to set that value directly. The **estimate chip edits inline**: clicking it
+turns the chip into a small input right in the row — type a plain number in the note's own
+unit **or any duration** — `2h`, `90m`, `0.5d`, `1d 4h` — converted for you (days ↔ minutes
+via the **Minutes per day** setting). **Enter** saves (an empty input clears the note's own
+estimate), **Esc** cancels, and clicking away saves a valid change. The input pre-fills the
+current value — or the derived rollup when the note has none, so persisting a bottom-up
+total is click → Enter. The context menu offers the same (**Set
 estimate…**, **Set progress…**, **Set parent…**), plus everything the card menu has
 elsewhere — including **Set status**, so you can move work through its workflow without
 leaving the tree (the status dot updates instantly). Even faster: **click a row's status
@@ -768,8 +772,10 @@ saved into the `.base` file, like the Board/Calendar/Triage mode).
 ## Other interactions
 
 - **Hover a card to preview its note.** Obsidian's native page-preview popover, the same as
-  hovering a link. By default it's **Ctrl/Cmd-gated** (hold the key while hovering); change that
-  under **Settings → Core plugins → Page preview** (the source is listed as "Kanban Action Planner").
+  hovering a link — and it works in **every mode**: board cards, calendar chips, timeline rows
+  and undated-panel cards, WBS tree rows and "Needs planning" cards. By default it's
+  **Ctrl/Cmd-gated** (hold the key while hovering); change that under
+  **Settings → Core plugins → Page preview** (the source is listed as "Kanban Action Planner").
 - **Click** a card to open the note. **Ctrl/Cmd-click** opens it in a new tab.
 - **Right-click** (or long-press on touch) a card for a menu: open the note (or in a new
   tab), **send it to the top or bottom of its column**, set its status, clear the status,
