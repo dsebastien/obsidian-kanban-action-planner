@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 import {
     basesPropToName,
+    EmbedAwareConfig,
     laneValueForLaneId,
     normalizeLaneValue,
     readCompactMode,
@@ -16,6 +17,88 @@ import {
 function config(values: Record<string, unknown>): { get(key: string): unknown } {
     return { get: (key: string): unknown => values[key] }
 }
+
+describe('EmbedAwareConfig (issue #103)', () => {
+    /** A recording backing store: tracks every write that reaches it. */
+    function store(values: Record<string, unknown>): {
+        get(key: string): unknown
+        set(key: string, value: unknown): void
+        writes: Array<[string, unknown]>
+    } {
+        const writes: Array<[string, unknown]> = []
+        return {
+            get: (key: string): unknown => values[key],
+            set: (key: string, value: unknown): void => {
+                values[key] = value
+                writes.push([key, value])
+            },
+            writes
+        }
+    }
+
+    it('passes reads and writes through when not embedded', () => {
+        const backing = store({ compactMode: true })
+        const cfg = new EmbedAwareConfig(
+            () => backing,
+            () => false
+        )
+        expect(cfg.get('compactMode')).toBe(true)
+        cfg.set('calendarPanelCollapsed', true)
+        expect(backing.writes).toEqual([['calendarPanelCollapsed', true]])
+        expect(cfg.get('calendarPanelCollapsed')).toBe(true)
+    })
+
+    it('NEVER writes to the backing store while embedded (the .base stays untouched)', () => {
+        const backing = store({})
+        const cfg = new EmbedAwareConfig(
+            () => backing,
+            () => true
+        )
+        cfg.set('calendarPanelCollapsed', true)
+        cfg.set('compactMode', true)
+        cfg.set('statuses', ['a', 'b'])
+        expect(backing.writes).toEqual([])
+    })
+
+    it('round-trips embedded writes through the overlay so interactions still work', () => {
+        const backing = store({ calendarPanelCollapsed: false })
+        const cfg = new EmbedAwareConfig(
+            () => backing,
+            () => true
+        )
+        expect(cfg.get('calendarPanelCollapsed')).toBe(false) // falls through
+        cfg.set('calendarPanelCollapsed', true)
+        expect(cfg.get('calendarPanelCollapsed')).toBe(true) // overlay wins
+        expect(backing.get('calendarPanelCollapsed')).toBe(false)
+    })
+
+    it('prefers an overlay value even when it is undefined/null', () => {
+        const backing = store({ calendarTab: 'deadline' })
+        const cfg = new EmbedAwareConfig(
+            () => backing,
+            () => true
+        )
+        cfg.set('calendarTab', null)
+        expect(cfg.get('calendarTab')).toBeNull()
+    })
+
+    it('becomes ephemeral the moment embed detection flips (lazy detection)', () => {
+        // Embed detection is lazy: the first rebuild may run before the root
+        // is attached. Writes before detection persist; writes after stay in
+        // memory.
+        const backing = store({})
+        let embedded = false
+        const cfg = new EmbedAwareConfig(
+            () => backing,
+            () => embedded
+        )
+        cfg.set('collapsedLanes', ['x'])
+        embedded = true
+        cfg.set('collapsedLanes', ['x', 'y'])
+        expect(backing.writes).toEqual([['collapsedLanes', ['x']]])
+        expect(cfg.get('collapsedLanes')).toEqual(['x', 'y'])
+    })
+})
 
 describe('readTriageConfig (issue #53)', () => {
     it('defaults gating to the editable set and scope to clarify', () => {

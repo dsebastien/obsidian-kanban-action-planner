@@ -99,6 +99,8 @@ import {
     setZoomTerm
 } from '../../domain/filter-query'
 import type { CardSearchRecord, FilterContext, FilterQuery } from '../../domain/filter-query'
+import { parseEmbedParams } from '../../domain/embed-params'
+import type { EmbedParams } from '../../domain/embed-params'
 import { CalendarDnd } from '../../ui/calendar/calendar-dnd'
 import { formatDate } from '../../utils/momentjs'
 import { boardStructureWillChange, patchBoard } from '../../ui/board/board-renderer'
@@ -139,6 +141,7 @@ import { CalendarController } from './calendar-controller'
 import type { CalendarViewState } from './calendar-controller'
 import {
     basesPropToName,
+    EmbedAwareConfig,
     laneValueForLaneId,
     normalizeLaneValue,
     readCompactMode,
@@ -301,6 +304,28 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
     private parsedQuery: FilterQuery = { groups: [] }
     private filterInitialized = false
 
+    // Markdown-note embed (issue #103). Non-null params = this instance renders
+    // inside an `![[….base#View|…]]` embed and is a PROJECTION: NO interaction
+    // may write to the shared view config (it would silently rewrite the view
+    // for every other consumer). Detection is lazy — containerEl may still be
+    // detached during onload — and cached once the root is connected
+    // (embedChecked).
+    private embedParams: EmbedParams | null = null
+    private embedChecked = false
+    // The single config read/write funnel. In embeds, EVERY set() stays in an
+    // in-memory overlay (panel collapse, compact toggle, triage scope, column
+    // reorder, …) so interactions still work without touching the .base file.
+    // INVARIANT: no direct `this.viewConfig.set(…)` call may exist in this class —
+    // always go through `this.viewConfig`.
+    private readonly viewConfig = new EmbedAwareConfig(
+        () => this.config,
+        () => this.isEmbedded()
+    )
+    // Ephemeral mode override: seeded from the embed's `mode=` param and
+    // updated by mode switches inside an embed. Always null when not embedded,
+    // so viewMode() falls through to the persisted config flags.
+    private ephemeralMode: ViewMode | null = null
+
     // Calendar mode (Milestone 5) — state + rendering owned by CalendarController.
     private scheduledDateProperty = 'date_scheduled'
     private calendar: CalendarController | null = null
@@ -441,10 +466,10 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             dateFormat: () =>
                 this.noteType.calendar.dateFormat || this.plugin.settings.defaultDateFormat,
             firstDayOfWeek: () => this.plugin.settings.firstDayOfWeek,
-            configuredRange: () => this.config.get('calendarRange'),
-            sortMode: () => readSortMode(this.config.get('calendarTabSort')),
+            configuredRange: () => this.viewConfig.get('calendarRange'),
+            sortMode: () => readSortMode(this.viewConfig.get('calendarTabSort')),
             sortValue: (card) => {
-                const ref = parsePropertyRef(this.config.get('calendarSortProperty'))
+                const ref = parsePropertyRef(this.viewConfig.get('calendarSortProperty'))
                 return ref ? this.readScalarProperty(card, ref) : null
             },
             restoreState: () => this.restoreCalendarState(),
@@ -483,7 +508,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
                 this.noteType.calendar.dateFormat || this.plugin.settings.defaultDateFormat,
             firstDayOfWeek: () => this.plugin.settings.firstDayOfWeek,
             noteTypeFor: (card) => this.noteTypeByPath.get(card.key) ?? null,
-            configuredRange: () => this.config.get('timelineRange'),
+            configuredRange: () => this.viewConfig.get('timelineRange'),
             restoreState: () => this.restoreTimelineState(),
             persistState: (state) => this.persistTimelineState(state),
             restoreHiddenTypes: () => this.restoreTimelineHiddenTypes(),
@@ -794,7 +819,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
      */
     private resolveLaneGrouping(): LaneGrouping {
         return resolveEffectiveLaneGrouping(
-            readLaneGroupingOverride(this.config),
+            readLaneGroupingOverride(this.viewConfig),
             this.noteType.laneGrouping,
             this.distinctRecognizedTypeCount()
         )
@@ -859,6 +884,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
                 return type ? (findNoteType(this.plugin, type.id) ?? null) : null
             }
         )
+        this.detectEmbed()
         this.loadFilterQuery()
         this.loadCollapseState()
 
@@ -881,6 +907,43 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         )
 
         this.applyFilterAndRender()
+    }
+
+    /** Whether this instance renders inside a markdown-note embed (issue #103). */
+    private isEmbedded(): boolean {
+        return this.embedParams !== null
+    }
+
+    /**
+     * Lazily detect a markdown-note embed and apply its alias overrides
+     * (issue #103). Obsidian renders `![[….base#View|…]]` inside a wrapper
+     * carrying `.internal-embed.bases-embed`, with the wikilink alias landing
+     * verbatim in its `alt` attribute — the override channel. containerEl may
+     * not be attached to the DOM when the view is constructed, so this
+     * re-checks each rebuild (and on reveal, via onResize) until the root is
+     * connected, then caches the verdict either way.
+     */
+    private detectEmbed(): void {
+        if (this.embedChecked) return
+        const rootEl = this.rootEl
+        if (!rootEl?.isConnected) return // still detached — re-check next pass
+        this.embedChecked = true
+        const wrapper = this.containerEl.closest('.internal-embed.bases-embed')
+        if (!wrapper) return
+        const params = parseEmbedParams(wrapper.getAttribute('alt') ?? '')
+        this.embedParams = params
+        this.ephemeralMode = params.mode
+        // Bounded height + internal scrolling; without it the embed grows to
+        // full content height and loops the ResizeObserver. The `height=`
+        // param feeds the CSS default through a scoped custom property
+        // (dynamic value → inline style is the lint-legal channel).
+        rootEl.addClass('kap-embedded')
+        if (params.heightPx !== null) {
+            rootEl.style.setProperty('--kap-embed-height', `${String(params.heightPx)}px`)
+        }
+        // Re-seed the filter through the embed-aware loader (a first rebuild
+        // on a detached root may already have loaded the persisted query).
+        this.filterInitialized = false
     }
 
     /**
@@ -1145,7 +1208,9 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             ])
         }
         const sortRef =
-            mode === 'calendar' ? parsePropertyRef(this.config.get('calendarSortProperty')) : null
+            mode === 'calendar'
+                ? parsePropertyRef(this.viewConfig.get('calendarSortProperty'))
+                : null
         const cardsPart = cards.map((card) => {
             const cache = this.app.metadataCache.getFileCache(card.file)
             const estimate = this.estimateConfigFor(card)
@@ -1266,7 +1331,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
     }
 
     private relationalFilter(): RelationalFilter {
-        const value = this.config.get('blockedFilter')
+        const value = this.viewConfig.get('blockedFilter')
         const blocked: BlockedFilter = value === 'only' || value === 'hide' ? value : 'all'
         return { blocked }
     }
@@ -1274,14 +1339,14 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
     private toggleLane(laneId: string): void {
         if (this.collapsedLanes.has(laneId)) this.collapsedLanes.delete(laneId)
         else this.collapsedLanes.add(laneId)
-        this.config.set('collapsedLanes', [...this.collapsedLanes])
+        this.viewConfig.set('collapsedLanes', [...this.collapsedLanes])
         this.rebuild()
     }
 
     private toggleColumn(columnId: string): void {
         if (this.collapsedColumns.has(columnId)) this.collapsedColumns.delete(columnId)
         else this.collapsedColumns.add(columnId)
-        this.config.set('collapsedColumns', [...this.collapsedColumns])
+        this.viewConfig.set('collapsedColumns', [...this.collapsedColumns])
         this.rebuild()
     }
 
@@ -1290,52 +1355,53 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         if (this.collapseInitialized) return
         this.collapseInitialized = true
         this.collapsedLanes.clear()
-        for (const id of readIdArray(this.config.get('collapsedLanes'))) this.collapsedLanes.add(id)
+        for (const id of readIdArray(this.viewConfig.get('collapsedLanes')))
+            this.collapsedLanes.add(id)
         this.collapsedColumns.clear()
-        for (const id of readIdArray(this.config.get('collapsedColumns')))
+        for (const id of readIdArray(this.viewConfig.get('collapsedColumns')))
             this.collapsedColumns.add(id)
     }
 
     /** Read the durable calendar UI state (defaults when unset) — issue #19. */
     private restoreCalendarState(): CalendarViewState {
-        const stored = this.config.get('calendarRangeOverride')
+        const stored = this.viewConfig.get('calendarRangeOverride')
         const range =
             stored === 'week' || stored === 'month' || stored === 'quarter' || stored === 'year'
                 ? stored
                 : null
         return {
             range,
-            tab: this.config.get('calendarTab') === 'deadline' ? 'deadline' : 'scheduled',
-            panelCollapsed: this.config.get('calendarPanelCollapsed') === true,
-            showScheduled: this.config.get('calendarShowScheduled') !== false,
-            showDeadlines: this.config.get('calendarShowDeadlines') !== false
+            tab: this.viewConfig.get('calendarTab') === 'deadline' ? 'deadline' : 'scheduled',
+            panelCollapsed: this.viewConfig.get('calendarPanelCollapsed') === true,
+            showScheduled: this.viewConfig.get('calendarShowScheduled') !== false,
+            showDeadlines: this.viewConfig.get('calendarShowDeadlines') !== false
         }
     }
 
     /** Persist the durable calendar UI state per-view — issue #19. */
     private persistCalendarState(state: CalendarViewState): void {
-        this.config.set('calendarRangeOverride', state.range)
-        this.config.set('calendarTab', state.tab)
-        this.config.set('calendarPanelCollapsed', state.panelCollapsed)
-        this.config.set('calendarShowScheduled', state.showScheduled)
-        this.config.set('calendarShowDeadlines', state.showDeadlines)
+        this.viewConfig.set('calendarRangeOverride', state.range)
+        this.viewConfig.set('calendarTab', state.tab)
+        this.viewConfig.set('calendarPanelCollapsed', state.panelCollapsed)
+        this.viewConfig.set('calendarShowScheduled', state.showScheduled)
+        this.viewConfig.set('calendarShowDeadlines', state.showDeadlines)
     }
 
     /** Read the persisted durable timeline state (issue #77; anchor stays transient). */
     private restoreTimelineState(): TimelineViewState {
-        const stored = this.config.get('timelineRangeOverride')
+        const stored = this.viewConfig.get('timelineRangeOverride')
         return {
             range:
                 stored === 'week' || stored === 'month' || stored === 'quarter' || stored === 'year'
                     ? stored
                     : null,
-            panelCollapsed: this.config.get('timelinePanelCollapsed') === true
+            panelCollapsed: this.viewConfig.get('timelinePanelCollapsed') === true
         }
     }
 
     private persistTimelineState(state: TimelineViewState): void {
-        this.config.set('timelineRangeOverride', state.range)
-        this.config.set('timelinePanelCollapsed', state.panelCollapsed)
+        this.viewConfig.set('timelineRangeOverride', state.range)
+        this.viewConfig.set('timelinePanelCollapsed', state.panelCollapsed)
     }
 
     /**
@@ -1345,20 +1411,20 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
      * silently clobber the list.
      */
     private restoreTimelineHiddenTypes(): string[] {
-        return readIdArray(this.config.get('timelineHiddenTypes'))
+        return readIdArray(this.viewConfig.get('timelineHiddenTypes'))
     }
 
     private persistTimelineHiddenTypes(ids: string[]): void {
-        this.config.set('timelineHiddenTypes', ids)
+        this.viewConfig.set('timelineHiddenTypes', ids)
     }
 
     /** Read the durable WBS UI state (defaults when unset) — issue #76. */
     private restoreWbsState(): WbsViewState {
-        return { panelCollapsed: this.config.get('wbsPanelCollapsed') === true }
+        return { panelCollapsed: this.viewConfig.get('wbsPanelCollapsed') === true }
     }
 
     private persistWbsState(state: WbsViewState): void {
-        this.config.set('wbsPanelCollapsed', state.panelCollapsed)
+        this.viewConfig.set('wbsPanelCollapsed', state.panelCollapsed)
     }
 
     /**
@@ -1368,11 +1434,11 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
      * (the `timelineHiddenTypes` pattern).
      */
     private restoreWbsCollapsedNodes(): string[] {
-        return readIdArray(this.config.get('wbsCollapsedNodes'))
+        return readIdArray(this.viewConfig.get('wbsCollapsedNodes'))
     }
 
     private persistWbsCollapsedNodes(paths: string[]): void {
-        this.config.set('wbsCollapsedNodes', paths)
+        this.viewConfig.set('wbsCollapsedNodes', paths)
     }
 
     /** WBS progress property, 0–100 (global plugin setting; issue #76). */
@@ -1579,12 +1645,12 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             this.rebuild() // snap the dragged column back
             return
         }
-        this.config.set('statuses', orderedColumnIds)
+        this.viewConfig.set('statuses', orderedColumnIds)
         this.rebuild()
     }
 
     private resolveStatusProperty(_files: TFile[]): string | null {
-        const configured = basesPropToName(this.config.get('statusProperty'))
+        const configured = basesPropToName(this.viewConfig.get('statusProperty'))
         if (configured) return configured
         if (this.noteType.source === 'starter-kit' && this.noteType.statusProperty) {
             return this.noteType.statusProperty
@@ -1597,14 +1663,14 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
 
     private resolveOrderProperty(): string {
         return (
-            basesPropToName(this.config.get('orderProperty')) ??
+            basesPropToName(this.viewConfig.get('orderProperty')) ??
             this.plugin.settings.defaultOrderProperty
         )
     }
 
     private resolveDueDateProperty(): string {
         return (
-            basesPropToName(this.config.get('dueDateProperty')) ??
+            basesPropToName(this.viewConfig.get('dueDateProperty')) ??
             this.noteType.calendar.dueDateProperty ??
             this.plugin.settings.defaultDueDateProperty
         )
@@ -1612,7 +1678,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
 
     private resolveScheduledDateProperty(): string {
         return (
-            basesPropToName(this.config.get('scheduledDateProperty')) ??
+            basesPropToName(this.viewConfig.get('scheduledDateProperty')) ??
             this.noteType.calendar.scheduledDateProperty ??
             this.plugin.settings.defaultScheduledDateProperty
         )
@@ -1626,7 +1692,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
      * has no columns and every card sits in Unmapped.
      */
     private resolveColumnValues(): string[] {
-        const viewStatuses = readStringArray(this.config.get('statuses'))
+        const viewStatuses = readStringArray(this.viewConfig.get('statuses'))
         if (viewStatuses.length > 0) return viewStatuses
         if (this.noteTypeStatusValues && this.noteTypeStatusValues.length > 0) {
             return this.noteTypeStatusValues
@@ -1644,7 +1710,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
     private perLaneColumnsActive(): boolean {
         return (
             this.laneGrouping.kind === 'note-type' &&
-            readStringArray(this.config.get('statuses')).length === 0
+            readStringArray(this.viewConfig.get('statuses')).length === 0
         )
     }
 
@@ -1676,7 +1742,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
      * the shared set; untyped cards use the board set.
      */
     private cardColumns(card: KanbanCard): ReadonlyArray<ColumnDef> {
-        if (readStringArray(this.config.get('statuses')).length > 0) return this.columns
+        if (readStringArray(this.viewConfig.get('statuses')).length > 0) return this.columns
         const type = this.noteTypeByPath.get(card.key)
         if (type) {
             const cols = this.columnsForType(type.id)
@@ -1692,7 +1758,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
      * write for the card goes through this.
      */
     private statusPropertyForFile(file: TFile): string | null {
-        const configured = basesPropToName(this.config.get('statusProperty'))
+        const configured = basesPropToName(this.viewConfig.get('statusProperty'))
         if (configured) return configured
         const type = this.noteTypeByPath.get(file.path)
         if (type) {
@@ -1720,21 +1786,21 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
     }
 
     private showEmptyColumns(): boolean {
-        const value = this.config.get('showEmptyColumns')
+        const value = this.viewConfig.get('showEmptyColumns')
         return value === undefined ? true : value === true
     }
 
     private unmappedPosition(): UnmappedPosition {
-        return this.config.get('unmappedPosition') === 'last' ? 'last' : 'first'
+        return this.viewConfig.get('unmappedPosition') === 'last' ? 'last' : 'first'
     }
 
     /** The per-view in-column sort mode (issue #17); `order` = manual (default). */
     private cardSortMode(): TabSortMode {
-        return readSortMode(this.config.get('cardSort'))
+        return readSortMode(this.viewConfig.get('cardSort'))
     }
 
     private cardSortDirection(): SortDirection {
-        return this.config.get('cardSortDirection') === 'desc' ? 'desc' : 'asc'
+        return this.viewConfig.get('cardSortDirection') === 'desc' ? 'desc' : 'asc'
     }
 
     /**
@@ -1748,7 +1814,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         if (mode === 'order') return undefined
         const direction = this.cardSortDirection()
         const sortRef =
-            mode === 'property' ? parsePropertyRef(this.config.get('cardSortProperty')) : null
+            mode === 'property' ? parsePropertyRef(this.viewConfig.get('cardSortProperty')) : null
         const cache = new Map<string, TabSortKey>()
         const keyOf = (card: KanbanCard): TabSortKey => {
             const cached = cache.get(card.key)
@@ -1784,7 +1850,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
      * (`note.*` / `formula.*` / `file.*`), or null → the note name.
      */
     private titlePropertyId(): BasesPropertyId | null {
-        const ref = parsePropertyRef(this.config.get('titleProperty'))
+        const ref = parsePropertyRef(this.viewConfig.get('titleProperty'))
         if (!ref) return null
         return ref.kind === 'note' ? (`note.${ref.name}` as BasesPropertyId) : ref.id
     }
@@ -1808,7 +1874,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             this.dueDateProperty,
             startOfDay(new Date()),
             {
-                show: this.config.get('showDueCountdown') === true,
+                show: this.viewConfig.get('showDueCountdown') === true,
                 soonDays: this.plugin.settings.dueSoonThresholdDays,
                 placement: this.plugin.settings.dueCountdownStyle
             },
@@ -2337,7 +2403,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
      */
     private refreshCardDisplay(): void {
         if (!this.boardEl) return
-        const show = this.config.get('showDueCountdown') === true
+        const show = this.viewConfig.get('showDueCountdown') === true
         const soonDays = this.plugin.settings.dueSoonThresholdDays
         const placement = this.plugin.settings.dueCountdownStyle
         const today = startOfDay(new Date())
@@ -2631,10 +2697,13 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
 
     /** The active view mode (triage wins, else calendar, timeline, WBS, board). */
     private viewMode(): ViewMode {
-        if (this.config.get('triageMode') === true) return 'triage'
-        if (this.config.get('calendarMode') === true) return 'calendar'
-        if (this.config.get('timelineMode') === true) return 'timeline'
-        if (this.config.get('wbsMode') === true) return 'wbs'
+        // Embed override (issue #103): ephemeral, independent of the flags
+        // saved in the shared .base view config.
+        if (this.ephemeralMode !== null) return this.ephemeralMode
+        if (this.viewConfig.get('triageMode') === true) return 'triage'
+        if (this.viewConfig.get('calendarMode') === true) return 'calendar'
+        if (this.viewConfig.get('timelineMode') === true) return 'timeline'
+        if (this.viewConfig.get('wbsMode') === true) return 'wbs'
         return 'board'
     }
 
@@ -2645,10 +2714,16 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         // session, or the reserved bar (issue #105, finding 5.4) would sit
         // stuck over calendar/timeline/triage/WBS with no toggle to close it.
         if (mode !== 'board') this.selection?.exitMode()
-        this.config.set('calendarMode', mode === 'calendar')
-        this.config.set('triageMode', mode === 'triage')
-        this.config.set('timelineMode', mode === 'timeline')
-        this.config.set('wbsMode', mode === 'wbs')
+        if (this.isEmbedded()) {
+            // Embeds are projections (issue #103): persisting the flags would
+            // silently rewrite the shared view for every other consumer.
+            this.ephemeralMode = mode
+        } else {
+            this.viewConfig.set('calendarMode', mode === 'calendar')
+            this.viewConfig.set('triageMode', mode === 'triage')
+            this.viewConfig.set('timelineMode', mode === 'timeline')
+            this.viewConfig.set('wbsMode', mode === 'wbs')
+        }
         if (mode === 'triage') {
             // Fresh queue snapshot each time triage is (re)entered.
             this.triageQueueKeys = null
@@ -2671,12 +2746,12 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
 
     /** Whether compact cards (title only) are active (board mode). */
     private compactMode(): boolean {
-        return readCompactMode(this.config)
+        return readCompactMode(this.viewConfig)
     }
 
     /** Toggle compact cards, persisting the flag (same mechanism as the mode flags). */
     private toggleCompactMode(): void {
-        this.config.set('compactMode', !this.compactMode())
+        this.viewConfig.set('compactMode', !this.compactMode())
         this.rebuild()
     }
 
@@ -2690,7 +2765,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
     private renderTriage(override?: TriageValueOverride): void {
         if (!this.boardEl) return
         this.triageTypeProps.clear() // rebuild per-type property sets for this render
-        const cfg = readTriageConfig(this.config)
+        const cfg = readTriageConfig(this.viewConfig)
         // Build the snapshot when there's none yet — OR when the current one is
         // empty. Opening a view straight into triage renders once before the Bases
         // query has resolved (`cardsByKey` empty), which would otherwise freeze an
@@ -2761,7 +2836,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
                 onScopeChange: (scope) => this.setTriageScope(scope),
                 onSelect: (key) => this.triageSelect(key),
                 onTogglePane: () => {
-                    this.config.set('triagePaneCollapsed', !this.triagePaneCollapsed())
+                    this.viewConfig.set('triagePaneCollapsed', !this.triagePaneCollapsed())
                     this.renderTriage()
                 },
                 onTogglePaneGroup: (key) => {
@@ -2778,7 +2853,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
 
     /** Whether the triage queue pane is collapsed (persisted per view). */
     private triagePaneCollapsed(): boolean {
-        return this.config.get('triagePaneCollapsed') === true
+        return this.viewConfig.get('triagePaneCollapsed') === true
     }
 
     /** Left-pane click: show the queue card `key` on the right (move the cursor). */
@@ -2852,7 +2927,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
 
     /** Persist the triage scope, reset the queue snapshot, and re-render. */
     private setTriageScope(scope: TriageConfig['scope']): void {
-        this.config.set('triageScope', scope)
+        this.viewConfig.set('triageScope', scope)
         this.triageQueueKeys = null
         this.triageCursor = 0
         this.renderTriage()
@@ -2908,18 +2983,18 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         new TriageConfigModal(this.app, {
             properties: () => this.triagePropertyOptions(),
             current: (): TriageConfigData => ({
-                scope: readTriageConfig(this.config).scope,
-                editable: readIdArray(this.config.get('triageUpdateProps')).map(toBasesId),
-                gating: readIdArray(this.config.get('triageGateProps')).map(toBasesId),
-                context: readIdArray(this.config.get('triageSeeProps')).map(toBasesId),
-                tokens: readStringArray(this.config.get('triageTokens'))
+                scope: readTriageConfig(this.viewConfig).scope,
+                editable: readIdArray(this.viewConfig.get('triageUpdateProps')).map(toBasesId),
+                gating: readIdArray(this.viewConfig.get('triageGateProps')).map(toBasesId),
+                context: readIdArray(this.viewConfig.get('triageSeeProps')).map(toBasesId),
+                tokens: readStringArray(this.viewConfig.get('triageTokens'))
             }),
             save: (data: TriageConfigData): void => {
-                this.config.set('triageScope', data.scope)
-                this.config.set('triageUpdateProps', data.editable)
-                this.config.set('triageGateProps', data.gating)
-                this.config.set('triageSeeProps', data.context)
-                this.config.set('triageTokens', data.tokens)
+                this.viewConfig.set('triageScope', data.scope)
+                this.viewConfig.set('triageUpdateProps', data.editable)
+                this.viewConfig.set('triageGateProps', data.gating)
+                this.viewConfig.set('triageSeeProps', data.context)
+                this.viewConfig.set('triageTokens', data.tokens)
                 this.triageQueueKeys = null
                 if (this.triageMode()) this.renderTriage()
             }
@@ -2941,7 +3016,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         // Detect the moment a note's triage completes (last gating prop filled) so
         // we can celebrate it. Read before/after the write; the metadata cache is
         // fresh once the write resolves (same read the re-render below relies on).
-        const cfg = readTriageConfig(this.config)
+        const cfg = readTriageConfig(this.viewConfig)
         const wasComplete = this.cardUnsetCount(card, cfg) === 0
         await this.setCardProperty(card, name, value)
         // Use the value we just wrote everywhere below — the metadata cache
@@ -3262,7 +3337,12 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
     private loadFilterQuery(): void {
         if (this.filterInitialized) return
         this.filterInitialized = true
-        const stored = this.config.get('filterQuery')
+        // An embed's `filter=` param (issue #103) seeds the bar instead of the
+        // persisted query; it rides the normal parse path so the match count
+        // shows in the toolbar, and later edits stay ephemeral (the viewConfig
+        // funnel keeps every embed write in memory). This only runs before any
+        // in-embed edit: filterInitialized is reset solely by detectEmbed().
+        const stored = this.embedParams?.filter ?? this.viewConfig.get('filterQuery')
         this.filterQuery = typeof stored === 'string' ? stored : ''
         this.parsedQuery = parseFilterQuery(this.filterQuery)
         this.filterBar?.setValue(this.filterQuery)
@@ -3279,13 +3359,16 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
     private onFilterClear(): void {
         this.filterQuery = ''
         this.parsedQuery = parseFilterQuery('')
-        this.config.set('filterQuery', '')
+        this.viewConfig.set('filterQuery', '')
         this.applyFilterAndRender()
     }
 
     /** Persist the current query and re-render (debounced target). */
     private commitFilter(): void {
-        this.config.set('filterQuery', this.filterQuery)
+        // In embeds the funnel keeps this ephemeral (issue #103): filter edits
+        // (incl. zoom, which rides setFilterQuery → here) never touch the
+        // shared view config.
+        this.viewConfig.set('filterQuery', this.filterQuery)
         this.applyFilterAndRender()
     }
 
@@ -3393,6 +3476,16 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         // reveal fires the observer again with real dimensions.
         const boardEl = this.boardEl
         if (!boardEl || (boardEl.offsetWidth === 0 && boardEl.offsetHeight === 0)) return
+        // Embed detection (issue #103) may have been skipped while the root
+        // was detached; a real-dimension tick means it is attached now. A
+        // just-detected embed rebuilds so mode/filter overrides apply.
+        if (!this.embedChecked) {
+            this.detectEmbed()
+            if (this.isEmbedded()) {
+                this.rebuild()
+                return
+            }
+        }
         this.calendar?.evaluatePanelAutoCollapse()
         this.timeline?.evaluatePanelAutoCollapse()
         this.wbs?.evaluatePanelAutoCollapse()

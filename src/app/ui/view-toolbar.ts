@@ -1,8 +1,10 @@
 import { setIcon } from 'obsidian'
 import { renderGearButton } from './gear-button'
+import type { ViewMode } from '../domain/embed-params'
 
-/** The five mutually-exclusive view modes (Board / Calendar / Timeline / Triage / WBS). */
-export type ViewMode = 'board' | 'calendar' | 'timeline' | 'triage' | 'wbs'
+// ViewMode lives in the domain layer (embed-params, issue #103) so pure
+// domain code never imports from ui/; re-exported here for existing users.
+export type { ViewMode } from '../domain/embed-params'
 
 export interface ViewToolbarState {
     /** The active view mode. */

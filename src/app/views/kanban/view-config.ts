@@ -8,6 +8,46 @@ interface ConfigReader {
     get(key: string): unknown
 }
 
+/** The read/write subset of `BasesViewConfig` backing {@link EmbedAwareConfig}. */
+interface ConfigStore {
+    get(key: string): unknown
+    set(key: string, value: unknown): void
+}
+
+/**
+ * The single read/write funnel over the per-view Bases config (issue #103).
+ * Embeds are projections: NO write may reach the shared `.base` file — any
+ * persisted change would silently rewrite the view for every other consumer.
+ * While `embedded()` is true, `set()` lands in an in-memory overlay that
+ * `get()` prefers, so in-embed interactions (panel collapse, compact toggle,
+ * triage scope, column reorder, …) still work — ephemerally, scoped to this
+ * view instance. Outside embeds the funnel is a transparent pass-through.
+ *
+ * The backing store is resolved lazily (`store()`): Bases assigns
+ * `this.config` after view construction.
+ */
+export class EmbedAwareConfig implements ConfigReader {
+    private readonly overlay = new Map<string, unknown>()
+
+    constructor(
+        private readonly store: () => ConfigStore,
+        private readonly embedded: () => boolean
+    ) {}
+
+    get(key: string): unknown {
+        if (this.overlay.has(key)) return this.overlay.get(key)
+        return this.store().get(key)
+    }
+
+    set(key: string, value: unknown): void {
+        if (this.embedded()) {
+            this.overlay.set(key, value)
+            return
+        }
+        this.store().set(key, value)
+    }
+}
+
 /** Read the scheduling-panel sort mode, defaulting to manual order. */
 export function readSortMode(value: unknown): TabSortMode {
     return value === 'name' || value === 'property' ? value : 'order'

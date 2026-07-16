@@ -46,6 +46,17 @@
         --kap-ease: cubic-bezier(0.2, 0, 0, 1);
     }
 
+    /* Embedded in a markdown note (issue #103): the embed wrapper has no
+       definite height, so the root's height:100% resolves to auto — the board
+       would grow to full content height and loop the ResizeObserver. A bounded
+       height re-engages every mode's internal flex-1/min-h-0 scrollers
+       (matching the feel of native Bases table embeds). --kap-embed-height is
+       set inline from the `height=` alias param. */
+    .kap-root.kap-embedded {
+        height: var(--kap-embed-height, 30rem);
+        max-height: var(--kap-embed-height, 30rem);
+    }
+
     /* Every plugin button should read as clickable. Obsidian's unlayered <button>
        rule sets a non-pointer cursor that outranks any layered rule, so without
        !important they all show the default arrow. Covers the view buttons (mode
