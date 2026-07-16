@@ -1,5 +1,24 @@
 # Release Notes
 
+## 1.5.0 (2026-07-16)
+
+### Features
+
+- **plugin:** add inline status control on WBS rows
+- **plugin:** per-note-type done states counting as 100% in progress rollups
+
+### Bug Fixes
+
+- **plugin:** resolve live cards, add write rollbacks and harden the render gate
+
+### Performance Improvements
+
+- **plugin:** complete the optimistic model for lane, bulk, triage and card-menu writes
+- **plugin:** preserve scroll positions across full-teardown re-renders
+- **plugin:** render calendar/timeline ui-state changes from the cached card set
+- **plugin:** reserve layout space and guard the resize path
+- **plugin:** skip content-identical render passes with a render-signature gate
+
 ## 1.4.0 (2026-07-15)
 
 ### Features

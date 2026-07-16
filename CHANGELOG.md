@@ -2,6 +2,25 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.5.0](https://github.com/dsebastien/obsidian-kanban-action-planner/compare/1.4.0...1.5.0) (2026-07-16)
+
+### Features
+
+* **plugin:** add inline status control on WBS rows ([c13ffb3](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/c13ffb3c91436e9d0558aa220635a32e094ca345)), closes [#98](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/98)
+* **plugin:** per-note-type done states counting as 100% in progress rollups ([81963c5](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/81963c508f522a1c6bfed87a598dce12a30eede7)), closes [#56](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/56)
+
+### Bug Fixes
+
+* **plugin:** resolve live cards, add write rollbacks and harden the render gate ([033478b](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/033478b7374d710c640002e6b4cdf662fa7c489b))
+
+### Performance Improvements
+
+* **plugin:** complete the optimistic model for lane, bulk, triage and card-menu writes ([f7331ed](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/f7331edf34f92359b01c76eb2f12fd4783dd74ef))
+* **plugin:** preserve scroll positions across full-teardown re-renders ([2e69547](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/2e69547fda18f31f2173efc2dc0375ce9cca256c))
+* **plugin:** render calendar/timeline ui-state changes from the cached card set ([b5d5f1c](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/b5d5f1c168ead80b51423a872e21104fcadd292e))
+* **plugin:** reserve layout space and guard the resize path ([9137ede](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/9137edeba9a9b70fce146676908d911b016e3856))
+* **plugin:** skip content-identical render passes with a render-signature gate ([e9c0831](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/e9c08317be2800cb0c9d821ee1c9e90cc8758aa5))
+
 ## [1.4.0](https://github.com/dsebastien/obsidian-kanban-action-planner/compare/1.3.0...1.4.0) (2026-07-15)
 
 ### Features
@@ -282,6 +301,7 @@ All notable changes to this project will be documented in this file.
 
 * **plugin:** match Starter Kit's {{quarter}} placeholder format (Q2, not 2) ([4fde618](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/4fde6185c5956e3f6fd2ca3a9b03e70cf5e16840))
 * **plugin:** persist discovered statuses so Show empty columns works ([cf91b81](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/cf91b81a1b0786e35c73f4885882e2dc33564c62))
+
 
 
 
