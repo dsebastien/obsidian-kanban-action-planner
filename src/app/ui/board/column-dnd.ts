@@ -193,7 +193,7 @@ export class ColumnDnd {
         const current = this.draggableColumns(this.boardEl).map((c) => c.dataset['columnId'] ?? '')
         const next = [...others]
         next.splice(this.insertIndex, 0, sourceId)
-        return next.join(' ') === current.join(' ') ? null : next
+        return next.join('\u0000') === current.join('\u0000') ? null : next
     }
 
     private cleanup(): void {

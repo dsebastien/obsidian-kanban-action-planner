@@ -144,6 +144,28 @@ export function captureScrollBySelector(
     )
 }
 
+/**
+ * Drop snapshot entries whose scroller now shows DIFFERENT content.
+ * `previous`/`next` map a snapshot key to a stable content identity (the
+ * calendar keys its backlog list by tab, the grid by anchor + range, the
+ * focused-day list by day). Carrying the old content's offset onto a
+ * different list would pin the user to a meaningless position — navigation
+ * starts at the top, while unchanged panes keep their scroll (issue #105
+ * review). Keys absent from `next` are not content-tracked and are kept;
+ * a null `previous` (first render) drops every tracked key.
+ */
+export function pruneStaleContent(
+    snapshot: ScrollSnapshot,
+    previous: ReadonlyMap<string, string> | null,
+    next: ReadonlyMap<string, string>
+): void {
+    for (const key of [...snapshot.keys()]) {
+        const identity = next.get(key)
+        if (identity === undefined) continue
+        if (previous === null || previous.get(key) !== identity) snapshot.delete(key)
+    }
+}
+
 /** Restore a selector-keyed snapshot onto the freshly rebuilt DOM under `rootEl`. */
 export function restoreScrollBySelector(rootEl: HTMLElement, snapshot: ScrollSnapshot): void {
     for (const [selector, saved] of snapshot) {

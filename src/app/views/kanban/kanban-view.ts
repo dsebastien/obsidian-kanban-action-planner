@@ -22,6 +22,8 @@ import type {
     NoteType,
     RelationshipRole
 } from '../../domain/note-type'
+import { resolveDoneConfig } from '../../domain/done'
+import type { ResolvedDoneConfig } from '../../domain/done'
 import { archiveFolderPrefixes } from '../../domain/archive-paths'
 import { buildBoard } from '../../domain/board-model'
 import { NO_TYPE_ID, groupByTypeAndStatus } from '../../domain/timeline'
@@ -242,6 +244,19 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
     // restore, no equalize. Null = next pass always renders (triage/WBS
     // passes and view creation reset it).
     private lastRenderSignature: string | null = null
+    // Signature computed by the current pass, committed to lastRenderSignature
+    // only when the pass finishes (commitRenderPass) — if a renderer throws
+    // partway, the next trigger repaints over the partial DOM instead of
+    // being gated away (issue #105 review).
+    private pendingRenderSignature: string | null = null
+    // While a multi-write sequence runs (drag renumber, bulk status/archive),
+    // the data-event debounce must not fire mid-sequence: the non-resetting
+    // 250ms debouncer would re-derive a PARTIAL on-disk state and visibly
+    // revert the optimistic render (issue #105 review). Depth-counted so
+    // sequences can nest; a swallowed event schedules one trailing rebuild,
+    // which the render-signature gate absorbs when the echo matches.
+    private suppressRebuildDepth = 0
+    private rebuildDeferredWhileSuppressed = false
     // Left-pane group collapse (issue: triage navigation pane), keyed
     // `typeId` / `typeId::status`. In-memory; groups default EXPANDED (the pane
     // is a navigation list, so the queue is visible without clicking to expand).
@@ -296,7 +311,13 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         super(controller)
         this.containerEl = containerEl
         this.plugin = plugin
-        this.debouncedRebuild = debounce(() => void this.resolveAndRebuild(), 250)
+        this.debouncedRebuild = debounce(() => {
+            if (this.suppressRebuildDepth > 0) {
+                this.rebuildDeferredWhileSuppressed = true
+                return
+            }
+            void this.resolveAndRebuild()
+        }, 250)
         this.debouncedResize = debounce(() => this.onResize(), 120)
         this.debouncedFilter = debounce(() => this.commitFilter(), 150)
     }
@@ -334,8 +355,24 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             // Optimistic bulk actions (issue #105, finding 1.4): one model
             // mutation + one render up front; the write echoes re-derive the
             // same state and are absorbed by the render-signature gate.
-            applyBulkStatus: (cards, statusValue) => {
-                for (const card of cards) card.statusValue = statusValue
+            // Per-entry values so the failure path can revert JUST the cards
+            // whose write failed (issue #105 review).
+            applyBulkStatus: (entries) => {
+                for (const { card, statusValue } of entries) {
+                    const live = this.liveCard(card)
+                    live.statusValue = statusValue
+                    // When the status property is a visible card field its chip
+                    // must change in the same optimistic render — recompute the
+                    // display with the written value substituted (the entry and
+                    // metadata cache are stale until the echo).
+                    const property = this.statusPropertyFor(live)
+                    if (property) {
+                        live.display = this.cardDisplayFor(
+                            live.file,
+                            new Map<string, string | null>([[property.toLowerCase(), statusValue]])
+                        )
+                    }
+                }
                 this.applyFilterAndRender()
             },
             removeCardsFromModel: (keys) => {
@@ -343,7 +380,18 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
                 this.allCards = this.allCards.filter((c) => !dropped.has(c.key))
                 this.applyFilterAndRender()
             },
-            requestRebuild: () => this.rebuild()
+            restoreCardsToModel: (cards) => {
+                // Failed archives only: the files never moved, so the captured
+                // card objects are still valid — re-adding them (instead of a
+                // full rebuild from the still-stale data set, which would
+                // briefly resurrect the successfully archived cards too) keeps
+                // the rollback scoped to what actually failed (issue #105
+                // review). buildBoard re-sorts, so append order is irrelevant.
+                const have = new Set(this.allCards.map((c) => c.key))
+                this.allCards = [...this.allCards, ...cards.filter((c) => !have.has(c.key))]
+                this.applyFilterAndRender()
+            },
+            runExclusiveWrites: (writes) => this.withRebuildsSuppressed(writes)
         })
         this.filterEmptyEl = this.rootEl.createDiv({
             cls: 'kap-filter-empty kap-hidden',
@@ -446,6 +494,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             relationshipSets: () => this.relationshipsByPath,
             startProperty: () => this.resolveTimelineStartProperty(),
             estimateConfigFor: (card) => this.estimateConfigFor(card),
+            doneConfigFor: (card) => this.doneConfigFor(card),
             minutesPerDay: () => this.plugin.settings.minutesPerDay,
             progressProperty: () => this.resolveProgressProperty(),
             scheduledProperty: () => this.scheduledDateProperty,
@@ -865,6 +914,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             }
             this.renderToolbar(false)
             this.calendar?.render(cards)
+            this.commitRenderPass()
             return
         }
 
@@ -874,6 +924,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             }
             this.renderToolbar(false)
             this.timeline?.render(cards)
+            this.commitRenderPass()
             return
         }
 
@@ -972,6 +1023,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         // invalidates the scroll and the focus scroll can override the
         // anchors just restored.
         this.applyRefocus()
+        this.commitRenderPass()
     }
 
     /**
@@ -994,6 +1046,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         const signature = this.renderPassSignature(mode, cards)
         if (signature === null) {
             this.lastRenderSignature = null
+            this.pendingRenderSignature = null
             return false
         }
         const mounted = this.boardEl ? this.boardEl.querySelector(mountedSelector) !== null : false
@@ -1001,8 +1054,37 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             log(`Kanban render skipped (${mode}): signature unchanged`, 'debug')
             return true
         }
-        this.lastRenderSignature = signature
+        // Clear now, commit only when the pass finishes (commitRenderPass):
+        // a renderer throwing partway must not record the pass as completed,
+        // or the next content-identical trigger (typically the write's own
+        // echo) would be gated away and the partial DOM would stick.
+        this.lastRenderSignature = null
+        this.pendingRenderSignature = signature
         return false
+    }
+
+    /** Record the render pass that just finished (see {@link skipUnchangedRenderPass}). */
+    private commitRenderPass(): void {
+        this.lastRenderSignature = this.pendingRenderSignature
+    }
+
+    /**
+     * Run a multi-file write sequence with the data-event rebuild deferred to
+     * its end (see {@link suppressRebuildDepth}). The trailing rebuild only
+     * runs when an event was actually swallowed, and the render-signature
+     * gate absorbs it when the echo re-derives the optimistic state.
+     */
+    private async withRebuildsSuppressed(writes: () => Promise<void>): Promise<void> {
+        this.suppressRebuildDepth++
+        try {
+            await writes()
+        } finally {
+            this.suppressRebuildDepth--
+            if (this.suppressRebuildDepth === 0 && this.rebuildDeferredWhileSuppressed) {
+                this.rebuildDeferredWhileSuppressed = false
+                this.debouncedRebuild()
+            }
+        }
     }
 
     /**
@@ -1044,6 +1126,10 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
                 card.statusValue,
                 card.order,
                 this.noteTypeByPath.get(card.key)?.id ?? '',
+                // Group headers and the timeline's Types menu draw the type
+                // NAME — a settings rename keeps the id, so without the name
+                // here the rename would be gated away (issue #105 review).
+                this.noteTypeByPath.get(card.key)?.name ?? '',
                 cardSignature(card, ''),
                 // The dated renderers read these straight from the note.
                 JSON.stringify(cache?.frontmatter ?? null),
@@ -1305,6 +1391,17 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             property: override.property.trim() || this.plugin.settings.defaultEstimateProperty,
             unit: override.unit
         }
+    }
+
+    /**
+     * The done-state definition for a card (issue #56): its own note type's
+     * config; untyped cards fall back to the active/default note type (the
+     * archive-config pattern). Null = no done state configured.
+     */
+    private doneConfigFor(card: KanbanCard): ResolvedDoneConfig | null {
+        const typeId = this.noteTypeByPath.get(card.key)?.id
+        const noteType = typeId ? findNoteType(this.plugin, typeId) : this.noteType
+        return resolveDoneConfig(noteType)
     }
 
     /** Milestone list property (global plugin setting). */
@@ -1643,7 +1740,8 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
      * the change can't be applied (note-type grouping), so the caller aborts the
      * whole move and the card snaps back.
      */
-    private async applyLaneChange(card: KanbanCard, targetLaneId: string): Promise<boolean> {
+    private async applyLaneChange(cardRef: KanbanCard, targetLaneId: string): Promise<boolean> {
+        const card = this.liveCard(cardRef)
         if (this.laneGrouping.kind !== 'property') {
             log('Cross-lane drag is only supported for property swimlanes; ignoring.', 'warn')
             return false
@@ -1664,14 +1762,45 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         // echo, so the re-derived state is identical and the echo is absorbed
         // by the render-signature gate.
         const laneValue = laneValueForLaneId(targetLaneId, UNGROUPED_LANE_ID)
+        const previousLaneValue = card.laneValue
+        const previousMapped = this.laneValueByPath.get(card.key) ?? null
         card.laneValue = laneValue
         this.laneValueByPath.set(card.key, laneValue)
-        if (targetLaneId === UNGROUPED_LANE_ID) {
-            await deleteProperty(this.app, card.file, property)
-        } else {
-            await setProperty(this.app, card.file, property, targetLaneId)
+        try {
+            await this.withRebuildsSuppressed(async () => {
+                if (targetLaneId === UNGROUPED_LANE_ID) {
+                    await deleteProperty(this.app, card.file, property)
+                } else {
+                    await setProperty(this.app, card.file, property, targetLaneId)
+                }
+            })
+        } catch (error) {
+            // A failed write fires no echo, and laneValueByPath is only
+            // re-derived in resolveAndRebuild — without this revert the card
+            // would render in a lane the disk does not hold indefinitely
+            // (issue #105 review).
+            card.laneValue = previousLaneValue
+            this.laneValueByPath.set(card.key, previousMapped)
+            this.applyFilterAndRender()
+            log('Cross-lane write failed; reverted the optimistic lane change.', 'error', error)
+            new Notice('Failed to move the card to the target lane.')
+            return false
         }
         return true
+    }
+
+    /**
+     * Resolve the LIVE card object for a (possibly stale) card reference.
+     * Reused DOM nodes keep handlers that close over the card from the render
+     * that created them, and every rebuild recreates `allCards` — so after
+     * any rebuild a captured card can be a ghost whose mutation the next
+     * render would never see (issue #105 review). Every optimistic mutation
+     * path must resolve through this first.
+     */
+    private liveCard(card: KanbanCard): KanbanCard {
+        return (
+            this.cardsByKey.get(card.key) ?? this.allCards.find((c) => c.key === card.key) ?? card
+        )
     }
 
     /** The lane id a card currently sits in (`''` for single-lane boards). */
@@ -1690,12 +1819,13 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
      * uses a single midpoint write when possible, else renumbers the column.
      */
     private async applyMove(
-        card: KanbanCard,
+        cardRef: KanbanCard,
         newStatus: string | null,
         destLaneId: string,
         destColumnId: string,
         index: number
     ): Promise<void> {
+        const card = this.liveCard(cardRef)
         // The card's own note type is authoritative for every status write:
         // the value comes from the card's lane/type column set (callers), the
         // property from its own type.
@@ -1756,12 +1886,28 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
 
         // Persist. Each write triggers onDataUpdated → a debounced rebuild that
         // re-derives this exact state, so there is no visual change (issue #64).
-        if (statusChanged && statusProperty) {
-            if (newStatus === null) await deleteProperty(this.app, card.file, statusProperty)
-            else await setProperty(this.app, card.file, statusProperty, newStatus)
-        }
-        for (const write of orderWrites) {
-            await setProperty(this.app, write.file, this.orderProperty, write.order)
+        // The whole sequence runs with data rebuilds suppressed: the renumber
+        // path writes N files, and the non-resetting 250ms debouncer would
+        // otherwise fire mid-sequence and re-derive a PARTIAL on-disk state,
+        // visibly reverting the optimistic render (issue #105 review).
+        try {
+            await this.withRebuildsSuppressed(async () => {
+                if (statusChanged && statusProperty) {
+                    if (newStatus === null)
+                        await deleteProperty(this.app, card.file, statusProperty)
+                    else await setProperty(this.app, card.file, statusProperty, newStatus)
+                }
+                for (const write of orderWrites) {
+                    await setProperty(this.app, write.file, this.orderProperty, write.order)
+                }
+            })
+        } catch (error) {
+            // A failed write leaves disk behind the optimistic model, and no
+            // echo will correct it — re-derive everything from the metadata
+            // cache so the board shows what actually landed.
+            log('Card move write failed; re-deriving the board state.', 'error', error)
+            new Notice('Failed to save the card move.')
+            void this.resolveAndRebuild()
         }
     }
 
@@ -1771,18 +1917,23 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
     }
 
     private showCardMenu(card: KanbanCard, event: MouseEvent, extend?: (menu: Menu) => void): void {
-        buildCardMenu(card, this.cardMenuHost, extend).showAtMouseEvent(event)
+        // liveCard: the menu displays current status/relationships, and its
+        // handlers must mutate the live model, not a pre-rebuild ghost.
+        buildCardMenu(this.liveCard(card), this.cardMenuHost, extend).showAtMouseEvent(event)
     }
 
     /** Keyboard-triggered card menu, anchored just below the card (issue #20). */
     private showCardMenuAt(card: KanbanCard, cardEl: HTMLElement): void {
         const rect = cardEl.getBoundingClientRect()
-        buildCardMenu(card, this.cardMenuHost).showAtPosition({ x: rect.left, y: rect.bottom })
+        buildCardMenu(this.liveCard(card), this.cardMenuHost).showAtPosition({
+            x: rect.left,
+            y: rect.bottom
+        })
     }
 
     /** Status-only quick menu (WBS status dot, issue #98) — same write path. */
     private showStatusMenu(card: KanbanCard, event: MouseEvent): void {
-        const menu = buildStatusMenu(card, this.cardMenuHost)
+        const menu = buildStatusMenu(this.liveCard(card), this.cardMenuHost)
         // Keyboard activation synthesizes a click at (0,0) — anchor to the dot.
         if (event.detail === 0 && event.currentTarget instanceof HTMLElement) {
             const rect = event.currentTarget.getBoundingClientRect()
@@ -1868,15 +2019,19 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
     }
 
     /** Open a note picker and link the chosen note in `role`'s property. */
-    private addRelationship(card: KanbanCard, role: RelationshipRole): void {
-        const property = this.relationshipPropertiesForPath(card.key)[role]
+    private addRelationship(cardRef: KanbanCard, role: RelationshipRole): void {
+        const property = this.relationshipPropertiesForPath(cardRef.key)[role]
         if (property.length === 0) return
-        const exclude = new Set<string>([card.file.path])
-        for (const target of directLinkTargets(this.app, card.file, property)) {
+        const exclude = new Set<string>([cardRef.file.path])
+        for (const target of directLinkTargets(this.app, cardRef.file, property)) {
             exclude.add(target.path)
         }
         new RelationshipTargetModal(this.app, role, exclude, (target) => {
-            // Optimistic: show the new badge at once, then write (issue #64).
+            // Resolve the live card at COMMIT time — a rebuild can land while
+            // the picker is open, orphaning the captured object (issue #105
+            // review). Optimistic: show the new badge at once, then write
+            // (issue #64).
+            const card = this.liveCard(cardRef)
             if (!card.relationships[role].some((r) => r.key === target.path)) {
                 card.relationships[role] = [
                     ...card.relationships[role],
@@ -1896,10 +2051,11 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
 
     /** Remove the link to `targetPath` from `role`'s property. */
     private async removeRelationship(
-        card: KanbanCard,
+        cardRef: KanbanCard,
         role: RelationshipRole,
         targetPath: string
     ): Promise<void> {
+        const card = this.liveCard(cardRef)
         const property = this.relationshipPropertiesForPath(card.key)[role]
         if (property.length === 0) return
         // Optimistic: drop the badge immediately, then write (issue #64).
@@ -1932,7 +2088,8 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
     }
 
     /** Keyboard: move a card to the adjacent column (writes status; focus follows). */
-    private moveCardColumn(card: KanbanCard, direction: 1 | -1): void {
+    private moveCardColumn(cardRef: KanbanCard, direction: 1 | -1): void {
+        const card = this.liveCard(cardRef)
         const loc = this.cardLocation(card)
         if (!loc) return
         const target = loc.columns[loc.colIndex + direction]
@@ -1943,8 +2100,9 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
     }
 
     /** Keyboard: reorder a card up/down within its column (writes manual order). */
-    private reorderCard(card: KanbanCard, direction: 1 | -1): void {
+    private reorderCard(cardRef: KanbanCard, direction: 1 | -1): void {
         if (this.cardSortMode() !== 'order') return // manual reorder is off under a sort (#17)
+        const card = this.liveCard(cardRef)
         const loc = this.cardLocation(card)
         if (!loc) return
         const column = loc.columns[loc.colIndex]
@@ -1956,8 +2114,9 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
     }
 
     /** Menu: send a card to the top or bottom of its column (writes manual order; issue #78). */
-    private sendCardToEdge(card: KanbanCard, edge: 'top' | 'bottom'): void {
+    private sendCardToEdge(cardRef: KanbanCard, edge: 'top' | 'bottom'): void {
         if (this.cardSortMode() !== 'order') return // manual reorder is off under a sort (#17)
+        const card = this.liveCard(cardRef)
         const loc = this.cardLocation(card)
         if (!loc) return
         const column = loc.columns[loc.colIndex]
@@ -2135,10 +2294,11 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
     }
 
     private async setCardStatus(
-        card: KanbanCard,
+        cardRef: KanbanCard,
         statusValue: string | null,
         columnId: string
     ): Promise<void> {
+        const card = this.liveCard(cardRef)
         const laneId = this.laneIdOf(card)
         const destCards = this.columnCards(laneId, columnId).filter((c) => c.key !== card.key)
         await this.applyMove(card, statusValue, laneId, columnId, destCards.length)
@@ -2254,12 +2414,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
      * simply renders once more, exactly as before this shortcut existed.
      */
     private applyCardWrite(card: KanbanCard, propertyName: string, value: string | null): void {
-        // Resolve the LIVE card object by key: reused DOM nodes keep menu
-        // handlers that close over the card from the render that created
-        // them, so after any rebuild `card` can be a stale object whose
-        // mutation the next render would never see.
-        const live =
-            this.cardsByKey.get(card.key) ?? this.allCards.find((c) => c.key === card.key) ?? card
+        const live = this.liveCard(card)
         live.display = this.cardDisplayFor(
             live.file,
             new Map<string, string | null>([[propertyName.toLowerCase(), value]])
@@ -2300,6 +2455,10 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
     /** Switch the view mode, persisting the mode flags and rebuilding. */
     private setViewMode(mode: ViewMode): void {
         if (this.viewMode() === mode) return
+        // Selection is board-only: leaving board mode must end the select
+        // session, or the reserved bar (issue #105, finding 5.4) would sit
+        // stuck over calendar/timeline/triage/WBS with no toggle to close it.
+        if (mode !== 'board') this.selection?.exitMode()
         this.config.set('calendarMode', mode === 'calendar')
         this.config.set('triageMode', mode === 'triage')
         this.config.set('timelineMode', mode === 'timeline')

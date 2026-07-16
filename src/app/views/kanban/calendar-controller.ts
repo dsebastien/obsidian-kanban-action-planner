@@ -21,6 +21,7 @@ import type { CalendarEntry, PanelTypeGroupModel } from '../../ui/calendar/calen
 import {
     CALENDAR_SCROLLER_SELECTORS,
     captureScrollBySelector,
+    pruneStaleContent,
     restoreScrollBySelector
 } from '../../ui/scroll-preservation'
 import type { CalendarDropTarget } from '../../ui/calendar/calendar-dnd'
@@ -110,6 +111,9 @@ export class CalendarController {
     // Auto-collapse the scheduling pane when the container is too narrow.
     private panelAutoCollapsed = false
     private panelLastNarrow: boolean | null = null
+    // Content identity of each scroller at the last render — scroll is only
+    // restored onto a pane still showing the SAME content (issue #105 review).
+    private lastScrollContentKeys: Map<string, string> | null = null
     /**
      * Panel group collapse, keyed `typeId` / `typeId::status`. Lives on the
      * controller instance so expanding a group survives the rebuild every
@@ -305,7 +309,18 @@ export class CalendarController {
         // the synchronous rebuild, clamped to the new extent (issue #105,
         // finding 2.1). Content-identical passes are already skipped by the
         // view's render-signature gate — this covers the renders that DO run.
+        // A pane NAVIGATING to different content (tab switch, anchor/range
+        // shift, another focused day) starts at the top instead of inheriting
+        // the old list's offset — only unchanged panes keep their scroll
+        // (issue #105 review).
         const scrolls = captureScrollBySelector(boardEl, CALENDAR_SCROLLER_SELECTORS)
+        const contentKeys = new Map<string, string>([
+            ['.kap-panel-list', dimension],
+            ['.kap-calendar', `${range}|${toDateKey(anchor)}`],
+            ['.kap-cal-focus-day', this.focusedDay ?? '']
+        ])
+        pruneStaleContent(scrolls, this.lastScrollContentKeys, contentKeys)
+        this.lastScrollContentKeys = contentKeys
         renderCalendar(
             boardEl,
             {

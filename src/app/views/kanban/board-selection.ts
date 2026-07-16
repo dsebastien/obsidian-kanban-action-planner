@@ -31,11 +31,12 @@ export interface SelectionHost {
     onModeChanged(): void
     /**
      * Optimistically apply a bulk status change (issue #105, finding 1.4):
-     * mutate every card in the in-memory model and render ONCE, before the
-     * sequential writes. The write echoes re-derive the same state and are
-     * absorbed by the render-signature gate.
+     * mutate every listed card in the in-memory model and render ONCE, before
+     * the sequential writes. The write echoes re-derive the same state and
+     * are absorbed by the render-signature gate. Per-entry values so the
+     * failure path can revert just the cards whose write failed.
      */
-    applyBulkStatus(cards: KanbanCard[], statusValue: string | null): void
+    applyBulkStatus(entries: ReadonlyArray<{ card: KanbanCard; statusValue: string | null }>): void
     /**
      * Optimistically drop cards from the in-memory model and render once
      * (issue #105, finding 1.4) — archived notes leave the board, so the
@@ -44,11 +45,17 @@ export interface SelectionHost {
      */
     removeCardsFromModel(keys: string[]): void
     /**
-     * Re-derive the model from the current data — the rollback path when a
-     * bulk write failed, so an optimistic mutation never sticks around for a
-     * write that didn't land.
+     * Re-add cards whose archive failed (the files never moved) and render
+     * once — the precise rollback for a partial bulk archive.
      */
-    requestRebuild(): void
+    restoreCardsToModel(cards: KanbanCard[]): void
+    /**
+     * Run a write sequence with the host's data-event rebuild deferred until
+     * the sequence ends — a bulk loop can outlast the host's non-resetting
+     * rebuild debounce, which would otherwise re-derive a PARTIAL on-disk
+     * state mid-sequence and visibly revert the optimistic render.
+     */
+    runExclusiveWrites(writes: () => Promise<void>): Promise<void>
 }
 
 /**
@@ -77,6 +84,16 @@ export class BoardSelection {
         }
         this.host.onModeChanged()
         this.refresh()
+    }
+
+    /**
+     * End the select session (no-op when inactive). The host calls this when
+     * the view leaves board mode — selection is board-only, and the bar's
+     * session-long reservation (issue #105, finding 5.4) would otherwise sit
+     * stuck over the other modes with no toggle to close it.
+     */
+    exitMode(): void {
+        if (this.mode) this.toggleMode()
     }
 
     /**
@@ -208,30 +225,37 @@ export class BoardSelection {
      */
     private async bulkSetStatus(statusValue: string | null): Promise<void> {
         let failed = 0
-        const writes: Array<{ card: KanbanCard; property: string }> = []
+        // `previous` is captured BEFORE the optimistic mutation — it is the
+        // revert value for a write that fails.
+        const writes: Array<{ card: KanbanCard; property: string; previous: string | null }> = []
         for (const card of this.selectedCards()) {
             const property = this.host.statusPropertyFor(card)
             if (!property) {
                 failed++
                 continue
             }
-            writes.push({ card, property })
+            writes.push({ card, property, previous: card.statusValue })
         }
-        this.host.applyBulkStatus(
-            writes.map((w) => w.card),
-            statusValue
-        )
+        this.host.applyBulkStatus(writes.map(({ card }) => ({ card, statusValue })))
         let ok = 0
-        for (const { card, property } of writes) {
-            try {
-                if (statusValue === null) await deleteProperty(this.host.app, card.file, property)
-                else await setProperty(this.host.app, card.file, property, statusValue)
-                ok++
-            } catch {
-                failed++
+        const failedWrites: Array<{ card: KanbanCard; statusValue: string | null }> = []
+        await this.host.runExclusiveWrites(async () => {
+            for (const { card, property, previous } of writes) {
+                try {
+                    if (statusValue === null)
+                        await deleteProperty(this.host.app, card.file, property)
+                    else await setProperty(this.host.app, card.file, property, statusValue)
+                    ok++
+                } catch {
+                    failed++
+                    failedWrites.push({ card, statusValue: previous })
+                }
             }
-        }
-        if (failed > 0) this.host.requestRebuild()
+        })
+        // Precise rollback (issue #105 review): only the failed cards revert
+        // to their pre-bulk status — a full rebuild here would re-derive from
+        // the still-stale data set and briefly snap EVERY card back.
+        if (failedWrites.length > 0) this.host.applyBulkStatus(failedWrites)
         new Notice(
             `Set status on ${String(ok)} card(s)${failed ? `, ${String(failed)} failed` : ''}.`
         )
@@ -256,13 +280,18 @@ export class BoardSelection {
         }
         this.host.removeCardsFromModel(targets.map((t) => t.card.key))
         let ok = 0
-        let failed = 0
-        for (const { card, archive } of targets) {
-            const result = await archiveNote(this.host.app, card.file, archive)
-            if (result.ok) ok++
-            else failed++
-        }
-        if (failed > 0) this.host.requestRebuild()
+        const failedCards: KanbanCard[] = []
+        await this.host.runExclusiveWrites(async () => {
+            for (const { card, archive } of targets) {
+                const result = await archiveNote(this.host.app, card.file, archive)
+                if (result.ok) ok++
+                else failedCards.push(card)
+            }
+        })
+        // Precise rollback: only the cards whose archive failed return to the
+        // board — their files never moved (issue #105 review).
+        if (failedCards.length > 0) this.host.restoreCardsToModel(failedCards)
+        const failed = failedCards.length
         const parts = [`Archived ${String(ok)}`]
         if (skipped) parts.push(`${String(skipped)} skipped (no folder)`)
         if (failed) parts.push(`${String(failed)} failed`)

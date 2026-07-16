@@ -4,6 +4,7 @@ import {
     captureScrollEntries,
     clampScrollOffset,
     columnScrollKey,
+    pruneStaleContent,
     restoreScrollEntries,
     restoreScrollPosition
 } from './scroll-preservation'
@@ -156,5 +157,61 @@ describe('restoreScrollEntries', () => {
         restoreScrollEntries([['a', el]], new Map())
         expect(el.topWrites).toBe(0)
         expect(el.scrollTop).toBe(10)
+    })
+})
+
+describe('pruneStaleContent', () => {
+    const snap = (): Map<string, { top: number; left: number }> =>
+        new Map([
+            ['.panel', { top: 100, left: 0 }],
+            ['.grid', { top: 50, left: 0 }],
+            ['.untracked', { top: 25, left: 0 }]
+        ])
+
+    test('keeps entries whose content identity is unchanged', () => {
+        const snapshot = snap()
+        pruneStaleContent(
+            snapshot,
+            new Map([
+                ['.panel', 'scheduled'],
+                ['.grid', 'month|2026-07-01']
+            ]),
+            new Map([
+                ['.panel', 'scheduled'],
+                ['.grid', 'month|2026-07-01']
+            ])
+        )
+        expect(snapshot.has('.panel')).toBe(true)
+        expect(snapshot.has('.grid')).toBe(true)
+    })
+
+    test('drops only the entries whose content changed', () => {
+        const snapshot = snap()
+        pruneStaleContent(
+            snapshot,
+            new Map([
+                ['.panel', 'scheduled'],
+                ['.grid', 'month|2026-07-01']
+            ]),
+            new Map([
+                ['.panel', 'deadline'],
+                ['.grid', 'month|2026-07-01']
+            ])
+        )
+        expect(snapshot.has('.panel')).toBe(false)
+        expect(snapshot.has('.grid')).toBe(true)
+    })
+
+    test('keys not content-tracked are always kept', () => {
+        const snapshot = snap()
+        pruneStaleContent(snapshot, new Map(), new Map([['.panel', 'deadline']]))
+        expect(snapshot.has('.untracked')).toBe(true)
+    })
+
+    test('a null previous (first render) drops every tracked key', () => {
+        const snapshot = snap()
+        pruneStaleContent(snapshot, null, new Map([['.panel', 'scheduled']]))
+        expect(snapshot.has('.panel')).toBe(false)
+        expect(snapshot.has('.untracked')).toBe(true)
     })
 })
