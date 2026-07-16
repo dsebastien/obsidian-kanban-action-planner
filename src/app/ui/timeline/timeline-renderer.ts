@@ -325,6 +325,9 @@ function renderRow(
     callbacks: TimelineCallbacks
 ): void {
     const rowEl = parent.createDiv({ cls: 'kap-tl-row' })
+    // Hover page-preview target (issue #99) — the view's delegated
+    // pointerover listener resolves the note through this key.
+    rowEl.dataset['cardKey'] = row.card.key
     const label = rowEl.createDiv({
         cls: 'kap-tl-rowlabel',
         text: row.card.display.title,
@@ -881,6 +884,8 @@ function renderPanel(
                     cls: 'kap-tl-undated-card',
                     attr: { type: 'button', title: 'Drag onto the timeline to schedule' }
                 })
+                // Hover page-preview target (issue #99), like the tree rows.
+                cardEl.dataset['cardKey'] = card.key
                 cardEl.createSpan({ cls: 'kap-tl-undated-cardtitle', text: card.display.title })
                 cardEl.addEventListener('contextmenu', (e) => {
                     e.preventDefault()

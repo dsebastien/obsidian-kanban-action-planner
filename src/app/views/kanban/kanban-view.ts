@@ -588,11 +588,17 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
      * Trigger Obsidian's "Page preview" popover for the card under the pointer, so
      * hovering a card previews its note (Ctrl/Cmd-gated by default — see the
      * registered hover-link source). The core plugin dedups by `targetEl`.
+     * Matches every mode's note-backed element (issue #99): board cards,
+     * calendar chips (span continuations carry no key — skipped), timeline
+     * rows + undated panel cards, WBS rows (incl. context rows — the key is
+     * a vault path) + pane cards.
      */
     private onCardPointerOver(evt: PointerEvent): void {
         const target = evt.target
         if (!(target instanceof HTMLElement)) return
-        const cardEl = target.closest<HTMLElement>('.kap-card[data-card-key]')
+        const cardEl = target.closest<HTMLElement>(
+            '.kap-card[data-card-key], .kap-cal-card[data-card-key], .kap-tl-row[data-card-key], .kap-tl-undated-card[data-card-key], .kap-wbs-row[data-card-key], .kap-wbs-pane-card[data-card-key]'
+        )
         const key = cardEl?.dataset['cardKey']
         if (!cardEl || !key) return
         this.app.workspace.trigger('hover-link', {

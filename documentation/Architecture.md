@@ -194,7 +194,11 @@ their DOM).
 
 **Hover preview.** The plugin registers a hover-link source (`registerHoverLinkSource`, Mod-gated by
 default) and a delegated `pointerover` on the board host triggers the core Page-preview popover for
-the card under the pointer (the view implements `HoverParent`).
+the note-backed element under the pointer (the view implements `HoverParent`). The selector spans
+every mode (issue #99): board `.kap-card`, calendar `.kap-cal-card` chips (span continuations carry
+no `data-card-key` and are skipped), timeline `.kap-tl-row` + `.kap-tl-undated-card` (both stamp
+`data-card-key` for this), WBS `.kap-wbs-row` (incl. context rows — the key is a vault path) +
+`.kap-wbs-pane-card`.
 
 **View chrome & responsiveness.** The view root (`.kap-root`) is a flex column: a top
 `.kap-toolbar` over a flex-1 `.kap-board-host`. `ui/view-toolbar.ts` renders a **Board / Calendar
