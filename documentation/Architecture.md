@@ -34,6 +34,24 @@ The core is a custom Obsidian **Bases view** (Obsidian ≥ 1.13.0 API):
   (`ui/filter-bar.ts`) in its own slot between the re-rendered mode-switch (left) and actions
   (right) slots, so it never loses focus. The query persists per-view in `config.filterQuery`;
   it applies in both board and calendar mode and replaced the old `calendarFilter` option.
+- **Markdown-note embeds (issue #103).** Obsidian natively renders the view inside
+  `![[….base#View|…]]` embeds; the alias lands verbatim in the wrapper's `alt` attribute and is
+  parsed by the pure `domain/embed-params.ts` (`parseEmbedParams` → `mode`/`heightPx`/`filter`;
+  the module also owns the `ViewMode` union, re-exported type-only by `ui/view-toolbar.ts` to
+  keep domain→ui layering clean). Detection is lazy (`detectEmbed` — containerEl can be detached
+  when the factory runs): re-checked each rebuild and on the first real-dimension resize until
+  the root is connected, then `containerEl.closest('.internal-embed.bases-embed')`, cached.
+  Embeds are **projections** (rule 42): ALL view-config reads/writes funnel through
+  `EmbedAwareConfig` (`view-config.ts`, unit-tested) — pass-through outside embeds, in-memory
+  overlay (preferred by `get()`) inside them, so every interaction (mode, filter incl. zoom,
+  panel/lane/column collapse, compact toggle, column reorder, triage config, …) still works but
+  the shared `.base` view is never rewritten from an embed. No direct `this.config.set` calls
+  exist in the view. `viewMode()` — the single funnel for all mode readers — returns the
+  ephemeral override first; `setViewMode()` in an embed updates it in memory; `loadFilterQuery`
+  seeds from the `filter=` param through the normal parse path. Containment:
+  `kap-embedded` on `.kap-root` bounds height/max-height via `var(--kap-embed-height, 30rem)`
+  (`height=` sets the property inline) so every mode scrolls internally instead of growing the
+  note (this also stopped the ResizeObserver loop spam).
 - **Live config propagation.** The plugin tracks open views in a `Set` (`trackKanbanView` /
   `untrackKanbanView`, wired in the view's load/unload). `saveSettings()` — the single sink for
   every note-type/settings write — calls `view.onSettingsChanged()` (debounced rebuild) on each,

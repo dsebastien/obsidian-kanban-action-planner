@@ -19,6 +19,42 @@ The same idea scales to a large base. Collapse the columns you don't need right 
 
 ![A task board with collapsed columns]({{ '/images/board-tasks.png' | relative_url }})
 
+## Embed a board in a note
+
+Any Kanban view can be embedded in a regular markdown note with a standard embed link:
+
+```
+![[Tasks.base#Kanban]]
+```
+
+- The `.base` extension is **required** in the link, and the part after `#` is the **view name**
+  inside that Base.
+- The embed gets a bounded height and scrolls internally — in every mode — instead of stretching
+  the note.
+
+**Per-embed overrides.** The wikilink alias (the text after `|`) can override how that one embed
+renders, without changing the saved view:
+
+```
+![[Tasks.base#Kanban|mode=wbs height=400 filter=status:active OR due:overdue]]
+```
+
+- `mode=` — `board`, `calendar`, `timeline`, `triage`, or `wbs`.
+- `height=` — the embed height in pixels (kept between 200 and 2000).
+- `filter=` — everything after `filter=` is the initial [filter query](#filtering-search-bar),
+  exactly as you'd type it in the filter box (the match count shows in the toolbar as usual).
+  One caveat: a wikilink alias can't contain `|`, so write `OR` instead of `|` in embed filters.
+
+All parts are optional, in that `key=value` form; anything unrecognized is simply ignored, so a
+plain alias like `|My tasks` works as a normal alias.
+
+**Embeds never change the saved view.** An embed is a projection: switching the mode, editing
+the filter, collapsing panels or lanes, toggling compact cards, reordering columns — any view
+setting changed _inside_ the embed applies to that embed only and is forgotten when the note
+re-renders. The view saved in the `.base` file (and shown everywhere else it is open) is never
+touched by an embed. Card edits are real, though: dragging a card to another column, scheduling
+it, and so on write to the note's frontmatter as usual.
+
 ## Columns from status
 
 Cards are placed by a **status property**. The plugin looks for a property named `status`
@@ -71,7 +107,8 @@ to change status. Switch **Card sort** back to **Manual order** to restore your 
 The **filter box** in the toolbar (right after the **Board / Calendar** buttons) narrows the
 visible cards as you type, in **both** board and calendar mode. It supports a compact,
 Jira-like query language. The count of matches shows next to the box, and the **×** (or **Esc**)
-clears it. Your filter is **saved with the view**, so it persists when you reopen the board.
+clears it. Your filter is **saved with the view**, so it persists when you reopen the board
+(except inside a [note embed](#embed-a-board-in-a-note), where it stays local to the embed).
 Click the **?** for an in-app cheat-sheet.
 
 ![Filter as you type]({{ '/images/filter.png' | relative_url }})
@@ -805,6 +842,10 @@ Each Kanban view remembers how you left it, **per view**, across reloads and reo
 A few bits are deliberately **not** remembered, and reset every time you reopen the view: the
 calendar/timeline **anchor** (both jump back to today) and the calendar's **focused day** zoom
 (cleared).
+
+A board [embedded in a note](#embed-a-board-in-a-note) never saves **anything** back to the
+view — mode, filter, collapse states, compact cards, column order and the rest all stay local
+to the embed.
 
 ## View options (Configure view)
 

@@ -20,6 +20,10 @@ every change written straight back into your notes.
 
 - **Kanban view inside Bases.** Add a "Kanban" view to any Base. The Base's filters choose the
   notes, and each note becomes a card.
+- **Embed a board in any note.** `![[Tasks.base#Kanban]]` renders the view inside a markdown
+  note, with a bounded height and internal scrolling. The alias overrides mode, height, and
+  filter for that one embed (`|mode=wbs height=400 filter=status:active`) without touching the
+  saved view.
 - **Status to columns.** Columns are defined explicitly (per view, from the Starter Kit, or in
   plugin settings), never guessed from your data, so a typo can't create a stray column. Cards are
   placed by their status property, and notes with no or unknown status collect in an **Unmapped**

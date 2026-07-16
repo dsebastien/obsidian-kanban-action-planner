@@ -83,6 +83,14 @@ column rule.
   Calendar/lane UI state (range override, anchor, focused day, active tab, panel/lane collapse)
   is currently in-memory per session.
 
+- **EmbedParams / ViewMode (issue #103)** — `domain/embed-params.ts` (pure, unit-tested) owns
+  the `ViewMode` union (`board`/`calendar`/`timeline`/`triage`/`wbs`; re-exported type-only by
+  `ui/view-toolbar.ts`) and `parseEmbedParams(alias)` → `{ mode, heightPx, filter }`: the
+  markdown-embed override grammar (whitespace-separated case-insensitive `key=value` tokens;
+  `height` clamps to [200, 2000] px, optional `px` suffix; `filter=` consumes the remainder of
+  the alias verbatim; invalid values and unknown tokens are ignored — a plain alias yields
+  all-null, never throws). Consumed by the view's lazy embed detection as **ephemeral**
+  overrides — never persisted to the view config (rule 42).
 - **WbsNode / WBS rollups (issue #76)** — `domain/wbs.ts` (pure, unit-tested).
   `buildWbsForest(paths, childrenOf, parentsOf, compare)` derives the WBS forest from the
   resolved relationships: roots have no in-set parent (a note with no relationships roots a

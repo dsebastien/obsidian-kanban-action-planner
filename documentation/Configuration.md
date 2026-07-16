@@ -23,6 +23,12 @@ Effective value for any setting resolves in this order (first match wins):
    is the read-only source of truth, mirrored into the local snapshot.
 4. **Built-in defaults** — `DEFAULT_SETTINGS` and the constants below.
 
+**Per-embed overrides (issue #103)** sit above the per-view layer for exactly three things —
+view mode, height, and the initial filter — parsed from the wikilink alias of a markdown embed
+(`![[….base#View|mode=… height=… filter=…]]`, `domain/embed-params.ts`). They are ephemeral: an
+embedded view reads them first, and an embedded view NEVER writes anything back to `this.config`
+— every write lands in the `EmbedAwareConfig` in-memory overlay instead (rule 42).
+
 ## Configuration surfaces (where you edit each layer)
 
 Three places, by scope:

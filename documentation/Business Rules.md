@@ -651,3 +651,34 @@ unset`; numbers compare numerically, else trimmed case-insensitive strings; miss
     width-unchanged skips, timeline px-gates). Deliberately deferred pending a maintainer decision:
     per-column card-height equalization (conflicts with the uniform-card-envelope design) and
     fixed column widths (conflicts with the issue-#73 equal-grow invariant).
+42. **Markdown-note embeds are projections (issue #103).** Obsidian natively renders the
+    registered Bases view inside `![[<file>.base#<View>]]` embeds (the `.base` extension is
+    REQUIRED in the link). The wikilink alias is a per-embed override channel — it lands
+    verbatim in the wrapper's `alt` attribute and never affects view resolution. Grammar
+    (pure `domain/embed-params.ts` `parseEmbedParams`): whitespace-separated `key=value`
+    tokens, keys case-insensitive — `mode=<board|calendar|timeline|triage|wbs>`,
+    `height=<px>` (positive integer, optional `px` suffix, clamped to [200, 2000]),
+    `filter=<query>` consumes the REMAINDER of the alias verbatim (the filter language
+    carries spaces/colons/quotes; an alias cannot carry `|`, so embed filters must write
+    `OR`). Invalid values and unknown tokens are ignored — a plain human alias yields zero
+    params, never errors. **An embedded instance NEVER writes ANY key to the shared view
+    config** — persisting would silently rewrite the view for every other consumer. ALL
+    view-config writes (mode flags, `filterQuery`, panel/lane/column collapse, compact mode,
+    column reorder, triage config, calendar/timeline/WBS durable state, …) funnel through
+    `EmbedAwareConfig` (`view-config.ts`, unit-tested): outside embeds a transparent
+    pass-through; inside an embed every `set()` lands in an in-memory overlay that `get()`
+    prefers, so interactions still work — ephemerally, per instance. INVARIANT: no direct
+    `this.config.set(…)` call may exist in the view; always go through `this.viewConfig`.
+    APPROVED EXCEPTION to every per-view persistence clause (incl. rules 16, 24 and 34; zoom
+    rides `filterQuery`): in an embed, mode switches update an ephemeral in-memory override
+    (read first by `viewMode()`, the single funnel for all mode readers); the `filter=` param
+    seeds `loadFilterQuery()` through the normal parse path (toolbar match count works).
+    Detection is lazy (containerEl may be detached when the factory runs): re-checked each
+    rebuild and on the first real-dimension resize until the root is connected, then
+    `containerEl.closest('.internal-embed.bases-embed')` + `alt`, cached. **Containment:**
+    every embed (with or without params) gets `kap-embedded` on `.kap-root` — bounded
+    height/max-height via `var(--kap-embed-height, 30rem)` with internal scrolling in every
+    mode, so the embed never grows to content height (which also caused ResizeObserver loop
+    spam); `height=` sets the custom property inline. Frontmatter writes from an embed
+    (status drops, scheduling, …) stay fully live — only view-config persistence is
+    suppressed.
