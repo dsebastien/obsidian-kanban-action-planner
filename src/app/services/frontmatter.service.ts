@@ -85,18 +85,21 @@ export async function deleteProperty(app: App, file: TFile, propertyName: string
 /**
  * Append one entry to a list property (scalar values are promoted to a list;
  * the entry is deduped). Used by the timeline's milestone creation (issue #77).
+ * `matches` overrides the dedupe equality (default: exact) — tags dedupe
+ * case-insensitively via it.
  */
 export async function appendToListProperty(
     app: App,
     file: TFile,
     propertyName: string,
-    entry: string
+    entry: string,
+    matches: (item: unknown) => boolean = (item) => item === entry
 ): Promise<void> {
     await app.fileManager.processFrontMatter(file, (fm: Record<string, unknown>) => {
         const key = findKeyCaseInsensitive(fm, propertyName) ?? propertyName
         const raw = fm[key]
         const list = Array.isArray(raw) ? raw : raw === null || raw === undefined ? [] : [raw]
-        if (!list.includes(entry)) list.push(entry)
+        if (!list.some(matches)) list.push(entry)
         fm[key] = list
     })
 }
@@ -128,21 +131,25 @@ export async function replaceInListProperty(
 }
 
 /**
- * Remove one entry (exact match) from a list property; the property is deleted
- * when the list empties. Scalars equal to `entry` are removed the same way.
+ * Remove one entry (exact match by default; override via `matches`) from a
+ * list property; the property is deleted when the list empties. Scalars equal
+ * to `entry` are removed the same way. A missing/empty (`null`) property is a
+ * no-op — promoting it to `[null]` would corrupt it.
  */
 export async function removeFromListProperty(
     app: App,
     file: TFile,
     propertyName: string,
-    entry: string
+    entry: string,
+    matches: (item: unknown) => boolean = (item) => item === entry
 ): Promise<void> {
     await app.fileManager.processFrontMatter(file, (fm: Record<string, unknown>) => {
         const key = findKeyCaseInsensitive(fm, propertyName)
         if (key === null) return
         const raw = fm[key]
+        if (raw === null || raw === undefined) return
         const list = Array.isArray(raw) ? raw : [raw]
-        const kept = list.filter((item) => item !== entry)
+        const kept = list.filter((item) => !matches(item))
         if (kept.length === 0) delete fm[key]
         else fm[key] = kept
     })

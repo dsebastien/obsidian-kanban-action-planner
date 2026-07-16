@@ -5,6 +5,7 @@ import type { KanbanCard } from '../../ui/board/types'
 import { deleteProperty, setProperty } from '../../services/frontmatter.service'
 import { archiveNote } from '../../services/archive.service'
 import { inclusiveKeyRange } from './selection-range'
+import { log } from '../../../utils/log'
 
 /**
  * What {@link BoardSelection} needs from the host view (the subset of view state
@@ -56,6 +57,14 @@ export interface SelectionHost {
      * state mid-sequence and visibly revert the optimistic render.
      */
     runExclusiveWrites(writes: () => Promise<void>): Promise<void>
+    /**
+     * Run the card's note type's automation rules for a status transition
+     * (post-write; exactly once per actual transition). Bulk writes must
+     * fire these too — automations apply on EVERY status write path.
+     */
+    runStatusAutomations(card: KanbanCard, from: string | null, to: string | null): Promise<void>
+    /** Run the card's `archived`-trigger rules (just before the move). */
+    runArchiveAutomations(card: KanbanCard): Promise<void>
 }
 
 /**
@@ -249,6 +258,15 @@ export class BoardSelection {
                 } catch {
                     failed++
                     failedWrites.push({ card, statusValue: previous })
+                    continue
+                }
+                // Own guard: an automation failure after a LANDED write must
+                // not be counted as a write failure (which would revert the
+                // model status disk already holds).
+                try {
+                    await this.host.runStatusAutomations(card, previous, statusValue)
+                } catch (error: unknown) {
+                    log('Status automations failed after a bulk status write.', 'error', error)
                 }
             }
         })
@@ -283,6 +301,11 @@ export class BoardSelection {
         const failedCards: KanbanCard[] = []
         await this.host.runExclusiveWrites(async () => {
             for (const { card, archive } of targets) {
+                try {
+                    await this.host.runArchiveAutomations(card)
+                } catch (error: unknown) {
+                    log('Archive automations failed; archiving anyway.', 'error', error)
+                }
                 const result = await archiveNote(this.host.app, card.file, archive)
                 if (result.ok) ok++
                 else failedCards.push(card)

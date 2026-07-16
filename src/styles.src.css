@@ -1490,6 +1490,25 @@
         padding: var(--size-4-2, 0.5rem) 0;
     }
 
+    /* Automations tab: one bordered block per rule, actions indented. */
+    .kap-automation-rule {
+        @apply mb-3 rounded p-2;
+        border: 1px solid var(--background-modifier-border);
+    }
+
+    .kap-automation-rule .setting-item {
+        border-top: none;
+    }
+
+    .kap-automation-nested {
+        @apply pl-4;
+    }
+
+    .kap-automation-hint {
+        @apply text-[0.85em];
+        color: var(--text-muted);
+    }
+
     /* Date-picker modal (schedule / set deadline). */
     .kap-date-input {
         @apply w-full;

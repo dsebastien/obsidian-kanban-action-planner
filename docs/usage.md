@@ -379,6 +379,32 @@ set). If the note still has active children or blockers you get a non-blocking h
 move proceeds and the wikilinks are preserved. Archived notes leave the board because they no
 longer match the Base's filter.
 
+## Automation rules
+
+Let the board do the bookkeeping: per note type, **Configure board → Automations** runs
+actions whenever a note hits a trigger. The classic example — one rule on your Tasks type,
+**When the note enters a done state → set `progress` to `100`, remove `date_due`, set
+`date_completed` to `{{date}}`** — and every way of completing a task (dragging it to Done,
+the card menu, the WBS status dot, a bulk edit, triage) stamps the note for you.
+
+Each rule is a **trigger** plus a list of **actions** that run in order:
+
+- Triggers: **enters a status**, **leaves a status** (toggle any of the type's statuses),
+  **enters a done state** (any of the done values you configured — Completed, Abandoned,
+  Superseded… — in one rule), **is archived**, or **a property matches a condition**
+  (`progress ≥ 100`, `priority = 10 - Top`, `date_due is set`, …) — condition rules fire
+  when the condition _becomes_ true, from any edit source, as long as a board showing the
+  note is open.
+- Actions: **set a property** (values expand `{{date}}`, `{{year}}` and the other archive
+  placeholders; numbers and true/false are written natively), **remove a property**, **add
+  or remove a tag**, and **move the note to a folder** (placeholders, auto-created folders,
+  links preserved — the archive machinery).
+
+Rules fire **once per actual transition** and automation writes never trigger other rules,
+so you can't build an accidental loop. Rules live on the note type, so they apply on every
+board showing that type — and they work the same for types mirrored from the Obsidian
+Starter Kit.
+
 ## Calendar mode
 
 Turn the board into a **scheduling calendar**. Use the **Board / Calendar** switch at the
@@ -822,7 +848,7 @@ date **property names** are set globally in plugin settings.)
 - **Default range**: Week, Month, Quarter, or Year. (The start/estimate/milestones property
   names are global plugin settings, not view options.)
 
-## Note type configuration (colors, enums, relationships, estimate, archiving)
+## Note type configuration (colors, enums, relationships, estimate, done state, automations, archiving)
 
 A note type's shared config lives **centrally** in **Settings → Community plugins → Kanban
 Action Planner → Note types**. Pick a type and click **Configure** to open a dialog with sections

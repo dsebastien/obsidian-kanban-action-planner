@@ -3,15 +3,21 @@ import type { App } from 'obsidian'
 import type { KanbanActionPlannerPlugin } from '../plugin'
 import type {
     ArchiveConfig,
+    AutomationAction,
+    AutomationRule,
+    AutomationTrigger,
     ColorSpec,
     DoneConfig,
     LaneGrouping,
     NoteType,
+    PropertyOperator,
     RelationshipRole,
     RelationshipRule
 } from '../domain/note-type'
 import { FolderSuggest } from './folder-suggest'
 import { splitStatusValue } from '../domain/status'
+import { resolveDoneConfig } from '../domain/done'
+import { doneIsStatusBased } from '../domain/automation'
 import { isValidHex, paletteTokens, resolveColor } from '../services/colors.service'
 import {
     DEFAULT_NOTE_TYPE_ID,
@@ -19,6 +25,7 @@ import {
     findNoteType,
     setArchiveConfig,
     setAutoAssign,
+    setAutomations,
     setColorOverride,
     setDoneConfig,
     setEstimateConfig,
@@ -44,6 +51,7 @@ type SectionId =
     | 'limits'
     | 'estimate'
     | 'done'
+    | 'automation'
 
 const SECTIONS: ReadonlyArray<{ id: SectionId; label: string; icon: string }> = [
     { id: 'recognition', label: 'Note type', icon: 'scan-search' },
@@ -54,6 +62,7 @@ const SECTIONS: ReadonlyArray<{ id: SectionId; label: string; icon: string }> = 
     { id: 'relationships', label: 'Relationships', icon: 'git-fork' },
     { id: 'estimate', label: 'Estimate', icon: 'ruler' },
     { id: 'done', label: 'Done state', icon: 'circle-check' },
+    { id: 'automation', label: 'Automations', icon: 'zap' },
     { id: 'archiving', label: 'Archiving', icon: 'archive' }
 ]
 
@@ -190,7 +199,440 @@ export class ConfigureBoardModal extends Modal {
             case 'done':
                 this.renderDone(noteType)
                 return
+            case 'automation':
+                this.renderAutomation(noteType)
+                return
         }
+    }
+
+    // ── Automations (per-type status-transition rules) ────────
+
+    private renderAutomation(noteType: NoteType): void {
+        new Setting(this.body).setName('Automations').setHeading()
+        this.body.createEl('p', {
+            cls: 'kap-modal-subtitle',
+            text:
+                `Run actions when a ${noteType.name} note transitions into a status ` +
+                '(from a drag, a menu, a bulk edit, or triage) — once per transition. ' +
+                'Values and folders support {{year}}, {{month}}, {{day}}, {{week}}, ' +
+                '{{quarter}}, {{date}}, {{datetime}} and {{uuid}}.'
+        })
+
+        const rules = noteType.automations
+        if (rules.length === 0) {
+            this.body.createDiv({
+                cls: 'kap-modal-empty',
+                text: 'No automation rules yet — add one below.'
+            })
+        }
+
+        rules.forEach((rule, index) => this.renderAutomationRule(noteType, rule, index))
+
+        new Setting(this.body).setName('Add rule').addButton((b) =>
+            b
+                .setButtonText('Add')
+                .setCta()
+                .onClick(() => void this.addAutomationRule())
+        )
+    }
+
+    private renderAutomationRule(noteType: NoteType, rule: AutomationRule, index: number): void {
+        const block = this.body.createDiv({ cls: 'kap-automation-rule' })
+
+        const heading = new Setting(block)
+        heading
+            .setName(rule.name.trim() || `Rule ${String(index + 1)}`)
+            .addText((input) =>
+                input
+                    .setPlaceholder('Rule name')
+                    .setValue(rule.name)
+                    // Persist without re-rendering so typing keeps focus; the
+                    // heading updates imperatively instead.
+                    .onChange((value) => {
+                        heading.setName(value.trim() || `Rule ${String(index + 1)}`)
+                        void this.patchRule(index, { name: value }, false)
+                    })
+            )
+            .addToggle((toggle) =>
+                toggle
+                    .setValue(rule.enabled)
+                    .setTooltip(rule.enabled ? 'Enabled' : 'Disabled')
+                    .onChange((enabled) => void this.patchRule(index, { enabled }, true))
+            )
+            .addExtraButton((b) =>
+                b
+                    .setIcon('trash')
+                    .setTooltip('Remove rule')
+                    .onClick(() => void this.removeAutomationRule(index))
+            )
+
+        new Setting(block).setName('When the note').addDropdown((dd) => {
+            dd.addOption('status-entered', 'Enters a status')
+            dd.addOption('status-left', 'Leaves a status')
+            dd.addOption('done-entered', 'Enters a done state')
+            dd.addOption('archived', 'Is archived')
+            dd.addOption('property-condition', 'Property matches a condition')
+            dd.setValue(rule.trigger.kind)
+            dd.onChange((value) => {
+                void this.patchRule(
+                    index,
+                    { trigger: defaultTriggerFor(value, rule.trigger) },
+                    true
+                )
+            })
+        })
+
+        switch (rule.trigger.kind) {
+            case 'status-entered':
+            case 'status-left':
+                this.renderTriggerStatuses(block, rule, index)
+                break
+            case 'done-entered': {
+                // Same predicate the engine uses — a re-derived check would
+                // diverge on trim/case and mislead about whether the rule fires.
+                const resolved = resolveDoneConfig(noteType)
+                const statusBased =
+                    resolved !== null && doneIsStatusBased(resolved, noteType.statusProperty)
+                block.createDiv({
+                    cls: 'kap-automation-hint kap-automation-nested',
+                    text: statusBased
+                        ? 'Fires when the note enters any of the done statuses configured in "Done state".'
+                        : 'Define a status-based done state in the "Done state" tab first — this rule never fires without one.'
+                })
+                break
+            }
+            case 'archived':
+                block.createDiv({
+                    cls: 'kap-automation-hint kap-automation-nested',
+                    text: 'Fires just before the note moves to its archive folder (manual, bulk, or status-triggered).'
+                })
+                break
+            case 'property-condition':
+                this.renderTriggerCondition(block, rule.trigger, index)
+                break
+        }
+
+        new Setting(block).setName('Do').setHeading()
+        if (rule.actions.length === 0) {
+            block.createDiv({
+                cls: 'kap-modal-empty kap-automation-nested',
+                text: 'No actions yet.'
+            })
+        }
+        const actions = block.createDiv({ cls: 'kap-automation-nested' })
+        rule.actions.forEach((action, actionIndex) =>
+            this.renderAutomationAction(actions, action, index, actionIndex)
+        )
+        new Setting(block).addExtraButton((b) =>
+            b
+                .setIcon('plus')
+                .setTooltip('Add action')
+                .onClick(() => void this.addAutomationAction(index))
+        )
+    }
+
+    /** Per-status toggles selecting the trigger statuses (archive pattern). */
+    private renderTriggerStatuses(block: HTMLElement, rule: AutomationRule, index: number): void {
+        const kind = rule.trigger.kind
+        if (kind !== 'status-entered' && kind !== 'status-left') return
+        const selected = rule.trigger.statuses
+        if (this.statusValues.length === 0) {
+            block.createDiv({
+                cls: 'kap-modal-empty kap-automation-nested',
+                text: 'Trigger statuses appear here once this note type has status values.'
+            })
+            return
+        }
+        const container = block.createDiv({ cls: 'kap-automation-nested' })
+        for (const statusValue of this.statusValues) {
+            new Setting(container)
+                .setName(splitStatusValue(statusValue).label)
+                .addToggle((toggle) =>
+                    toggle.setValue(selected.includes(statusValue)).onChange((on) => {
+                        const current = this.noteType()?.automations[index]
+                        if (!current || current.trigger.kind !== kind) return
+                        const next = new Set(current.trigger.statuses)
+                        if (on) next.add(statusValue)
+                        else next.delete(statusValue)
+                        void this.patchRule(
+                            index,
+                            { trigger: { kind, statuses: [...next] } },
+                            false
+                        )
+                    })
+                )
+        }
+    }
+
+    /** Property + operator + value editor for a `property-condition` trigger. */
+    private renderTriggerCondition(
+        block: HTMLElement,
+        trigger: Extract<AutomationTrigger, { kind: 'property-condition' }>,
+        index: number
+    ): void {
+        const container = block.createDiv({ cls: 'kap-automation-nested' })
+        const needsValue = trigger.operator !== 'set' && trigger.operator !== 'unset'
+        const row = new Setting(container).setDesc(
+            'Fires when the condition BECOMES true (numbers compare numerically; any edit source counts while a board shows the note).'
+        )
+        row.addText((input) =>
+            input
+                .setPlaceholder('property (e.g. progress)')
+                .setValue(trigger.property)
+                // Persist without re-rendering so typing keeps focus; merge
+                // into the freshest stored trigger to avoid stale clobbers.
+                .onChange(
+                    (property) =>
+                        void this.patchCondition(index, { property: property.trim() }, false)
+                )
+        )
+        row.addDropdown((dd) => {
+            dd.addOption('equals', '=')
+            dd.addOption('not-equals', '≠')
+            dd.addOption('gt', '>')
+            dd.addOption('gte', '≥')
+            dd.addOption('lt', '<')
+            dd.addOption('lte', '≤')
+            dd.addOption('set', 'is set')
+            dd.addOption('unset', 'is unset')
+            dd.setValue(trigger.operator)
+            dd.onChange((operator) => {
+                void this.patchCondition(index, { operator: operator as PropertyOperator }, true)
+            })
+        })
+        if (needsValue) {
+            row.addText((input) =>
+                input
+                    .setPlaceholder('value (e.g. 100)')
+                    .setValue(trigger.value)
+                    .onChange((value) => void this.patchCondition(index, { value }, false))
+            )
+        }
+    }
+
+    /** Merge fields into the freshest stored property-condition trigger. */
+    private async patchCondition(
+        index: number,
+        patch: Partial<Extract<AutomationTrigger, { kind: 'property-condition' }>>,
+        rerender: boolean
+    ): Promise<void> {
+        const current = this.noteType()?.automations[index]?.trigger
+        if (!current || current.kind !== 'property-condition') return
+        await this.patchRule(index, { trigger: { ...current, ...patch } }, rerender)
+    }
+
+    private renderAutomationAction(
+        container: HTMLElement,
+        action: AutomationAction,
+        ruleIndex: number,
+        actionIndex: number
+    ): void {
+        const row = new Setting(container)
+        row.addDropdown((dd) => {
+            dd.addOption('set-property', 'Set property')
+            dd.addOption('remove-property', 'Remove property')
+            dd.addOption('add-tag', 'Add tag')
+            dd.addOption('remove-tag', 'Remove tag')
+            dd.addOption('move-to-folder', 'Move to folder')
+            dd.setValue(action.kind)
+            dd.onChange((value) => {
+                // Carry compatible fields across the kind switch (tag↔tag,
+                // property↔property) so a misclick never loses typed input;
+                // read the freshest stored action, not the render-time copy.
+                const next = defaultActionFor(value)
+                const stored =
+                    this.noteType()?.automations[ruleIndex]?.actions[actionIndex] ?? action
+                if (
+                    (next.kind === 'set-property' || next.kind === 'remove-property') &&
+                    (stored.kind === 'set-property' || stored.kind === 'remove-property')
+                ) {
+                    next.property = stored.property
+                } else if (
+                    (next.kind === 'add-tag' || next.kind === 'remove-tag') &&
+                    (stored.kind === 'add-tag' || stored.kind === 'remove-tag')
+                ) {
+                    next.tag = stored.tag
+                }
+                void this.patchAction(ruleIndex, actionIndex, next, true)
+            })
+        })
+        // Field edits MERGE into the freshest stored action (patchActionField)
+        // rather than spreading the render-time `action` — with two text
+        // fields on one row and no re-render while typing, a stale spread
+        // would clobber the other field's just-typed value.
+        switch (action.kind) {
+            case 'set-property':
+                row.addText((input) =>
+                    input
+                        .setPlaceholder('property')
+                        .setValue(action.property)
+                        .onChange(
+                            (property) =>
+                                void this.patchActionField(ruleIndex, actionIndex, {
+                                    property: property.trim()
+                                })
+                        )
+                )
+                row.addText((input) =>
+                    input
+                        .setPlaceholder('value (e.g. 100, {{date}})')
+                        .setValue(action.value)
+                        .onChange(
+                            (value) => void this.patchActionField(ruleIndex, actionIndex, { value })
+                        )
+                )
+                break
+            case 'remove-property':
+                row.addText((input) =>
+                    input
+                        .setPlaceholder('property')
+                        .setValue(action.property)
+                        .onChange(
+                            (property) =>
+                                void this.patchActionField(ruleIndex, actionIndex, {
+                                    property: property.trim()
+                                })
+                        )
+                )
+                break
+            case 'add-tag':
+            case 'remove-tag':
+                row.addText((input) =>
+                    input
+                        .setPlaceholder('tag (e.g. done)')
+                        .setValue(action.tag)
+                        .onChange(
+                            (tag) =>
+                                void this.patchActionField(ruleIndex, actionIndex, {
+                                    tag: tag.trim()
+                                })
+                        )
+                )
+                break
+            case 'move-to-folder':
+                row.addText((input) => {
+                    input
+                        .setPlaceholder('Folder/{{year}}')
+                        .setValue(action.folder)
+                        .onChange(
+                            (folder) =>
+                                void this.patchActionField(ruleIndex, actionIndex, {
+                                    folder: folder.trim()
+                                })
+                        )
+                    new FolderSuggest(this.app, input.inputEl, (path) => {
+                        void this.patchActionField(ruleIndex, actionIndex, {
+                            folder: path.trim()
+                        })
+                    })
+                })
+                break
+        }
+        row.addExtraButton((b) =>
+            b
+                .setIcon('trash')
+                .setTooltip('Remove action')
+                .onClick(() => void this.removeAutomationAction(ruleIndex, actionIndex))
+        )
+    }
+
+    // Rule/action CRUD: read the freshest stored list, rebuild immutably,
+    // persist the whole array (the recognition-mappings discipline).
+
+    private async patchRule(
+        index: number,
+        patch: Partial<AutomationRule>,
+        rerender: boolean
+    ): Promise<void> {
+        const current = this.noteType()?.automations
+        if (!current) return
+        const automations = current.map((r, i) => (i === index ? { ...r, ...patch } : r))
+        await setAutomations(this.plugin, this.noteTypeId, automations)
+        this.onChange()
+        if (rerender) this.render()
+    }
+
+    private async addAutomationRule(): Promise<void> {
+        const current = this.noteType()?.automations ?? []
+        await setAutomations(this.plugin, this.noteTypeId, [
+            ...current,
+            {
+                id: `rule-${Date.now().toString(36)}-${Math.floor(Math.random() * 1e6).toString(36)}`,
+                name: '',
+                enabled: true,
+                trigger: { kind: 'status-entered', statuses: [] },
+                actions: []
+            }
+        ])
+        this.onChange()
+        this.render()
+    }
+
+    private async removeAutomationRule(index: number): Promise<void> {
+        const current = this.noteType()?.automations
+        if (!current) return
+        await setAutomations(
+            this.plugin,
+            this.noteTypeId,
+            current.filter((_, i) => i !== index)
+        )
+        this.onChange()
+        this.render()
+    }
+
+    private async patchAction(
+        ruleIndex: number,
+        actionIndex: number,
+        action: AutomationAction,
+        rerender: boolean
+    ): Promise<void> {
+        const rule = this.noteType()?.automations[ruleIndex]
+        if (!rule) return
+        await this.patchRule(
+            ruleIndex,
+            { actions: rule.actions.map((a, i) => (i === actionIndex ? action : a)) },
+            rerender
+        )
+    }
+
+    /**
+     * Merge fields into the FRESHEST stored action (not the render-time
+     * copy) — two text fields on one row persist without re-rendering, so a
+     * stale spread would clobber the other field's just-typed value.
+     */
+    private async patchActionField(
+        ruleIndex: number,
+        actionIndex: number,
+        patch: Partial<AutomationAction>
+    ): Promise<void> {
+        const current = this.noteType()?.automations[ruleIndex]?.actions[actionIndex]
+        if (!current) return
+        await this.patchAction(
+            ruleIndex,
+            actionIndex,
+            { ...current, ...patch } as AutomationAction,
+            false
+        )
+    }
+
+    private async addAutomationAction(ruleIndex: number): Promise<void> {
+        const rule = this.noteType()?.automations[ruleIndex]
+        if (!rule) return
+        await this.patchRule(
+            ruleIndex,
+            { actions: [...rule.actions, defaultActionFor('set-property')] },
+            true
+        )
+    }
+
+    private async removeAutomationAction(ruleIndex: number, actionIndex: number): Promise<void> {
+        const rule = this.noteType()?.automations[ruleIndex]
+        if (!rule) return
+        await this.patchRule(
+            ruleIndex,
+            { actions: rule.actions.filter((_, i) => i !== actionIndex) },
+            true
+        )
     }
 
     // ── Done state (issue #56; per-type done definition) ──────
@@ -881,6 +1323,42 @@ function currentHex(spec: ColorSpec | undefined): string {
 
 function capitalize(s: string): string {
     return s.length === 0 ? s : s.charAt(0).toUpperCase() + s.slice(1)
+}
+
+/** A fresh trigger of the given kind, carrying statuses across status kinds. */
+function defaultTriggerFor(kind: string, previous: AutomationTrigger): AutomationTrigger {
+    const statuses =
+        previous.kind === 'status-entered' || previous.kind === 'status-left'
+            ? previous.statuses
+            : []
+    switch (kind) {
+        case 'status-left':
+            return { kind: 'status-left', statuses }
+        case 'done-entered':
+            return { kind: 'done-entered' }
+        case 'archived':
+            return { kind: 'archived' }
+        case 'property-condition':
+            return { kind: 'property-condition', property: '', operator: 'equals', value: '' }
+        default:
+            return { kind: 'status-entered', statuses }
+    }
+}
+
+/** A fresh action of the given kind, with empty fields. */
+function defaultActionFor(kind: string): AutomationAction {
+    switch (kind) {
+        case 'remove-property':
+            return { kind: 'remove-property', property: '' }
+        case 'add-tag':
+            return { kind: 'add-tag', tag: '' }
+        case 'remove-tag':
+            return { kind: 'remove-tag', tag: '' }
+        case 'move-to-folder':
+            return { kind: 'move-to-folder', folder: '' }
+        default:
+            return { kind: 'set-property', property: '', value: '' }
+    }
 }
 
 /** Split a textarea value into trimmed, non-empty lines (enum value entry). */

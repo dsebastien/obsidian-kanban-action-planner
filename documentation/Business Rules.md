@@ -604,7 +604,40 @@ When a new business rule is mentioned:
     Consumers: the **WBS progress rollup** (rule 36) reads a done card as **100%** — the
     done signal is the card's OWN value and beats a stale `progress` number — so a goal
     with 2 of 4 done children derives 50% without per-task progress numbers.
-40. **Render-performance invariants (issue #105).** Three fixed constraints govern every render
+
+40. **Per-type automation rules (owner).** A note type carries an ordered list of
+    **automation rules** (`automations`, plugin-owned `automationRuleSchema`; Configure
+    board → **Automations**; survives the SK mirror): each rule = enabled flag + trigger +
+    ordered actions. **Triggers:** `status-entered` / `status-left` (any of the type's
+    status values), `done-entered` (enters any rule-39 done value from a non-done one;
+    requires a STATUS-BASED done definition — `doneIsStatusBased`), `archived` (fires just
+    before the note moves, from ALL archive paths: manual menu, bulk, status-triggered),
+    and `property-condition` (`property <op> value`, ops `= ≠ > ≥ < ≤ / is set / is
+unset`; numbers compare numerically, else trimmed case-insensitive strings; missing
+    values only match `unset` — never `not-equals`). **Actions:** set property
+    (placeholder-expanded value — the archive `{{year}}`/`{{date}}`/… vocabulary — then
+    coerced: CANONICAL numeric strings → numbers, true/false → booleans, else trimmed
+    string), remove property, add/remove tag (frontmatter `tags` list only,
+    case-insensitive `#`-agnostic matching), move to folder (the archive machinery:
+    placeholders, mkdir-p, collision suffix, `renameFile`; self-move is a no-op).
+    **Firing:** status/done triggers fire from EVERY plugin status-write path — applyMove
+    (incl. the auto-archive branch, now fully inside `withRebuildsSuppressed`), bulk
+    multi-select, triage/property writes — exactly once per ACTUAL transition (from ≠
+    to). `property-condition` is EDGE-triggered (condition false→true) off metadata-change
+    diffs against a per-note snapshot of watched properties, so it also catches edits made
+    outside the plugin — but only while a board showing the note is open (the plugin is a
+    Bases view, no background daemon). **No cascades:** automation writes never re-trigger
+    rules — the runner guards re-entry per note and refreshes the snapshot for exactly the
+    properties it wrote; a rule's write CAN however be observed by the rollups/board like
+    any other frontmatter change. When a transition both auto-archives and matches rules,
+    property/tag actions run BEFORE the archive move (they land on the archived note) and
+    the rule's `move-to-folder` actions are SKIPPED — the archive owns the final location.
+    An automation failure after a landed write is logged, never counted as a write failure
+    (bulk accounting/rollback reflects write outcomes only). Storage: `automations`
+    defaults to `[]` (older data.json degrades, no backfill); rules are parsed
+    ITEM-tolerantly — an unknown trigger/action kind (from a newer version) drops that
+    rule instead of failing the whole settings parse.
+41. **Render-performance invariants (issue #105).** Three fixed constraints govern every render
     change: (a) **optimistic updates stay** — nothing may wait for the Bases echo for visible
     feedback; (b) **visual stability** — content must not move, resize, or lose scroll position
     without a user-visible reason; (c) **snappiness** — no added debounces or deferral on

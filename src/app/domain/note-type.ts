@@ -114,6 +114,79 @@ export const doneConfigSchema = z.object({
 })
 export type DoneConfig = z.infer<typeof doneConfigSchema>
 
+/**
+ * Automation rules (per note type): "when a note transitions into status X
+ * (or into a done state, or is archived, or a property condition becomes
+ * true), do Y". Status/done/archived triggers fire from the plugin's write
+ * paths, exactly once per transition; property-condition triggers are
+ * edge-triggered off metadata-change diffs (any edit source, while a board
+ * shows the note). Actions never re-trigger rules (no cascades).
+ * Plugin-owned — editable for Starter Kit–mirrored types too, untouched by
+ * the SK mirror.
+ */
+export const propertyOperatorSchema = z.enum([
+    'equals',
+    'not-equals',
+    'gt',
+    'gte',
+    'lt',
+    'lte',
+    'set',
+    'unset'
+])
+export type PropertyOperator = z.infer<typeof propertyOperatorSchema>
+
+export const automationTriggerSchema = z.discriminatedUnion('kind', [
+    /** The note enters any of the listed status values. */
+    z.object({ kind: z.literal('status-entered'), statuses: z.array(z.string()) }),
+    /** The note leaves any of the listed status values. */
+    z.object({ kind: z.literal('status-left'), statuses: z.array(z.string()) }),
+    /**
+     * The note enters a done state (any of the type's done values, rule 39)
+     * from a non-done one. Requires a status-based done definition.
+     */
+    z.object({ kind: z.literal('done-entered') }),
+    /** The note is archived (manual, bulk, or status-triggered). */
+    z.object({ kind: z.literal('archived') }),
+    /**
+     * A frontmatter property starts satisfying a comparison ('value' is
+     * unused for `set`/`unset`). Numbers compare numerically, everything
+     * else as case-insensitive strings (ISO dates order correctly).
+     */
+    z.object({
+        kind: z.literal('property-condition'),
+        property: z.string(),
+        operator: propertyOperatorSchema,
+        value: z.string()
+    })
+])
+export type AutomationTrigger = z.infer<typeof automationTriggerSchema>
+
+/**
+ * One automation action. `set-property` values and `move-to-folder` paths
+ * support the `{{year}}`/`{{month}}`/`{{date}}`/… placeholders
+ * (`resolvePlaceholders`); numeric/boolean-looking values are written as
+ * numbers/booleans. Tags target the frontmatter `tags` list.
+ */
+export const automationActionSchema = z.discriminatedUnion('kind', [
+    z.object({ kind: z.literal('set-property'), property: z.string(), value: z.string() }),
+    z.object({ kind: z.literal('remove-property'), property: z.string() }),
+    z.object({ kind: z.literal('add-tag'), tag: z.string() }),
+    z.object({ kind: z.literal('remove-tag'), tag: z.string() }),
+    z.object({ kind: z.literal('move-to-folder'), folder: z.string() })
+])
+export type AutomationAction = z.infer<typeof automationActionSchema>
+
+export const automationRuleSchema = z.object({
+    id: z.string(),
+    /** Optional display label ('' = unnamed). */
+    name: z.string(),
+    enabled: z.boolean(),
+    trigger: automationTriggerSchema,
+    actions: z.array(automationActionSchema)
+})
+export type AutomationRule = z.infer<typeof automationRuleSchema>
+
 /** Calendar / scheduling config. */
 export const calendarConfigSchema = z.object({
     enabled: z.boolean(),
@@ -173,6 +246,22 @@ export const noteTypeSchema = z.object({
      * Done-state definition (issue #56); absent (older stored types, no
      * backfill) = no done state configured.
      */
-    done: doneConfigSchema.optional()
+    done: doneConfigSchema.optional(),
+    /**
+     * Automation rules. Defaults to `[]` so older stored note types degrade
+     * gracefully (no backfill). Items are parsed individually and invalid
+     * ones dropped — a rule written by a NEWER plugin version (unknown
+     * trigger/action kind) must never fail the whole settings parse (which
+     * would reset every note type to defaults).
+     */
+    automations: z
+        .array(z.unknown())
+        .default([])
+        .transform((items) =>
+            items.flatMap((item) => {
+                const parsed = automationRuleSchema.safeParse(item)
+                return parsed.success ? [parsed.data] : []
+            })
+        )
 })
 export type NoteType = z.infer<typeof noteTypeSchema>

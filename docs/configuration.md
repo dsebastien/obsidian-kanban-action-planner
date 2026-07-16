@@ -222,6 +222,45 @@ default the property is the type's **status property**, and you toggle the statu
 done note reads as **100% complete** in the WBS progress rollups — even without a `progress`
 number — so parents show real momentum as their children complete.
 
+## Automation rules
+
+Per note type, **Configure board → Automations** defines rules of the form "when this
+happens to a note, do that". Each rule has a trigger, and a list of actions that run in
+order:
+
+**Triggers**
+
+- **Enters a status** / **Leaves a status** — toggle any of the type's status values; the
+  rule fires when a note transitions into (or out of) one of them, whether by drag, the
+  card menu, the WBS status dot, a pane drop, a bulk edit, or triage. It fires once per
+  actual transition — dropping a card back on its own column does nothing.
+- **Enters a done state** — fires when the note enters any of the type's done values (see
+  [Done state](#done-state)) from a non-done one. Completed, Abandoned, Superseded — one
+  rule covers them all, and moving between two done states does not re-fire it.
+- **Is archived** — fires just before the note moves to its archive folder (manual, bulk,
+  or status-triggered), so property changes land on the archived note.
+- **Property matches a condition** — `property = / ≠ / > / ≥ / < / ≤ value`, or `is set` /
+  `is unset`. Numbers compare numerically, everything else as case-insensitive text (ISO
+  dates order correctly). The rule fires when the condition **becomes** true — editing
+  `progress` from 40 to 100 fires a `progress ≥ 100` rule once; nudging it from 100 to 110
+  doesn't. Any edit source counts, including typing in the editor — as long as a board
+  showing the note is open.
+
+**Actions**
+
+- **Set property** — the value supports the archive placeholders (`{{date}}`,
+  `{{year}}`, `{{month}}`, `{{day}}`, `{{week}}`, `{{quarter}}`, `{{datetime}}`,
+  `{{uuid}}`); plain numbers and `true`/`false` are written as numbers and booleans.
+- **Remove property** — deletes the property (e.g. clear `date_due` when a task is done).
+- **Add tag / Remove tag** — edits the frontmatter `tags` list (case-insensitive, `#`
+  optional).
+- **Move to folder** — the same placeholder-driven move archiving uses: folders are
+  created on demand, name collisions get a numeric suffix, links are preserved.
+
+Automation writes never trigger other automation rules (no cascades). If a transition
+both auto-archives the note and matches rules, the property/tag actions run first and the
+archive decides the final folder — move actions on that rule are skipped.
+
 ## Card title
 
 The card heading is the **note name** by default. Per board, **Configure view → Cards →

@@ -25,6 +25,7 @@ function noteTypeWith(done: NoteType['done'], statusProperty = 'status'): NoteTy
         },
         wipLimits: {},
         enumProperties: {},
+        automations: [],
         ...(done ? { done } : {})
     }
 }

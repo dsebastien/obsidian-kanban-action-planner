@@ -95,7 +95,12 @@ column rule.
   children** (`effectiveEstimate`/`childrenEstimate`, `effectiveProgress` — weighted by
   effective estimates; `parseProgress` clamps to 0–100). A card matching its type's
   **done definition** (`domain/done.ts`: `resolveDoneConfig` + `isDoneValue`, rule 39)
-  reads as own progress 100 before the frontmatter number. `subtreeSpan` derives a parent's
+  reads as own progress 100 before the frontmatter number. **Automations** (rule 40,
+  `domain/automation.ts` pure matching: `rulesForTransition`/`rulesForArchive`/
+  `rulesForPropertyChange` edge-triggered + `propertyConditionMet`, `coerceActionValue`,
+  `tagMatches`; `services/automation.service.ts` executes actions; view owns the
+  per-note watched-property snapshot + re-entry guard, `services/archive.service.ts`
+  `moveNoteToFolder` shared with archiving). `subtreeSpan` derives a parent's
   date span from its subtree; `distributeEstimate` splits an own estimate top-down over
   estimate-less children. Derived values are display-only until explicitly persisted
   ("Save rolled-up …").

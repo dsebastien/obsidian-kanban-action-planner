@@ -18,7 +18,7 @@ export type ArchiveResult =
     | { ok: false; reason: 'no-folder' | 'collision' | 'error'; message?: string }
 
 /** Build the current expression context (real clock + UUID generator). */
-function archiveContext(): ExpressionContext {
+export function liveExpressionContext(): ExpressionContext {
     return {
         now: new Date(),
         uuid: () => window.crypto.randomUUID()
@@ -52,23 +52,44 @@ export async function archiveNote(
     app: App,
     file: TFile,
     archive: ArchiveConfig,
-    ctx: ExpressionContext = archiveContext()
+    ctx: ExpressionContext = liveExpressionContext()
 ): Promise<ArchiveResult> {
-    const folder = resolveArchiveFolder(archive.archiveFolder, ctx)
+    return moveNoteToFolder(app, file, archive.archiveFolder, ctx)
+}
+
+/**
+ * Move `file` into a placeholder-templated folder (the archive machinery,
+ * reused by automation `move-to-folder` actions): resolves the template,
+ * creates intermediate folders, suffixes on name collision, and moves via
+ * `fileManager.renameFile` so links update. Never thrown; failures logged.
+ */
+export async function moveNoteToFolder(
+    app: App,
+    file: TFile,
+    folderTemplate: string,
+    ctx: ExpressionContext = liveExpressionContext()
+): Promise<ArchiveResult> {
+    const folder = resolveArchiveFolder(folderTemplate, ctx)
     if (folder === null) {
-        log('Archive: no archive folder configured; ignoring.', 'warn')
+        log('Move: no destination folder configured; ignoring.', 'warn')
         return { ok: false, reason: 'no-folder' }
+    }
+
+    // Already in the destination folder — a self-collision would otherwise
+    // rename the note onto a " 1" suffix of itself.
+    if (`${folder}/${file.name}` === file.path) {
+        return { ok: true, destPath: file.path }
     }
 
     try {
         await ensureFolder(app, folder)
         const destPath = uniqueDestPath(app, folder, file)
         await app.fileManager.renameFile(file, destPath)
-        log(`Archived "${file.path}" → "${destPath}"`, 'info')
+        log(`Moved "${file.path}" → "${destPath}"`, 'info')
         return { ok: true, destPath }
     } catch (error: unknown) {
         const message = error instanceof Error ? error.message : String(error)
-        log(`Archive failed for "${file.path}": ${message}`, 'error', error)
+        log(`Move failed for "${file.path}": ${message}`, 'error', error)
         return { ok: false, reason: 'error', message }
     }
 }

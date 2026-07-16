@@ -17,6 +17,7 @@ import {
 } from '../../constants'
 import type {
     ArchiveConfig,
+    AutomationRule,
     ColumnDef,
     LaneGrouping,
     NoteType,
@@ -24,6 +25,15 @@ import type {
 } from '../../domain/note-type'
 import { resolveDoneConfig } from '../../domain/done'
 import type { ResolvedDoneConfig } from '../../domain/done'
+import {
+    dedupeRules,
+    rawValuesEqual,
+    rulesForArchive,
+    rulesForPropertyChange,
+    rulesForTransition,
+    watchedProperties
+} from '../../domain/automation'
+import { runAutomationRules } from '../../services/automation.service'
 import { archiveFolderPrefixes } from '../../domain/archive-paths'
 import { buildBoard } from '../../domain/board-model'
 import { NO_TYPE_ID, groupByTypeAndStatus } from '../../domain/timeline'
@@ -214,6 +224,11 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
     private laneValueByPath = new Map<string, string | null>()
     // Per-file note type (Starter Kit) and the archive config it resolves to.
     private noteTypeByPath = new Map<string, { id: string; name: string } | null>()
+    // Property-condition automations (edge-triggered): the last-seen value of
+    // every watched property per note, and the notes whose automation actions
+    // are currently executing (re-entry guard — no cascades).
+    private automationSnapshot = new Map<string, Map<string, unknown>>()
+    private readonly automationRunning = new Set<string>()
     private archiveByPath = new Map<string, ArchiveConfig>()
     private relationshipsByPath = new Map<string, RelationshipSet>()
     private readonly collapsedLanes = new Set<string>()
@@ -391,7 +406,9 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
                 this.allCards = [...this.allCards, ...cards.filter((c) => !have.has(c.key))]
                 this.applyFilterAndRender()
             },
-            runExclusiveWrites: (writes) => this.withRebuildsSuppressed(writes)
+            runExclusiveWrites: (writes) => this.withRebuildsSuppressed(writes),
+            runStatusAutomations: (card, from, to) => this.runStatusAutomations(card, from, to),
+            runArchiveAutomations: (card) => this.runArchiveAutomations(card)
         })
         this.filterEmptyEl = this.rootEl.createDiv({
             cls: 'kap-filter-empty kap-hidden',
@@ -539,7 +556,11 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         // would otherwise leave the card stale until reload.
         this.registerEvent(
             this.app.metadataCache.on('changed', (file) => {
-                if (this.affectsBoard(file.path)) this.debouncedRebuild()
+                if (!this.affectsBoard(file.path)) return
+                // Property-condition automations diff BEFORE the debounced
+                // rebuild resets the snapshot baseline.
+                void this.handlePropertyAutomations(file)
+                this.debouncedRebuild()
             })
         )
         // A blocker being archived is a MOVE: it doesn't touch the blocked card's
@@ -699,6 +720,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         // swimlanes and per-type archiving. Runs with or without the Starter Kit:
         // SK recognition first, then local mapping rules (issue #31).
         this.noteTypeByPath = await this.recognizeNoteTypes(files)
+        this.rebuildAutomationSnapshot(files)
         this.laneGrouping = this.resolveLaneGrouping()
         this.laneValueByPath = this.computeLaneValues(files, this.laneGrouping)
         this.archiveByPath = this.computeArchiveByPath(files)
@@ -1404,6 +1426,134 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         return resolveDoneConfig(noteType)
     }
 
+    /**
+     * The automation rules for a note: its own type's; untyped notes fall
+     * back to the active/default note type (the archive/done pattern).
+     */
+    private automationRulesForPath(path: string): ReadonlyArray<AutomationRule> {
+        const typeId = this.noteTypeByPath.get(path)?.id
+        const noteType = typeId ? findNoteType(this.plugin, typeId) : this.noteType
+        return noteType?.automations ?? []
+    }
+
+    /**
+     * Run the card's type's automation rules for a status transition
+     * (post-write). Every status write path funnels here — board drops and
+     * menus (applyMove), bulk multi-select, and triage/property writes — and
+     * fires at most once per actual transition. Property-condition rules on
+     * the STATUS property also fire here (the snapshot entry updates in the
+     * same step, so the write's metadata echo can't double-fire them).
+     * Actions run raw frontmatter writes/moves and never re-enter this
+     * method, so rules cannot cascade.
+     */
+    private async runStatusAutomations(
+        card: KanbanCard,
+        from: string | null,
+        to: string | null,
+        options?: { skipMoveActions?: boolean }
+    ): Promise<void> {
+        const statusProperty = this.statusPropertyFor(card)
+        if (!statusProperty) return
+        const rules = this.automationRulesForPath(card.key)
+        // Keep the snapshot in sync even when nothing matches, so the echo
+        // diff of this write never re-evaluates the same transition.
+        this.automationSnapshot.get(card.key)?.set(statusProperty.toLowerCase(), to)
+        if (rules.length === 0) return
+        let matched = [
+            ...rulesForTransition(rules, { from, to }, this.doneConfigFor(card), statusProperty),
+            ...rulesForPropertyChange(rules, statusProperty, from, to)
+        ]
+        // Auto-archive owns the final location — a rule's move on the same
+        // transition would be immediately overridden (and Notice-contradicted).
+        if (options?.skipMoveActions) {
+            matched = matched
+                .map((r) => ({
+                    ...r,
+                    actions: r.actions.filter((a) => a.kind !== 'move-to-folder')
+                }))
+                .filter((r) => r.actions.length > 0)
+        }
+        await this.executeAutomations(card.key, card.file, matched, card.display.title)
+    }
+
+    /** Run the note's `archived`-trigger rules, just before the move. */
+    private async runArchiveAutomations(card: KanbanCard): Promise<void> {
+        const matched = rulesForArchive(this.automationRulesForPath(card.key))
+        await this.executeAutomations(card.key, card.file, matched, card.display.title)
+    }
+
+    /**
+     * Edge-triggered property-condition rules (any edit source): diff the
+     * changed file's watched properties against the snapshot, fire the rules
+     * whose condition BECAME true, and advance the snapshot. Guarded while a
+     * run is in flight so automation writes never cascade into more rules.
+     */
+    private async handlePropertyAutomations(file: TFile): Promise<void> {
+        const snapshot = this.automationSnapshot.get(file.path)
+        if (!snapshot || snapshot.size === 0 || this.automationRunning.has(file.path)) return
+        const rules = this.automationRulesForPath(file.path)
+        const matched: AutomationRule[] = []
+        for (const [name, oldValue] of snapshot) {
+            const newValue = getFrontmatterValue(this.app, file, name)
+            if (rawValuesEqual(oldValue, newValue)) continue
+            matched.push(...rulesForPropertyChange(rules, name, oldValue, newValue))
+            snapshot.set(name, newValue)
+        }
+        const title = this.allCards.find((c) => c.key === file.path)?.display.title ?? file.basename
+        await this.executeAutomations(file.path, file, dedupeRules(matched), title)
+    }
+
+    /** Shared executor: re-entry guard, snapshot refresh, move Notice. */
+    private async executeAutomations(
+        path: string,
+        file: TFile,
+        matched: ReadonlyArray<AutomationRule>,
+        title: string
+    ): Promise<void> {
+        if (matched.length === 0 || this.automationRunning.has(path)) return
+        this.automationRunning.add(path)
+        try {
+            const result = await runAutomationRules(this.app, file, matched)
+            // Refresh the snapshot for exactly what the actions wrote, so
+            // their echoes never re-trigger property rules (no cascades).
+            const snapshot = this.automationSnapshot.get(path)
+            if (snapshot) {
+                for (const name of result.writtenProperties) {
+                    if (snapshot.has(name)) {
+                        snapshot.set(name, getFrontmatterValue(this.app, file, name))
+                    }
+                }
+            }
+            if (result.movedTo) {
+                const folder = result.movedTo.split('/').slice(0, -1).join('/') || '/'
+                new Notice(`Moved "${title}" to ${folder} (automation).`)
+            }
+            if (result.moveError) {
+                new Notice(`Automation move failed: ${result.moveError}`)
+            }
+        } finally {
+            this.automationRunning.delete(path)
+        }
+    }
+
+    /**
+     * Baseline for the property-condition diffs, rebuilt with the board
+     * (only notes whose type watches at least one property get an entry).
+     */
+    private rebuildAutomationSnapshot(files: TFile[]): void {
+        const next = new Map<string, Map<string, unknown>>()
+        for (const file of files) {
+            const watched = watchedProperties(this.automationRulesForPath(file.path))
+            if (watched.length === 0) continue
+            const values = new Map<string, unknown>()
+            for (const name of watched) {
+                values.set(name, getFrontmatterValue(this.app, file, name))
+            }
+            next.set(file.path, values)
+        }
+        this.automationSnapshot = next
+    }
+
     /** Milestone list property (global plugin setting). */
     private resolveTimelineMilestoneProperty(): string {
         return this.plugin.settings.defaultMilestonesProperty
@@ -1836,9 +1986,21 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         // file moves — so it stays on the write-then-rebuild path (the archived note
         // must also carry the new status). No optimistic shortcut here.
         if (statusChanged && this.willAutoArchive(card, newStatus) && statusProperty) {
-            if (newStatus === null) await deleteProperty(this.app, card.file, statusProperty)
-            else await setProperty(this.app, card.file, statusProperty, newStatus)
-            await this.maybeAutoArchive(card, newStatus)
+            const previousStatus = card.statusValue
+            // Suppressed like the optimistic branch: a multi-action rule can
+            // widen the write sequence arbitrarily, and the non-resetting
+            // debouncer would otherwise render a torn mid-sequence state.
+            await this.withRebuildsSuppressed(async () => {
+                if (newStatus === null) await deleteProperty(this.app, card.file, statusProperty)
+                else await setProperty(this.app, card.file, statusProperty, newStatus)
+                // Automations run on the note BEFORE it moves to the archive,
+                // so property/tag actions land on the archived note too. The
+                // archive owns the final location — rule moves are skipped.
+                await this.runStatusAutomations(card, previousStatus, newStatus, {
+                    skipMoveActions: true
+                })
+                await this.maybeAutoArchive(card, newStatus)
+            })
             return
         }
 
@@ -1881,6 +2043,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             }
         }
 
+        const previousStatus = card.statusValue
         if (statusChanged) card.statusValue = newStatus
         this.applyFilterAndRender()
 
@@ -1899,6 +2062,9 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
                 }
                 for (const write of orderWrites) {
                     await setProperty(this.app, write.file, this.orderProperty, write.order)
+                }
+                if (statusChanged) {
+                    await this.runStatusAutomations(card, previousStatus, newStatus)
                 }
             })
         } catch (error) {
@@ -2378,14 +2544,28 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             })
     }
 
-    /** Write (or clear) an enum property on a card's note (issue #52). */
+    /**
+     * Write (or clear) an enum property on a card's note (issue #52). A write
+     * that targets the card's STATUS property (triage allows it) is a status
+     * transition like any other: the in-model status updates and the type's
+     * automation rules run, so triage edits behave like board moves.
+     */
     private async setCardProperty(
         card: KanbanCard,
         propertyName: string,
         value: string | null
     ): Promise<void> {
-        if (value === null) await deleteProperty(this.app, card.file, propertyName)
-        else await setProperty(this.app, card.file, propertyName, value)
+        const live = this.liveCard(card)
+        const statusProperty = this.statusPropertyFor(live)
+        const isStatusWrite =
+            statusProperty !== null && propertyName.toLowerCase() === statusProperty.toLowerCase()
+        const previousStatus = live.statusValue
+        if (value === null) await deleteProperty(this.app, live.file, propertyName)
+        else await setProperty(this.app, live.file, propertyName, value)
+        if (isStatusWrite && value !== previousStatus) {
+            live.statusValue = value
+            await this.runStatusAutomations(live, previousStatus, value)
+        }
     }
 
     /**
@@ -3250,6 +3430,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
     private async maybeAutoArchive(card: KanbanCard, newStatus: string | null): Promise<boolean> {
         if (!this.willAutoArchive(card, newStatus)) return false
         const archive = this.archiveConfigFor(card)
+        await this.runArchiveAutomations(card)
         const result = await archiveNote(this.app, card.file, archive)
         if (result.ok) {
             new Notice(`Archived "${card.title}" to ${result.destPath}`)
@@ -3271,6 +3452,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             return
         }
         this.warnActiveRelationships(card)
+        await this.runArchiveAutomations(card)
         const result = await archiveNote(this.app, card.file, archive)
         if (result.ok) new Notice(`Archived "${card.title}" to ${result.destPath}`)
         else if (result.reason === 'error') {

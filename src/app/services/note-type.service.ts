@@ -2,6 +2,7 @@ import { getAllTags } from 'obsidian'
 import type { App, TFile } from 'obsidian'
 import { produce } from 'immer'
 import type {
+    AutomationRule,
     ColorSpec,
     ColumnDef,
     DoneConfig,
@@ -91,6 +92,7 @@ export function createDefaultNoteType(
         archive: { archiveFolder: '', triggerStatuses: [] },
         wipLimits: {},
         enumProperties: {},
+        automations: [],
         relationships: [
             { role: 'parent', linkProperty: DEFAULT_PARENT_PROPERTY },
             { role: 'sibling', linkProperty: DEFAULT_SIBLING_PROPERTY },
@@ -287,6 +289,22 @@ export async function setArchiveConfig(
         plugin,
         produce(noteType, (draft) => {
             draft.archive = archive
+        })
+    )
+}
+
+/** Replace a note type's automation rules. Plugin-owned (SK-mirror safe). */
+export async function setAutomations(
+    plugin: KanbanActionPlannerPlugin,
+    noteTypeId: string,
+    automations: AutomationRule[]
+): Promise<void> {
+    const noteType = requireNoteType(plugin, noteTypeId)
+    if (!noteType) return
+    await upsertNoteType(
+        plugin,
+        produce(noteType, (draft) => {
+            draft.automations = automations
         })
     )
 }
