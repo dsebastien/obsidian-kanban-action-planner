@@ -1,5 +1,22 @@
 # Release Notes
 
+## 1.7.0 (2026-07-17)
+
+### Features
+
+- **plugin:** edit WBS estimates inline on the chip
+- **plugin:** embed views in notes with ephemeral mode/filter/height overrides
+- **plugin:** hover page-preview in calendar, timeline, and WBS modes
+
+### Bug Fixes
+
+- **plugin:** re-apply embed overrides when the embed line is edited
+- **plugin:** shrink embeds to content and harden embed write suppression
+
+### Performance Improvements
+
+- **plugin:** memoize WBS rollups and reconcile needs-planning panel groups
+
 ## 1.6.0 (2026-07-16)
 
 ### Features

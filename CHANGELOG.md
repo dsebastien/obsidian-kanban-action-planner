@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.7.0](https://github.com/dsebastien/obsidian-kanban-action-planner/compare/1.6.0...1.7.0) (2026-07-17)
+
+### Features
+
+* **plugin:** edit WBS estimates inline on the chip ([e3c30f0](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/e3c30f0c9cbc2312bbed34dff3932ed8052248df)), closes [#106](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/106)
+* **plugin:** embed views in notes with ephemeral mode/filter/height overrides ([483d40d](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/483d40dc82b5d3ad507b2d7da6b4b2127111e004)), closes [#103](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/103)
+* **plugin:** hover page-preview in calendar, timeline, and WBS modes ([67b5d5e](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/67b5d5e74b7d37c683f2a40bd9ff0fe661298e87)), closes [#99](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/99)
+
+### Bug Fixes
+
+* **plugin:** re-apply embed overrides when the embed line is edited ([80fc4d6](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/80fc4d60989f6ab8b96f54533cc95a24f3849f74))
+* **plugin:** shrink embeds to content and harden embed write suppression ([d9e8ea0](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/d9e8ea03901333c1ddc6161957e5598c5a238c9d))
+
+### Performance Improvements
+
+* **plugin:** memoize WBS rollups and reconcile needs-planning panel groups ([6c8f178](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/6c8f1786443b8a6836468ef73c03cb5580542ad9)), closes [#100](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/100)
+
 ## [1.6.0](https://github.com/dsebastien/obsidian-kanban-action-planner/compare/1.5.0...1.6.0) (2026-07-16)
 
 ### Features
@@ -307,6 +324,7 @@ All notable changes to this project will be documented in this file.
 
 * **plugin:** match Starter Kit's {{quarter}} placeholder format (Q2, not 2) ([4fde618](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/4fde6185c5956e3f6fd2ca3a9b03e70cf5e16840))
 * **plugin:** persist discovered statuses so Show empty columns works ([cf91b81](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/cf91b81a1b0786e35c73f4885882e2dc33564c62))
+
 
 
 
