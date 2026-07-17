@@ -26,13 +26,18 @@ describe('parseEmbedParams', () => {
         expect(parseEmbedParams('mode=wbs').mode).toBe('wbs')
     })
 
+    it('accepts kanban as a synonym for board', () => {
+        expect(parseEmbedParams('mode=kanban').mode).toBe('board')
+        expect(parseEmbedParams('MODE=Kanban').mode).toBe('board')
+    })
+
     it('matches mode key and value case-insensitively', () => {
         expect(parseEmbedParams('MODE=WBS').mode).toBe('wbs')
         expect(parseEmbedParams('Mode=Calendar').mode).toBe('calendar')
     })
 
     it('ignores invalid mode values', () => {
-        expect(parseEmbedParams('mode=kanban').mode).toBeNull()
+        expect(parseEmbedParams('mode=gantt').mode).toBeNull()
         expect(parseEmbedParams('mode=').mode).toBeNull()
         expect(parseEmbedParams('mode=board2').mode).toBeNull()
         expect(parseEmbedParams('mode=wbs mode=nope').mode).toBe('wbs') // invalid repeat does not clear

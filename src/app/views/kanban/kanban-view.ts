@@ -312,6 +312,9 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
     // (embedChecked).
     private embedParams: EmbedParams | null = null
     private embedChecked = false
+    // Re-applies alias overrides when the embed line is edited in the note
+    // (Obsidian reuses the wrapper and only rewrites its `alt` attribute).
+    private embedAltObserver: MutationObserver | null = null
     // The single config read/write funnel. In embeds, EVERY set() stays in an
     // in-memory overlay (panel collapse, compact toggle, triage scope, column
     // reorder, …) so interactions still work without touching the .base file.
@@ -659,6 +662,8 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         this.plugin.untrackKanbanView(this)
         this.resizeObserver?.disconnect()
         this.resizeObserver = null
+        this.embedAltObserver?.disconnect()
+        this.embedAltObserver = null
         this.dnd?.destroy()
         this.dnd = null
         this.columnDnd?.destroy()
@@ -937,19 +942,43 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         this.embedChecked = true
         const wrapper = this.containerEl.closest('.internal-embed.bases-embed')
         if (!wrapper) return
-        const params = parseEmbedParams(wrapper.getAttribute('alt') ?? '')
+        rootEl.addClass('kap-embedded')
+        this.applyEmbedParams(parseEmbedParams(wrapper.getAttribute('alt') ?? ''))
+        // Editing the embed line in the note reuses the SAME wrapper and view
+        // instance — Obsidian only rewrites the `alt` attribute in place — so
+        // watch it and re-apply (verified live: sameEl/sameRoot on alias edit).
+        this.embedAltObserver = new MutationObserver(() => {
+            const params = parseEmbedParams(wrapper.getAttribute('alt') ?? '')
+            this.applyEmbedParams(params)
+            this.rebuild()
+        })
+        this.embedAltObserver.observe(wrapper, {
+            attributes: true,
+            attributeFilter: ['alt']
+        })
+    }
+
+    /**
+     * Apply (or re-apply, on an embed-line edit) the alias overrides. The
+     * `height=` param feeds the CSS cap through a scoped custom property
+     * (dynamic value → inline style is the lint-legal channel); without the
+     * kap-embedded containment the embed grows to full content height and
+     * loops the ResizeObserver.
+     */
+    private applyEmbedParams(params: EmbedParams): void {
         this.embedParams = params
         this.ephemeralMode = params.mode
-        // Bounded height + internal scrolling; without it the embed grows to
-        // full content height and loops the ResizeObserver. The `height=`
-        // param feeds the CSS default through a scoped custom property
-        // (dynamic value → inline style is the lint-legal channel).
-        rootEl.addClass('kap-embedded')
-        if (params.heightPx !== null) {
-            rootEl.style.setProperty('--kap-embed-height', `${String(params.heightPx)}px`)
+        const rootEl = this.rootEl
+        if (rootEl) {
+            if (params.heightPx !== null) {
+                rootEl.style.setProperty('--kap-embed-height', `${String(params.heightPx)}px`)
+            } else {
+                rootEl.style.removeProperty('--kap-embed-height')
+            }
         }
         // Re-seed the filter through the embed-aware loader (a first rebuild
-        // on a detached root may already have loaded the persisted query).
+        // on a detached root may already have loaded the persisted query; an
+        // edited `filter=` must replace whatever was typed since).
         this.filterInitialized = false
     }
 

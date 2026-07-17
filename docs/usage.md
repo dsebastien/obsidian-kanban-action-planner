@@ -39,7 +39,8 @@ renders, without changing the saved view:
 ![[Tasks.base#Kanban|mode=wbs height=400 filter=status:active OR due:overdue]]
 ```
 
-- `mode=` — `board`, `calendar`, `timeline`, `triage`, or `wbs`.
+- `mode=` — `board` (or `kanban`), `calendar`, `timeline`, `triage`, or `wbs`. Editing the
+  embed line updates the rendered embed in place.
 - `height=` — the embed's height cap in pixels (kept between 200 and 2000); the embed still
   shrinks below it when the content is smaller.
 - `filter=` — everything after `filter=` is the initial [filter query](#filtering-search-bar),

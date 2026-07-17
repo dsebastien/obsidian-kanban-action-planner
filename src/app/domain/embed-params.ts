@@ -72,7 +72,9 @@ export function parseEmbedParams(alias: string): EmbedParams {
         const key = token.slice(0, eq).toLowerCase()
         const value = token.slice(eq + 1)
         if (key === 'mode') {
-            const mode = value.toLowerCase()
+            // `kanban` is the natural word for the board mode — accept it.
+            const raw = value.toLowerCase()
+            const mode = raw === 'kanban' ? 'board' : raw
             if (isViewMode(mode)) params.mode = mode
         } else if (key === 'height') {
             const px = parseHeight(value)
