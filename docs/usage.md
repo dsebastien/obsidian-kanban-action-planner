@@ -100,6 +100,11 @@ until you define your statuses.
 
 Manual ordering is stored in your notes, not in plugin data, so it travels with the vault.
 
+**Touch screens.** Swiping vertically over cards scrolls the column as usual; to drag a card by
+touch, start the gesture **sideways** (for a column header, start **downwards**). A plain swipe
+never moves a card or writes to a note. The same rule applies in the calendar and WBS panels.
+Drag-and-drop also works in popped-out (separate) Obsidian windows.
+
 **Auto-sort a column by a property.** Instead of hand-curated manual order, a board can sort the
 cards inside every column by **name** or by any **property** (priority, due date, created, and so
 on), ascending or descending. Set **Card sort**, **Card sort property**, and **Card sort

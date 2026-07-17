@@ -14,6 +14,12 @@
  * rests), and hovering a collapsed branch for a beat expands it so a drop
  * can land deeper. The source element is re-resolved by key when a mid-drag
  * refresh rebuilds its node.
+ *
+ * Input correctness (issue #109): rows and pane cards use
+ * `touch-action: pan-y`, so a vertical touch pan scrolls the tree / pane
+ * natively (`pointercancel` aborts without writing) while a horizontal touch
+ * gesture starts a drag. Listeners (and the autoscroll rAF loop) bind to the
+ * view's own window / document so drags work in popout windows.
  */
 
 import { cssEscapeAttr } from '../../utils/css-escape'
@@ -46,6 +52,8 @@ export class WbsDnd {
     private readonly callbacks: WbsDndCallbacks
 
     private pointerId: number | null = null
+    /** Window owning the in-flight drag (popout-safe); set at pointerdown. */
+    private dragWin: Window = window
     private startX = 0
     private startY = 0
     private lastX = 0
@@ -95,6 +103,7 @@ export class WbsDnd {
         if (sourceEl.dataset['wbsContext'] === '1') return
 
         this.pointerId = e.pointerId
+        this.dragWin = this.containerEl.win
         this.startX = e.clientX
         this.startY = e.clientY
         this.lastX = e.clientX
@@ -104,9 +113,9 @@ export class WbsDnd {
         const rawParent = sourceEl.dataset['parentKey']
         this.sourceParentKey = rawParent !== undefined && rawParent !== '' ? rawParent : null
         this.sourceIsRow = sourceEl.hasClass('kap-wbs-row')
-        window.addEventListener('pointermove', this.onPointerMove)
-        window.addEventListener('pointerup', this.onPointerUp)
-        window.addEventListener('pointercancel', this.onPointerCancel)
+        this.dragWin.addEventListener('pointermove', this.onPointerMove)
+        this.dragWin.addEventListener('pointerup', this.onPointerUp)
+        this.dragWin.addEventListener('pointercancel', this.onPointerCancel)
     }
 
     private handlePointerMove(e: PointerEvent): void {
@@ -134,7 +143,7 @@ export class WbsDnd {
         }
         // Body-level ghost inside a `.kap-root` wrapper so the plugin-scoped
         // styles apply outside the view's own subtree (popout-safe).
-        const wrap = activeDocument.body.createDiv({ cls: 'kap-root kap-wbs-ghost-wrap' })
+        const wrap = this.containerEl.doc.body.createDiv({ cls: 'kap-root kap-wbs-ghost-wrap' })
         const ghost = this.sourceEl.cloneNode(true) as HTMLElement
         ghost.addClass('kap-card-ghost')
         ghost.style.width = `${String(Math.min(this.sourceEl.offsetWidth, 320))}px`
@@ -188,9 +197,11 @@ export class WbsDnd {
                     }
                 }
             }
-            this.autoScrollHandle = window.requestAnimationFrame(step)
+            // The drag's own window drives the loop — a popout's rAF keeps
+            // firing even when the main window is hidden or throttled.
+            this.autoScrollHandle = this.dragWin.requestAnimationFrame(step)
         }
-        this.autoScrollHandle = window.requestAnimationFrame(step)
+        this.autoScrollHandle = this.dragWin.requestAnimationFrame(step)
     }
 
     /** Scroll faster the closer the pointer is to the edge. */
@@ -204,7 +215,7 @@ export class WbsDnd {
         // it so the dimmed style follows the drag.
         if (this.sourceEl && !this.sourceEl.isConnected) this.resolveSourceEl()
 
-        const el = activeDocument.elementFromPoint(e.clientX, e.clientY) as HTMLElement | null
+        const el = this.containerEl.doc.elementFromPoint(e.clientX, e.clientY) as HTMLElement | null
         const rowEl = el?.closest<HTMLElement>('.kap-wbs-row[data-card-key]') ?? null
         // Pane status groups accept PANE-CARD sources only (set status); a
         // dragged tree row keeps the whole panel as its detach target.
@@ -288,11 +299,12 @@ export class WbsDnd {
         const target = this.currentTarget
         const valid = this.currentTargetValid
         const wasDragging = this.dragging
+        const dragWin = this.dragWin
         this.cleanup()
         if (wasDragging) {
             // Swallow the post-drag click so the row doesn't also open the note.
             const controller = new AbortController()
-            window.addEventListener(
+            dragWin.addEventListener(
                 'click',
                 (ev) => {
                     ev.stopPropagation()
@@ -309,11 +321,11 @@ export class WbsDnd {
     }
 
     private cleanup(): void {
-        window.removeEventListener('pointermove', this.onPointerMove)
-        window.removeEventListener('pointerup', this.onPointerUp)
-        window.removeEventListener('pointercancel', this.onPointerCancel)
+        this.dragWin.removeEventListener('pointermove', this.onPointerMove)
+        this.dragWin.removeEventListener('pointerup', this.onPointerUp)
+        this.dragWin.removeEventListener('pointercancel', this.onPointerCancel)
         if (this.autoScrollHandle !== null) {
-            window.cancelAnimationFrame(this.autoScrollHandle)
+            this.dragWin.cancelAnimationFrame(this.autoScrollHandle)
             this.autoScrollHandle = null
         }
         if (this.hoverExpandHandle !== null) {

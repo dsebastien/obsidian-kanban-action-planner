@@ -439,9 +439,11 @@
         @apply flex items-center gap-2 px-3 py-2;
         font-weight: var(--font-semibold, 600);
         border-bottom: 1px solid var(--background-modifier-border);
-        /* Draggable to reorder columns (issue #24); the toggle button overrides. */
+        /* Draggable to reorder columns (issue #24); the toggle button overrides.
+           pan-x keeps native horizontal board panning on touch — a vertical
+           touch gesture starts the reorder drag instead (issue #109). */
         cursor: grab;
-        touch-action: none;
+        touch-action: pan-x;
     }
 
     .kap-column-header:active {
@@ -648,7 +650,9 @@
         border-left: 3px solid var(--kap-card-accent, var(--background-modifier-border));
         border-radius: var(--radius-s, 6px);
         cursor: grab;
-        touch-action: none; /* let the pointer DnD own touch gestures */
+        /* pan-y keeps native vertical column scrolling on touch — a horizontal
+           touch gesture starts the card drag instead (issue #109). */
+        touch-action: pan-y;
         box-shadow: var(--shadow-s);
         transition:
             border-color var(--kap-transition) var(--kap-ease),
@@ -1350,7 +1354,9 @@
         color: var(--text-normal);
         background: var(--background-modifier-hover);
         border-left: 2px solid var(--interactive-accent);
-        touch-action: none;
+        /* pan-y keeps native vertical panel/day-list scrolling on touch — a
+           horizontal touch gesture starts the chip drag instead (issue #109). */
+        touch-action: pan-y;
         transition:
             background-color var(--kap-transition) var(--kap-ease),
             transform var(--kap-transition) var(--kap-ease);
@@ -2595,8 +2601,9 @@
         color: var(--text-normal);
         background: var(--background-primary);
         border: 1px solid var(--background-modifier-border);
-        /* Let the pointer DnD own touch gestures (drag to set a parent). */
-        touch-action: none;
+        /* pan-y keeps native vertical pane scrolling on touch — a horizontal
+           touch gesture starts the drag (set a parent) instead (issue #109). */
+        touch-action: pan-y;
         transition:
             background-color var(--kap-transition) var(--kap-ease),
             border-color var(--kap-transition) var(--kap-ease);
@@ -2647,8 +2654,9 @@
         margin-inline-start: min(calc(var(--kap-wbs-depth, 0) * 1.25rem), 40%);
         color: var(--text-normal);
         border: 1px solid transparent;
-        /* Let the pointer DnD own touch gestures (drag to re-parent). */
-        touch-action: none;
+        /* pan-y keeps native vertical tree scrolling on touch — a horizontal
+           touch gesture starts the drag (re-parent) instead (issue #109). */
+        touch-action: pan-y;
         transition:
             background-color var(--kap-transition) var(--kap-ease),
             border-color var(--kap-transition) var(--kap-ease);

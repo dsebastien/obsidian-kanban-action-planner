@@ -11,6 +11,12 @@
  * view persists it to the per-view `statuses` list.
  *
  * Honors `prefers-reduced-motion` (no ghost-follow animation).
+ *
+ * Input correctness (issue #109): headers use `touch-action: pan-x`, so a
+ * horizontal touch pan scrolls the board natively (`pointercancel` aborts the
+ * pending drag) while a vertical touch gesture starts a reorder drag.
+ * Listeners bind to the board's own window / document so drags work in
+ * popout windows.
  */
 
 import { insertionLineOffset } from './drop-indicator'
@@ -33,6 +39,8 @@ export class ColumnDnd {
     private readonly reducedMotion: boolean
 
     private pointerId: number | null = null
+    /** Window owning the in-flight drag (popout-safe); set at pointerdown. */
+    private dragWin: Window = window
     private startX = 0
     private startY = 0
     private dragging = false
@@ -81,13 +89,14 @@ export class ColumnDnd {
         if (this.draggableColumns(boardEl).length < 2) return
 
         this.pointerId = e.pointerId
+        this.dragWin = this.containerEl.win
         this.startX = e.clientX
         this.startY = e.clientY
         this.sourceColumnEl = columnEl
         this.boardEl = boardEl
-        window.addEventListener('pointermove', this.onPointerMove)
-        window.addEventListener('pointerup', this.onPointerUp)
-        window.addEventListener('pointercancel', this.onPointerCancel)
+        this.dragWin.addEventListener('pointermove', this.onPointerMove)
+        this.dragWin.addEventListener('pointerup', this.onPointerUp)
+        this.dragWin.addEventListener('pointercancel', this.onPointerCancel)
     }
 
     private handlePointerMove(e: PointerEvent): void {
@@ -115,7 +124,7 @@ export class ColumnDnd {
         const ghost = (header ?? this.sourceColumnEl).cloneNode(true) as HTMLElement
         ghost.addClass('kap-column-ghost')
         ghost.style.width = `${String((header ?? this.sourceColumnEl).offsetWidth)}px`
-        activeDocument.body.appendChild(ghost)
+        this.containerEl.doc.body.appendChild(ghost)
         this.ghostEl = ghost
         this.indicatorEl = createDiv({ cls: 'kap-column-drop-indicator' })
     }
@@ -163,10 +172,11 @@ export class ColumnDnd {
         if (this.pointerId !== e.pointerId) return
         const order = this.committedOrder()
         const wasDragging = this.dragging
+        const dragWin = this.dragWin
         this.cleanup()
         if (wasDragging) {
             const controller = new AbortController()
-            window.addEventListener(
+            dragWin.addEventListener(
                 'click',
                 (ev) => {
                     ev.stopPropagation()
@@ -197,9 +207,9 @@ export class ColumnDnd {
     }
 
     private cleanup(): void {
-        window.removeEventListener('pointermove', this.onPointerMove)
-        window.removeEventListener('pointerup', this.onPointerUp)
-        window.removeEventListener('pointercancel', this.onPointerCancel)
+        this.dragWin.removeEventListener('pointermove', this.onPointerMove)
+        this.dragWin.removeEventListener('pointerup', this.onPointerUp)
+        this.dragWin.removeEventListener('pointercancel', this.onPointerCancel)
         this.sourceColumnEl?.removeClass('kap-column-dragging')
         this.ghostEl?.remove()
         this.indicatorEl?.remove()

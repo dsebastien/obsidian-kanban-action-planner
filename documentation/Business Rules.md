@@ -682,3 +682,17 @@ unset`; numbers compare numerically, else trimmed case-insensitive strings; miss
     spam); `height=` sets the custom property inline. Frontmatter writes from an embed
     (status drops, scheduling, …) stay fully live — only view-config persistence is
     suppressed.
+43. **Drag input correctness (issue #109).** Two invariants for every pointer-drag surface:
+    (a) **Touch never loses native scrolling, and a pan never writes.** Drag sources use a
+    directional `touch-action` instead of `none`: `pan-y` on board cards, calendar chips,
+    WBS rows and pane cards (their scrollers are vertical — a vertical touch pan scrolls
+    natively, a horizontal touch gesture starts the drag); `pan-x` on column headers (the
+    board scrolls horizontally — a vertical touch gesture starts the reorder). When the
+    browser takes the gesture it fires `pointercancel`, and every controller treats that as
+    an abort: cleanup only, never a commit/write. Mouse drag latency is unchanged (same 5px
+    threshold, no long-press gate — long-press stays the contextmenu fallback).
+    (b) **Drags are popout-window-safe.** All four controllers (`dnd-controller`,
+    `column-dnd`, `calendar-dnd`, `wbs-dnd`) bind move/up/cancel (and the WBS autoscroll
+    rAF loop) to the container's own window (`containerEl.win`, captured per drag) and use
+    `containerEl.doc` for `elementFromPoint` + ghost parenting — never the main `window` /
+    `activeDocument`. The timeline already binds to `el.ownerDocument` (same invariant).

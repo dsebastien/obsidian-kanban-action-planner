@@ -12,6 +12,13 @@
  * Accessibility: a non-drag fallback (right-click / long-press menu) is provided
  * by the renderer; this controller honours `prefers-reduced-motion` by skipping
  * the float-follow animation.
+ *
+ * Input correctness (issue #109): cards use `touch-action: pan-y`, so a
+ * vertical touch pan scrolls the column natively (the browser fires
+ * `pointercancel`, which aborts without writing) while a horizontal touch
+ * gesture starts a drag. Move/up/cancel listeners bind to the card's own
+ * window (`containerEl.win`) and hit-testing/ghost-parenting use its own
+ * document, so drags started in popout windows track and complete there.
  */
 
 import { insertionLineOffset } from './drop-indicator'
@@ -41,6 +48,8 @@ export class BoardDnd {
     private readonly reducedMotion: boolean
 
     private pointerId: number | null = null
+    /** Window owning the in-flight drag (popout-safe); set at pointerdown. */
+    private dragWin: Window = window
     private startX = 0
     private startY = 0
     private dragging = false
@@ -75,12 +84,13 @@ export class BoardDnd {
         if (!cardEl || !this.containerEl.contains(cardEl)) return
 
         this.pointerId = e.pointerId
+        this.dragWin = this.containerEl.win
         this.startX = e.clientX
         this.startY = e.clientY
         this.sourceCardEl = cardEl
-        window.addEventListener('pointermove', this.onPointerMove)
-        window.addEventListener('pointerup', this.onPointerUp)
-        window.addEventListener('pointercancel', this.onPointerCancel)
+        this.dragWin.addEventListener('pointermove', this.onPointerMove)
+        this.dragWin.addEventListener('pointerup', this.onPointerUp)
+        this.dragWin.addEventListener('pointercancel', this.onPointerCancel)
     }
 
     private handlePointerMove(e: PointerEvent): void {
@@ -115,7 +125,7 @@ export class BoardDnd {
         // back to the min-height floor and visibly shrinks at drag start
         // (issue #105, finding 5.8).
         ghost.style.height = `${String(this.sourceCardEl.offsetHeight)}px`
-        activeDocument.body.appendChild(ghost)
+        this.containerEl.doc.body.appendChild(ghost)
         this.ghostEl = ghost
 
         this.placeholderEl = createDiv({ cls: 'kap-card-placeholder' })
@@ -169,7 +179,7 @@ export class BoardDnd {
     }
 
     private columnElementAt(x: number, y: number): HTMLElement | null {
-        const el = activeDocument.elementFromPoint(x, y) as HTMLElement | null
+        const el = this.containerEl.doc.elementFromPoint(x, y) as HTMLElement | null
         return el?.closest<HTMLElement>('.kap-column') ?? null
     }
 
@@ -178,12 +188,13 @@ export class BoardDnd {
         const cardKey = this.sourceCardEl?.dataset['cardKey'] ?? null
         const target = this.currentTarget
         const wasDragging = this.dragging
+        const dragWin = this.dragWin
         this.cleanup()
         if (wasDragging) {
             // Swallow the click the browser fires after a drag so it does not
             // also open the note. Auto-expires so a later genuine click is safe.
             const controller = new AbortController()
-            window.addEventListener(
+            dragWin.addEventListener(
                 'click',
                 (ev) => {
                     ev.stopPropagation()
@@ -204,9 +215,9 @@ export class BoardDnd {
     }
 
     private cleanup(): void {
-        window.removeEventListener('pointermove', this.onPointerMove)
-        window.removeEventListener('pointerup', this.onPointerUp)
-        window.removeEventListener('pointercancel', this.onPointerCancel)
+        this.dragWin.removeEventListener('pointermove', this.onPointerMove)
+        this.dragWin.removeEventListener('pointerup', this.onPointerUp)
+        this.dragWin.removeEventListener('pointercancel', this.onPointerCancel)
         this.sourceCardEl?.removeClass('kap-card-dragging')
         this.ghostEl?.remove()
         this.placeholderEl?.remove()

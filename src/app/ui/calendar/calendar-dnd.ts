@@ -8,6 +8,12 @@
  * it; day-sourced chips only), and the panel's **status groups**
  * (`[data-pane-drop-*]` → sets the status; panel-sourced chips only). The
  * view decides which property to write from the active tab.
+ *
+ * Input correctness (issue #109): chips use `touch-action: pan-y`, so a
+ * vertical touch pan scrolls the panel / day list natively (`pointercancel`
+ * aborts without writing) while a horizontal touch gesture starts a drag.
+ * Listeners bind to the view's own window / document so drags work in
+ * popout windows.
  */
 
 const DRAG_THRESHOLD_PX = 5
@@ -31,6 +37,8 @@ export class CalendarDnd {
     private readonly reducedMotion: boolean
 
     private pointerId: number | null = null
+    /** Window owning the in-flight drag (popout-safe); set at pointerdown. */
+    private dragWin: Window = window
     private startX = 0
     private startY = 0
     private dragging = false
@@ -68,13 +76,14 @@ export class CalendarDnd {
         if (!cardEl || !this.containerEl.contains(cardEl)) return
 
         this.pointerId = e.pointerId
+        this.dragWin = this.containerEl.win
         this.startX = e.clientX
         this.startY = e.clientY
         this.sourceCardEl = cardEl
         this.sourceInPanel = cardEl.closest('[data-calendar-panel]') !== null
-        window.addEventListener('pointermove', this.onPointerMove)
-        window.addEventListener('pointerup', this.onPointerUp)
-        window.addEventListener('pointercancel', this.onPointerCancel)
+        this.dragWin.addEventListener('pointermove', this.onPointerMove)
+        this.dragWin.addEventListener('pointerup', this.onPointerUp)
+        this.dragWin.addEventListener('pointercancel', this.onPointerCancel)
     }
 
     private handlePointerMove(e: PointerEvent): void {
@@ -101,7 +110,7 @@ export class CalendarDnd {
         const ghost = this.sourceCardEl.cloneNode(true) as HTMLElement
         ghost.addClass('kap-card-ghost')
         ghost.style.width = `${String(this.sourceCardEl.offsetWidth)}px`
-        activeDocument.body.appendChild(ghost)
+        this.containerEl.doc.body.appendChild(ghost)
         this.ghostEl = ghost
     }
 
@@ -111,7 +120,7 @@ export class CalendarDnd {
     }
 
     private updateDropTarget(e: PointerEvent): void {
-        const el = activeDocument.elementFromPoint(e.clientX, e.clientY) as HTMLElement | null
+        const el = this.containerEl.doc.elementFromPoint(e.clientX, e.clientY) as HTMLElement | null
         const dayEl = el?.closest<HTMLElement>('.kap-cal-day') ?? null
         // Pane status groups accept PANEL-sourced chips only (set status); a
         // chip dragged off a day keeps the whole panel as its clear target.
@@ -159,11 +168,12 @@ export class CalendarDnd {
         const dimension = this.sourceCardEl?.dataset['dimension'] ?? 'scheduled'
         const target = this.currentTargetValid ? this.currentTarget : null
         const wasDragging = this.dragging
+        const dragWin = this.dragWin
         this.cleanup()
         if (wasDragging) {
             // Swallow the post-drag click so the card doesn't also open the note.
             const controller = new AbortController()
-            window.addEventListener(
+            dragWin.addEventListener(
                 'click',
                 (ev) => {
                     ev.stopPropagation()
@@ -180,9 +190,9 @@ export class CalendarDnd {
     }
 
     private cleanup(): void {
-        window.removeEventListener('pointermove', this.onPointerMove)
-        window.removeEventListener('pointerup', this.onPointerUp)
-        window.removeEventListener('pointercancel', this.onPointerCancel)
+        this.dragWin.removeEventListener('pointermove', this.onPointerMove)
+        this.dragWin.removeEventListener('pointerup', this.onPointerUp)
+        this.dragWin.removeEventListener('pointercancel', this.onPointerCancel)
         this.sourceCardEl?.removeClass('kap-card-dragging')
         this.ghostEl?.remove()
         this.dropEl?.removeClass('kap-cal-drop')
