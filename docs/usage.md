@@ -39,6 +39,11 @@ renders, without changing the saved view:
 ![[Tasks.base#Kanban|mode=wbs height=400 filter=status:active OR due:overdue]]
 ```
 
+The same view embedded twice in one note — as a board and as a calendar, both narrowed to a
+single project with a `filter=parent:…` override:
+
+![Embedded views in different modes]({{ '/images/embed-modes.png' | relative_url }})
+
 - `mode=` — `board` (or `kanban`), `calendar`, `timeline`, `triage`, or `wbs`. Editing the
   embed line updates the rendered embed in place.
 - `height=` — the embed's height cap in pixels (kept between 200 and 2000); the embed still

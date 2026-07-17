@@ -40,6 +40,10 @@ When a backlog gets overwhelming, work through it one card at a time in Triage m
 
 ![Triage mode](docs/images/triage.png)
 
+Embed the same view in any note, several times in different modes — here a board and its calendar, both pinned to one project via `![[Tasks.base#Kanban|mode=board filter=parent:"Obsidian Starter Kit (Project)"]]` and `|mode=calendar …`:
+
+![Embedded views in different modes](docs/images/embed-modes.png)
+
 Let the board do the bookkeeping with per-note-type automation rules — enter a done state and the progress, dates, tags, or even the note's folder update themselves:
 
 ![Automation rules](docs/images/automations.png)
