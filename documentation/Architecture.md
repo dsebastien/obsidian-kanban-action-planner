@@ -48,7 +48,9 @@ The core is a custom Obsidian **Bases view** (Obsidian ≥ 1.13.0 API):
   the shared `.base` view is never rewritten from an embed. No direct `this.config.set` calls
   exist in the view. `viewMode()` — the single funnel for all mode readers — returns the
   ephemeral override first; `setViewMode()` in an embed updates it in memory; `loadFilterQuery`
-  seeds from the `filter=` param through the normal parse path. `isEmbedded()` forces a
+  seeds from the `filter=` param through the normal parse path. Editing the embed line reuses
+  the same wrapper/view — Obsidian only rewrites the `alt` attribute — so a `MutationObserver`
+  on it re-applies the overrides live (`applyEmbedParams`). `isEmbedded()` forces a
   synchronous `detectEmbed()` first, so a config-write decision landing between DOM attach and
   the next detection pass can never leak (at interaction time the DOM is always connected).
   Containment: `kap-embedded` on `.kap-root` sizes to content under a `max-height` cap of
