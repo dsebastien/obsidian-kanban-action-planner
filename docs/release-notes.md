@@ -1,5 +1,15 @@
 # Release Notes
 
+## 1.7.2 (2026-07-17)
+
+### Bug Fixes
+
+- **plugin:** touch-friendly drag gestures and popout-window drag support
+
+### Performance Improvements
+
+- **plugin:** gate WBS renders, cheaper calendar/timeline signatures, config-tab fix, closes [issue-#105](https://github.com/dsebastien/issue-/issues/105) [#110](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/110) [#110](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/110)
+
 ## 1.7.1 (2026-07-17)
 
 ## 1.7.0 (2026-07-17)
