@@ -1633,6 +1633,17 @@
         .kap-config-modal .kap-settings-nav {
             @apply flex-row flex-wrap w-full;
         }
+        /* In the wrapped tab row the tabs sit side by side, so bolding the
+           active label re-widths it and shifts its siblings (issue #110,
+           item 4). Keep the weight stable and fake the emphasis with a
+           text-shadow — the glyph advance width never changes. The desktop
+           fixed-width nav column is unaffected, so this override is scoped to
+           the narrow layout. */
+        .kap-config-modal .kap-settings-tab-active,
+        .kap-config-modal .kap-settings-tab-active:hover {
+            font-weight: inherit;
+            text-shadow: 0.4px 0 0 currentColor;
+        }
         .kap-config-modal .kap-settings-content {
             @apply pl-0 border-l-0;
             min-width: 0;

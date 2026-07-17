@@ -1,4 +1,4 @@
-import { Notice } from 'obsidian'
+import { getAllTags, Notice } from 'obsidian'
 import type { App, Menu } from 'obsidian'
 import { parseFrontmatterDate, startOfDay, toDateKey } from '../../domain/calendar'
 import { formatCountdown } from '../../services/card-display.service'
@@ -40,7 +40,10 @@ import {
 } from '../../services/relationships.service'
 import { renderWbs } from '../../ui/wbs/wbs-renderer'
 import type { WbsPaneTypeGroupModel, WbsRowModel, WbsViewModel } from '../../ui/wbs/wbs-renderer'
+import { wbsRenderSignature } from '../../ui/wbs/wbs-signature'
+import type { WbsSignatureCard } from '../../ui/wbs/wbs-signature'
 import type { WbsDropTarget } from '../../ui/wbs/wbs-dnd'
+import { log } from '../../../utils/log'
 import { EstimatePromptModal } from '../../ui/timeline/estimate-modal'
 import { ProgressPromptModal } from '../../ui/wbs/progress-modal'
 import { DatePromptModal } from '../../ui/date-prompt-modal'
@@ -124,6 +127,12 @@ export interface WbsHost {
     statusLabelFor(card: KanbanCard): string | null
     /** Sibling/root order: the view's card sort comparator (title fallback). */
     comparator(): (a: KanbanCard, b: KanbanCard) => number
+    /**
+     * A stable identity of the current card-sort comparator (mode / direction /
+     * property) — the render gate (issue #110) needs it because a sort-config
+     * change reorders siblings without touching any card's frontmatter.
+     */
+    comparatorKey(): string
     restoreState(): WbsViewState
     persistState(state: WbsViewState): void
     /**
@@ -164,6 +173,13 @@ export class WbsController {
      * whose chain climbs back through the source would loop).
      */
     private contextChildEdges = new Map<string, string[]>()
+    /**
+     * The signature of the last COMPLETED render (issue #110 render gate).
+     * Null until the first render, and cleared whenever a pass begins so a
+     * renderer that throws mid-pass never records the partial DOM as complete
+     * (mirrors the board/calendar/timeline gate's commit-on-success rule).
+     */
+    private lastRenderSignature: string | null = null
     // Durable state loads lazily: config is unavailable at construction.
     private loaded = false
 
@@ -242,6 +258,26 @@ export class WbsController {
             (path) => this.host.app.vault.getFileByPath(path) !== null
         )
         this.contextChildEdges = context.childEdges
+
+        // Render gate (issue #110): skip a pass whose inputs are identical to
+        // the last completed one — same inputs ⇒ same forest/rollups/rows, so
+        // the whole model build + render is a provable no-op (it absorbs the
+        // Bases echo of the plugin's own writes and body-only edits, like the
+        // board/calendar/timeline gate). The context ancestors were just
+        // resolved above (a cheap parent-link climb) and are reused for the
+        // build below, so the gate adds no duplicate work. Only applies when
+        // the WBS DOM is already mounted (a mode switch into WBS must render).
+        const signature = this.buildRenderSignature(cards, rels, context)
+        const mounted = boardEl.querySelector(':scope > .kap-wbs') !== null
+        if (mounted && signature === this.lastRenderSignature) {
+            log('Kanban render skipped (wbs): signature unchanged', 'debug')
+            return
+        }
+        // Clear now, commit only when the pass finishes: a renderer throwing
+        // partway must not record the pass as complete, or the write's own
+        // echo would be gated away and the partial DOM would stick.
+        this.lastRenderSignature = null
+
         const childrenOf = (path: string): ReadonlyArray<string> => {
             const extra = context.childEdges.get(path)
             const own = rels.get(path)?.child ?? []
@@ -461,6 +497,82 @@ export class WbsController {
                     this.host.persistCollapsedNodes([...this.collapsedNodes])
                     this.host.refresh()
                 }
+            }
+        )
+        // The pass completed — record it so the next content-identical trigger
+        // (typically this write's own Bases echo) gates away as a no-op.
+        this.lastRenderSignature = signature
+    }
+
+    /**
+     * Map the live render inputs into the pure {@link wbsRenderSignature}
+     * shapes (issue #110). Kept a thin adapter so the composition — the part
+     * that must not miss an input — stays pure and unit-tested. `context` is
+     * the already-resolved ancestor set (reused from {@link render}).
+     */
+    private buildRenderSignature(
+        cards: KanbanCard[],
+        rels: Map<string, RelationshipSet>,
+        context: {
+            paths: string[]
+            childEdges: Map<string, string[]>
+            parentEdges: Map<string, string[]>
+        }
+    ): string {
+        const cardSigs: WbsSignatureCard[] = cards.map((card) => {
+            const cache = this.host.app.metadataCache.getFileCache(card.file)
+            const type = this.host.noteTypeFor(card)
+            const estimate = this.host.estimateConfigFor(card)
+            const rel = rels.get(card.key)
+            return {
+                key: card.key,
+                order: card.order,
+                statusValue: card.statusValue,
+                typeId: type?.id ?? '',
+                typeName: type?.name ?? '',
+                statusLabel: this.host.statusLabelFor(card),
+                statusColor: this.host.statusColorFor(card),
+                blocked: card.relationships.blocked_by.length > 0,
+                done: this.isCardDone(card),
+                estimateProperty: estimate.property,
+                estimateUnit: estimate.unit,
+                frontmatter: JSON.stringify(cache?.frontmatter ?? null),
+                tags: cache ? (getAllTags(cache) ?? []).join(',') : '',
+                parent: rel?.parent ?? [],
+                child: rel?.child ?? [],
+                sibling: rel?.sibling ?? []
+            }
+        })
+        const sortedPaths = [...context.paths].sort()
+        const byPath = (a: readonly [string, unknown], b: readonly [string, unknown]): number =>
+            a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0
+        const edgeEntries = (
+            map: Map<string, string[]>
+        ): (readonly [string, readonly string[]])[] =>
+            [...map.entries()].map(([path, targets]) => [path, targets] as const).sort(byPath)
+        return wbsRenderSignature(
+            cardSigs,
+            {
+                paths: sortedPaths,
+                titles: sortedPaths.map((path) => [path, labelForPath(path)] as const),
+                childEdges: edgeEntries(context.childEdges),
+                parentEdges: edgeEntries(context.parentEdges)
+            },
+            {
+                collapsedNodes: [...this.collapsedNodes].sort(),
+                panelCollapsed: this.panelCollapsed,
+                paneCollapsed: [...this.paneCollapsed.entries()]
+                    .map(([key, collapsed]) => [key, collapsed] as const)
+                    .sort(byPath)
+            },
+            {
+                minutesPerDay: this.host.minutesPerDay(),
+                startProperty: this.host.startProperty(),
+                deadlineProperty: this.host.deadlineProperty(),
+                progressProperty: this.host.progressProperty(),
+                dueSoonDays: this.host.dueSoonDays(),
+                todayKey: toDateKey(startOfDay(new Date())),
+                comparator: this.host.comparatorKey()
             }
         )
     }

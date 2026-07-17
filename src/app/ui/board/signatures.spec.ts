@@ -2,6 +2,7 @@ import { describe, expect, it } from 'bun:test'
 import {
     boardRenderSignature,
     cardSignature,
+    composeCardsSignature,
     renderPassSignature,
     structureSignature
 } from './signatures'
@@ -306,5 +307,44 @@ describe('renderPassSignature', () => {
             ['x.md', 'todo', null, 'type', 'sig', '{"a":2}', '', 'estimate', 'days', null]
         ]
         expect(renderPassSignature(['calendar', '', false, 'state', changedFm])).not.toBe(sig)
+    })
+})
+
+describe('composeCardsSignature', () => {
+    it('is stable for equal inputs and changes with the header or any card', () => {
+        const header = ['calendar', 'query', false, 'state']
+        const perCard = [JSON.stringify(['a.md', { s: 1 }]), JSON.stringify(['b.md', { s: 2 }])]
+        const sig = composeCardsSignature(header, perCard)
+        expect(composeCardsSignature([...header], [...perCard])).toBe(sig)
+        expect(composeCardsSignature(['timeline', 'query', false, 'state'], perCard)).not.toBe(sig)
+        expect(
+            composeCardsSignature(header, [JSON.stringify(['a.md', { s: 9 }]), perCard[1]!])
+        ).not.toBe(sig)
+    })
+
+    it('a card added or removed changes the signature', () => {
+        const header = ['calendar']
+        const one = [JSON.stringify(['a.md'])]
+        const two = [JSON.stringify(['a.md']), JSON.stringify(['b.md'])]
+        expect(composeCardsSignature(header, one)).not.toBe(composeCardsSignature(header, two))
+    })
+
+    it('does not double-escape frontmatter (single JSON.stringify per card)', () => {
+        // The per-card entry is already stringified; the composer must NOT
+        // wrap it in a second stringify (no escaped-quote doubling).
+        const entry = JSON.stringify(['a.md', { title: 'x"y' }])
+        const out = composeCardsSignature(['calendar'], [entry])
+        expect(out).toContain(entry)
+        expect(out).not.toContain('\\\\"')
+    })
+
+    it('card content cannot forge the record/section separators', () => {
+        // A card title containing the raw separator bytes still stringifies to
+        // an escaped form, so two distinct card sets never collide.
+        const withCtrl = JSON.stringify(['a.md', { t: ' ' }])
+        const plain = JSON.stringify(['a.md', { t: 'x' }])
+        expect(composeCardsSignature(['c'], [withCtrl])).not.toBe(
+            composeCardsSignature(['c'], [plain])
+        )
     })
 })

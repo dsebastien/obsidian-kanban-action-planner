@@ -193,7 +193,7 @@ shrunken layout never clamps it away). Cards never shrink below their content
 (`flex: none`) so nothing is clipped — the column body scrolls instead; sparser cards get
 matching whitespace. The pure max-picking helper `uniformCardHeight()` is unit-tested.
 
-**Render-signature gate (issue #105).** Before the board/calendar/timeline render (and its side
+**Render-signature gate (issue #105, #110).** Before the board/calendar/timeline render (and its side
 effects: toolbar teardown, calendar/timeline full teardown, column-anchor restore, equalize,
 refocus, selection refresh), `applyFilterAndRender` computes a deterministic signature of
 everything the pass would draw (`skipUnchangedRenderPass`/`renderPassSignature` in the view;
@@ -202,7 +202,9 @@ pure `boardRenderSignature`/`renderPassSignature` in `ui/board/signatures.ts`;
 completed pass and the mode's DOM is mounted, the pass is a true no-op — this absorbs the Bases
 echo of the plugin's own frontmatter/config writes, body-only edits, and irrelevant settings
 fan-out. Calendar/timeline signatures also hash each card's raw frontmatter + tags because those
-renderers read the note at render time. The model bookkeeping (`cardsByKey`, `this.board`,
+renderers read the note at render time, composed cheaply by `composeCardsSignature` (one
+`JSON.stringify` per card joined with control chars, not a nested stringify that re-escapes every
+card's frontmatter — issue #110 item 2). The model bookkeeping (`cardsByKey`, `this.board`,
 filter count/zoom chip) still refreshes on skipped passes. Optimistic in-memory mutations change
 the signature by construction, so their immediate render always proceeds; a pending keyboard
 refocus forces a render. The signature is committed only when the pass **finishes**
@@ -213,9 +215,14 @@ sequence so a mid-sequence rebuild can never render a partial on-disk state. Eve
 mutation path resolves its card through `liveCard()` first — reused DOM nodes keep handlers that
 close over pre-rebuild card objects, whose mutation no render would see. Failed writes roll back
 precisely: `applyLaneChange` reverts the lane value, bulk paths revert/restore only the cards
-whose write failed. Triage keeps its own `lastTriageSignature` guard inside `renderTriage`;
-WBS is ungated (both branches reset the pass signature so a later gated mode always renders over
-their DOM).
+whose write failed. Triage keeps its own `lastTriageSignature` guard inside `renderTriage` (its
+branch resets the view-level pass signature so a later gated mode always renders over its DOM).
+WBS carries its OWN gate inside `WbsController.render` (issue #110): a pure
+`ui/wbs/wbs-signature.ts` signature over the cards' frontmatter/relationships, the resolved
+off-view context ancestors (reused from the climb `render` already does), the tree collapse +
+panel/pane state, and the sort-comparator identity — it returns early when that matches the last
+completed WBS pass and the `.kap-wbs` DOM is mounted. The resolved relationship sets are in the
+signature so an optimistic re-parent (which mutates them before the write) is never gated away.
 
 **Hover preview.** The plugin registers a hover-link source (`registerHoverLinkSource`, Mod-gated by
 default) and a delegated `pointerover` on the board host triggers the core Page-preview popover for

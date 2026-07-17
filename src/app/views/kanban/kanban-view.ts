@@ -105,7 +105,12 @@ import { CalendarDnd } from '../../ui/calendar/calendar-dnd'
 import { formatDate } from '../../utils/momentjs'
 import { boardStructureWillChange, patchBoard } from '../../ui/board/board-renderer'
 import { captureBoardScroll, restoreBoardScroll } from '../../ui/scroll-preservation'
-import { boardRenderSignature, cardSignature, renderPassSignature } from '../../ui/board/signatures'
+import {
+    boardRenderSignature,
+    cardSignature,
+    composeCardsSignature,
+    renderPassSignature
+} from '../../ui/board/signatures'
 import { applyUniformCardHeight } from '../../ui/board/card-equalize'
 import { BoardDnd } from '../../ui/board/dnd-controller'
 import type { DropTarget } from '../../ui/board/dnd-controller'
@@ -556,6 +561,15 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             statusLabelFor: (card) => this.statusLabelFor(card),
             comparator: () =>
                 this.cardComparator() ?? ((a, b) => a.display.title.localeCompare(b.display.title)),
+            comparatorKey: () => {
+                const mode = this.cardSortMode()
+                if (mode === 'order') return 'order'
+                const prop =
+                    mode === 'property'
+                        ? JSON.stringify(this.viewConfig.get('cardSortProperty') ?? null)
+                        : ''
+                return `${mode}:${this.cardSortDirection()}:${prop}`
+            },
             restoreState: () => this.restoreWbsState(),
             persistState: (state) => this.persistWbsState(state),
             restoreCollapsedNodes: () => this.restoreWbsCollapsedNodes(),
@@ -1247,10 +1261,15 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             mode === 'calendar'
                 ? parsePropertyRef(this.viewConfig.get('calendarSortProperty'))
                 : null
+        // One JSON.stringify per card — the raw frontmatter OBJECT goes in
+        // directly (escaped once). The old form nested this array inside an
+        // outer stringify, re-escaping every card's frontmatter a second time
+        // (issue #110, item 2). {@link composeCardsSignature} joins the
+        // per-card strings without that re-escape.
         const cardsPart = cards.map((card) => {
             const cache = this.app.metadataCache.getFileCache(card.file)
             const estimate = this.estimateConfigFor(card)
-            return [
+            return JSON.stringify([
                 card.key,
                 card.statusValue,
                 card.order,
@@ -1261,18 +1280,18 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
                 this.noteTypeByPath.get(card.key)?.name ?? '',
                 cardSignature(card, ''),
                 // The dated renderers read these straight from the note.
-                JSON.stringify(cache?.frontmatter ?? null),
+                cache?.frontmatter ?? null,
                 cache ? (getAllTags(cache) ?? []).join(',') : '',
                 estimate.property,
                 estimate.unit,
                 sortRef ? this.readScalarProperty(card, sortRef) : null
-            ]
+            ])
         })
         const modeState =
             mode === 'calendar'
                 ? this.calendar?.renderStateSignature()
                 : this.timeline?.renderStateSignature()
-        return renderPassSignature([...common, modeState ?? '', cardsPart])
+        return composeCardsSignature([...common, modeState ?? ''], cardsPart)
     }
 
     /**

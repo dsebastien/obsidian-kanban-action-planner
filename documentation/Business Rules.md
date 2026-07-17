@@ -643,7 +643,17 @@ unset`; numbers compare numerically, else trimmed case-insensitive strings; miss
     without a user-visible reason; (c) **snappiness** — no added debounces or deferral on
     user-initiated actions; stability comes from doing LESS redundant work, never from doing the
     same work later. Mechanisms: the **render-signature gate** (skip content-identical passes,
-    committed only on pass completion), **scroll capture/restore** across genuinely-needed
+    committed only on pass completion) — covers **all four gated modes** (board, calendar,
+    timeline, and WBS as of issue #110): board via `boardRenderSignature`; calendar/timeline via
+    each controller's `renderStateSignature()` plus a per-card part composed by
+    `composeCardsSignature` (one `JSON.stringify` per card, control-char-joined — NOT a nested
+    stringify that would re-escape every card's frontmatter, issue #110 item 2); WBS via the pure
+    `ui/wbs/wbs-signature.ts` `wbsRenderSignature`, whose inputs MUST cover the tree expansion
+    state, the resolved off-view **context ancestors** (paths + basenames + graft edges), the
+    resolved relationship sets (so an optimistic re-parent that mutates them before the write is
+    never gated away), and the sort-comparator identity — the WBS gate lives in the controller
+    (it reuses the context-ancestor climb it already runs) and only skips when its `.kap-wbs` DOM
+    is mounted. Triage self-guards inside `renderTriage`. Also **scroll capture/restore** across genuinely-needed
     teardowns (per-lane anchors, per-column scrollTop, calendar/timeline body — restored to a pane
     only while it shows the SAME content; navigation starts at the top), **render-from-cached-cards**
     for calendar/timeline UI-state changes, **reserved space** (`scrollbar-gutter: stable`,

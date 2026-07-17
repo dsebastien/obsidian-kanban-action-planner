@@ -111,3 +111,25 @@ export function boardRenderSignature<
 export function renderPassSignature(parts: readonly unknown[]): string {
     return JSON.stringify(parts)
 }
+
+/** Section separator for {@link composeCardsSignature}. */
+const SIGNATURE_SECTION_SEP = String.fromCharCode(0x00)
+/** Per-card record separator for {@link composeCardsSignature}. */
+const SIGNATURE_RECORD_SEP = String.fromCharCode(0x1e)
+
+/**
+ * Compose a render-pass signature from a small header plus one already-
+ * `JSON.stringify`'d entry per card, WITHOUT re-stringifying the entries
+ * (issue #110, item 2). The old nested form `JSON.stringify([...header,
+ * cards])` escaped each card's frontmatter JSON a SECOND time — linear in
+ * total frontmatter bytes on every gated calendar/timeline pass. Here each
+ * card is stringified once and the parts are joined with control-char
+ * separators; `JSON.stringify` always escapes those control chars inside the
+ * entries, so the join can never be forged by card content (collision-safe).
+ */
+export function composeCardsSignature(
+    header: readonly unknown[],
+    perCard: readonly string[]
+): string {
+    return JSON.stringify(header) + SIGNATURE_SECTION_SEP + perCard.join(SIGNATURE_RECORD_SEP)
+}
