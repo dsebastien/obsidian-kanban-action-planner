@@ -48,10 +48,15 @@ The core is a custom Obsidian **Bases view** (Obsidian ≥ 1.13.0 API):
   the shared `.base` view is never rewritten from an embed. No direct `this.config.set` calls
   exist in the view. `viewMode()` — the single funnel for all mode readers — returns the
   ephemeral override first; `setViewMode()` in an embed updates it in memory; `loadFilterQuery`
-  seeds from the `filter=` param through the normal parse path. Containment:
-  `kap-embedded` on `.kap-root` bounds height/max-height via `var(--kap-embed-height, 30rem)`
-  (`height=` sets the property inline) so every mode scrolls internally instead of growing the
-  note (this also stopped the ResizeObserver loop spam).
+  seeds from the `filter=` param through the normal parse path. `isEmbedded()` forces a
+  synchronous `detectEmbed()` first, so a config-write decision landing between DOM attach and
+  the next detection pass can never leak (at interaction time the DOM is always connected).
+  Containment: `kap-embedded` on `.kap-root` sizes to content under a `max-height` cap of
+  `var(--kap-embed-height, 30rem)` (`height=` sets the cap inline) — small result sets take only
+  the space they need, like native Bases table embeds. The root's content-based height makes the
+  inner percentage chains indefinite, so at the cap the `.kap-board-host` (given
+  `flex-basis: auto; overflow-y: auto` in embeds) scrolls as one unit rather than per column
+  (this also stopped the ResizeObserver loop spam).
 - **Live config propagation.** The plugin tracks open views in a `Set` (`trackKanbanView` /
   `untrackKanbanView`, wired in the view's load/unload). `saveSettings()` — the single sink for
   every note-type/settings write — calls `view.onSettingsChanged()` (debounced rebuild) on each,

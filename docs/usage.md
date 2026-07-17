@@ -29,8 +29,8 @@ Any Kanban view can be embedded in a regular markdown note with a standard embed
 
 - The `.base` extension is **required** in the link, and the part after `#` is the **view name**
   inside that Base.
-- The embed gets a bounded height and scrolls internally — in every mode — instead of stretching
-  the note.
+- The embed sizes to its content up to a height cap and scrolls internally past it — in every
+  mode — instead of stretching the note. A small result set only takes the space it needs.
 
 **Per-embed overrides.** The wikilink alias (the text after `|`) can override how that one embed
 renders, without changing the saved view:
@@ -40,7 +40,8 @@ renders, without changing the saved view:
 ```
 
 - `mode=` — `board`, `calendar`, `timeline`, `triage`, or `wbs`.
-- `height=` — the embed height in pixels (kept between 200 and 2000).
+- `height=` — the embed's height cap in pixels (kept between 200 and 2000); the embed still
+  shrinks below it when the content is smaller.
 - `filter=` — everything after `filter=` is the initial [filter query](#filtering-search-bar),
   exactly as you'd type it in the filter box (the match count shows in the toolbar as usual).
   One caveat: a wikilink alias can't contain `|`, so write `OR` instead of `|` in embed filters.

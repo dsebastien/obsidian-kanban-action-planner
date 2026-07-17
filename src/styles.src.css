@@ -48,12 +48,14 @@
 
     /* Embedded in a markdown note (issue #103): the embed wrapper has no
        definite height, so the root's height:100% resolves to auto — the board
-       would grow to full content height and loop the ResizeObserver. A bounded
-       height re-engages every mode's internal flex-1/min-h-0 scrollers
-       (matching the feel of native Bases table embeds). --kap-embed-height is
-       set inline from the `height=` alias param. */
+       would grow to full content height and loop the ResizeObserver. Sizing
+       to content under a max-height cap matches native Bases table embeds
+       (small result sets take only the space they need); at the cap the flex
+       algorithm hands the children definite sizes, re-engaging every mode's
+       internal flex-1/min-h-0 scrollers. --kap-embed-height is set inline
+       from the `height=` alias param (a per-embed cap). */
     .kap-root.kap-embedded {
-        height: var(--kap-embed-height, 30rem);
+        height: auto;
         max-height: var(--kap-embed-height, 30rem);
     }
 
@@ -121,6 +123,18 @@
 
     .kap-root .kap-board-host {
         @apply flex-1 min-h-0 w-full;
+    }
+
+    /* Embedded (issue #103): flex-1's 0% basis makes the host contribute no
+       intrinsic height, collapsing an auto-height (shrink-to-content) root —
+       an auto basis restores content sizing. And because the root's height is
+       content-based (indefinite), the inner percentage-height chains that
+       give each column/panel its own scroller in a full leaf resolve to auto,
+       so at the max-height cap the host scrolls as ONE unit instead —
+       matching how native Bases table embeds behave. */
+    .kap-root.kap-embedded .kap-board-host {
+        flex-basis: auto;
+        overflow-y: auto;
     }
 
     /* Top toolbar: mode switch (left) · filter (grows) · nav + gear (right).

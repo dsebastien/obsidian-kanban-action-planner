@@ -909,8 +909,15 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         this.applyFilterAndRender()
     }
 
-    /** Whether this instance renders inside a markdown-note embed (issue #103). */
+    /**
+     * Whether this instance renders inside a markdown-note embed (issue #103).
+     * Forces a synchronous detection attempt first: every config-write
+     * decision funnels through here, and at interaction time the DOM is
+     * necessarily connected — so a click landing in the window between attach
+     * and the next detection pass can never leak a write to the shared view.
+     */
     private isEmbedded(): boolean {
+        this.detectEmbed()
         return this.embedParams !== null
     }
 
