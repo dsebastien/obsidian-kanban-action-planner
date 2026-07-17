@@ -71,6 +71,13 @@ every change written straight back into your notes.
 
 - **Archiving.** Move a finished note to a placeholder-driven archive folder, manually or
   automatically when it reaches a chosen status.
+- **Done state.** Per note type, define what "done" means — a property plus the value(s) that
+  count (e.g. the Completed and Done statuses, or a checkbox). Done notes read as 100% complete
+  in WBS progress rollups, even without a progress number.
+- **Automation rules.** Per note type: when a note enters or leaves a status, enters a done
+  state, is archived, or a property crosses a condition (`progress ≥ 100`…), set or remove
+  properties (with `{{date}}`-style placeholders), add or remove tags, or move the note to a
+  placeholder-driven folder. Fires once per transition, from any write path, with no cascades.
 - **WIP limits, multi-select and bulk actions, compact mode, overdue emphasis, hover preview.**
   Soft per-column limits, Shift-click selection with bulk set-status / archive / open, a
   titles-only compact toggle, red and amber due-date washes, and a native note popover on card
