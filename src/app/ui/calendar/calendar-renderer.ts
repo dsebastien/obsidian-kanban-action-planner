@@ -1,5 +1,12 @@
 import type { CalendarBlock, CalendarRange, DateDimension } from '../../domain/calendar'
 import type { KanbanCard } from '../board/types'
+import { contextColor } from '../../services/colors.service'
+
+/** One entry in the context legend: a GTD context, its color, and whether it's filtered. */
+export interface ContextLegendItem {
+    value: string
+    active: boolean
+}
 
 /**
  * How a chip sits on a day: by its `scheduled` date (blue), its `deadline`
@@ -60,6 +67,8 @@ export interface CalendarViewModel {
     /** Legend toggles: which dimensions are currently shown on the grid. */
     showScheduled: boolean
     showDeadlines: boolean
+    /** GTD contexts present on the board (color-key + click-to-filter); empty = no legend. */
+    contextLegend: ContextLegendItem[]
     /** Weekday header labels, ordered for the configured first day of week. */
     weekdays: string[]
     /** When set (`YYYY-MM-DD`), the grid is replaced by a focused single-day view. */
@@ -74,6 +83,8 @@ export interface CalendarCallbacks {
     onSwitchTab: (dim: DateDimension) => void
     /** Toggle a dimension's visibility on the grid (the legend). */
     onToggleDimension: (dim: DateDimension) => void
+    /** Toggle a GTD context in the filter (context legend click). */
+    onToggleContext: (value: string) => void
     onSetRange: (range: CalendarRange) => void
     onShiftAnchor: (direction: number) => void
     onToday: () => void
@@ -255,6 +266,38 @@ function renderLegend(
     addLegendItem(legend, 'Deadlines', 'deadline', model.showDeadlines, () =>
         callbacks.onToggleDimension('deadline')
     )
+    for (const item of model.contextLegend) {
+        addContextLegendItem(legend, item, () => callbacks.onToggleContext(item.value))
+    }
+}
+
+/** One context legend chip: colored swatch + label, click toggles the context filter. */
+export function addContextLegendItem(
+    parent: HTMLElement,
+    item: ContextLegendItem,
+    onClick: () => void
+): void {
+    const el = parent.createDiv({
+        cls: 'kap-cal-legend-item kap-cal-legend-context',
+        attr: {
+            'role': 'button',
+            'tabindex': '0',
+            'aria-pressed': String(item.active),
+            'title': item.active ? `Stop filtering by ${item.value}` : `Filter by ${item.value}`
+        }
+    })
+    // The swatch is always a color key; a pinned outline marks an active filter.
+    if (item.active) el.addClass('kap-cal-legend-pinned')
+    const swatch = el.createSpan({ cls: 'kap-cal-legend-swatch' })
+    swatch.style.setProperty('--kap-ctx-color', contextColor(item.value))
+    el.createSpan({ cls: 'kap-cal-legend-label', text: item.value })
+    el.addEventListener('click', onClick)
+    el.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault()
+            onClick()
+        }
+    })
 }
 
 function addLegendItem(
@@ -445,6 +488,13 @@ function renderChip(
         'title',
         entry.spanLabel ? `${card.display.title} — ${entry.spanLabel}` : card.display.title
     )
+    // Context color dot (first context wins; deterministic per value).
+    const context = card.contexts[0]
+    if (context !== undefined) {
+        const dot = chip.createSpan({ cls: 'kap-cal-card-ctx' })
+        dot.style.setProperty('--kap-ctx-color', contextColor(context))
+        dot.setAttribute('title', card.contexts.join(', '))
+    }
     chip.createSpan({ cls: 'kap-cal-card-title', text: card.display.title })
     chip.addEventListener('click', (e) => callbacks.onOpen(card, e.ctrlKey || e.metaKey))
     chip.addEventListener('keydown', (e) => {

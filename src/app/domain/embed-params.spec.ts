@@ -3,7 +3,7 @@ import { parseEmbedParams } from './embed-params'
 import type { EmbedParams } from './embed-params'
 
 /** All-null params: what any alias without recognized keys must yield. */
-const NONE: EmbedParams = { mode: null, heightPx: null, filter: null }
+const NONE: EmbedParams = { mode: null, heightPx: null, contexts: [], filter: null }
 
 describe('parseEmbedParams', () => {
     it('yields zero params for empty and blank aliases', () => {
@@ -74,7 +74,23 @@ describe('parseEmbedParams', () => {
         expect(parseEmbedParams('mode=board filter=due:<week parent:="My Project"')).toEqual({
             mode: 'board',
             heightPx: null,
+            contexts: [],
             filter: 'due:<week parent:="My Project"'
+        })
+    })
+
+    it('parses context= as a comma-separated list before filter=', () => {
+        expect(parseEmbedParams('context=@work').contexts).toEqual(['@work'])
+        expect(parseEmbedParams('context=@work,@home').contexts).toEqual(['@work', '@home'])
+        expect(parseEmbedParams('CONTEXTS=@work').contexts).toEqual(['@work']) // key + plural alias
+        expect(parseEmbedParams('context=').contexts).toEqual([]) // empty ignored
+        expect(parseEmbedParams('context=@a context=@b').contexts).toEqual(['@b']) // last wins
+        // context= must precede filter= (filter swallows the rest).
+        expect(parseEmbedParams('mode=board context=@work filter=status:doing')).toEqual({
+            mode: 'board',
+            heightPx: null,
+            contexts: ['@work'],
+            filter: 'status:doing'
         })
     })
 
@@ -84,10 +100,13 @@ describe('parseEmbedParams', () => {
         expect(parseEmbedParams('mode=wbs filter=   ').filter).toBeNull()
     })
 
-    it('combines all three keys', () => {
-        expect(parseEmbedParams('mode=timeline height=350 filter=status:doing')).toEqual({
+    it('combines all keys', () => {
+        expect(
+            parseEmbedParams('mode=timeline height=350 context=@work filter=status:doing')
+        ).toEqual({
             mode: 'timeline',
             heightPx: 350,
+            contexts: ['@work'],
             filter: 'status:doing'
         })
     })
@@ -96,6 +115,7 @@ describe('parseEmbedParams', () => {
         expect(parseEmbedParams('wat mode=triage bogus=1 height=250')).toEqual({
             mode: 'triage',
             heightPx: 250,
+            contexts: [],
             filter: null
         })
     })
@@ -104,6 +124,7 @@ describe('parseEmbedParams', () => {
         expect(parseEmbedParams('  mode=calendar \t  height=500  ')).toEqual({
             mode: 'calendar',
             heightPx: 500,
+            contexts: [],
             filter: null
         })
         expect(parseEmbedParams('\tfilter=  title:foo  ').filter).toBe('title:foo') // outer trim only

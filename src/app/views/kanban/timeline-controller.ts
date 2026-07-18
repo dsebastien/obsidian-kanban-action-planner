@@ -48,6 +48,7 @@ import type {
     TimelineTypeVisibilityModel,
     TimelineUndatedTypeGroupModel
 } from '../../ui/timeline/timeline-renderer'
+import type { ContextLegendItem } from '../../ui/calendar/calendar-renderer'
 import { MilestoneModal } from '../../ui/timeline/milestone-modal'
 import { EstimatePromptModal } from '../../ui/timeline/estimate-modal'
 import { DatePromptModal } from '../../ui/date-prompt-modal'
@@ -120,6 +121,10 @@ export interface TimelineHost {
     /** Pane-group DnD (drag between status groups): live validity + commit. */
     canDropOnPaneGroup(cardKey: string, typeId: string, status: string): boolean
     dropOnPaneGroup(cardKey: string, typeId: string, status: string): void
+    /** The board's GTD contexts with their active-in-filter state (color-key legend). */
+    contextLegend(): ContextLegendItem[]
+    /** Toggle one GTD context in the filter (context legend click). */
+    toggleContext(value: string): void
 }
 
 /**
@@ -348,7 +353,8 @@ export class TimelineController {
                 undatedGroups: this.buildUndatedGroups(undated),
                 panelCollapsed: this.panelCollapsed,
                 types,
-                totalDays: totalDays(window)
+                totalDays: totalDays(window),
+                contextLegend: this.host.contextLegend()
             },
             {
                 onOpen: (card, newTab) => this.host.openCard(card, newTab),
@@ -416,7 +422,8 @@ export class TimelineController {
                     else this.hiddenTypes.add(typeId)
                     this.host.persistHiddenTypes([...this.hiddenTypes])
                     this.host.refresh()
-                }
+                },
+                onToggleContext: (value) => this.host.toggleContext(value)
             }
         )
         restoreScrollBySelector(boardEl, scrolls)

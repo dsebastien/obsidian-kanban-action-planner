@@ -10,11 +10,13 @@
  * is fully unit-testable.
  *
  * Grammar: whitespace-separated `key=value` tokens. Recognized keys
- * (case-insensitive): `mode`, `height`, `filter`. `filter=` consumes the
- * REMAINDER of the alias verbatim — the filter language itself contains
- * spaces/colons/quotes. Note it uses `|` as OR, which a wikilink alias
- * cannot carry — write `OR` in embeds. Invalid values and unrecognized
- * tokens are ignored (never throws).
+ * (case-insensitive): `mode`, `height`, `context`, `filter`. `filter=`
+ * consumes the REMAINDER of the alias verbatim — the filter language itself
+ * contains spaces/colons/quotes. Note it uses `|` as OR, which a wikilink
+ * alias cannot carry — write `OR` in embeds. `context=` takes a single
+ * comma-separated list of context values (no spaces) and must appear BEFORE
+ * `filter=` (which swallows everything after it). Invalid values and
+ * unrecognized tokens are ignored (never throws).
  */
 
 /** The five mutually-exclusive view modes (Board / Calendar / Timeline / Triage / WBS). */
@@ -31,6 +33,8 @@ export interface EmbedParams {
     mode: ViewMode | null
     /** Embed height in px, clamped to [200, 2000], or null (CSS default). */
     heightPx: number | null
+    /** GTD contexts to pin (folded into the filter query), original casing; empty when none. */
+    contexts: string[]
     /** Initial filter query, or null (fall back to the saved query). */
     filter: string | null
 }
@@ -55,7 +59,7 @@ function parseHeight(value: string): number | null {
  * and any alias without recognized keys yields all-null params.
  */
 export function parseEmbedParams(alias: string): EmbedParams {
-    const params: EmbedParams = { mode: null, heightPx: null, filter: null }
+    const params: EmbedParams = { mode: null, heightPx: null, contexts: [], filter: null }
     const tokenRe = /\S+/g
     let match: RegExpExecArray | null
     while ((match = tokenRe.exec(alias)) !== null) {
@@ -79,6 +83,14 @@ export function parseEmbedParams(alias: string): EmbedParams {
         } else if (key === 'height') {
             const px = parseHeight(value)
             if (px !== null) params.heightPx = px
+        } else if (key === 'context' || key === 'contexts') {
+            // A single comma-separated list (no spaces — the token regex is \S+);
+            // a later valid repeat wins.
+            const values = value
+                .split(',')
+                .map((v) => v.trim())
+                .filter((v) => v.length > 0)
+            if (values.length > 0) params.contexts = values
         }
     }
     return params

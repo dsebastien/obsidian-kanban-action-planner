@@ -33,6 +33,17 @@ export interface CardMenuHost {
     }>
     /** Write (or clear, when `value` is null) an enum property on the card's note. */
     setCardProperty(card: KanbanCard, propertyName: string, value: string | null): Promise<void>
+    /**
+     * The GTD contexts to offer in the "Contexts" submenu for this card:
+     * `values` = every context on the board (union, original casing) plus the
+     * card's own, `current` = the card's own contexts. `null` disables the
+     * submenu (contexts feature off). List add/remove, not a scalar set.
+     */
+    contextValuesFor(card: KanbanCard): { values: string[]; current: string[] } | null
+    /** Toggle one context on the card's note (add when `present` is false, else remove). */
+    toggleCardContext(card: KanbanCard, value: string, present: boolean): Promise<void>
+    /** Prompt for a brand-new context value and add it to the card. */
+    promptNewContext(card: KanbanCard): void
     /** Read a card's scheduled/deadline date (null when unset). */
     cardDate(card: KanbanCard, dimension: DateDimension): Date | null
     /** Write (or clear, when `isoDate` is null) a card's scheduled date or deadline. */
@@ -121,6 +132,7 @@ export function buildCardMenu(
     menu.addSeparator()
     addStatusMenuItems(menu, card, host)
     addEnumSetMenuItems(menu, card, host)
+    addContextSetMenuItems(menu, card, host)
     addSchedulingMenuItems(menu, card, host)
     if (host.archivingConfigured(card)) {
         menu.addSeparator()
@@ -236,6 +248,49 @@ function addEnumSetMenuItems(menu: Menu, card: KanbanCard, host: CardMenuHost): 
             }
         })
     }
+}
+
+/**
+ * "Contexts" submenu: each known context value as a CHECKABLE toggle (multiple
+ * may be checked — contexts is a multi-value list, unlike the scalar "Set
+ * <property>" enum path), plus "New context…" to add one not on the board yet.
+ * Toggling adds or removes the single value (never overwrites the whole list).
+ */
+function addContextSetMenuItems(menu: Menu, card: KanbanCard, host: CardMenuHost): void {
+    const ctx = host.contextValuesFor(card)
+    if (ctx === null) return
+    const currentLower = new Set(ctx.current.map((v) => v.toLowerCase()))
+    // Union of board values + the card's own (so a context unique to this card
+    // still shows, checked), de-duped case-insensitively, original casing kept.
+    const seen = new Set<string>()
+    const all: string[] = []
+    for (const value of [...ctx.values, ...ctx.current]) {
+        const key = value.toLowerCase()
+        if (seen.has(key)) continue
+        seen.add(key)
+        all.push(value)
+    }
+    menu.addSeparator()
+    menu.addItem((item) => {
+        item.setTitle('Contexts').setIcon('at-sign')
+        const submenu = item.setSubmenu()
+        for (const value of all) {
+            const present = currentLower.has(value.toLowerCase())
+            submenu.addItem((sub) =>
+                sub
+                    .setTitle(value)
+                    .setChecked(present)
+                    .onClick(() => void host.toggleCardContext(card, value, present))
+            )
+        }
+        if (all.length > 0) submenu.addSeparator()
+        submenu.addItem((sub) =>
+            sub
+                .setTitle('New context…')
+                .setIcon('plus')
+                .onClick(() => host.promptNewContext(card))
+        )
+    })
 }
 
 /** "Schedule" / "Set deadline" quick dates + precise picker + clear. */

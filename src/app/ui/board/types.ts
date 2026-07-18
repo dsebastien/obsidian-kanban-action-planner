@@ -80,4 +80,10 @@ export interface KanbanCard extends BoardCardBase {
     display: CardDisplay
     /** Resolved related notes per role (blocked-by drives the blocked flag). */
     relationships: CardRelationships
+    /**
+     * GTD contexts from the note's contexts property, original casing, in note
+     * order. Empty when unset. Drives the context switcher, card-menu toggles,
+     * and calendar/timeline color-coding.
+     */
+    contexts: string[]
 }

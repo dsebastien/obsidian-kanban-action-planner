@@ -17,7 +17,11 @@ import { groupByTypeAndStatus } from '../../domain/timeline'
 import { readEstimate } from '../../domain/estimate'
 import type { EstimateConfig } from '../../domain/estimate'
 import { renderCalendar } from '../../ui/calendar/calendar-renderer'
-import type { CalendarEntry, PanelTypeGroupModel } from '../../ui/calendar/calendar-renderer'
+import type {
+    CalendarEntry,
+    ContextLegendItem,
+    PanelTypeGroupModel
+} from '../../ui/calendar/calendar-renderer'
 import {
     CALENDAR_SCROLLER_SELECTORS,
     captureScrollBySelector,
@@ -90,6 +94,10 @@ export interface CalendarHost {
     restoreState(): CalendarViewState
     /** Persist the durable calendar state per-view — issue #19. */
     persistState(state: CalendarViewState): void
+    /** The board's GTD contexts with their active-in-filter state (color-key legend). */
+    contextLegend(): ContextLegendItem[]
+    /** Toggle one GTD context in the filter (context legend click). */
+    toggleContext(value: string): void
 }
 
 /**
@@ -335,6 +343,7 @@ export class CalendarController {
                 counts: { unplanned: unplanned.length, noDeadline: noDeadline.length },
                 showScheduled: this.showScheduled,
                 showDeadlines: this.showDeadlines,
+                contextLegend: this.host.contextLegend(),
                 weekdays: weekdayLabels(firstDay),
                 focusedDay: this.focusedDay,
                 focusedDayLabel: this.focusedDayLabel()
@@ -353,6 +362,7 @@ export class CalendarController {
                     this.persist()
                     this.host.refresh()
                 },
+                onToggleContext: (value) => this.host.toggleContext(value),
                 onSetRange: (r) => {
                     this.rangeOverride = r
                     this.focusedDay = null // leaving the focused day on a range change

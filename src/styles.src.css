@@ -1406,6 +1406,12 @@
             transform var(--kap-transition) var(--kap-ease);
     }
 
+    /* Context color dot (first context; deterministic per value, set inline). */
+    .kap-cal-card-ctx {
+        @apply inline-block rounded-full w-[0.5rem] h-[0.5rem] mr-1 align-middle shrink-0;
+        background: var(--kap-ctx-color, var(--text-muted));
+    }
+
     /* Placement color: deadline = orange, both-same-day = split blue/orange edge,
        overdue deadline = red. (border-image paints the 2px left edge.) */
     .kap-cal-card-deadline {
@@ -1463,6 +1469,22 @@
 
     .kap-cal-legend-deadline .kap-cal-legend-swatch {
         background: var(--color-orange);
+    }
+
+    /* Context legend swatch: deterministic per-value color (set inline). */
+    .kap-cal-legend-context .kap-cal-legend-swatch {
+        background: var(--kap-ctx-color, var(--text-muted));
+    }
+
+    /* Active context filter: a pinned outline + full-strength label. */
+    .kap-cal-legend-pinned {
+        color: var(--text-normal);
+    }
+
+    .kap-cal-legend-pinned .kap-cal-legend-swatch {
+        box-shadow:
+            0 0 0 2px var(--background-primary),
+            0 0 0 3px var(--kap-ctx-color);
     }
 
     .kap-cal-legend-item:hover {
@@ -1586,6 +1608,10 @@
 
     /* Date-picker modal (schedule / set deadline). */
     .kap-date-input {
+        @apply w-full;
+    }
+
+    .kap-text-input {
         @apply w-full;
     }
 
@@ -1842,6 +1868,13 @@
         border: 1px solid var(--interactive-accent);
     }
 
+    /* Context accent (first context; deterministic per value, set inline). Overdue
+       still wins (it re-declares red after this in source order). */
+    .kap-root .kap-tl-bar-ctx {
+        background: color-mix(in srgb, var(--kap-ctx-color) 35%, transparent);
+        border-color: var(--kap-ctx-color);
+    }
+
     /* Inside the bar only the duration tag renders (the row label already
        names the card); it hugs the bar's right edge. */
     .kap-root .kap-tl-bartext {
@@ -1916,6 +1949,11 @@
     .kap-root .kap-tl-square {
         @apply absolute top-1/2 w-3 h-3 -translate-x-1/2 -translate-y-1/2 rounded-sm cursor-grab;
         background: var(--interactive-accent);
+    }
+
+    /* Context accent (first context; deterministic per value, set inline). */
+    .kap-root .kap-tl-square-ctx {
+        background: var(--kap-ctx-color);
     }
 
     .kap-root .kap-tl-milestone {

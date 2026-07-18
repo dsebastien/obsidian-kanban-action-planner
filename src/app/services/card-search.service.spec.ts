@@ -34,6 +34,7 @@ function card(overrides: Partial<KanbanCard> = {}): KanbanCard {
             countdown: null
         },
         relationships: { parent: [], sibling: [], child: [], blocked_by: [] },
+        contexts: [],
         ...overrides
     }
 }

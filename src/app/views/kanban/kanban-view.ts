@@ -61,9 +61,11 @@ import { RELATIONSHIP_ROLES, ancestorPaths } from '../../domain/relationships'
 import { RelationshipTargetModal } from '../../ui/relationship-target-modal'
 import { planInsertion } from '../../domain/ordering'
 import {
+    appendToListProperty,
     coerceOrder,
     deleteProperty,
     getFrontmatterValue,
+    removeFromListProperty,
     setProperty
 } from '../../services/frontmatter.service'
 import {
@@ -146,6 +148,7 @@ import { BoardSelection } from './board-selection'
 import { buildCardMenu, buildStatusMenu, isNewTabEvent } from './card-menu'
 import type { CardMenuHost } from './card-menu'
 import { CalendarController } from './calendar-controller'
+import type { ContextLegendItem } from '../../ui/calendar/calendar-renderer'
 import type { CalendarViewState } from './calendar-controller'
 import {
     basesPropToName,
@@ -165,6 +168,7 @@ import { parsePropertyRef, unwrapValue } from './property-access'
 import type { PropertyRef } from './property-access'
 import { cssEscapeAttr } from '../../utils/css-escape'
 import { DatePromptModal } from '../../ui/date-prompt-modal'
+import { TextPromptModal } from '../../ui/text-prompt-modal'
 import { log } from '../../../utils/log'
 
 /** The (untyped) settings controller exposed on `app.setting`. */
@@ -485,7 +489,9 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
                 return ref ? this.readScalarProperty(card, ref) : null
             },
             restoreState: () => this.restoreCalendarState(),
-            persistState: (state) => this.persistCalendarState(state)
+            persistState: (state) => this.persistCalendarState(state),
+            contextLegend: () => this.contextLegend(),
+            toggleContext: (value) => this.toggleContextValue(value)
         })
         this.calendarDnd = new CalendarDnd(this.boardEl, {
             onDrop: (cardKey, target, dimension) => {
@@ -528,7 +534,9 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             canDropOnPaneGroup: (cardKey, typeId, status) =>
                 this.canDropOnPaneGroup(cardKey, typeId, status),
             dropOnPaneGroup: (cardKey, typeId, status) =>
-                this.dropOnPaneGroup(cardKey, typeId, status)
+                this.dropOnPaneGroup(cardKey, typeId, status),
+            contextLegend: () => this.contextLegend(),
+            toggleContext: (value) => this.toggleContextValue(value)
         })
         this.wbs = new WbsController({
             app: this.app,
@@ -1967,8 +1975,16 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             order,
             laneValue,
             display,
-            relationships
+            relationships,
+            contexts: this.contextsForFile(file)
         }
+    }
+
+    /** A note's GTD contexts (original casing, note order), or `[]` when unset. */
+    private contextsForFile(file: TFile): string[] {
+        return stringifyForSearch(getFrontmatterValue(this.app, file, this.contextsProperty()))
+            .map((v) => v.trim())
+            .filter((v) => v.length > 0)
     }
 
     private collectPropertyNames(files: TFile[]): string[] {
@@ -2254,6 +2270,10 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             enumPropertiesFor: (card) => this.enumPropertiesFor(card),
             setCardProperty: (card, propertyName, value) =>
                 this.setCardPropertyFromMenu(card, propertyName, value),
+            contextValuesFor: (card) => this.contextValuesFor(card),
+            toggleCardContext: (card, value, present) =>
+                this.toggleCardContext(card, value, present),
+            promptNewContext: (card) => this.promptNewContext(card),
             archivingConfigured: (card) => this.archivingConfigured(card),
             archiveCard: (card) => this.archiveCard(card),
             cardDate: (card, dimension) => this.cardDate(card, dimension),
@@ -3409,7 +3429,15 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         // funnel keeps every embed write in memory). This only runs before any
         // in-embed edit: filterInitialized is reset solely by detectEmbed().
         const stored = this.embedParams?.filter ?? this.viewConfig.get('filterQuery')
-        this.filterQuery = typeof stored === 'string' ? stored : ''
+        let query = typeof stored === 'string' ? stored : ''
+        // An embed's `context=` param (fast-follow) pins contexts by folding a
+        // managed `<prop>:` term into the SAME query — no separate machinery,
+        // ephemeral like `filter=` (this never calls this.config.set).
+        const embedContexts = this.embedParams?.contexts ?? []
+        if (embedContexts.length > 0) {
+            query = setContextTerms(query, this.contextsProperty(), embedContexts)
+        }
+        this.filterQuery = query
         this.parsedQuery = parseFilterQuery(this.filterQuery)
         this.filterBar?.setValue(this.filterQuery)
     }
@@ -3501,15 +3529,11 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
      * index, so the menu/chips display `@Work` as typed.
      */
     private availableContextValues(): string[] {
-        const prop = this.contextsProperty()
         const byLower = new Map<string, string>()
         for (const card of this.allCards) {
-            const raw = getFrontmatterValue(this.app, card.file, prop)
-            for (const value of stringifyForSearch(raw)) {
-                const trimmed = value.trim()
-                if (trimmed.length === 0) continue
-                const key = trimmed.toLowerCase()
-                if (!byLower.has(key)) byLower.set(key, trimmed)
+            for (const value of card.contexts) {
+                const key = value.toLowerCase()
+                if (!byLower.has(key)) byLower.set(key, value)
             }
         }
         return Array.from(byLower.values()).sort((a, b) =>
@@ -3517,16 +3541,9 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         )
     }
 
-    /**
-     * Whether any built card carries a value under the contexts property. Reads
-     * the prebuilt search index (lowercased `props`) rather than re-reading
-     * frontmatter per card — this runs on every toolbar render.
-     */
+    /** Whether any built card carries a GTD context (drives the switcher's empty state). */
     private hasAnyContextValue(): boolean {
-        const prop = this.contextsProperty().toLowerCase()
-        return this.allCards.some(
-            (card) => (this.searchByKey.get(card.key)?.props.get(prop)?.length ?? 0) > 0
-        )
+        return this.allCards.some((card) => card.contexts.length > 0)
     }
 
     /**
@@ -3577,6 +3594,68 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             (v) => v.toLowerCase() !== lower
         )
         this.setFilterQuery(setContextTerms(this.filterQuery, prop, remaining))
+    }
+
+    /**
+     * The context legend for calendar/timeline: every context on the board
+     * (unfiltered), with `active` = currently pinned in the filter. Drives the
+     * color key + click-to-filter. Empty when the board has no contexts.
+     */
+    private contextLegend(): ContextLegendItem[] {
+        const active = new Set(
+            getContextTerms(this.filterQuery, this.contextsProperty()).map((v) => v.toLowerCase())
+        )
+        return this.availableContextValues().map((value) => ({
+            value,
+            active: active.has(value.toLowerCase())
+        }))
+    }
+
+    // ── Card-menu context writes (list add/remove) ────────────
+
+    /** The card-menu "Contexts" submenu payload: board values + the card's own. */
+    private contextValuesFor(card: KanbanCard): { values: string[]; current: string[] } | null {
+        return { values: this.availableContextValues(), current: this.liveCard(card).contexts }
+    }
+
+    /**
+     * Toggle one context on a card's note: optimistic (mutate `card.contexts`
+     * and re-render before the write), then a LIST add/remove — never a scalar
+     * overwrite — with case-insensitive dedupe. On failure, restore and re-render.
+     */
+    private async toggleCardContext(
+        cardRef: KanbanCard,
+        value: string,
+        present: boolean
+    ): Promise<void> {
+        const card = this.liveCard(cardRef)
+        const prop = this.contextsProperty()
+        const lower = value.toLowerCase()
+        const before = card.contexts
+        card.contexts = present
+            ? before.filter((v) => v.toLowerCase() !== lower)
+            : [...before, value]
+        this.applyFilterAndRender()
+        const matches = (item: unknown): boolean =>
+            typeof item === 'string' && item.toLowerCase() === lower
+        try {
+            if (present) await removeFromListProperty(this.app, card.file, prop, value, matches)
+            else await appendToListProperty(this.app, card.file, prop, value, matches)
+        } catch (error) {
+            card.contexts = before
+            this.applyFilterAndRender()
+            log('Failed to update contexts', 'error', error)
+        }
+    }
+
+    /** Prompt for a brand-new context and add it to the card (skips a duplicate). */
+    private promptNewContext(cardRef: KanbanCard): void {
+        const card = this.liveCard(cardRef)
+        new TextPromptModal(this.app, 'Add context', 'e.g. @work', 'Add', (value) => {
+            const exists = card.contexts.some((v) => v.toLowerCase() === value.toLowerCase())
+            if (exists) return
+            void this.toggleCardContext(card, value, false)
+        }).open()
     }
 
     /** The `due:` evaluation context (today + calendar period ranges). */

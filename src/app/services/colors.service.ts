@@ -50,6 +50,14 @@ export function autoAssignColor(statusValue: string): ColorSpec {
     return { kind: 'palette', token }
 }
 
+/**
+ * The deterministic, zero-config color for a GTD context value (calendar chips,
+ * timeline bars, the context legend). Lowercased so `@Work`/`@work` share a hue.
+ */
+export function contextColor(value: string): string {
+    return resolveColor(autoAssignColor(value.toLowerCase()))
+}
+
 /** A translucent shade of `cardColor` over the theme background, for columns. */
 export function columnShade(cardColor: string): string {
     return `color-mix(in srgb, ${cardColor} 14%, var(--background-primary))`

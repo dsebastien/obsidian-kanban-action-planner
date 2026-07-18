@@ -4,6 +4,9 @@ import { resizeEstimate, resizeFromStart } from '../../domain/timeline'
 import type { AxisTick, BarGeometry } from '../../domain/timeline'
 import { BAR_DURATION_TAG_MIN_PX, BAR_HANDLES_MIN_PX } from './width-gates'
 import type { KanbanCard } from '../board/types'
+import { contextColor } from '../../services/colors.service'
+import { addContextLegendItem } from '../calendar/calendar-renderer'
+import type { ContextLegendItem } from '../calendar/calendar-renderer'
 
 /**
  * Timeline view DOM (issue #77, #80, estimate rework): header (nav + range
@@ -133,6 +136,8 @@ export interface TimelineViewModel {
     types: TimelineTypeVisibilityModel[]
     /** Days in the visible window (drag snapping). */
     totalDays: number
+    /** GTD contexts on the board (color-key + click-to-filter); empty = no legend. */
+    contextLegend: ContextLegendItem[]
 }
 
 export interface TimelineCallbacks {
@@ -182,6 +187,8 @@ export interface TimelineCallbacks {
     onToggleTypeGroup(typeId: string): void
     /** Toggle one note type's visibility (rows + undated cards). */
     onToggleTypeHidden(typeId: string): void
+    /** Toggle a GTD context in the filter (context legend click). */
+    onToggleContext(value: string): void
 }
 
 const RANGES: Array<{ key: CalendarRange; label: string }> = [
@@ -315,6 +322,12 @@ function renderHeader(
             menu.showAtMouseEvent(e)
         })
     }
+    if (model.contextLegend.length > 0) {
+        const legend = toolbar.createDiv({ cls: 'kap-cal-legend' })
+        for (const item of model.contextLegend) {
+            addContextLegendItem(legend, item, () => callbacks.onToggleContext(item.value))
+        }
+    }
 }
 
 function renderRow(
@@ -362,10 +375,16 @@ function renderRow(
         deadline.style.left = `${String(row.deadline.pct)}%`
     }
 
+    // Context accent (first context wins; deterministic color per value).
+    const context = row.card.contexts[0]
     if (row.bar) {
         const bar = track.createDiv({ cls: 'kap-tl-bar', attr: { title: row.tooltip } })
         bar.style.left = `${String(row.bar.leftPct)}%`
         bar.style.width = `${String(row.bar.widthPct)}%`
+        if (context !== undefined) {
+            bar.addClass('kap-tl-bar-ctx')
+            bar.style.setProperty('--kap-ctx-color', contextColor(context))
+        }
         if (row.bar.clippedStart) bar.addClass('kap-tl-clip-start')
         if (row.bar.clippedEnd) bar.addClass('kap-tl-clip-end')
         if (row.overdue) bar.addClass('kap-tl-overdue')
@@ -399,6 +418,10 @@ function renderRow(
         // (a past start is normal in-progress work, not an error).
         const square = track.createDiv({ cls: 'kap-tl-square', attr: { title: row.tooltip } })
         square.style.left = `${String(row.square.pct)}%`
+        if (context !== undefined) {
+            square.addClass('kap-tl-square-ctx')
+            square.style.setProperty('--kap-ctx-color', contextColor(context))
+        }
         makeDraggable(square, track, row, model, callbacks)
     }
     for (const milestone of row.milestones) {

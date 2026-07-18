@@ -39,7 +39,8 @@ function makeCard(): KanbanCard {
             dueState: 'none',
             countdown: null
         },
-        relationships: { blocked_by: [], parent: [], child: [], sibling: [] }
+        relationships: { blocked_by: [], parent: [], child: [], sibling: [] },
+        contexts: []
     }
 }
 
@@ -52,6 +53,9 @@ function makeHost(overrides: Partial<CardMenuHost> = {}): CardMenuHost {
         archiveCard: () => Promise.resolve(),
         enumPropertiesFor: () => [],
         setCardProperty: () => Promise.resolve(),
+        contextValuesFor: () => null,
+        toggleCardContext: () => Promise.resolve(),
+        promptNewContext: () => {},
         cardDate: () => null,
         writeCardDate: () => Promise.resolve(),
         promptDate: () => {},
@@ -185,5 +189,59 @@ describe('buildCardMenu — extend hook (issue #80)', () => {
 
     it('leaves the menu unchanged when no extend hook is given', () => {
         expect(titlesOf(menuItems(makeCard(), makeHost()))).toEqual(BASELINE_TITLES)
+    })
+})
+
+describe('buildCardMenu — contexts submenu (fast-follow item 8)', () => {
+    interface SubRecord extends MenuItemRecord {
+        submenu?: { items: MenuItemRecord[] } | null
+    }
+    const contextsSubmenu = (host: CardMenuHost): MenuItemRecord[] | null => {
+        const items = menuItems(makeCard(), host) as SubRecord[]
+        const ctx = items.find((i) => i.title === 'Contexts')
+        return ctx?.submenu?.items ?? null
+    }
+
+    it('is omitted when contextValuesFor returns null', () => {
+        const titles = menuItems(makeCard(), makeHost()).map((i) => i.title)
+        expect(titles).not.toContain('Contexts')
+    })
+
+    it('lists board + own values as toggles (own checked) plus New context…', () => {
+        const sub = contextsSubmenu(
+            makeHost({
+                contextValuesFor: () => ({ values: ['@home', '@work'], current: ['@work'] })
+            })
+        )
+        expect(sub?.filter((i) => !i.separator).map((i) => i.title)).toEqual([
+            '@home',
+            '@work',
+            'New context…'
+        ])
+        // @work is the card's current context → checked; @home is not.
+        expect(sub?.find((i) => i.title === '@work')?.checked).toBe(true)
+        expect(sub?.find((i) => i.title === '@home')?.checked).toBe(false)
+    })
+
+    it('toggles add for an unchecked value and remove for a checked one', () => {
+        const toggleCardContext = mock((_c: KanbanCard, _v: string, _present: boolean) =>
+            Promise.resolve()
+        )
+        const card = makeCard()
+        const items = menuItems(
+            card,
+            makeHost({
+                toggleCardContext,
+                contextValuesFor: () => ({ values: ['@home', '@work'], current: ['@work'] })
+            })
+        ) as SubRecord[]
+        const sub = items.find((i) => i.title === 'Contexts')?.submenu?.items ?? []
+        const click = {} as MouseEvent
+        sub.find((i) => i.title === '@home')?.clickHandler?.(click) // add
+        sub.find((i) => i.title === '@work')?.clickHandler?.(click) // remove
+        expect(toggleCardContext.mock.calls).toEqual([
+            [card, '@home', false],
+            [card, '@work', true]
+        ])
     })
 })
