@@ -1,5 +1,12 @@
 # Release Notes
 
+## 1.8.0 (2026-07-18)
+
+### Features
+
+- **plugin:** context writes, coloring, and context= embeds
+- **plugin:** filter cards by GTD contexts
+
 ## 1.7.2 (2026-07-17)
 
 ### Bug Fixes
