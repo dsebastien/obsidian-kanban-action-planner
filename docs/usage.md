@@ -167,6 +167,8 @@ of every context found on the current board; pick any combination and the board 
 **any** of them (OR). Selected contexts appear as chips next to the filter box — click a chip's
 **×** to drop just that one — and the button shows how many are active.
 
+![Filtering a board by a context]({{ '/images/contexts.png' | relative_url }})
+
 It's built on the filter box, so it's just a convenient way to write a `contexts:` query: the
 selection is **saved with the view**, composes with anything else you've typed, and works in
 every mode (board, calendar, timeline, WBS, triage).

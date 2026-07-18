@@ -36,6 +36,10 @@ Filter as you type with a compact query language:
 
 ![Filter as you type](docs/images/filter.png)
 
+Slice any view by GTD contexts (`@work`, `@home`, …) from the toolbar **@** switcher:
+
+![Filter a board by a context](docs/images/contexts.png)
+
 When a backlog gets overwhelming, work through it one card at a time in Triage mode:
 
 ![Triage mode](docs/images/triage.png)
