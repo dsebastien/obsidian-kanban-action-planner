@@ -1,10 +1,14 @@
 import { describe, expect, it } from 'bun:test'
 import {
+    RESERVED_QUALIFIER_NAMES,
+    getContextTerms,
     getZoomTerm,
     isEmptyQuery,
     matchesFilterQuery,
     parseFilterQuery,
+    removeContextTerms,
     removeZoomTerm,
+    setContextTerms,
     setZoomTerm
 } from './filter-query'
 import type { CardSearchRecord, FilterContext } from './filter-query'
@@ -303,5 +307,162 @@ describe('zoom helpers (issue #74)', () => {
         expect(getZoomTerm('status:active')).toBeNull()
         expect(getZoomTerm('-parent:old')).toBeNull()
         expect(getZoomTerm('')).toBeNull()
+    })
+})
+
+describe('context term helpers (GTD contexts)', () => {
+    const PROP = 'contexts'
+
+    it('setContextTerms serializes all values into ONE comma-separated exact token', () => {
+        expect(setContextTerms('', PROP, ['@work', '@home'])).toBe('contexts:="@work","@home"')
+    })
+
+    it('serializes a single value as one quoted exact token', () => {
+        expect(setContextTerms('', PROP, ['@work'])).toBe('contexts:="@work"')
+    })
+
+    it('NEVER emits two same-name tokens (would AND instead of OR)', () => {
+        const serialized = setContextTerms('status:active', PROP, ['@work', '@home', '@errands'])
+        // Exactly one `contexts:` occurrence — never a second clause of the same name.
+        const occurrences = serialized.match(/contexts:/g) ?? []
+        expect(occurrences).toHaveLength(1)
+        expect(serialized).toBe('status:active contexts:="@work","@home","@errands"')
+    })
+
+    it('the single token parses to ONE clause with N OR-ed exact values', () => {
+        const q = parseFilterQuery(setContextTerms('', PROP, ['@work', '@home']))
+        expect(q.groups).toHaveLength(1)
+        expect(q.groups[0]).toHaveLength(1) // one clause, not two ANDed clauses
+        const clause = q.groups[0]?.[0]
+        expect(clause?.name).toBe('contexts')
+        expect(clause?.exact).toBe(true) // each value is an exact match
+        expect(clause?.values).toEqual(['@work', '@home']) // parser lowercases; already lowercase
+    })
+
+    it('splitValues single-quoted-vs-multi guard: multi-value token splits, single stays whole', () => {
+        // Multi-value: interior `","` means it is NOT one quoted value → splits to OR.
+        const multi = parseFilterQuery('contexts:="@work","@home"').groups[0]?.[0]
+        expect(multi?.values).toEqual(['@work', '@home'])
+        expect(multi?.exact).toBe(true)
+        // Single quoted value: the whole remainder IS one quoted string → one value, kept whole.
+        const single = parseFilterQuery('contexts:="Deep, Focus"').groups[0]?.[0]
+        expect(single?.values).toEqual(['deep, focus']) // interior comma NOT an OR boundary
+        expect(single?.exact).toBe(true)
+    })
+
+    it('each serialized value parses exact=true (OR-of-exacts, not substrings)', () => {
+        const rec = record({ props: new Map([['contexts', ['@work']]]) })
+        // exact @work matches; exact @wor (substring) does not.
+        expect(match(setContextTerms('', PROP, ['@work', '@home']), rec)).toBe(true)
+        expect(match(setContextTerms('', PROP, ['@wor']), rec)).toBe(false)
+    })
+
+    it('quotes values with spaces and a leading @', () => {
+        expect(setContextTerms('', PROP, ['@deep work', '@home'])).toBe(
+            'contexts:="@deep work","@home"'
+        )
+        // Round-trips: the spaced/@-prefixed value survives the tokenizer and comes back intact.
+        expect(getContextTerms(setContextTerms('', PROP, ['@deep work']), PROP)).toEqual([
+            '@deep work'
+        ])
+    })
+
+    it('strips embedded quotes from values (tokenizer has no escapes)', () => {
+        expect(setContextTerms('', PROP, ['@wo"rk'])).toBe('contexts:="@work"')
+    })
+
+    it('empty or all-blank values remove the term', () => {
+        expect(setContextTerms('status:active contexts:="@work"', PROP, [])).toBe('status:active')
+        expect(setContextTerms('status:active contexts:="@work"', PROP, ['', '  '])).toBe(
+            'status:active'
+        )
+    })
+
+    it('setContextTerms swaps an existing context term instead of stacking', () => {
+        const pinned = setContextTerms('status:active', PROP, ['@work'])
+        expect(setContextTerms(pinned, PROP, ['@home', '@errands'])).toBe(
+            'status:active contexts:="@home","@errands"'
+        )
+    })
+
+    it('getContextTerms preserves original casing (parser would lowercase)', () => {
+        expect(getContextTerms('contexts:="@Work","@Home"', PROP)).toEqual(['@Work', '@Home'])
+        expect(getContextTerms(setContextTerms('', PROP, ['@Work', '@Home']), PROP)).toEqual([
+            '@Work',
+            '@Home'
+        ])
+    })
+
+    it('getContextTerms returns [] when no context term is present', () => {
+        expect(getContextTerms('status:active', PROP)).toEqual([])
+        expect(getContextTerms('', PROP)).toEqual([])
+    })
+
+    it('set/get/remove round-trips', () => {
+        const q = setContextTerms('', PROP, ['@work', '@home'])
+        expect(getContextTerms(q, PROP)).toEqual(['@work', '@home'])
+        const removed = removeContextTerms(q, PROP)
+        expect(removed).toBe('')
+        expect(getContextTerms(removed, PROP)).toEqual([])
+    })
+
+    it('coexists with a typed substring term untouched', () => {
+        const q = setContextTerms('book title:launch', PROP, ['@work'])
+        expect(q).toBe('book title:launch contexts:="@work"')
+        expect(removeContextTerms(q, PROP)).toBe('book title:launch')
+        expect(getContextTerms(q, PROP)).toEqual(['@work'])
+    })
+
+    it('coexists with a zoom (parent:=) term untouched', () => {
+        const zoomed = setZoomTerm('status:active', 'App Backend', 'parent')
+        const q = setContextTerms(zoomed, PROP, ['@work', '@home'])
+        expect(q).toBe('status:active parent:="App Backend" contexts:="@work","@home"')
+        // Removing contexts leaves the zoom term intact.
+        expect(removeContextTerms(q, PROP)).toBe('status:active parent:="App Backend"')
+        // getZoomTerm still finds the zoom; getContextTerms still finds the contexts.
+        expect(getZoomTerm(q)).toEqual({ field: 'parent', title: 'App Backend' })
+        expect(getContextTerms(q, PROP)).toEqual(['@work', '@home'])
+    })
+
+    it('honors a renamed contexts property (name is a parameter, never hardcoded)', () => {
+        const q = setContextTerms('status:active', 'situations', ['@work'])
+        expect(q).toBe('status:active situations:="@work"')
+        expect(getContextTerms(q, 'situations')).toEqual(['@work'])
+        expect(getContextTerms(q, 'contexts')).toEqual([]) // wrong prop finds nothing
+        expect(removeContextTerms(q, 'situations')).toBe('status:active')
+    })
+
+    it('quoted value containing a comma stays one value through get', () => {
+        // Author-typed single quoted value with an interior comma.
+        expect(getContextTerms('contexts:="Deep, Focus"', PROP)).toEqual(['Deep, Focus'])
+    })
+})
+
+describe('RESERVED_QUALIFIER_NAMES', () => {
+    it('contains every qualifier name the matcher special-cases', () => {
+        for (const name of [
+            'title',
+            'status',
+            'parent',
+            'ancestor',
+            'ancestors',
+            'child',
+            'children',
+            'sibling',
+            'siblings',
+            'blocked',
+            'blocked_by',
+            'blockedby',
+            'tag',
+            'tags',
+            'due'
+        ]) {
+            expect(RESERVED_QUALIFIER_NAMES.has(name)).toBe(true)
+        }
+    })
+
+    it('does not reserve an ordinary frontmatter property name', () => {
+        expect(RESERVED_QUALIFIER_NAMES.has('contexts')).toBe(false)
+        expect(RESERVED_QUALIFIER_NAMES.has('priority')).toBe(false)
     })
 })

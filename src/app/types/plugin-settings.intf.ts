@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { noteTypeSchema } from '../domain/note-type'
 import {
     DEFAULT_BLOCKED_BY_PROPERTY,
+    DEFAULT_CONTEXTS_PROPERTY,
     DEFAULT_DATE_FORMAT,
     DEFAULT_DUE_DATE_PROPERTY,
     DEFAULT_DUE_SOON_THRESHOLD_DAYS,
@@ -36,6 +37,13 @@ export const pluginSettingsSchema = z.object({
     defaultStatusProperty: z.string(),
     defaultOrderProperty: z.string(),
     defaultBlockedByProperty: z.string(),
+    /**
+     * Multi-value GTD contexts list property (e.g. `@work`, `@home`). A single
+     * GLOBAL default, intentionally not per-type — GTD contexts are cross-cutting.
+     * `.default()` so older `data.json` (written before this field existed)
+     * still parses cleanly instead of resetting all settings.
+     */
+    defaultContextsProperty: z.string().default(DEFAULT_CONTEXTS_PROPERTY),
     defaultScheduledDateProperty: z.string(),
     defaultDueDateProperty: z.string(),
     /** Days a note is expected to take (timeline bar length; issue #80 rework). */
@@ -95,6 +103,7 @@ export const DEFAULT_SETTINGS: PluginSettings = {
     defaultStatusProperty: DEFAULT_STATUS_PROPERTY,
     defaultOrderProperty: DEFAULT_ORDER_PROPERTY,
     defaultBlockedByProperty: DEFAULT_BLOCKED_BY_PROPERTY,
+    defaultContextsProperty: DEFAULT_CONTEXTS_PROPERTY,
     defaultScheduledDateProperty: DEFAULT_SCHEDULED_DATE_PROPERTY,
     defaultDueDateProperty: DEFAULT_DUE_DATE_PROPERTY,
     defaultEstimateProperty: DEFAULT_ESTIMATE_PROPERTY,

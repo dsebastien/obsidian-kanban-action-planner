@@ -214,6 +214,50 @@
         height: 0.85rem;
     }
 
+    /* Context chip (GTD contexts MVP): one dismissible chip per selected
+       context value, derived from the query's managed `<contextsProp>:` term.
+       Mirrors the zoom-chip layout/chrome (issue #74) so both filter chips
+       read as one family; the switcher's active state reuses .kap-nav-btn-active. */
+    .kap-root .kap-filter-contexts {
+        @apply inline-flex min-w-0 flex-none items-center gap-1;
+    }
+
+    .kap-root .kap-filter-contexts:empty {
+        @apply hidden;
+    }
+
+    .kap-root .kap-filter-context {
+        @apply inline-flex flex-none items-center gap-0.5 max-w-[40%] h-5 pl-1.5 pr-0.5 rounded-full text-[0.78em];
+        background: color-mix(in srgb, var(--interactive-accent) 18%, transparent);
+        color: var(--text-normal);
+    }
+
+    .kap-root .kap-filter-context-label {
+        @apply inline-flex min-w-0 items-center border-0 bg-transparent p-0 whitespace-nowrap overflow-hidden text-ellipsis;
+        color: inherit;
+        font-size: inherit;
+        box-shadow: none;
+    }
+
+    .kap-root .kap-filter-context-dismiss {
+        @apply inline-flex flex-none items-center justify-center w-4 h-4 p-0 border-0 rounded-full cursor-pointer bg-transparent;
+        color: var(--text-muted);
+        transition:
+            color var(--kap-transition) var(--kap-ease),
+            background-color var(--kap-transition) var(--kap-ease);
+    }
+
+    .kap-root .kap-filter-context-dismiss:hover {
+        color: var(--text-normal);
+        background: var(--background-modifier-border);
+    }
+
+    .kap-root .kap-filter-context-dismiss svg {
+        @apply flex-none;
+        width: 0.85rem;
+        height: 0.85rem;
+    }
+
     .kap-root .kap-filter-input {
         @apply flex-1 min-w-0 border-0 bg-transparent p-0 text-[0.9em];
         color: var(--text-normal);

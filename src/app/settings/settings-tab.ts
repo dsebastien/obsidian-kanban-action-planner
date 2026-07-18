@@ -1,5 +1,7 @@
-import { App, PluginSettingTab, Setting } from 'obsidian'
+import { App, Notice, PluginSettingTab, Setting } from 'obsidian'
 import { produce } from 'immer'
+import { RESERVED_QUALIFIER_NAMES } from '../domain/filter-query'
+import { DEFAULT_CONTEXTS_PROPERTY } from '../constants'
 import type KanbanActionPlannerPlugin from '../../main'
 import type { PluginSettings } from '../types/plugin-settings.intf'
 import type { NoteType } from '../domain/note-type'
@@ -312,6 +314,33 @@ export class KanbanActionPlannerSettingTab extends PluginSettingTab {
             'defaultProgressProperty',
             'progress'
         )
+        new Setting(containerEl)
+            .setName('Contexts property')
+            .setDesc(
+                'Multi-value list property holding a note’s GTD contexts (e.g. @work, @home). ' +
+                    'Used by the context filter switcher and chips.'
+            )
+            .addText((input) => {
+                input
+                    .setPlaceholder(DEFAULT_CONTEXTS_PROPERTY)
+                    .setValue(this.plugin.settings.defaultContextsProperty)
+                    .onChange((value) => {
+                        const next = value.trim() || DEFAULT_CONTEXTS_PROPERTY
+                        // Reserved-name guard: the contexts property must not
+                        // collide with a reserved qualifier (parent, status, due,
+                        // …) — `setContextTerms` and the zoom helpers would fight
+                        // over the same `<name>:` tokens and corrupt filtering.
+                        if (RESERVED_QUALIFIER_NAMES.has(next.toLowerCase())) {
+                            new Notice(
+                                `"${next}" is a reserved filter qualifier and can’t be used as the contexts property. ` +
+                                    'Choose another property name (e.g. contexts).'
+                            )
+                            input.setValue(this.plugin.settings.defaultContextsProperty)
+                            return
+                        }
+                        void this.updateSetting('defaultContextsProperty', next)
+                    })
+            })
         text(
             'Date format',
             'Moment.js format used when writing scheduling dates to notes.',

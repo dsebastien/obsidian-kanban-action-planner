@@ -125,16 +125,32 @@ function unquote(s: string): string {
     return s.length >= 2 && s.startsWith('"') && s.endsWith('"') ? s.slice(1, -1) : s
 }
 
-/** Split a value on top-level commas (OR), unless it is a single quoted value. */
+/**
+ * Split a value on **top-level** commas (OR), respecting quotes so a comma
+ * inside a `"quoted value"` is not a boundary. `"@work","@home"` → two OR-ed
+ * values; `"Deep, Focus"` stays a single value. Each part is unquoted, trimmed,
+ * lowercased; blanks dropped.
+ */
 function splitValues(raw: string): string[] {
-    const v = raw.trim()
-    if (v.length >= 2 && v.startsWith('"') && v.endsWith('"')) {
-        return [v.slice(1, -1).toLowerCase()]
+    const parts: string[] = []
+    let buf = ''
+    let inQuotes = false
+    for (let i = 0; i < raw.length; i++) {
+        const ch = raw[i] ?? ''
+        if (ch === '"') {
+            inQuotes = !inQuotes
+            buf += ch
+            continue
+        }
+        if (ch === ',' && !inQuotes) {
+            parts.push(buf)
+            buf = ''
+            continue
+        }
+        buf += ch
     }
-    return v
-        .split(',')
-        .map((s) => unquote(s.trim()).toLowerCase())
-        .filter((s) => s.length > 0)
+    parts.push(buf)
+    return parts.map((s) => unquote(s.trim()).toLowerCase()).filter((s) => s.length > 0)
 }
 
 /** Peel a leading comparison operator off a `due:` value. */
@@ -284,6 +300,25 @@ const ROLE_ALIASES: Record<string, RelationshipRole> = {
     blockedby: 'blocked_by'
 }
 
+/**
+ * Every lowercased qualifier name that {@link matchQualifier} special-cases
+ * (reserved names + relationship-role aliases). Centralized here so the parser
+ * and the settings-time reserved-name guard (a contexts property must not be a
+ * reserved qualifier, or `setContextTerms`/`removeZoomTerm` fight over the same
+ * tokens) cannot drift. Derived from {@link ROLE_ALIASES} plus the names
+ * handled inline (`due`/`title`/`status`/`tag(s)`/`ancestor(s)`).
+ */
+export const RESERVED_QUALIFIER_NAMES: ReadonlySet<string> = new Set<string>([
+    'due',
+    'title',
+    'status',
+    'tag',
+    'tags',
+    'ancestor',
+    'ancestors',
+    ...Object.keys(ROLE_ALIASES)
+])
+
 /** Whether a qualifier clause matches the record (any candidate value, OR). */
 function matchQualifier(rec: CardSearchRecord, clause: FilterClause, ctx: FilterContext): boolean {
     const name = clause.name ?? ''
@@ -396,4 +431,105 @@ export function getZoomTerm(query: string): ZoomTerm | null {
         return { field, title }
     }
     return null
+}
+
+// ── Context term helpers (GTD contexts) ───────────────────────
+//
+// The active context is not separate state: the selected context values live as
+// a single managed `<prop>:="@work","@home"` term inside the raw filter query,
+// exactly like the zoom term. All selected values serialize into ONE
+// comma-separated exact token so `matchQualifier` ORs them (splitValues splits
+// the interior `","` back into an OR-of-exacts). Emitting two same-name tokens
+// would put them in the same AND-group and match only cards tagged with BOTH —
+// the opposite of the intended semantics. These helpers edit that one token at
+// the raw-string level so everything else the user typed (and any coexisting
+// zoom term) survives untouched, and the chip labels keep their original casing
+// (the parser lowercases values).
+
+/** A non-negated `<prop>:` token (case-insensitive name match) — the context term. */
+function isContextToken(token: string, prop: string): boolean {
+    const lower = token.toLowerCase()
+    return lower.startsWith(`${prop.toLowerCase()}:`)
+}
+
+/**
+ * Serialize ALL selected `values` into ONE exact token with comma-separated
+ * quoted values: `contexts:="@work","@home"`. Each value is quoted so spaces and
+ * a leading `@` survive the whitespace tokenizer; embedded quotes are stripped
+ * (the tokenizer has no escapes, like {@link zoomToken}). Empty/blank values are
+ * dropped; returns `''` when nothing survives.
+ */
+function contextToken(prop: string, values: string[]): string {
+    const parts = values
+        .map((v) => v.replace(/"/g, '').trim())
+        .filter((v) => v.length > 0)
+        .map((v) => `"${v}"`)
+    if (parts.length === 0) return ''
+    return `${prop}:=${parts.join(',')}`
+}
+
+/**
+ * Replace the managed `<prop>:` term in `query` with one carrying `values`
+ * (OR-ed exact matches in a single token). Empty `values` (or all-blank) removes
+ * the term. Any coexisting zoom term and typed query survive untouched.
+ */
+export function setContextTerms(query: string, prop: string, values: string[]): string {
+    const token = contextToken(prop, values)
+    const kept = tokenize(query).filter((t) => !isContextToken(t, prop))
+    if (token.length === 0) return kept.join(' ').trim()
+    return [...kept, token].join(' ').trim()
+}
+
+/** Remove the managed `<prop>:` context term(s) from `query`, keeping everything else. */
+export function removeContextTerms(query: string, prop: string): string {
+    return tokenize(query)
+        .filter((t) => !isContextToken(t, prop))
+        .join(' ')
+        .trim()
+}
+
+/**
+ * The selected context values in their ORIGINAL casing, parsed from the RAW
+ * managed token (not the parsed {@link FilterClause}, whose values are already
+ * lowercased). Comma-splits the single token respecting quotes and unquotes each
+ * value. Returns `[]` when the query has no managed `<prop>:` term.
+ */
+export function getContextTerms(query: string, prop: string): string[] {
+    for (const token of tokenize(query)) {
+        if (!isContextToken(token, prop)) continue
+        const colon = token.indexOf(':')
+        let raw = token.slice(colon + 1)
+        if (raw.startsWith('=')) raw = raw.slice(1)
+        return splitContextValues(raw)
+    }
+    return []
+}
+
+/**
+ * Split the raw remainder of a context token into original-cased values,
+ * respecting quotes (so a comma inside `"a,b"` does not split) and unquoting +
+ * trimming each. Blank values are dropped. Mirrors the tokenizer's quote
+ * handling but at the comma level.
+ */
+function splitContextValues(raw: string): string[] {
+    const values: string[] = []
+    let buf = ''
+    let inQuotes = false
+    for (let i = 0; i < raw.length; i++) {
+        const ch = raw[i] ?? ''
+        if (ch === '"') {
+            inQuotes = !inQuotes
+            continue
+        }
+        if (ch === ',' && !inQuotes) {
+            const trimmed = buf.trim()
+            if (trimmed.length > 0) values.push(trimmed)
+            buf = ''
+            continue
+        }
+        buf += ch
+    }
+    const last = buf.trim()
+    if (last.length > 0) values.push(last)
+    return values
 }

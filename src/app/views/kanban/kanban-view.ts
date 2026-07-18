@@ -11,6 +11,7 @@ import type { KanbanActionPlannerPlugin } from '../../plugin'
 import type { SettingsRefreshScope } from '../../types/plugin-settings.intf'
 import {
     CSS_ROOT_CLASS,
+    DEFAULT_CONTEXTS_PROPERTY,
     KANBAN_VIEW_TYPE,
     UNGROUPED_LANE_ID,
     UNMAPPED_COLUMN_ID
@@ -80,7 +81,7 @@ import {
     parseProgressField
 } from '../../services/card-display.service'
 import { listEnumProperties } from '../../services/enum.service'
-import { buildCardSearchRecord } from '../../services/card-search.service'
+import { buildCardSearchRecord, stringifyForSearch } from '../../services/card-search.service'
 import { archiveNote } from '../../services/archive.service'
 import {
     addDays,
@@ -91,11 +92,13 @@ import {
 } from '../../domain/calendar'
 import type { DateDimension } from '../../domain/calendar'
 import {
+    getContextTerms,
     getZoomTerm,
     isEmptyQuery,
     matchesFilterQuery,
     parseFilterQuery,
     removeZoomTerm,
+    setContextTerms,
     setZoomTerm
 } from '../../domain/filter-query'
 import type { CardSearchRecord, FilterContext, FilterQuery } from '../../domain/filter-query'
@@ -383,7 +386,8 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             onInput: (value) => this.onFilterInput(value),
             onClear: () => this.onFilterClear(),
             onZoomDismiss: () => this.clearChildFocus(),
-            onZoomOpen: (label) => this.openParentByTitle(label)
+            onZoomOpen: (label) => this.openParentByTitle(label),
+            onContextDismiss: (value) => this.dismissContext(value)
         })
         this.toolbarRightEl = this.toolbarEl.createDiv({ cls: 'kap-toolbar-right' })
         this.selectionBarEl = this.rootEl.createDiv({ cls: 'kap-selection-bar kap-hidden' })
@@ -1020,6 +1024,10 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         // own filters may exclude the children (e.g. tasks on a projects-only view).
         const zoom = getZoomTerm(this.filterQuery)
         this.filterBar?.setZoomChip(zoom?.title ?? null)
+        // Context chips (GTD contexts): pure derived state from the managed
+        // `<prop>:` term — no separate context state. Original casing comes from
+        // the raw query token (getContextTerms).
+        this.filterBar?.setContextChips(getContextTerms(this.filterQuery, this.contextsProperty()))
         this.filterEmptyEl?.setText(
             zoom === null
                 ? 'No cards match the filter.'
@@ -3373,7 +3381,9 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
                 mode: this.viewMode(),
                 showLaneNav,
                 selectionMode: this.selection?.active ?? false,
-                compactMode: this.compactMode()
+                compactMode: this.compactMode(),
+                contextsAvailable: this.hasAnyContextValue(),
+                contextCount: getContextTerms(this.filterQuery, this.contextsProperty()).length
             },
             {
                 onSetMode: (mode) => this.setViewMode(mode),
@@ -3381,7 +3391,8 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
                 onLanePrev: () => this.scrollLane(-1),
                 onLaneNext: () => this.scrollLane(1),
                 onToggleSelectionMode: () => this.selection?.toggleMode(),
-                onToggleCompactMode: () => this.toggleCompactMode()
+                onToggleCompactMode: () => this.toggleCompactMode(),
+                onOpenContextMenu: (anchorEl) => this.openContextMenu(anchorEl)
             }
         )
     }
@@ -3473,6 +3484,99 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
     private openParentByTitle(title: string): void {
         const file = this.app.metadataCache.getFirstLinkpathDest(title, '')
         if (file) void this.app.workspace.getLeaf(false).openFile(file)
+    }
+
+    // ── GTD contexts (filter-only) ────────────────────────────
+
+    /** The global contexts property name (default-on-missing to the constant). */
+    private contextsProperty(): string {
+        return this.plugin.settings.defaultContextsProperty || DEFAULT_CONTEXTS_PROPERTY
+    }
+
+    /**
+     * The union of GTD context values across the built card set, de-duped
+     * case-insensitively with original casing preserved. Read lazily (on menu
+     * open) from the already-built `allCards` — never triggers a rebuild. Values
+     * come from the raw frontmatter (original casing), not the lowercased search
+     * index, so the menu/chips display `@Work` as typed.
+     */
+    private availableContextValues(): string[] {
+        const prop = this.contextsProperty()
+        const byLower = new Map<string, string>()
+        for (const card of this.allCards) {
+            const raw = getFrontmatterValue(this.app, card.file, prop)
+            for (const value of stringifyForSearch(raw)) {
+                const trimmed = value.trim()
+                if (trimmed.length === 0) continue
+                const key = trimmed.toLowerCase()
+                if (!byLower.has(key)) byLower.set(key, trimmed)
+            }
+        }
+        return Array.from(byLower.values()).sort((a, b) =>
+            a.localeCompare(b, undefined, { sensitivity: 'base' })
+        )
+    }
+
+    /**
+     * Whether any built card carries a value under the contexts property. Reads
+     * the prebuilt search index (lowercased `props`) rather than re-reading
+     * frontmatter per card — this runs on every toolbar render.
+     */
+    private hasAnyContextValue(): boolean {
+        const prop = this.contextsProperty().toLowerCase()
+        return this.allCards.some(
+            (card) => (this.searchByKey.get(card.key)?.props.get(prop)?.length ?? 0) > 0
+        )
+    }
+
+    /**
+     * Open the context switcher: an Obsidian `Menu` of checkboxes, one per
+     * available context value. Toggling recomputes the selected set (matched
+     * case-insensitively against the raw available values) and routes it through
+     * `setFilterQuery` (the single funnel), so the change persists per-view and
+     * re-renders like any filter change. No note-frontmatter is written.
+     */
+    private openContextMenu(anchorEl: HTMLElement): void {
+        const prop = this.contextsProperty()
+        const available = this.availableContextValues()
+        const selected = getContextTerms(this.filterQuery, prop)
+        const selectedLower = new Set(selected.map((v) => v.toLowerCase()))
+        const menu = new Menu()
+        for (const value of available) {
+            const isSelected = selectedLower.has(value.toLowerCase())
+            menu.addItem((item) => {
+                item.setTitle(value)
+                    .setChecked(isSelected)
+                    .onClick(() => this.toggleContextValue(value))
+            })
+        }
+        const rect = anchorEl.getBoundingClientRect()
+        menu.showAtPosition({ x: rect.left, y: rect.bottom })
+    }
+
+    /**
+     * Toggle one context value in the managed filter term. Recomputes the full
+     * selected set from the raw query (preserving original casing) and writes it
+     * back through `setFilterQuery` as ONE OR-ed token.
+     */
+    private toggleContextValue(value: string): void {
+        const prop = this.contextsProperty()
+        const current = getContextTerms(this.filterQuery, prop)
+        const lower = value.toLowerCase()
+        const next = current.some((v) => v.toLowerCase() === lower)
+            ? current.filter((v) => v.toLowerCase() !== lower)
+            : [...current, value]
+        this.setFilterQuery(setContextTerms(this.filterQuery, prop, next))
+    }
+
+    /** Chip ✕: remove only that context value; the rest of the query survives. */
+    private dismissContext(value: string): void {
+        const prop = this.contextsProperty()
+        const lower = value.toLowerCase()
+        const remaining = getContextTerms(this.filterQuery, prop).filter(
+            (v) => v.toLowerCase() !== lower
+        )
+        this.setFilterQuery(setContextTerms(this.filterQuery, prop, remaining))
     }
 
     /** The `due:` evaluation context (today + calendar period ranges). */

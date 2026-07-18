@@ -15,6 +15,10 @@ export interface ViewToolbarState {
     selectionMode: boolean
     /** Whether compact cards (title only) are active (board mode only). */
     compactMode: boolean
+    /** Whether any card on the board carries the contexts property (else the switcher is hidden). */
+    contextsAvailable: boolean
+    /** Number of GTD contexts currently selected (0 = inactive/no count badge). */
+    contextCount: number
 }
 
 export interface ViewToolbarCallbacks {
@@ -30,6 +34,8 @@ export interface ViewToolbarCallbacks {
     onToggleSelectionMode: () => void
     /** Toggle compact cards (persists to the view config). */
     onToggleCompactMode: () => void
+    /** Open the GTD context switcher menu, anchored to the toolbar button. */
+    onOpenContextMenu: (anchorEl: HTMLElement) => void
 }
 
 /**
@@ -83,6 +89,20 @@ export function renderViewToolbar(
             callbacks.onToggleCompactMode
         )
         if (state.compactMode) compactBtn.addClass('kap-nav-btn-active')
+    }
+    // GTD context switcher: contexts filter every mode, so it is shown in all
+    // modes — but only when at least one card on the board carries the property
+    // (mirrors how lane nav only appears with >1 lane).
+    if (state.contextsAvailable) {
+        const contextBtn = addIconButton(
+            rightEl,
+            'at-sign',
+            state.contextCount > 0
+                ? `Contexts (${String(state.contextCount)} selected)`
+                : 'Filter by context',
+            () => callbacks.onOpenContextMenu(contextBtn)
+        )
+        if (state.contextCount > 0) contextBtn.addClass('kap-nav-btn-active')
     }
     renderGearButton(rightEl, callbacks.onConfigure)
 }

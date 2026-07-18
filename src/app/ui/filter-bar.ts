@@ -9,6 +9,8 @@ export interface FilterBarCallbacks {
     onZoomDismiss: () => void
     /** Click on the zoom chip label: open the focused parent note. */
     onZoomOpen: (label: string) => void
+    /** ✕ on a context chip: remove only that context value from the query. */
+    onContextDismiss: (value: string) => void
 }
 
 /** One row of the syntax cheat-sheet popover. */
@@ -40,10 +42,13 @@ export class FilterBar {
     private readonly zoomEl: HTMLElement
     private readonly zoomLabelEl: HTMLElement
     private zoomLabel = ''
+    private readonly contextEl: HTMLElement
+    private readonly callbacks: FilterBarCallbacks
     private helpBox: HTMLElement | null = null
     private readonly onDocPointerDown: (event: MouseEvent) => void
 
     constructor(parent: HTMLElement, initial: string, callbacks: FilterBarCallbacks) {
+        this.callbacks = callbacks
         this.el = parent.createDiv({ cls: 'kap-filter' })
 
         const icon = this.el.createSpan({ cls: 'kap-filter-icon' })
@@ -65,6 +70,11 @@ export class FilterBar {
             if (this.zoomLabel) callbacks.onZoomOpen(this.zoomLabel)
         })
         zoomDismiss.addEventListener('click', () => callbacks.onZoomDismiss())
+
+        // Context chips (GTD contexts): a container holding one dismissible chip
+        // per selected context value. Pure derived state — rebuilt each render
+        // from the query's managed `<prop>:` term via setContextChips().
+        this.contextEl = this.el.createSpan({ cls: 'kap-filter-contexts' })
 
         this.inputEl = this.el.createEl('input', {
             cls: 'kap-filter-input',
@@ -138,6 +148,26 @@ export class FilterBar {
         this.zoomLabel = label ?? ''
         this.zoomEl.toggleClass('kap-hidden', label === null)
         if (label !== null) this.zoomLabelEl.setText(`▼ ${label}`)
+    }
+
+    /**
+     * Render one dismissible chip per selected GTD context value (original
+     * casing). Derived state — the view recomputes it from the parsed query each
+     * render, so the container is fully rebuilt on every call. Each ✕ fires
+     * `onContextDismiss(value)` to remove just that value from the query.
+     */
+    setContextChips(labels: string[]): void {
+        this.contextEl.empty()
+        for (const label of labels) {
+            const chip = this.contextEl.createSpan({ cls: 'kap-filter-context' })
+            chip.createSpan({ cls: 'kap-filter-context-label', text: label })
+            const dismiss = chip.createEl('button', {
+                cls: 'kap-filter-context-dismiss',
+                attr: { 'type': 'button', 'aria-label': `Remove context ${label}` }
+            })
+            setIcon(dismiss, 'x')
+            dismiss.addEventListener('click', () => this.callbacks.onContextDismiss(label))
+        }
     }
 
     /** Show "N matches" when a filter is active, or clear it when inactive. */
