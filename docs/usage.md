@@ -48,6 +48,9 @@ single project with a `filter=parent:…` override:
   embed line updates the rendered embed in place.
 - `height=` — the embed's height cap in pixels (kept between 200 and 2000); the embed still
   shrinks below it when the content is smaller.
+- `context=` — pin the embed to one or more [contexts](#contexts-work-home-) (comma-separated,
+  no spaces), e.g. `context=@work` or `context=@work,@home`. Put it **before** `filter=` (which
+  swallows the rest of the alias).
 - `filter=` — everything after `filter=` is the initial [filter query](#filtering-search-bar),
   exactly as you'd type it in the filter box (the match count shows in the toolbar as usual).
   One caveat: a wikilink alias can't contain `|`, so write `OR` instead of `|` in embed filters.
@@ -166,8 +169,17 @@ of every context found on the current board; pick any combination and the board 
 
 It's built on the filter box, so it's just a convenient way to write a `contexts:` query: the
 selection is **saved with the view**, composes with anything else you've typed, and works in
-every mode (board, calendar, timeline, WBS, triage). The property is read-only here — the
-switcher filters, it doesn't tag notes.
+every mode (board, calendar, timeline, WBS, triage).
+
+**Tag a card with a context.** Right-click a card and open **Contexts**: each known context is a
+checkable toggle (a card can have several), and **New context…** adds one that isn't on the
+board yet. This writes the note's `contexts` list (adding or removing a single value, never
+overwriting the rest).
+
+**Colors on the calendar and timeline.** Each context gets a stable color. Calendar chips show a
+colored dot and timeline bars/squares are tinted by the card's first context, so you can scan by
+context at a glance. A small **color legend** sits in the calendar/timeline toolbar; click a
+context there to pin or unpin it as a filter (the same as the **@** switcher).
 
 ## Triage mode
 
