@@ -4,7 +4,7 @@ An Obsidian plugin that adds a **Kanban board view to [Obsidian Bases](https://h
 
 A status property you define becomes the columns. You drag cards between them, reorder them, color them, view and edit the relationships between notes, surface what's blocked, filter as you type, and flip the same board into a calendar to schedule the work. Everything is driven by your existing note properties, and every change is written straight back to your frontmatter. Define your note types yourself, or let the [Obsidian Starter Kit](https://store.dsebastien.net/) plugin configure them for you when it's installed.
 
-> Requires Obsidian 1.13+ (the Bases view API). Desktop only (mobile isn't supported yet).
+> Requires Obsidian 1.12+ (the Bases view API). Desktop only (mobile isn't supported yet).
 
 ## Screenshots
 

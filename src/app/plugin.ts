@@ -12,7 +12,9 @@ export class KanbanActionPlannerPlugin extends Plugin {
     /**
      * The plugin settings are immutable
      */
-    override settings: PluginSettings = produce(DEFAULT_SETTINGS, () => DEFAULT_SETTINGS)
+    // No `override`: `Plugin.settings` only exists in API 1.13+ typings and the
+    // plugin supports 1.12 (latest public release line).
+    settings: PluginSettings = produce(DEFAULT_SETTINGS, () => DEFAULT_SETTINGS)
 
     /**
      * Live kanban view instances, so a settings/noteType change can refresh every

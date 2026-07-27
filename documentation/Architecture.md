@@ -12,7 +12,7 @@ for invariants see [`Business Rules.md`](./Business%20Rules.md).
 
 ## The Bases view
 
-The core is a custom Obsidian **Bases view** (Obsidian ≥ 1.13.0 API):
+The core is a custom Obsidian **Bases view** (Obsidian ≥ 1.12.0 API):
 
 - Registered via `Plugin.registerBasesView(KANBAN_VIEW_TYPE, { name, icon, factory, options })`.
 - `factory: (controller, containerEl) => KanbanActionPlannerView` — the view mounts all its
