@@ -1,6 +1,6 @@
 {
     "name": "obsidian-kanban-action-planner",
-    "version": "1.8.0",
+    "version": "1.9.0",
     "description": "Render your notes as configurable Kanban boards and calendars inside Bases, with statuses, ordering, relationships, and scheduling.",
     "author": {
         "name": "Sébastien Dubois",

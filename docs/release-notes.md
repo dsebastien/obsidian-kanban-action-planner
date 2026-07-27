@@ -1,5 +1,15 @@
 # Release Notes
 
+## 1.9.0 (2026-07-27)
+
+### Features
+
+- **plugin:** show a what's new dialog once after plugin updates
+
+### Bug Fixes
+
+- **plugin:** support public Obsidian releases (minAppVersion 1.12.0)
+
 ## 1.8.0 (2026-07-18)
 
 ### Features

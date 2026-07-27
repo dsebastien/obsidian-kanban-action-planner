@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.9.0](https://github.com/dsebastien/obsidian-kanban-action-planner/compare/1.8.0...1.9.0) (2026-07-27)
+
+### Features
+
+* **plugin:** show a what's new dialog once after plugin updates ([dc0a182](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/dc0a18210a68a00b87905362c5581fed00f24444))
+
+### Bug Fixes
+
+* **plugin:** support public Obsidian releases (minAppVersion 1.12.0) ([f66456d](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/f66456d6e00ccba5583508c19676589381565607))
+
 ## [1.8.0](https://github.com/dsebastien/obsidian-kanban-action-planner/compare/1.7.2...1.8.0) (2026-07-18)
 
 ### Features
@@ -343,6 +353,7 @@ All notable changes to this project will be documented in this file.
 
 * **plugin:** match Starter Kit's {{quarter}} placeholder format (Q2, not 2) ([4fde618](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/4fde6185c5956e3f6fd2ca3a9b03e70cf5e16840))
 * **plugin:** persist discovered statuses so Show empty columns works ([cf91b81](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/cf91b81a1b0786e35c73f4885882e2dc33564c62))
+
 
 
 
