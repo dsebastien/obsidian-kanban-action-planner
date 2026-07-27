@@ -6,6 +6,7 @@ import { KanbanActionPlannerView } from './views/kanban/kanban-view'
 import { getKanbanViewOptions } from './views/kanban/kanban-view-options'
 import { KANBAN_VIEW_ICON, KANBAN_VIEW_NAME, KANBAN_VIEW_TYPE } from './constants'
 import { log } from '../utils/log'
+import { registerWhatsNewDialog } from './whats-new'
 import { produce } from 'immer'
 
 export class KanbanActionPlannerPlugin extends Plugin {
@@ -38,6 +39,8 @@ export class KanbanActionPlannerPlugin extends Plugin {
      */
     override async onload() {
         log('Initializing', 'debug')
+        // Must run before anything can call saveData (fresh-install detection)
+        registerWhatsNewDialog(this)
         await this.loadSettings()
 
         this.registerKanbanView()
