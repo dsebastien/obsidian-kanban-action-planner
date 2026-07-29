@@ -1,5 +1,13 @@
 # Release Notes
 
+## 1.12.0 (2026-07-29)
+
+### Features
+
+- **plugin:** natural-language date entry in date prompts
+- **plugin:** show what's new in a tab instead of a modal dialog
+- **plugin:** surface support CTAs everywhere users can see them
+
 ## 1.11.0 (2026-07-29)
 
 ### Features
