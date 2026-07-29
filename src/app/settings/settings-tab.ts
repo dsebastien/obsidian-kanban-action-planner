@@ -16,6 +16,7 @@ import {
 import { ConfigureBoardModal } from '../ui/configure-board-modal'
 import { ConfirmModal } from '../ui/confirm-modal'
 import { BUY_ME_A_COFFEE_BADGE_DATA_URL } from '../assets/buy-me-a-coffee'
+import { renderSupportSection } from '../ui/support-links'
 
 /** A note type known to the plugin (Starter Kit or a stored local note type). */
 interface NoteTypeRow {
@@ -565,18 +566,9 @@ export class KanbanActionPlannerSettingTab extends PluginSettingTab {
     }
 
     private renderSupportHeader(containerEl: HTMLElement): void {
-        new Setting(containerEl).setName('Support').setHeading()
-
-        const supportDesc = new DocumentFragment()
-        supportDesc.createDiv({
-            text: 'Buy me a coffee to support the development of this plugin ❤️'
+        renderSupportSection(containerEl, (el) => {
+            this.renderBuyMeACoffeeBadge(el)
         })
-
-        new Setting(containerEl).setDesc(supportDesc)
-
-        this.renderBuyMeACoffeeBadge(containerEl)
-        const spacing = containerEl.createDiv()
-        spacing.classList.add('support-header-margin')
     }
 
     private renderBuyMeACoffeeBadge(contentEl: HTMLElement | DocumentFragment, width = 175): void {
