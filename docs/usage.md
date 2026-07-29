@@ -550,8 +550,12 @@ schedule it, or drag one out to the panel to clear its date.
 
 **Schedule from the right-click menu (any card, board or calendar).** Right-click a card for
 **Schedule for today / tomorrow / on a date… / Clear scheduled date** and the same for
-**Set deadline**. "On a date…" opens a small date picker. This is the quickest way to set or
-change a date without dragging, and it works on the board too, not just the calendar.
+**Set deadline**. "On a date…" opens a small date picker that also understands **dates typed in
+words**: `tomorrow`, `fri`, `next mon`, `next week`, `in 3 days`, `2w`, `in 1 mo`… A live hint
+shows the day that will be written (e.g. `→ Mon 2026-08-03 · in 5 days`) as you type, and the
+picker below stays in sync — use either. `next week` and `next <weekday>` follow your **First
+day of week** setting. This is the quickest way to set or change a date without dragging, and
+it works on the board too, not just the calendar.
 
 **Sort the panel** (view options): order the cards by **Manual order**, **Name**, or **a
 property** (e.g. a priority or estimate). To narrow the panel, use the toolbar

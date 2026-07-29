@@ -729,7 +729,8 @@ export class TimelineController {
             this.host.app,
             `Set start date — ${card.display.title}`,
             current ? toDateKey(current) : '',
-            (isoDate) => void this.writeStartDate(card, property, isoDate)
+            (isoDate) => void this.writeStartDate(card, property, isoDate),
+            this.host.firstDayOfWeek()
         ).open()
     }
 

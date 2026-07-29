@@ -262,7 +262,14 @@ PANE-sourced card there sets that status — validity + commit live on the view
 (`resolvePaneGroupDrop` in `domain/pane-drop.ts` → `setCardStatus`), same-type only, shared
 by `calendar-dnd`, `wbs-dnd`, and the timeline's `makeCardSchedulable`.
 Scheduling is also reachable from the **card right-click menu** (Schedule / Set deadline →
-today / tomorrow / pick-a-date via `ui/date-prompt-modal.ts` / clear), on the board too. A
+today / tomorrow / pick-a-date via `ui/date-prompt-modal.ts` / clear), on the board too. The
+date prompt (issue #116) pairs a **natural-language text input** (`tomorrow`, `fri`,
+`next mon`, `in 3 days`, `2w`, `+3`, ISO) with the native picker: `domain/natural-date.ts`
+(pure, `.spec.ts`-covered) resolves the phrase against today + the global first-day-of-week
+(anchors `next week` / `next <weekday>`); a live hint previews the resolved day and the picker
+stays in sync (typing supersedes it, touching the picker clears the phrase). Unrecognized
+phrases block submit. All four call sites (kanban-view, timeline, WBS ×2) pass
+`firstDayOfWeek` through. A
 `ResizeObserver` on the board host **auto-collapses the panel** when the container is narrower
 than ~36rem and restores it when there's room (only on a width-category change; a manual toggle
 clears the auto state). **Persisted per-view across reloads (issue #19):** range override, active

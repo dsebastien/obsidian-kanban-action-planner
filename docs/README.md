@@ -51,7 +51,9 @@ every change written straight back into your notes.
 ![Triage mode]({{ '/images/triage.png' | relative_url }})
 
 - **Calendar mode.** Switch a board to a calendar that plots scheduled dates and deadlines
-  together. Drag a card onto a day to schedule it.
+  together. Drag a card onto a day to schedule it — or right-click any card and type a date in
+  words (`tomorrow`, `fri`, `next mon`, `in 3 days`) with a live preview of the day that will
+  be written.
 - **Timeline mode.** A Gantt-style view: one row per card placed by its start date and an
   estimate (days by default; a note type can use its own property and unit — e.g. minutes),
   milestone diamonds from a configurable list property, and drag-to-reschedule. The Unplanned

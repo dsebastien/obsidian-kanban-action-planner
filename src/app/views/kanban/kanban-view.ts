@@ -558,6 +558,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             estimateConfigFor: (card) => this.estimateConfigFor(card),
             doneConfigFor: (card) => this.doneConfigFor(card),
             minutesPerDay: () => this.plugin.settings.minutesPerDay,
+            firstDayOfWeek: () => this.plugin.settings.firstDayOfWeek,
             progressProperty: () => this.resolveProgressProperty(),
             scheduledProperty: () => this.scheduledDateProperty,
             deadlineProperty: () => this.dueDateProperty,
@@ -2516,9 +2517,15 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
     /** Open the date picker for a card's scheduled date or deadline. */
     private promptDate(card: KanbanCard, dimension: DateDimension, current: Date | null): void {
         const heading = dimension === 'scheduled' ? 'Schedule date' : 'Deadline'
-        new DatePromptModal(this.app, heading, current ? toDateKey(current) : '', (iso) => {
-            void this.writeCardDate(card, dimension, iso)
-        }).open()
+        new DatePromptModal(
+            this.app,
+            heading,
+            current ? toDateKey(current) : '',
+            (iso) => {
+                void this.writeCardDate(card, dimension, iso)
+            },
+            this.plugin.settings.firstDayOfWeek
+        ).open()
     }
 
     /**

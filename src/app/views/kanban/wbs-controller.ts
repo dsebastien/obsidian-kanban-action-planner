@@ -105,6 +105,8 @@ export interface WbsHost {
     doneConfigFor(card: KanbanCard): ResolvedDoneConfig | null
     /** Minutes one work day represents (minute-estimate → days conversion). */
     minutesPerDay(): number
+    /** First day of the week (0 = Sunday … 6 = Saturday) for NL date entry. */
+    firstDayOfWeek(): number
     progressProperty(): string
     scheduledProperty(): string
     /** Resolved due-date property (the rows' due chip reads and writes it). */
@@ -1166,7 +1168,8 @@ export class WbsController {
             this.host.app,
             `Set start date — ${card.display.title}`,
             current ? toDateKey(current) : '',
-            (isoDate) => void this.writeDate(card, property, isoDate)
+            (isoDate) => void this.writeDate(card, property, isoDate),
+            this.host.firstDayOfWeek()
         ).open()
     }
 
@@ -1178,7 +1181,8 @@ export class WbsController {
             this.host.app,
             `Set due date — ${card.display.title}`,
             current ? toDateKey(current) : '',
-            (isoDate) => void this.writeDate(card, property, isoDate)
+            (isoDate) => void this.writeDate(card, property, isoDate),
+            this.host.firstDayOfWeek()
         ).open()
     }
 

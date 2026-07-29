@@ -1615,15 +1615,22 @@
         @apply w-full;
     }
 
-    /* Estimate modal: live "what Set will write" conversion feedback. */
-    .kap-estimate-hint {
+    /* Estimate/date modals: live "what Set will write" feedback. */
+    .kap-estimate-hint,
+    .kap-date-hint {
         @apply mt-1 min-h-[1.4em] text-[0.85em];
         color: var(--text-muted);
         font-variant-numeric: tabular-nums;
     }
 
-    .kap-estimate-hint.kap-estimate-hint-invalid {
+    .kap-estimate-hint.kap-estimate-hint-invalid,
+    .kap-date-hint.kap-date-hint-invalid {
         color: var(--text-error);
+    }
+
+    /* Natural-language input sits above the picker (issue #116). */
+    .kap-date-hint {
+        @apply mb-2;
     }
 
     .kap-date-actions {
