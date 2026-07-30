@@ -117,6 +117,68 @@ top/bottom**) is turned off, since sorting owns the order, but you can still dra
 to change status. Switch **Card sort** back to **Manual order** to restore your saved
 `manual_order` and re-enable reordering.
 
+## Creating cards from the board (quick capture)
+
+Every status column has an **Add card** button at the bottom. Click it, type a name, press
+Enter, and a new note is created that appears as a card **in that column**.
+
+The dialog previews exactly what will happen before you commit: the full path the note will get
+(folder + name prefix/suffix) and which template will be applied.
+
+### What the new note gets
+
+- **The column's status.** Written last, so it is authoritative — see "Templates" below.
+- **The swimlane's value**, when the board groups by a property and you added the card inside a
+  lane (not the Ungrouped one).
+- **The note type's recognition tag**, so the board recognizes it as that type.
+- **Whatever the Base filters on** — folder, tag, property value, list membership — so the note
+  really does match the view. Only filters combined with **and** are used: an **or** / **not**
+  branch has no single right answer, so nothing is guessed from it.
+- **A manual order** placing it after the last card in the column (manual sort only). No other
+  note is rewritten.
+
+### Where the note goes, and with which template
+
+Settings are layered — the first one that is filled in wins:
+
+1. The note type's own settings, in **Configure board → Creating notes**.
+2. The **Obsidian Starter Kit** note type, when you use it: its folder, template, and name
+   prefix/suffix are picked up automatically, so there is usually nothing to configure.
+3. The folder the Base filters on.
+4. Obsidian's default location for new notes.
+
+Folders and name prefixes/suffixes accept placeholders: `{{year}}`, `{{month}}`, `{{week}}`,
+`{{quarter}}`, `{{day}}`, `{{date}}`, `{{datetime}}`, `{{uuid}}`. A prefix or suffix already
+present in the name you typed is not added twice — typing `Ship it (Task)` stays `Ship it
+(Task)`.
+
+### Templates
+
+- With **Templater** installed, the template is rendered through it, so `tp.` commands, prompts,
+  and a template's own rename / move all work exactly as they do anywhere else.
+- **The template is applied before the card's properties are written.** That order matters: if
+  your template asks for a status, your answer is applied first and then replaced by the column
+  you clicked — the column always wins. Everything else your template sets is kept.
+- Templater's own **"Trigger Templater on new file creation"** does not fire a second time: the
+  plugin claims the file, so the template is applied exactly once and the plugin waits for it.
+- If the note type has **no template**, the template your Templater folder / file rules would
+  have applied is used instead.
+- With **Open the note after creating it** on (the default), the note opens in a new tab
+  _before_ the template runs, so `tp.file.cursor()` puts your cursor where the template says.
+  With it off you stay on the board, the new card is focused, and any leftover cursor marker is
+  removed.
+- Without Templater, the core **Templates** plugin's `{{title}}`, `{{date}}` and `{{time}}`
+  placeholders are substituted; with neither, the template file is copied as-is and you are told
+  so.
+
+### Notes
+
+- The **Unmapped** column has no Add button — it has no status value to write.
+- If a template **moves** the note somewhere the view's filters exclude, you get a notice saying
+  where it went, instead of a card that never appears.
+- Turn the whole thing off per board with **Configure view → Columns → Show "Add card" in
+  columns**.
+
 ## Filtering (search bar)
 
 The **filter box** in the toolbar (right after the **Board / Calendar** buttons) narrows the
@@ -912,6 +974,8 @@ changing your notes. They're grouped:
   note type's defined statuses).
 - **Unmapped column position**: show the Unmapped column first (left, the default) or last
   (right). It still only appears when something is unmapped.
+- **Show "Add card" in columns**: show the per-column quick-capture button (on by default). See
+  [Creating cards from the board](#creating-cards-from-the-board-quick-capture).
 
 **Swimlanes**
 
@@ -1072,6 +1136,12 @@ the Starter Kit plugin is installed, the board recognizes a note's type and uses
 type's defined order. The Starter Kit stays the source of truth for that, and your color choices
 are saved locally and survive the Starter Kit being disabled. Without the Starter Kit, columns
 come from the status values found in your notes.
+
+The Starter Kit also drives **quick capture**: when you add a card, the note type's
+**associated folder**, **template**, and **note name prefix / suffix** are used automatically, so
+a new note lands exactly where a note of that type belongs, with the same template you would get
+from the Starter Kit's own "Create new note" command. Anything you set in **Configure board →
+Creating notes** overrides it per type.
 
 ## Command palette
 

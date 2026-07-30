@@ -71,3 +71,9 @@ export const UNGROUPED_LANE_ID = '__ungrouped__'
 
 /** Starter Kit plugin id we feature-detect for config auto-population. */
 export const STARTER_KIT_PLUGIN_ID = 'obsidian-starter-kit'
+
+/** Templater plugin id we feature-detect for template application (issue #46). */
+export const TEMPLATER_PLUGIN_ID = 'templater-obsidian'
+
+/** Core "Templates" plugin id — the fallback template engine when Templater is absent. */
+export const CORE_TEMPLATES_PLUGIN_ID = 'templates'

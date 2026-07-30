@@ -10,6 +10,7 @@ import type {
     NoteType,
     NoteTypeEstimateConfig
 } from '../domain/note-type'
+import type { CreationConfig } from '../domain/note-creation'
 import { compareStatusValues, splitStatusValue } from '../domain/status'
 import { matchesAnyMapping } from '../domain/note-type-recognition'
 import type { RecognitionFile } from '../domain/note-type-recognition'
@@ -258,6 +259,26 @@ export async function setDoneConfig(
         plugin,
         produce(noteType, (draft) => {
             draft.done = done
+        })
+    )
+}
+
+/**
+ * Set (or clear, with `undefined`) a note type's quick-capture creation config
+ * (issue #46). Plugin-owned: valid for Starter Kit–mirrored types too, where it
+ * acts as an override of the Starter Kit's folder/template/name settings.
+ */
+export async function setCreationConfig(
+    plugin: KanbanActionPlannerPlugin,
+    noteTypeId: string,
+    creation: CreationConfig | undefined
+): Promise<void> {
+    const noteType = requireNoteType(plugin, noteTypeId)
+    if (!noteType) return
+    await upsertNoteType(
+        plugin,
+        produce(noteType, (draft) => {
+            draft.creation = creation
         })
     )
 }

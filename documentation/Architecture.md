@@ -127,6 +127,30 @@ dist/styles.css` finds none).
 
 Edit only `src/styles.src.css`; the root `styles.css` is generated.
 
+## Quick capture (issue #46)
+
+Creating a note from a column is split across four files so the fragile part stays testable:
+
+- `domain/note-creation.ts` (pure) — the config layering (`resolveCreationConfig`), name
+  decoration (`buildNoteBasename`), path building (`buildUniquePath`), and the core-Templates
+  placeholder substitution. Also owns `creationConfigSchema`, embedded in `noteTypeSchema` as
+  the optional `creation` field.
+- `domain/base-filters.ts` (pure) — `collectFilterFacts` turns a serialized
+  `BasesConfigFile` filter tree into the folder / tags / property equalities a new note must
+  carry. Only `and`-reachable expressions count.
+- `services/templater.service.ts` — the whole Templater adapter: availability,
+  `write_template_to_file`, resolving the template its create-trigger would apply,
+  `claimTemplaterFile` (suppressing that trigger for the duration of the flow), and
+  `stripCursorMarkers`. Every member is feature-detected; Templater has no published API.
+- `services/note-creation.service.ts` — the imperative pipeline, whose ORDER is the invariant
+  (see business rule 44): create empty → open (when configured) → template (awaited) →
+  frontmatter in one transaction.
+
+The view (`promptCreateCard` / `createCard`) only computes WHAT to write (status from the
+clicked column, lane value, order, tags) and reveals the result. Reading the Base's filters goes
+through `queryController.query.getSerializable()` — a private runtime accessor, so it is fully
+feature-detected and falls back to "no facts".
+
 ## Current state
 
 Through Milestone 4: a working board with columns from a status property, an Unmapped column,

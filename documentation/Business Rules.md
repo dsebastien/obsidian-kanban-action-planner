@@ -706,3 +706,39 @@ unset`; numbers compare numerically, else trimmed case-insensitive strings; miss
     rAF loop) to the container's own window (`containerEl.win`, captured per drag) and use
     `containerEl.doc` for `elementFromPoint` + ghost parenting — never the main `window` /
     `activeDocument`. The timeline already binds to `el.ownerDocument` (same invariant).
+
+44. **Quick capture (issue #46).** Every status column carries an **Add card** footer (not
+    the synthetic Unmapped column — it has no status value to write), toggled per view by
+    `showAddCard` (default on). Creating a note is a fixed pipeline whose ORDER is the
+    invariant: ensure folder → `vault.create('')` → open it when configured → apply the
+    template (awaited) → write ALL card-defining frontmatter in ONE transaction.
+    - **The template runs before the property write, never after.** Templater merges a
+      template's frontmatter OVER the file's own (non-empty scalars win, arrays concatenate),
+      so properties written first would be silently overridden — a `tp.system.suggester`
+      status prompt in the template would beat the column the user clicked. Writing last
+      makes the clicked column authoritative, by construction.
+    - **The plugin applies the template itself, awaited.** `write_template_to_file` claims
+      the path in Templater's pending set synchronously, so Templater's "trigger on new file
+      creation" stands down: exactly one template application instead of a race. The claim is
+      held across the whole flow (opening the note can outlast Templater's 300 ms check) and
+      released shortly after, since Templater clears it while that check is still pending.
+      With no template configured, the template Templater's own folder/file rules resolve is
+      applied — the user's templates keep working.
+    - **The note is opened BEFORE templating** when "open after creating" is on (a new tab,
+      never the board's leaf): Templater only resolves `tp.file.cursor()` in the ACTIVE
+      editor. When it is off, residual cursor markers are stripped instead.
+    - **Templates rename and move their file**, so only the `TFile` is held across the await
+      and `file.path` is re-read after. A note a template moved out of the view's filters is
+      reported, never silently absent.
+    - **Configuration layers, first non-empty wins:** the note type's own `creation` config →
+      the Starter Kit note type (`associatedFolder`, `templatePath`, `noteNamePrefix`,
+      `noteNameSuffix`) → the Base's filter-implied folder → Obsidian's default new-note
+      folder. Name prefixes/suffixes are never trimmed (` (Task)`'s space is part of the
+      Starter Kit's own regex recognition) and never doubled.
+    - **Only `and`-reachable Base filters are facts.** Folder / tag / property-equality /
+      `contains` filters ANDed at the top level are written onto the new note so it matches
+      the view; `or` and `not` branches contribute nothing (a guess would write bogus
+      frontmatter, while a miss is visible and reported).
+    - **Quick capture writes exactly one file.** The new card takes the order after the last
+      card in its column — it never renumbers the column's other notes — and order is only
+      written under the manual sort.

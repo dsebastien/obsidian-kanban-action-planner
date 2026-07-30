@@ -15,6 +15,11 @@ import type {
     RelationshipRule
 } from '../domain/note-type'
 import { FolderSuggest } from './folder-suggest'
+import { FileSuggest } from './file-suggest'
+import { defaultCreationConfig, emptyInheritedDefaults } from '../domain/note-creation'
+import type { CreationConfig } from '../domain/note-creation'
+import { creationDefaults, getNoteTypeById } from '../services/starter-kit.service'
+import { isTemplaterAvailable, templaterTemplatesFolder } from '../services/templater.service'
 import { splitStatusValue } from '../domain/status'
 import { resolveDoneConfig } from '../domain/done'
 import { doneIsStatusBased } from '../domain/automation'
@@ -27,6 +32,7 @@ import {
     setAutoAssign,
     setAutomations,
     setColorOverride,
+    setCreationConfig,
     setDoneConfig,
     setEstimateConfig,
     setLaneGrouping,
@@ -52,6 +58,7 @@ type SectionId =
     | 'estimate'
     | 'done'
     | 'automation'
+    | 'creation'
 
 const SECTIONS: ReadonlyArray<{ id: SectionId; label: string; icon: string }> = [
     { id: 'recognition', label: 'Note type', icon: 'scan-search' },
@@ -63,6 +70,7 @@ const SECTIONS: ReadonlyArray<{ id: SectionId; label: string; icon: string }> = 
     { id: 'estimate', label: 'Estimate', icon: 'ruler' },
     { id: 'done', label: 'Done state', icon: 'circle-check' },
     { id: 'automation', label: 'Automations', icon: 'zap' },
+    { id: 'creation', label: 'Creating notes', icon: 'file-plus' },
     { id: 'archiving', label: 'Archiving', icon: 'archive' }
 ]
 
@@ -201,6 +209,9 @@ export class ConfigureBoardModal extends Modal {
                 return
             case 'automation':
                 this.renderAutomation(noteType)
+                return
+            case 'creation':
+                this.renderCreation(noteType)
                 return
         }
     }
@@ -1081,6 +1092,114 @@ export class ConfigureBoardModal extends Modal {
         const current = this.noteType()?.archive
         if (!current) return
         await setArchiveConfig(this.plugin, this.noteTypeId, { ...current, ...patch })
+        this.onChange()
+        if (rerender) this.render()
+    }
+
+    // ── Creating notes (quick capture, issue #46) ─────────────
+
+    /**
+     * Where a note created from the board's "Add card" affordance goes, which
+     * template it gets, and how its name is decorated.
+     *
+     * Every field is "empty = inherit": blank falls back to the Starter Kit's
+     * own settings for this type (folder, template, name prefix/suffix), then to
+     * the Base's filters, then to Obsidian's default new-note folder. The
+     * placeholders below therefore SHOW the inherited value, so it is obvious
+     * what will happen without typing anything.
+     */
+    private renderCreation(noteType: NoteType): void {
+        const creation = noteType.creation ?? defaultCreationConfig()
+        const skType = getNoteTypeById(this.app, noteType.id)
+        const inherited = skType ? creationDefaults(skType) : emptyInheritedDefaults()
+
+        new Setting(this.body).setName('Creating notes').setHeading()
+        this.body.createEl('p', {
+            cls: 'kap-modal-subtitle',
+            text:
+                'Used by the "Add card" button in each column. Leave a field empty to inherit it' +
+                (skType
+                    ? ' from the Obsidian Starter Kit.'
+                    : " from the Base's filters and Obsidian's defaults.") +
+                ' Folder and name placeholders: {{year}}, {{month}}, {{week}}, {{quarter}},' +
+                ' {{day}}, {{date}}, {{datetime}}, {{uuid}}.'
+        })
+
+        new Setting(this.body)
+            .setName('Target folder')
+            .setDesc('Folder new notes of this type are created in.')
+            .addText((input) => {
+                input
+                    .setPlaceholder(inherited.folder || "The Base's folder filter")
+                    .setValue(creation.folder)
+                    .onChange((value) => void this.patchCreation({ folder: value.trim() }, false))
+                new FolderSuggest(
+                    this.app,
+                    input.inputEl,
+                    (path) => void this.patchCreation({ folder: path.trim() }, false)
+                )
+            })
+
+        new Setting(this.body)
+            .setName('Template')
+            .setDesc(
+                isTemplaterAvailable(this.app)
+                    ? 'Applied with Templater before the card properties are written, so a template prompt can never override the column you clicked.'
+                    : 'Templater is not enabled — the template is copied and the core Templates placeholders are substituted.'
+            )
+            .addText((input) => {
+                input
+                    .setPlaceholder(inherited.templatePath || 'No template')
+                    .setValue(creation.templatePath)
+                    .onChange(
+                        (value) => void this.patchCreation({ templatePath: value.trim() }, false)
+                    )
+                new FileSuggest(
+                    this.app,
+                    input.inputEl,
+                    (path) => void this.patchCreation({ templatePath: path.trim() }, false),
+                    templaterTemplatesFolder(this.app)
+                )
+            })
+
+        new Setting(this.body)
+            .setName('Name prefix')
+            .setDesc('Prepended to the typed name (skipped when the name already starts with it).')
+            .addText((input) =>
+                input
+                    .setPlaceholder(inherited.namePrefix || 'None')
+                    .setValue(creation.namePrefix)
+                    // NOT trimmed: a prefix's trailing space is part of it.
+                    .onChange((value) => void this.patchCreation({ namePrefix: value }, false))
+            )
+
+        new Setting(this.body)
+            .setName('Name suffix')
+            .setDesc(
+                'Appended to the typed name (skipped when already present). Starter Kit types often recognize notes by this suffix.'
+            )
+            .addText((input) =>
+                input
+                    .setPlaceholder(inherited.nameSuffix || 'None')
+                    .setValue(creation.nameSuffix)
+                    // NOT trimmed: a suffix's leading space is part of it, and the
+                    // Starter Kit's regex recognition expects exactly that spacing.
+                    .onChange((value) => void this.patchCreation({ nameSuffix: value }, false))
+            )
+
+        new Setting(this.body)
+            .setName('Open the note after creating it')
+            .addToggle((toggle) =>
+                toggle
+                    .setValue(creation.openAfterCreate)
+                    .onChange((on) => void this.patchCreation({ openAfterCreate: on }, false))
+            )
+    }
+
+    /** Apply a partial change to the note type's creation config. */
+    private async patchCreation(patch: Partial<CreationConfig>, rerender: boolean): Promise<void> {
+        const current = this.noteType()?.creation ?? defaultCreationConfig()
+        await setCreationConfig(this.plugin, this.noteTypeId, { ...current, ...patch })
         this.onChange()
         if (rerender) this.render()
     }

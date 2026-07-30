@@ -1,4 +1,5 @@
 import { setIcon } from 'obsidian'
+import { UNMAPPED_COLUMN_ID } from '../../constants'
 import type { Board, BoardColumn, BoardLane } from '../../domain/board-model'
 import type { RelationshipRole } from '../../domain/note-type'
 import { columnHeaderShade, columnShade, resolveColor } from '../../services/colors.service'
@@ -25,6 +26,11 @@ export interface BoardRenderCallbacks {
     onReorderCard?: (card: KanbanCard, direction: 1 | -1) => void
     /** Keyboard: open the card's context menu, anchored to its element. */
     onKeyboardMenu?: (card: KanbanCard, cardEl: HTMLElement) => void
+    /**
+     * Quick capture (issue #46): create a note landing in this lane + column.
+     * Absent = the affordance is not rendered (turned off, or embedded).
+     */
+    onAddCard?: (laneId: string, columnId: string) => void
 }
 
 /** `data-board-struct` records the rendered lane/column shape for patch vs full-render. */
@@ -196,7 +202,36 @@ function renderColumns(
         const listEl = colEl.createDiv({ cls: 'kap-column-cards' })
         listEl.setAttribute('role', 'list')
         for (const card of cards) listEl.appendChild(buildCardNode(card, accent, callbacks))
+
+        renderAddCardButton(colEl, column.id, laneId, callbacks)
     }
+}
+
+/**
+ * The per-column quick-capture affordance (issue #46). Rendered outside the
+ * scrolling card list so it stays reachable in a long column, and never on the
+ * synthetic Unmapped column — that column has no status value to write, so a
+ * note created there could not land in it.
+ */
+function renderAddCardButton(
+    colEl: HTMLElement,
+    columnId: string,
+    laneId: string,
+    callbacks: BoardRenderCallbacks
+): void {
+    const onAddCard = callbacks.onAddCard
+    if (!onAddCard || columnId === UNMAPPED_COLUMN_ID) return
+    const footer = colEl.createDiv({ cls: 'kap-column-footer' })
+    const button = footer.createEl('button', {
+        cls: 'kap-add-card',
+        attr: { 'type': 'button', 'aria-label': 'Add a note to this column' }
+    })
+    setIcon(button.createSpan({ cls: 'kap-add-card-icon' }), 'plus')
+    button.createSpan({ text: 'Add card' })
+    button.addEventListener('click', (e) => {
+        e.stopPropagation()
+        onAddCard(laneId, columnId)
+    })
 }
 
 /** Patch each column's card list in place against the desired cards. */
@@ -216,6 +251,15 @@ function patchColumns(
         patchColumnCards(listEl, cards, accent, callbacks)
         const countEl = colEl.querySelector<HTMLElement>('.kap-column-count')
         if (countEl) setColumnCount(colEl, countEl, cards.length, column.wipLimit)
+
+        // The quick-capture footer is not card content, so the keyed card
+        // reconcile above never touches it — sync its presence here so toggling
+        // the option off/on applies without a full re-render.
+        const footerEl = colEl.querySelector<HTMLElement>(':scope > .kap-column-footer')
+        if (footerEl && (!callbacks.onAddCard || column.id === UNMAPPED_COLUMN_ID))
+            footerEl.remove()
+        else if (!footerEl)
+            renderAddCardButton(colEl, column.id, colEl.dataset['laneId'] ?? '', callbacks)
 
         const collapsed = collapsedColumns.has(column.id)
         colEl.toggleClass('kap-column-collapsed', collapsed)

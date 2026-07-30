@@ -136,6 +136,15 @@ export function getKanbanViewOptions(app: App, settings: PluginSettings): BasesA
                     displayName: 'Unmapped column position',
                     default: 'first',
                     options: { first: 'First (left)', last: 'Last (right)' }
+                },
+                {
+                    // Quick capture (issue #46). Where the note goes and which
+                    // template it gets are per-note-type (Settings → Note types →
+                    // Creating notes); this only shows/hides the affordance.
+                    type: 'toggle',
+                    key: 'showAddCard',
+                    displayName: 'Show "Add card" in columns',
+                    default: true
                 }
             ]
         },

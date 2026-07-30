@@ -1,5 +1,6 @@
 import type { App, TFile } from 'obsidian'
 import { STARTER_KIT_PLUGIN_ID } from '../constants'
+import type { InheritedCreationDefaults } from '../domain/note-creation'
 
 /**
  * Adapter for the optional Obsidian Starter Kit plugin.
@@ -28,10 +29,20 @@ export interface SkNoteType {
     name: string
     properties?: SkPropertyDefinition[]
     mappings?: SkMapping[]
+    /** Where notes of this type live (may contain `{{year}}`-style expressions). */
+    associatedFolder?: string | null
+    /** The type's template file (vault-relative). */
+    templatePath?: string | null
+    /** Name decoration; the suffix often doubles as a regex recognition mapping. */
+    noteNamePrefix?: string | null
+    noteNameSuffix?: string | null
+    /** Tags the Starter Kit associates with this type. */
+    tags?: string[]
 }
 
 interface SkApiLike {
     listNoteTypes?: () => unknown
+    getNoteType?: (id: string) => unknown
     getNoteTypeByName?: (name: string) => unknown
     recognizeNoteType?: (file: unknown) => Promise<unknown>
 }
@@ -68,6 +79,30 @@ export function listNoteTypes(app: App): SkNoteType[] {
     if (!api?.listNoteTypes) return []
     const types = unwrap<SkNoteType[]>(api.listNoteTypes())
     return Array.isArray(types) ? types : []
+}
+
+/** Look up one Starter Kit note type by id (null when unavailable/unknown). */
+export function getNoteTypeById(app: App, id: string): SkNoteType | null {
+    const api = getStarterKitApi(app)
+    if (api?.getNoteType) {
+        const type = unwrap<SkNoteType>(api.getNoteType(id))
+        if (type) return type
+    }
+    return listNoteTypes(app).find((type) => type.id === id) ?? null
+}
+
+/**
+ * The creation-relevant configuration a Starter Kit note type already carries
+ * (issue #46), so a mirrored type needs no extra setup in this plugin. Values are
+ * passed through verbatim — placeholder expansion happens at creation time.
+ */
+export function creationDefaults(noteType: SkNoteType): InheritedCreationDefaults {
+    return {
+        folder: noteType.associatedFolder ?? '',
+        templatePath: noteType.templatePath ?? '',
+        namePrefix: noteType.noteNamePrefix ?? '',
+        nameSuffix: noteType.noteNameSuffix ?? ''
+    }
 }
 
 /** Recognize the note type of a file via the Starter Kit (null when none). */

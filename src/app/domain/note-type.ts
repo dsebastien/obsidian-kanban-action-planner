@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { creationConfigSchema } from './note-creation'
 
 /**
  * NoteType configuration model + Zod schemas.
@@ -247,6 +248,13 @@ export const noteTypeSchema = z.object({
      * backfill) = no done state configured.
      */
     done: doneConfigSchema.optional(),
+    /**
+     * Quick-capture creation config (issue #46): where a new note of this type
+     * goes, which template it gets, and how its name is decorated. Absent (older
+     * stored types, no backfill) = inherit everything from the Starter Kit type /
+     * the Base's filters, exactly like an all-blank config.
+     */
+    creation: creationConfigSchema.optional(),
     /**
      * Automation rules. Defaults to `[]` so older stored note types degrade
      * gracefully (no backfill). Items are parsed individually and invalid

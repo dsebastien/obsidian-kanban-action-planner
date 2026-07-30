@@ -596,6 +596,60 @@
         min-height: var(--size-4-8, 2rem);
     }
 
+    /* Quick capture (issue #46): the per-column "Add card" footer. Sits OUTSIDE
+       the scrolling card list so it stays reachable in a long column. */
+    .kap-column-footer {
+        @apply flex-none;
+        padding: 0 var(--size-4-2, 0.5rem) var(--size-4-2, 0.5rem);
+    }
+
+    .kap-column-collapsed .kap-column-footer {
+        @apply hidden;
+    }
+
+    /* stylelint-disable declaration-no-important -- a dashed "add" affordance has
+       to override the box Obsidian's unlayered <button> rule paints (background,
+       border, shadow, padding, size); unlayered declarations outrank every layered
+       rule regardless of specificity, so !important is the only lever here — same
+       rationale as .kap-mode-btn-active. */
+    .kap-root .kap-add-card {
+        @apply items-center justify-center gap-1.5 rounded;
+        transition:
+            color var(--kap-transition) var(--kap-ease),
+            background-color var(--kap-transition) var(--kap-ease);
+        display: flex !important;
+        width: 100% !important;
+        padding: var(--size-4-1, 0.25rem) var(--size-4-2, 0.5rem) !important;
+        background: transparent !important;
+        border: 1px dashed var(--background-modifier-border) !important;
+        box-shadow: none !important;
+        color: var(--text-muted) !important;
+        font-size: 0.85em !important;
+    }
+
+    .kap-root .kap-add-card:hover {
+        background: var(--background-modifier-hover) !important;
+        color: var(--text-normal) !important;
+    }
+    /* stylelint-enable declaration-no-important */
+
+    .kap-root .kap-add-card-icon {
+        @apply flex items-center;
+    }
+
+    .kap-root .kap-add-card-icon .svg-icon {
+        width: var(--icon-s, 1em);
+        height: var(--icon-s, 1em);
+    }
+
+    /* Quick-capture modal: the resolved path / template preview under the input. */
+    .kap-create-preview {
+        @apply text-[0.85em] break-words;
+        margin-top: var(--size-4-1, 0.25rem);
+        color: var(--text-muted);
+        font-family: var(--font-monospace);
+    }
+
     /* Swimlanes: a vertical stack of lanes, each with its own horizontal board. */
     .kap-lanes {
         display: flex;

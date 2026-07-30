@@ -223,6 +223,29 @@ default the property is the type's **status property**, and you toggle the statu
 done note reads as **100% complete** in the WBS progress rollups — even without a `progress`
 number — so parents show real momentum as their children complete.
 
+## Creating notes (quick capture)
+
+**Configure board → Creating notes**, per note type. Drives the **Add card** button in each
+column (see the [usage guide](./usage.md#creating-cards-from-the-board-quick-capture)).
+
+Every field is **empty = inherit**, so a Starter Kit note type usually needs nothing here:
+
+| Setting                             | Empty falls back to                                                                                            |
+| ----------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| **Target folder**                   | The Starter Kit type's associated folder → the folder the Base filters on → Obsidian's default new-note folder |
+| **Template**                        | The Starter Kit type's template → the template your Templater folder/file rules resolve → none                 |
+| **Name prefix** / **Name suffix**   | The Starter Kit type's note name prefix / suffix                                                               |
+| **Open the note after creating it** | On                                                                                                             |
+
+The folder and the name prefix/suffix accept `{{year}}`, `{{month}}`, `{{week}}`, `{{quarter}}`,
+`{{day}}`, `{{date}}`, `{{datetime}}`, `{{uuid}}`.
+
+Prefixes and suffixes keep their spaces (` (Task)` is not the same as `(Task)`) — the Starter
+Kit recognizes note types by exactly that spelling — and are never added twice.
+
+The template is applied **before** the card's status, swimlane value, tags, and order are
+written, so the column you clicked always wins over a status a template asks for.
+
 ## Automation rules
 
 Per note type, **Configure board → Automations** defines rules of the form "when this

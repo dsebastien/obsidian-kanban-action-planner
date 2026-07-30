@@ -59,11 +59,29 @@ import {
 import type { RelatedNote } from '../../services/relationships.service'
 import { RELATIONSHIP_ROLES, ancestorPaths } from '../../domain/relationships'
 import { RelationshipTargetModal } from '../../ui/relationship-target-modal'
-import { planInsertion } from '../../domain/ordering'
+import { ORDER_STEP, planInsertion } from '../../domain/ordering'
+import { collectFilterFacts, emptyFilterFacts, narrowestFolder } from '../../domain/base-filters'
+import type { BaseFilterFacts } from '../../domain/base-filters'
+import {
+    buildNoteBasename,
+    buildUniquePath,
+    emptyInheritedDefaults,
+    normalizeCreationFolder,
+    resolveCreationConfig
+} from '../../domain/note-creation'
+import type { ResolvedCreationConfig } from '../../domain/note-creation'
+import { resolvePlaceholders } from '../../utils/expressions'
+import type { ExpressionContext } from '../../utils/expressions'
+import { createNote } from '../../services/note-creation.service'
+import type { CreateNoteResult } from '../../services/note-creation.service'
+import { autoTemplatePathFor } from '../../services/templater.service'
+import { CreateNoteModal } from '../../ui/create-note-modal'
+import type { CreateNotePreview } from '../../ui/create-note-modal'
 import {
     appendToListProperty,
     coerceOrder,
     deleteProperty,
+    findKeyCaseInsensitive,
     getFrontmatterValue,
     removeFromListProperty,
     setProperty
@@ -84,7 +102,7 @@ import {
 } from '../../services/card-display.service'
 import { listEnumProperties } from '../../services/enum.service'
 import { buildCardSearchRecord, stringifyForSearch } from '../../services/card-search.service'
-import { archiveNote } from '../../services/archive.service'
+import { archiveNote, liveExpressionContext } from '../../services/archive.service'
 import {
     addDays,
     parseFrontmatterDate,
@@ -136,7 +154,11 @@ import type { TriageRank } from './triage'
 import { TriageConfigModal } from '../../ui/triage/triage-config-modal'
 import type { TriageConfigData } from '../../ui/triage/triage-config-modal'
 import { resolveAllowedValues } from '../../services/enum.service'
-import { listNoteTypes } from '../../services/starter-kit.service'
+import {
+    creationDefaults,
+    getNoteTypeById,
+    listNoteTypes
+} from '../../services/starter-kit.service'
 import { FilterBar } from '../../ui/filter-bar'
 import { TimelineController } from './timeline-controller'
 import type { TimelineViewState } from './timeline-controller'
@@ -185,6 +207,14 @@ interface ObsidianSettings {
  * state) is absorbed by the triage signature guard instead of tearing the
  * view down.
  */
+/**
+ * How long quick capture keeps trying to reveal the card it just created
+ * (issue #46). The note only becomes a card once Bases re-runs its query, which
+ * takes a few passes — and never happens at all when a template moved the note
+ * out of the view's filters, hence the bound.
+ */
+const REVEAL_NEW_CARD_TIMEOUT_MS = 5000
+
 interface TriageValueOverride {
     /** The card the value was written to (card key = vault path). */
     cardKey: string
@@ -303,6 +333,13 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
     private entriesByPath = new Map<string, BasesEntry>()
     // After a keyboard move/reorder rebuild, refocus this card so focus follows it.
     private refocusCardKey: string | null = null
+    /**
+     * Deadline (performance clock) until which {@link applyRefocus} keeps waiting
+     * for a not-yet-rendered refocus target. 0 = drop it on the first miss (the
+     * keyboard-move case); set by quick capture, whose note only reaches the board
+     * after Bases re-runs its query.
+     */
+    private refocusUntil = 0
 
     // Multi-select + bulk actions (issue #18) — owned by the BoardSelection controller.
     private selectionBarEl: HTMLElement | null = null
@@ -1163,7 +1200,14 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
                 onRelationship: (card, role, event) => this.showRelatedMenu(card, role, event),
                 onMoveColumn: (card, direction) => this.moveCardColumn(card, direction),
                 onReorderCard: (card, direction) => this.reorderCard(card, direction),
-                onKeyboardMenu: (card, cardEl) => this.showCardMenuAt(card, cardEl)
+                onKeyboardMenu: (card, cardEl) => this.showCardMenuAt(card, cardEl),
+                ...(this.addCardEnabled()
+                    ? {
+                          onAddCard: (laneId: string, columnId: string) => {
+                              this.promptCreateCard(laneId, columnId)
+                          }
+                      }
+                    : {})
             },
             this.collapsedLanes,
             this.collapsedColumns
@@ -1271,6 +1315,9 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         if (mode === 'board') {
             return renderPassSignature([
                 ...common,
+                // The quick-capture footer is chrome the board signature doesn't
+                // cover, so toggling the option would otherwise be gated away.
+                this.addCardEnabled(),
                 boardRenderSignature(this.board, this.collapsedLanes, this.collapsedColumns)
             ])
         }
@@ -1322,8 +1369,18 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         const el = this.boardEl.querySelector<HTMLElement>(
             `.kap-card[data-card-key="${cssEscapeAttr(this.refocusCardKey)}"]`
         )
+        if (!el) {
+            // A keyboard move's card exists in the very next pass, so the key is
+            // dropped at once. A newly CREATED note (issue #46) only reaches the
+            // board once Bases re-runs its query, which takes a few passes — keep
+            // the key until then, bounded so a note that never matches the view's
+            // filters can't pin the render gate open forever.
+            if (window.performance.now() < this.refocusUntil) return
+            this.refocusCardKey = null
+            return
+        }
         this.refocusCardKey = null
-        if (!el) return
+        this.refocusUntil = 0
         el.focus({ preventScroll: true })
         el.scrollIntoView({ block: 'nearest', inline: 'nearest' })
     }
@@ -2227,6 +2284,286 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             new Notice('Failed to save the card move.')
             void this.resolveAndRebuild()
         }
+    }
+
+    // ── Quick capture (issue #46) ─────────────────────────────
+
+    /** Whether the per-column "Add card" affordance is rendered. Default on. */
+    private addCardEnabled(): boolean {
+        return this.viewConfig.get('showAddCard') !== false
+    }
+
+    /**
+     * The note type whose creation config drives a column: on note-type
+     * swimlanes each lane owns its own type (mixed boards), otherwise the
+     * board's resolved type.
+     */
+    private noteTypeForLane(laneId: string): NoteType {
+        if (this.laneGrouping.kind === 'note-type' && laneId !== UNGROUPED_LANE_ID) {
+            const byName = this.plugin.settings.noteTypes.find((t) => t.name === laneId)
+            if (byName) return byName
+        }
+        return this.noteType
+    }
+
+    /**
+     * The Base's filter-implied facts (folder / tags / property equalities) a new
+     * note must carry to show up in this view. The query object is a private
+     * runtime accessor, so it is fully feature-detected: no query, no facts (the
+     * note is still created, and a note that ends up outside the filters is
+     * reported rather than silently vanishing).
+     */
+    private baseFilterFacts(): BaseFilterFacts {
+        try {
+            const controller = (this as unknown as { queryController?: unknown }).queryController
+            const query = (
+                controller as { query?: { getSerializable?: () => unknown } } | undefined
+            )?.query
+            if (typeof query?.getSerializable !== 'function') return emptyFilterFacts()
+            const serialized = query.getSerializable() as {
+                filters?: unknown
+                views?: Array<{ name?: string; filters?: unknown }>
+            }
+            const viewFilters = serialized.views?.find((v) => v.name === this.config.name)?.filters
+            return collectFilterFacts(serialized.filters, viewFilters)
+        } catch (error: unknown) {
+            log('Could not read the Base filters for quick capture; ignoring them.', 'warn', error)
+            return emptyFilterFacts()
+        }
+    }
+
+    /** Layer the note type's own creation config over the Starter Kit's + the Base's. */
+    private resolvedCreationConfig(
+        noteType: NoteType,
+        facts: BaseFilterFacts
+    ): ResolvedCreationConfig {
+        const skType = getNoteTypeById(this.app, noteType.id)
+        const inherited = skType ? creationDefaults(skType) : emptyInheritedDefaults()
+        const fallback = this.app.fileManager.getNewFileParent(this.filePathForNewNote()).path
+        return resolveCreationConfig(noteType.creation, inherited, narrowestFolder(facts), fallback)
+    }
+
+    /**
+     * The source path Obsidian's "new note location" resolution keys off — the
+     * .base file itself (the active file for a board), NOT one of the queried
+     * notes: under "same folder as current file" an arbitrary card's folder would
+     * otherwise decide where captures land.
+     */
+    private filePathForNewNote(): string {
+        return this.app.workspace.getActiveFile()?.path ?? ''
+    }
+
+    /**
+     * Every tag the new note needs: the type's tag recognition rules + the Base's
+     * filter tags. Deliberately NOT the Starter Kit type's full `tags` list (nor
+     * its required-property defaults): the Starter Kit makes auto-adding those an
+     * explicit opt-in ("adding tags automatically can be unexpected"), and a note
+     * type's template already supplies them. Only what the card needs to be
+     * recognized and to match the view is written here.
+     */
+    private creationTags(noteType: NoteType, facts: BaseFilterFacts): string[] {
+        const tags = noteType.typeRecognition.mappings
+            .filter((m) => m.enabled && m.type === 'tag')
+            .map((m) => m.value.trim().replace(/^#+/, ''))
+            .filter((value) => value.length > 0)
+        for (const tag of facts.tags) if (!tags.includes(tag)) tags.push(tag)
+        return tags
+    }
+
+    /**
+     * Ask for a title, then create the note (issue #46). The properties that make
+     * it land in the clicked column are computed HERE and written by the creation
+     * service AFTER the template, so a template's own status prompt can never win
+     * over the column the user clicked.
+     */
+    private promptCreateCard(laneId: string, columnId: string): void {
+        const noteType = this.noteTypeForLane(laneId)
+        const facts = this.baseFilterFacts()
+        const config = this.resolvedCreationConfig(noteType, facts)
+        // ONE context for the subtitle, the live preview, and the creation itself:
+        // `{{uuid}}` (and `{{date}}` across midnight) would otherwise resolve to
+        // different values, so the previewed path would not be the created one.
+        const ctx = liveExpressionContext()
+        new CreateNoteModal(
+            this.app,
+            `New ${noteType.name === 'Default' ? 'note' : noteType.name}`,
+            this.createNoteSubtitle(laneId, columnId, config, ctx),
+            (title) => this.previewCreatedNote(title, config, ctx),
+            (title) => {
+                void this.createCard(title, laneId, columnId, noteType, facts, config, ctx)
+            }
+        ).open()
+    }
+
+    /** The modal's subtitle: which column (and lane) the note will land in. */
+    private createNoteSubtitle(
+        laneId: string,
+        columnId: string,
+        config: ResolvedCreationConfig,
+        ctx: ExpressionContext
+    ): string {
+        const column = this.laneColumns(laneId).find((c) => c.id === columnId)
+        const where = column ? `“${column.label}”` : 'this column'
+        const lane =
+            this.board.isMultiLane && laneId !== UNGROUPED_LANE_ID && laneId.length > 0
+                ? ` in the “${laneId}” swimlane`
+                : ''
+        const folder = normalizeCreationFolder(resolvePlaceholders(config.folder, ctx))
+        return `The note is created in ${folder.length > 0 ? `“${folder}”` : 'the vault root'} and lands in ${where}${lane}.`
+    }
+
+    /** Live preview for the modal: the exact path + template that will be used. */
+    private previewCreatedNote(
+        title: string,
+        config: ResolvedCreationConfig,
+        ctx: ExpressionContext
+    ): CreateNotePreview {
+        const basename = buildNoteBasename(title, config, ctx)
+        const folder = normalizeCreationFolder(resolvePlaceholders(config.folder, ctx))
+        const path = buildUniquePath(
+            folder,
+            basename,
+            (candidate) => this.app.vault.getAbstractFileByPath(candidate) !== null
+        )
+        const configured = config.templatePath.trim()
+        return {
+            path,
+            templatePath: configured.length > 0 ? configured : autoTemplatePathFor(this.app, path)
+        }
+    }
+
+    /**
+     * Create the note and reveal it. Rebuilds are suppressed for the whole
+     * sequence so the Bases echo of the creation write can't re-derive a partial
+     * state mid-flight (same discipline as {@link applyMove}).
+     */
+    private async createCard(
+        title: string,
+        laneId: string,
+        columnId: string,
+        noteType: NoteType,
+        facts: BaseFilterFacts,
+        config: ResolvedCreationConfig,
+        ctx: ExpressionContext
+    ): Promise<void> {
+        const properties: Record<string, unknown> = { ...facts.properties }
+
+        const statusValue = this.columnStatusValue(columnId, laneId)
+        const statusProperty =
+            basesPropToName(this.viewConfig.get('statusProperty')) ??
+            noteType.statusProperty ??
+            this.statusProperty
+        if (statusValue !== null && statusProperty) properties[statusProperty] = statusValue
+
+        const laneValue = this.laneValueForNewCard(laneId)
+        if (laneValue) properties[laneValue.property] = laneValue.value
+
+        // Manual order only: a name/property sort owns the in-column order, and
+        // quick capture must never renumber (rewrite) the column's other notes.
+        if (this.cardSortMode() === 'order') {
+            const order = this.appendOrderFor(laneId, columnId)
+            if (order !== null) properties[this.orderProperty] = order
+        }
+
+        // Boxed so the assignment inside the closure stays visible to the type
+        // narrower (a plain `let` narrows to `never` here).
+        const outcome: { value: CreateNoteResult | null } = { value: null }
+        await this.withRebuildsSuppressed(async () => {
+            outcome.value = await createNote(
+                this.app,
+                {
+                    config,
+                    title,
+                    properties,
+                    tags: this.creationTags(noteType, facts),
+                    listProperties: facts.listProperties
+                },
+                ctx
+            )
+        })
+
+        const created = outcome.value
+        if (!created || !created.ok) {
+            new Notice(
+                created?.reason === 'empty-title'
+                    ? 'Enter a name for the new note.'
+                    : 'Could not create the note.'
+            )
+            return
+        }
+
+        // The note is opened by the creation service (BEFORE templating, so
+        // `tp.file.cursor()` resolves) — nothing to open here. Revealing the card
+        // is only right when the note did NOT open: focusing it would otherwise
+        // steal focus from the editor the user was just sent to.
+        const file = created.file
+        if (!config.openAfterCreate) {
+            this.refocusCardKey = file.path
+            this.refocusUntil = window.performance.now() + REVEAL_NEW_CARD_TIMEOUT_MS
+        }
+        // The card may not be able to appear here: a template can move the note out
+        // of a filtered folder, and a Base filtered on the very property the columns
+        // write (`status == "Todo"` with a Done column) is contradictory by
+        // construction. Say so instead of leaving the user hunting for a card that
+        // never appears.
+        const unmet = this.unmetFilterFacts(file, facts, properties)
+        if (unmet.length > 0) {
+            new Notice(
+                `Created “${file.basename}” in “${file.parent?.path ?? '/'}”, but this view filters on ${unmet.join(', ')} — the card does not appear here.`,
+                8000
+            )
+        }
+        void this.resolveAndRebuild()
+    }
+
+    /** The swimlane property + value a new card needs to land in `laneId`. */
+    private laneValueForNewCard(laneId: string): { property: string; value: string } | null {
+        if (this.laneGrouping.kind !== 'property') return null
+        if (laneId === UNGROUPED_LANE_ID || laneId.length === 0) return null
+        const ref = parsePropertyRef(this.laneGrouping.property)
+        // Computed swimlanes (`formula.*` / `file.*`) are read-only (rule 26).
+        if (!ref || ref.kind !== 'note') return null
+        return { property: ref.name, value: laneId }
+    }
+
+    /**
+     * The manual order placing a new card at the END of its column: one step past
+     * the largest existing order. `null` when the column holds cards with NO order
+     * — those sort last (rule: unset order goes to the bottom), so any number
+     * would place the new card ABOVE them, and fixing that would mean renumbering
+     * the column. Quick capture writes exactly one file, so it writes nothing here
+     * and the new card joins the unordered group instead.
+     */
+    private appendOrderFor(laneId: string, columnId: string): number | null {
+        const cards = this.columnCards(laneId, columnId)
+        if (cards.some((c) => c.order === null)) return null
+        const orders = cards.map((c) => c.order).filter((order): order is number => order !== null)
+        return orders.length === 0 ? ORDER_STEP : Math.max(...orders) + ORDER_STEP
+    }
+
+    /**
+     * The view's filter facts the created note does NOT satisfy — a folder a
+     * template moved it out of, or a property/tag the card's own column, swimlane
+     * or template overwrote. Purely for reporting: the note is never rewritten to
+     * force a match (the clicked column stays authoritative).
+     */
+    private unmetFilterFacts(
+        file: TFile,
+        facts: BaseFilterFacts,
+        written: Record<string, unknown>
+    ): string[] {
+        const unmet: string[] = []
+        for (const folder of facts.folders) {
+            if (folder.length === 0) continue
+            if (file.path === folder || file.path.startsWith(`${folder}/`)) continue
+            unmet.push(`folder “${folder}”`)
+        }
+        for (const [name, value] of Object.entries(facts.properties)) {
+            const key = findKeyCaseInsensitive(written, name)
+            if (key === null || written[key] === value) continue
+            unmet.push(`${name} = ${JSON.stringify(value)}`)
+        }
+        return unmet
     }
 
     private columnCards(laneId: string, columnId: string): KanbanCard[] {
