@@ -76,6 +76,9 @@ to whole numbers only when needed (e.g. when some cards have no order yet).
 
 ## Note types and the Obsidian Starter Kit
 
+> The [**Obsidian Starter Kit**](https://store.dsebastien.net/product/obsidian-starter-kit) is optional. If you use it, everything below configures
+> itself — see [Using this plugin with the Obsidian Starter Kit]({{ '/usage.html#using-this-plugin-with-the-obsidian-starter-kit' | relative_url }}).
+
 Board configuration (currently: colors) is grouped into a **note type**. When the Obsidian
 Starter Kit plugin is installed and recognizes your notes as a note type, the board uses that
 type as its note type — taking the status property and its allowed values from the Starter Kit
@@ -226,7 +229,7 @@ number — so parents show real momentum as their children complete.
 ## Creating notes (quick capture)
 
 **Configure board → Creating notes**, per note type. Drives the **Add card** button in each
-column (see the [usage guide](./usage.md#creating-cards-from-the-board-quick-capture)).
+column (see the [usage guide]({{ '/usage.html#creating-cards-from-the-board-quick-capture' | relative_url }})).
 
 Every field is **empty = inherit**, so a Starter Kit note type usually needs nothing here:
 

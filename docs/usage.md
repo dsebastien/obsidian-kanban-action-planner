@@ -980,6 +980,13 @@ changing your notes. They're grouped:
 - **Show "Add card" in columns**: show the per-column quick-capture button (on by default). See
   [Creating cards from the board](#creating-cards-from-the-board-quick-capture).
 
+**Cards**
+
+- **Title property**: show a property as the card heading instead of the note name (falls back
+  to the note name when it is missing or empty). Formulas allowed.
+- **Show due countdown**: show the `In 3d` / `2d overdue` badge on cards. Its position and the
+  "soon" threshold are global plugin settings.
+
 **Swimlanes**
 
 - **Grouping**: override lane grouping for this view. **Use note type default** (which
@@ -1007,6 +1014,12 @@ date **property names** are set globally in plugin settings.)
 
 - **Default range**: Week, Month, Quarter, or Year. (The start/estimate/milestones property
   names are global plugin settings, not view options.)
+
+**Triage**
+
+- **Triage scope**: which cards the queue offers by default — **Needs clarification**, **All
+  cards (re-prioritize)**, or **Due for review**. The property lists and needs-triage tokens are
+  edited in the **Configure triage** modal, not here.
 
 ## Note type configuration (colors, enums, relationships, estimate, done state, automations, archiving)
 
@@ -1130,21 +1143,59 @@ board:
 The dialog also has **Swimlanes** (group the board into lanes) and **Archiving** (move
 finished cards into a folder) sections, see Swimlanes and Archiving above.
 
-## Obsidian Starter Kit integration
+## Using this plugin with the Obsidian Starter Kit
 
-The [Obsidian Starter Kit](https://www.store.dsebastien.net/product/obsidian-starter-kit) is
-**completely optional**. The plugin works fully without it, and the two simply combine well. If
-the Starter Kit plugin is installed, the board recognizes a note's type and uses that type's
-**status property and allowed values** to build its columns, including empty columns in the
-type's defined order. The Starter Kit stays the source of truth for that, and your color choices
-are saved locally and survive the Starter Kit being disabled. Without the Starter Kit, columns
-come from the status values found in your notes.
+**The plugin is fully standalone.** Nothing below is required — you can define your own note
+types by tag, folder, or regex and never think about this again.
 
-The Starter Kit also drives **quick capture**: when you add a card, the note type's
-**associated folder**, **template**, and **note name prefix / suffix** are used automatically, so
-a new note lands exactly where a note of that type belongs, with the same template you would get
-from the Starter Kit's own "Create new note" command. Anything you set in **Configure board →
-Creating notes** overrides it per type.
+That said, this plugin was built alongside the
+[**Obsidian Starter Kit**](https://store.dsebastien.net/product/obsidian-starter-kit), and the two
+are designed to fit together. The Starter Kit is a complete, opinionated knowledge-management
+system for Obsidian: a folder structure that scales, a set of **note types** (goals, projects,
+tasks, plans, literature notes, people, periodic notes, …) each with its own properties,
+statuses, templates, and naming conventions, plus the workflows to keep it all coherent. If you
+have it, this plugin becomes the board on top of that system — with **no configuration at all**.
+
+### What the board picks up automatically
+
+When the Starter Kit plugin is installed and recognizes a note's type:
+
+| It provides                                                                       | What the board does with it                                                                                                                                                                                                                       |
+| --------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| The type's **status property** and its **allowed values**                         | Builds the columns, in the type's defined order, including the empty ones — so a board of Tasks shows every task status, not just the ones in use                                                                                                 |
+| The type's **recognition rules** (tag / folder / regex)                           | Recognizes each card's type, so a mixed board can give **each type its own lane with its own columns** — a project can never be given a task status                                                                                               |
+| The type's **allowed values** for any other property                              | Powers the card right-click **"Set …"** quick-set menu and the one-click controls in triage mode                                                                                                                                                  |
+| The type's **associated folder**, **template**, and **note name prefix / suffix** | Drives [quick capture](#creating-cards-from-the-board-quick-capture): the **Add card** button creates a note exactly where a note of that type belongs, with the same template you would get from the Starter Kit's own "Create new note" command |
+
+In short: point a Base at your tasks, add a Kanban view, and you already have the right columns
+in the right order, the right template on new notes, and the right lanes on a mixed board —
+without configuring anything.
+
+### What stays yours
+
+Everything this plugin adds on top is stored **locally**, per note type, and keeps working if
+the Starter Kit is ever disabled or removed: colors, WIP limits, swimlane grouping,
+relationships, estimates, done states, automation rules, archiving, card display, and any
+creation overrides. The Starter Kit is the source of truth for the note-type facts; the board is
+the source of truth for how they are shown and acted on.
+
+### Without the Starter Kit
+
+Everything still works. Define columns per view (**Statuses (columns)**) or globally, and — if
+you want per-type behaviour — create your own note types in **Settings → Note types → Add note
+type**, recognized by tag, folder, or path regex. Quick capture then falls back to the folder
+your Base filters on and to Obsidian's default new-note location, plus any Templater folder
+template you already use.
+
+---
+
+> ### 💡 Want the whole system?
+>
+> The [**Obsidian Starter Kit**](https://store.dsebastien.net/product/obsidian-starter-kit) gives
+> you the structure, note types, templates, and workflows this plugin was designed around — a
+> complete PKM system you can start using today instead of building from scratch.
+>
+> [**Get the Obsidian Starter Kit →**](https://store.dsebastien.net/product/obsidian-starter-kit)
 
 ## Command palette
 

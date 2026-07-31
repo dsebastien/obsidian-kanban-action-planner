@@ -86,13 +86,23 @@ every change written straight back into your notes.
   hover.
 - **Colors and per-type card display.** Give each status a color (palette or custom, theme-aware),
   and choose which fields show on cards, per note type.
+- **Quick capture.** Every column has a **+** in its header and an **Add card** button under its
+  cards. Type a name and the note is created in the right folder, with the right template, and
+  lands in that exact column — including whatever the Base filters on, so the card really does
+  show up. Templates are applied through Templater (before the card's properties are written, so
+  a template that prompts for a status can't override the column you clicked).
 - **Obsidian Starter Kit aware.** The plugin works fully on its own. The
-  [Obsidian Starter Kit](https://www.store.dsebastien.net/product/obsidian-starter-kit) is
-  completely optional and simply pairs well with it. With it installed, columns and note types
-  come from your Starter Kit config automatically, and your local choices are saved regardless.
+  [Obsidian Starter Kit](https://store.dsebastien.net/product/obsidian-starter-kit) is completely optional — but if you use it, the board configures
+  itself: columns, note types, colors per status, lanes on mixed boards, and the folder +
+  template new cards are created with all come from your Starter Kit config, with nothing to set
+  up. Your local choices are stored separately and keep working without it.
+  [See how they fit together →]({{ '/usage.html#using-this-plugin-with-the-obsidian-starter-kit' | relative_url }})
 
 ![Note types]({{ '/images/note-types.png' | relative_url }})
 
+- **What's new after updates.** After a plugin update, a one-time tab opens with the release
+  notes you just received, including any versions you skipped. It never appears on fresh
+  installs or regular restarts.
 - **Everything lives in your notes.** Status, order, dates, relationships, and grouping are all
   written to frontmatter, so your board is just your notes. No lock-in.
 
