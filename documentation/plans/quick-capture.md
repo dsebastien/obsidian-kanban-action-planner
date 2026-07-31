@@ -89,8 +89,10 @@ suggesters and placeholders showing the inherited Starter Kit values.
 
 ### UI
 
-- A `+ Add card` footer button per column (not on the synthetic Unmapped column), behind a
-  per-view `showAddCard` toggle (default on).
+- Two entry points per column (not on the synthetic Unmapped column), behind a per-view
+  `showAddCard` toggle (default on): a **+** in the column header (always in reach, hidden
+  while collapsed) and a labelled `+ Add card` footer under the cards. Both are `<button>`s,
+  which the column-reorder drag already ignores.
 - `ui/create-note-modal.ts` — title input + live preview of the resulting path and the
   template that will be applied.
 - The created card is focused/scrolled to; when the note ends up outside the view's

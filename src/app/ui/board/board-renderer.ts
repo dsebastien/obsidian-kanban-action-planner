@@ -203,35 +203,74 @@ function renderColumns(
         listEl.setAttribute('role', 'list')
         for (const card of cards) listEl.appendChild(buildCardNode(card, accent, callbacks))
 
-        renderAddCardButton(colEl, column.id, laneId, callbacks)
+        syncAddCardAffordances(colEl, column.id, laneId, callbacks)
     }
 }
 
+/** Whether a column offers quick capture (issue #46). */
+function canAddCard(columnId: string, callbacks: BoardRenderCallbacks): boolean {
+    // The synthetic Unmapped column has no status value to write, so a note
+    // created there could not land in it.
+    return Boolean(callbacks.onAddCard) && columnId !== UNMAPPED_COLUMN_ID
+}
+
 /**
- * The per-column quick-capture affordance (issue #46). Rendered outside the
- * scrolling card list so it stays reachable in a long column, and never on the
- * synthetic Unmapped column — that column has no status value to write, so a
- * note created there could not land in it.
+ * Add (or remove) both quick-capture affordances on a column: a **+** in the
+ * header, always in reach at the top of the column, and a labelled footer button
+ * under the card list — outside the scroller, so a long column keeps it visible.
+ *
+ * Idempotent, because the keyed card reconcile in {@link patchColumns} never
+ * touches column chrome: calling it again after a config change adds or removes
+ * the buttons without a full re-render.
  */
-function renderAddCardButton(
+function syncAddCardAffordances(
     colEl: HTMLElement,
     columnId: string,
     laneId: string,
     callbacks: BoardRenderCallbacks
 ): void {
     const onAddCard = callbacks.onAddCard
-    if (!onAddCard || columnId === UNMAPPED_COLUMN_ID) return
-    const footer = colEl.createDiv({ cls: 'kap-column-footer' })
-    const button = footer.createEl('button', {
-        cls: 'kap-add-card',
-        attr: { 'type': 'button', 'aria-label': 'Add a note to this column' }
-    })
-    setIcon(button.createSpan({ cls: 'kap-add-card-icon' }), 'plus')
-    button.createSpan({ text: 'Add card' })
-    button.addEventListener('click', (e) => {
+    const enabled = canAddCard(columnId, callbacks)
+    const headerEl = colEl.querySelector<HTMLElement>(':scope > .kap-column-header')
+    const existingHeaderBtn = headerEl?.querySelector<HTMLElement>(':scope > .kap-column-add')
+    const existingFooter = colEl.querySelector<HTMLElement>(':scope > .kap-column-footer')
+
+    if (!enabled || !onAddCard) {
+        existingHeaderBtn?.remove()
+        existingFooter?.remove()
+        return
+    }
+
+    const add = (e: Event): void => {
         e.stopPropagation()
         onAddCard(laneId, columnId)
-    })
+    }
+
+    if (headerEl && !existingHeaderBtn) {
+        // A `<button>` inside the header is already exempt from the column-reorder
+        // drag (`column-dnd` bails on `target.closest('button')`).
+        const headerBtn = headerEl.createEl('button', {
+            cls: 'kap-column-add',
+            attr: {
+                'type': 'button',
+                'aria-label': 'Add a note to this column',
+                'title': 'Add a note to this column'
+            }
+        })
+        setIcon(headerBtn, 'plus')
+        headerBtn.addEventListener('click', add)
+    }
+
+    if (!existingFooter) {
+        const footer = colEl.createDiv({ cls: 'kap-column-footer' })
+        const button = footer.createEl('button', {
+            cls: 'kap-add-card',
+            attr: { 'type': 'button', 'aria-label': 'Add a note to this column' }
+        })
+        setIcon(button.createSpan({ cls: 'kap-add-card-icon' }), 'plus')
+        button.createSpan({ text: 'Add card' })
+        button.addEventListener('click', add)
+    }
 }
 
 /** Patch each column's card list in place against the desired cards. */
@@ -252,14 +291,7 @@ function patchColumns(
         const countEl = colEl.querySelector<HTMLElement>('.kap-column-count')
         if (countEl) setColumnCount(colEl, countEl, cards.length, column.wipLimit)
 
-        // The quick-capture footer is not card content, so the keyed card
-        // reconcile above never touches it — sync its presence here so toggling
-        // the option off/on applies without a full re-render.
-        const footerEl = colEl.querySelector<HTMLElement>(':scope > .kap-column-footer')
-        if (footerEl && (!callbacks.onAddCard || column.id === UNMAPPED_COLUMN_ID))
-            footerEl.remove()
-        else if (!footerEl)
-            renderAddCardButton(colEl, column.id, colEl.dataset['laneId'] ?? '', callbacks)
+        syncAddCardAffordances(colEl, column.id, colEl.dataset['laneId'] ?? '', callbacks)
 
         const collapsed = collapsedColumns.has(column.id)
         colEl.toggleClass('kap-column-collapsed', collapsed)

@@ -596,6 +596,41 @@
         min-height: var(--size-4-8, 2rem);
     }
 
+    /* Quick capture (issue #46): the "+" in the column header, always in reach at
+       the top of the column. Sized like the collapse chevron opposite it. */
+    /* stylelint-disable declaration-no-important -- Obsidian's unlayered <button>
+       rule paints a filled box here; unlayered declarations outrank every layered
+       rule regardless of specificity (see .kap-mode-btn-active). */
+    .kap-root .kap-column-add {
+        @apply flex flex-none items-center justify-center rounded cursor-pointer;
+        transition:
+            color var(--kap-transition) var(--kap-ease),
+            background-color var(--kap-transition) var(--kap-ease);
+        width: var(--size-4-5, 1.25rem) !important;
+        height: var(--size-4-5, 1.25rem) !important;
+        padding: 0 !important;
+        background: transparent !important;
+        border: none !important;
+        box-shadow: none !important;
+        color: var(--text-muted) !important;
+    }
+
+    .kap-root .kap-column-add:hover {
+        background: var(--background-modifier-hover) !important;
+        color: var(--text-normal) !important;
+    }
+    /* stylelint-enable declaration-no-important */
+
+    .kap-root .kap-column-add .svg-icon {
+        width: var(--icon-s, 1em);
+        height: var(--icon-s, 1em);
+    }
+
+    /* A collapsed column is a narrow vertical bar — only the chevron stays. */
+    .kap-column-collapsed .kap-column-add {
+        @apply hidden;
+    }
+
     /* Quick capture (issue #46): the per-column "Add card" footer. Sits OUTSIDE
        the scrolling card list so it stays reachable in a long column. */
     .kap-column-footer {

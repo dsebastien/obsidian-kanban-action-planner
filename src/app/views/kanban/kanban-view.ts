@@ -2448,10 +2448,15 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
     ): Promise<void> {
         const properties: Record<string, unknown> = { ...facts.properties }
 
+        // The status the card must end up with, resolved exactly like every other
+        // status write (`statusPropertyForFile`): the per-view override wins, then
+        // the TARGET TYPE's own property (a mixed board writes each lane's type's
+        // property), then the board-wide one. Blank names fall through — an empty
+        // configured property must not become a `''` frontmatter key.
         const statusValue = this.columnStatusValue(columnId, laneId)
         const statusProperty =
-            basesPropToName(this.viewConfig.get('statusProperty')) ??
-            noteType.statusProperty ??
+            basesPropToName(this.viewConfig.get('statusProperty')) ||
+            noteType.statusProperty ||
             this.statusProperty
         if (statusValue !== null && statusProperty) properties[statusProperty] = statusValue
 

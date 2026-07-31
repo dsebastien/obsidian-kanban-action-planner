@@ -707,9 +707,11 @@ unset`; numbers compare numerically, else trimmed case-insensitive strings; miss
     `containerEl.doc` for `elementFromPoint` + ghost parenting — never the main `window` /
     `activeDocument`. The timeline already binds to `el.ownerDocument` (same invariant).
 
-44. **Quick capture (issue #46).** Every status column carries an **Add card** footer (not
-    the synthetic Unmapped column — it has no status value to write), toggled per view by
-    `showAddCard` (default on). Creating a note is a fixed pipeline whose ORDER is the
+44. **Quick capture (issue #46).** Every status column carries two entry points — a **+** in
+    its header and an **Add card** footer under the cards (never on the synthetic Unmapped
+    column: it has no status value to write) — toggled per view by `showAddCard` (default
+    on). Both are `<button>`s inside the header/column, so the column-reorder drag ignores
+    them (`column-dnd` bails on `target.closest('button')`). Creating a note is a fixed pipeline whose ORDER is the
     invariant: ensure folder → `vault.create('')` → open it when configured → apply the
     template (awaited) → write ALL card-defining frontmatter in ONE transaction.
     - **The template runs before the property write, never after.** Templater merges a
@@ -739,6 +741,10 @@ unset`; numbers compare numerically, else trimmed case-insensitive strings; miss
       `contains` filters ANDed at the top level are written onto the new note so it matches
       the view; `or` and `not` branches contribute nothing (a guess would write bogus
       frontmatter, while a miss is visible and reported).
+    - **The status is resolved exactly like every other status write:** the per-view override,
+      then the TARGET note type's own status property (so each lane of a mixed board writes
+      its own type's property), then the board-wide one — blank names falling through. The
+      value is the clicked column's, written last, so it is authoritative.
     - **Quick capture writes exactly one file.** The new card takes the order after the last
       card in its column — it never renumbers the column's other notes — and order is only
       written under the manual sort.

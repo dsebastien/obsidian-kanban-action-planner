@@ -119,8 +119,9 @@ to change status. Switch **Card sort** back to **Manual order** to restore your 
 
 ## Creating cards from the board (quick capture)
 
-Every status column has an **Add card** button at the bottom. Click it, type a name, press
-Enter, and a new note is created that appears as a card **in that column**.
+Every status column offers two ways in — a **+** in its header, always in reach at the top,
+and a labelled **Add card** button under the cards. Click either, type a name, press Enter,
+and a new note is created that appears as a card **in that column**.
 
 The dialog previews exactly what will happen before you commit: the full path the note will get
 (folder + name prefix/suffix) and which template will be applied.
@@ -174,6 +175,8 @@ present in the name you typed is not added twice — typing `Ship it (Task)` sta
 ### Notes
 
 - The **Unmapped** column has no Add button — it has no status value to write.
+- The header **+** does not start a column-reorder drag, and it is hidden while the column is
+  collapsed.
 - If a template **moves** the note somewhere the view's filters exclude, you get a notice saying
   where it went, instead of a card that never appears.
 - Turn the whole thing off per board with **Configure view → Columns → Show "Add card" in
