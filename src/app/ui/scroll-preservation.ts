@@ -118,6 +118,50 @@ export function restoreBoardScroll(rootEl: HTMLElement, snapshot: ScrollSnapshot
     restoreScrollEntries(boardScrollers(rootEl), snapshot)
 }
 
+/** Sub-pixel tolerance for anchor comparisons (fractional layout offsets). */
+const ANCHOR_EPSILON = 0.5
+
+/** One card's position inside its column scroller, measured from the scroller's visible top. */
+export interface ScrollAnchorCandidate {
+    /** The card's `data-card-key`. */
+    key: string
+    /** Distance (px) from the scroller's visible top edge; negative = scrolled past. */
+    top: number
+}
+
+/**
+ * Pick the card whose on-screen position must stay put across a reorder that
+ * sends `movedKey` far away (Send to top / Send to bottom, issue #78): the
+ * first card at or below the scroller's visible top edge that is NOT the moved
+ * card. `candidates` must be in DOM order.
+ *
+ * Anchoring to the TOP of the viewport — rather than following the moved card —
+ * is what makes the move feel local: the cards the user is looking at stay
+ * where they are and simply close the gap the card left behind. Returns null
+ * when there is nothing to anchor to (moved card only, or every other card
+ * scrolled above the top edge), in which case the raw scrollTop is kept.
+ */
+export function pickScrollAnchor(
+    candidates: readonly ScrollAnchorCandidate[],
+    movedKey: string
+): ScrollAnchorCandidate | null {
+    for (const candidate of candidates) {
+        if (candidate.key === movedKey) continue
+        if (candidate.top >= -ANCHOR_EPSILON) return candidate
+    }
+    return null
+}
+
+/**
+ * The delta to ADD to a scroller's `scrollTop` to bring an anchor card back to
+ * its captured offset. Sub-pixel differences return 0 so an unchanged scroller
+ * is never written to.
+ */
+export function anchorScrollDelta(saved: number, current: number): number {
+    const delta = current - saved
+    return Math.abs(delta) < ANCHOR_EPSILON ? 0 : delta
+}
+
 /** The calendar mode's scrollers: backlog panel list, grid pane, focused-day list (finding 2.1). */
 export const CALENDAR_SCROLLER_SELECTORS: readonly string[] = [
     '.kap-panel-list',

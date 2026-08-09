@@ -213,7 +213,10 @@ When a new business rule is mentioned:
     (`refocusCardKey`). Honors reduced-motion (no new animation; the board's reduced-motion
     rules apply). The context menu also offers **Send to top / Send to bottom** (issue #78) —
     same `applyMove` path (index `0` / column length), no-op when the card is already at that
-    edge, and hidden while a non-manual sort owns the order (rule 25).
+    edge, and hidden while a non-manual sort owns the order (rule 25). Send to top/bottom keeps
+    the viewport put: focus follows the card but the reveal-scroll is suppressed
+    (`refocusReveal`), and the column is re-pinned to the first card at/below its visible top
+    edge (`pickScrollAnchor`) so the remaining cards just close the gap the card left behind.
 22. **Multi-select + bulk actions (issue #18).** A toolbar **Select** toggle enters select mode:
     click toggles a card's selection, Shift-click selects a range (board order). An action bar
     (shown when ≥1 selected) offers bulk **Set status** (per-column menu, incl. clear),

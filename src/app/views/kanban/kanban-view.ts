@@ -127,7 +127,12 @@ import type { EmbedParams } from '../../domain/embed-params'
 import { CalendarDnd } from '../../ui/calendar/calendar-dnd'
 import { formatDate } from '../../utils/momentjs'
 import { boardStructureWillChange, patchBoard } from '../../ui/board/board-renderer'
-import { captureBoardScroll, restoreBoardScroll } from '../../ui/scroll-preservation'
+import {
+    anchorScrollDelta,
+    captureBoardScroll,
+    pickScrollAnchor,
+    restoreBoardScroll
+} from '../../ui/scroll-preservation'
 import {
     boardRenderSignature,
     cardSignature,
@@ -214,6 +219,19 @@ interface ObsidianSettings {
  * out of the view's filters, hence the bound.
  */
 const REVEAL_NEW_CARD_TIMEOUT_MS = 5000
+
+/**
+ * A captured "keep this card where it is" anchor inside one column's card list,
+ * consumed by the render pass that follows a Send to top / Send to bottom.
+ */
+interface PendingScrollAnchor {
+    laneId: string
+    columnId: string
+    /** The anchor card's key (never the moved card's). */
+    key: string
+    /** The anchor card's offset from the scroller's visible top, at capture time. */
+    top: number
+}
 
 interface TriageValueOverride {
     /** The card the value was written to (card key = vault path). */
@@ -340,6 +358,19 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
      * after Bases re-runs its query.
      */
     private refocusUntil = 0
+    /**
+     * Whether {@link applyRefocus} may reveal-scroll the refocused card. False
+     * for moves that must not move the viewport (Send to top / Send to bottom):
+     * the card travels the length of the column, so revealing it would yank the
+     * user away from what they were looking at. Reset when the key is consumed.
+     */
+    private refocusReveal = true
+    /**
+     * Column scroll anchor to re-pin after the next board render, so a Send to
+     * top / Send to bottom keeps the visible cards where they are (see
+     * {@link pickScrollAnchor}).
+     */
+    private pendingScrollAnchor: PendingScrollAnchor | null = null
 
     // Multi-select + bulk actions (issue #18) — owned by the BoardSelection controller.
     private selectionBarEl: HTMLElement | null = null
@@ -1225,6 +1256,9 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         // invalidates the scroll and the focus scroll can override the
         // anchors just restored.
         this.applyRefocus()
+        // Last, so nothing above can override it: a Send to top/bottom pins its
+        // column back to the card the user was looking at (issue #78 follow-up).
+        this.applyPendingScrollAnchor()
         this.commitRenderPass()
     }
 
@@ -1377,12 +1411,65 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             // filters can't pin the render gate open forever.
             if (window.performance.now() < this.refocusUntil) return
             this.refocusCardKey = null
+            this.refocusReveal = true
             return
         }
         this.refocusCardKey = null
         this.refocusUntil = 0
+        const reveal = this.refocusReveal
+        this.refocusReveal = true
         el.focus({ preventScroll: true })
-        el.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+        // Focus still follows the card (keyboard flow, screen readers), but a
+        // Send to top/bottom deliberately skips the reveal: the viewport stays
+        // put instead of chasing the card to the far end of the column.
+        if (reveal) el.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+    }
+
+    /** One column's card-list scroller in the rendered board (null when not mounted). */
+    private columnCardsEl(laneId: string, columnId: string): HTMLElement | null {
+        if (!this.boardEl) return null
+        const colEl = this.boardEl.querySelector<HTMLElement>(
+            `.kap-column[data-column-id="${cssEscapeAttr(columnId)}"][data-lane-id="${cssEscapeAttr(laneId)}"]`
+        )
+        return colEl?.querySelector<HTMLElement>(':scope > .kap-column-cards') ?? null
+    }
+
+    /**
+     * Snapshot the anchor card that must stay put while `movedKey` is sent to
+     * the top/bottom of its column. Null when the column does not scroll (there
+     * is nothing to preserve) or nothing suitable is in view.
+     */
+    private captureCardScrollAnchor(
+        laneId: string,
+        columnId: string,
+        movedKey: string
+    ): PendingScrollAnchor | null {
+        const listEl = this.columnCardsEl(laneId, columnId)
+        if (!listEl || listEl.scrollHeight <= listEl.clientHeight) return null
+        const listTop = listEl.getBoundingClientRect().top
+        const anchor = pickScrollAnchor(
+            Array.from(listEl.querySelectorAll<HTMLElement>(':scope > .kap-card')).map((el) => ({
+                key: el.dataset['cardKey'] ?? '',
+                top: el.getBoundingClientRect().top - listTop
+            })),
+            movedKey
+        )
+        return anchor ? { laneId, columnId, key: anchor.key, top: anchor.top } : null
+    }
+
+    /** Re-pin the captured anchor after the reorder rendered (see {@link captureCardScrollAnchor}). */
+    private applyPendingScrollAnchor(): void {
+        const anchor = this.pendingScrollAnchor
+        if (!anchor) return
+        this.pendingScrollAnchor = null
+        const listEl = this.columnCardsEl(anchor.laneId, anchor.columnId)
+        const el = listEl?.querySelector<HTMLElement>(
+            `:scope > .kap-card[data-card-key="${cssEscapeAttr(anchor.key)}"]`
+        )
+        if (!listEl || !el) return
+        const current = el.getBoundingClientRect().top - listEl.getBoundingClientRect().top
+        const delta = anchorScrollDelta(anchor.top, current)
+        if (delta !== 0) listEl.scrollTop += delta
     }
 
     // ── Multi-select + bulk actions (issue #18) ───────────────
@@ -2789,7 +2876,16 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         const atEdge =
             edge === 'top' ? loc.cardIndex === 0 : loc.cardIndex === column.cards.length - 1
         if (atEdge) return
+        // The card travels the whole column, so neither the reveal-scroll nor the
+        // raw scrollTop keeps the user in place: anchor the column to a card that
+        // stays visible, and let the rest close the gap the card left behind.
+        this.pendingScrollAnchor = this.captureCardScrollAnchor(
+            loc.laneId,
+            column.column.id,
+            card.key
+        )
         this.refocusCardKey = card.key
+        this.refocusReveal = false
         void this.applyMove(card, card.statusValue, loc.laneId, column.column.id, target)
     }
 

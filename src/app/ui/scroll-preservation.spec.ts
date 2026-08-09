@@ -1,9 +1,11 @@
 import { test, expect, describe } from 'bun:test'
 import {
     LANE_STACK_SCROLL_KEY,
+    anchorScrollDelta,
     captureScrollEntries,
     clampScrollOffset,
     columnScrollKey,
+    pickScrollAnchor,
     pruneStaleContent,
     restoreScrollEntries,
     restoreScrollPosition
@@ -157,6 +159,63 @@ describe('restoreScrollEntries', () => {
         restoreScrollEntries([['a', el]], new Map())
         expect(el.topWrites).toBe(0)
         expect(el.scrollTop).toBe(10)
+    })
+})
+
+describe('pickScrollAnchor', () => {
+    // A column scrolled so cards a/b sit above the visible top edge.
+    const cards = [
+        { key: 'a', top: -220 },
+        { key: 'b', top: -110 },
+        { key: 'c', top: 4 },
+        { key: 'd', top: 114 }
+    ]
+
+    test('anchors on the first card at/below the visible top edge', () => {
+        expect(pickScrollAnchor(cards, 'a')).toEqual({ key: 'c', top: 4 })
+    })
+
+    test('never anchors on the card being moved', () => {
+        expect(pickScrollAnchor(cards, 'c')).toEqual({ key: 'd', top: 114 })
+    })
+
+    test('anchors on a card sitting exactly at the top edge', () => {
+        expect(pickScrollAnchor([{ key: 'a', top: 0 }], 'z')).toEqual({ key: 'a', top: 0 })
+    })
+
+    test('tolerates a sub-pixel offset above the edge', () => {
+        expect(pickScrollAnchor([{ key: 'a', top: -0.25 }], 'z')?.key).toBe('a')
+    })
+
+    test('returns null when the moved card is the only one in view', () => {
+        expect(
+            pickScrollAnchor(
+                [
+                    { key: 'a', top: -110 },
+                    { key: 'b', top: 4 }
+                ],
+                'b'
+            )
+        ).toBeNull()
+    })
+
+    test('returns null for an empty column', () => {
+        expect(pickScrollAnchor([], 'a')).toBeNull()
+    })
+})
+
+describe('anchorScrollDelta', () => {
+    test('reports how far the anchor drifted down (scroll down by that much)', () => {
+        expect(anchorScrollDelta(4, 114)).toBe(110)
+    })
+
+    test('reports a negative delta when the anchor drifted up', () => {
+        expect(anchorScrollDelta(114, 4)).toBe(-110)
+    })
+
+    test('ignores sub-pixel drift (no scroll write)', () => {
+        expect(anchorScrollDelta(4, 4.25)).toBe(0)
+        expect(anchorScrollDelta(4, 4)).toBe(0)
     })
 })
 

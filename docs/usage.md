@@ -95,7 +95,8 @@ until you define your statuses.
 - **Drag a card within a column** to reorder it. The new position is saved to a
   `manual_order` property on the note.
 - **Right-click a card → Send to top / Send to bottom** to jump it to either end of its column
-  without dragging.
+  without dragging. The column stays where you are scrolled — the card leaves and the others
+  close the gap.
 - **Drag a card to the Unmapped column** to clear its status.
 - **Drag a column header left or right** to reorder the columns. The new order is saved to _this
   board_ (the per-view status list) and takes precedence over the default order. The Unmapped
