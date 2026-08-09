@@ -126,6 +126,13 @@ and a new note is created that appears as a card **in that column**.
 The dialog previews exactly what will happen before you commit: the full path the note will get
 (folder + name prefix/suffix) and which template will be applied.
 
+![Creating a task from a board]({{ '/images/quick-capture.png' | relative_url }})
+
+The dialog follows the note type the board is about, so the same **+** on a goals board creates a
+goal, in the goals folder, landing in the column you clicked:
+
+![Creating a goal from a goals board]({{ '/images/quick-capture-note-type.png' | relative_url }})
+
 ### What the new note gets
 
 - **The column's status.** Written last, so it is authoritative — see "Templates" below.

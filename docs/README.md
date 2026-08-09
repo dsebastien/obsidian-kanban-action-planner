@@ -91,6 +91,9 @@ every change written straight back into your notes.
   lands in that exact column — including whatever the Base filters on, so the card really does
   show up. Templates are applied through Templater (before the card's properties are written, so
   a template that prompts for a status can't override the column you clicked).
+
+![Quick capture]({{ '/images/quick-capture.png' | relative_url }})
+
 - **Obsidian Starter Kit aware.** The plugin works fully on its own. The
   [Obsidian Starter Kit](https://store.dsebastien.net/product/obsidian-starter-kit) is completely optional — but if you use it, the board configures
   itself: columns, note types, colors per status, lanes on mixed boards, and the folder +

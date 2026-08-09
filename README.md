@@ -40,6 +40,14 @@ Slice any view by GTD contexts (`@work`, `@home`, …) from the toolbar **@** sw
 
 ![Filter a board by a context](docs/images/contexts.png)
 
+Create cards straight from the board. The dialog shows where the note will land and in which column, before you commit:
+
+![Quick capture](docs/images/quick-capture.png)
+
+It follows the note type the board is about, so the same **+** creates a goal on a goals board:
+
+![Quick capture on a goals board](docs/images/quick-capture-note-type.png)
+
 When a backlog gets overwhelming, work through it one card at a time in Triage mode:
 
 ![Triage mode](docs/images/triage.png)
