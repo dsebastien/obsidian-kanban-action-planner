@@ -113,7 +113,12 @@ When a new business rule is mentioned:
    read-only and resolved from the metadata cache, the view also rebuilds on
    `metadataCache.on('changed')` for any note currently on the board — so editing a `blocked_by`
    link (or any frontmatter) in place updates the card without a reload, even when the Base result
-   set is unchanged (`onDataUpdated` alone would miss it).
+   set is unchanged (`onDataUpdated` alone would miss it). **The vault is the authority on
+   existence:** a Bases result is a snapshot, and Bases does not re-run its query while the leaf is
+   hidden, so every consumer of the result (`files()`, `entriesByPath`) drops entries whose file no
+   longer exists — otherwise deleting a note from elsewhere in Obsidian leaves a ghost card on the
+   board (and the plugin reads a missing file). The `delete`/`rename` listeners still match against
+   the RAW result paths (`entryPaths()`), or the just-deleted note would schedule no rebuild.
    **Editable from the board (issue #14, supersedes the former read-only rule).** A card's
    right-click **Relationships** submenu can **add** (per role with a non-empty link-property — "None"
    roles are not addable) and **remove** a relationship. Writes manage **direct** links only — the

@@ -739,7 +739,9 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
      * an in-place edit, archive (move), or delete of it should refresh the board.
      */
     private affectsBoard(path: string): boolean {
-        if (this.files().some((f) => f.path === path)) return true
+        // The raw paths, not `files()`: a delete event must still match the
+        // note that was just removed, or no rebuild would drop its card.
+        if (this.entryPaths().includes(path)) return true
         for (const set of this.relationshipsByPath.values()) {
             if (
                 set.blocked_by.includes(path) ||
@@ -826,16 +828,43 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
 
     // ── Build ─────────────────────────────────────────────────
 
+    /**
+     * The Bases result's notes, minus any that no longer exist in the vault.
+     *
+     * A Bases query result is a snapshot: when a note is deleted while this
+     * leaf is not the visible one, Bases does not re-run the query, so the
+     * deleted note stays in `data` — and the plugin's own `delete` handler
+     * would then rebuild a GHOST card for a file that is gone (and read it,
+     * raising ENOENT). The vault is the authority on existence, so every
+     * consumer of the result set filters on it.
+     *
+     * `affectsBoard` deliberately does NOT use this — it must still recognize
+     * the just-deleted path to schedule the refreshing rebuild.
+     */
     private files(): TFile[] {
         const entries = this.data?.data ?? []
-        return entries.map((e) => e.file).filter((f): f is TFile => f instanceof TFile)
+        return entries
+            .map((e) => e.file)
+            .filter((f): f is TFile => f instanceof TFile && this.fileStillExists(f))
+    }
+
+    /** Whether the vault still has a file at this note's path (see {@link files}). */
+    private fileStillExists(file: TFile): boolean {
+        return this.app.vault.getFileByPath(file.path) !== null
+    }
+
+    /** Every path in the raw Bases result, deleted notes included (see {@link files}). */
+    private entryPaths(): string[] {
+        return (this.data?.data ?? [])
+            .filter((e) => e.file instanceof TFile)
+            .map((e) => e.file.path)
     }
 
     /** Index the current Bases entries by path so computed columns can be read per card (#50). */
     private refreshEntries(): void {
         this.entriesByPath = new Map(
             (this.data?.data ?? [])
-                .filter((e) => e.file instanceof TFile)
+                .filter((e) => e.file instanceof TFile && this.fileStillExists(e.file))
                 .map((e) => [e.file.path, e])
         )
     }
