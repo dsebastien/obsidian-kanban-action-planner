@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.13.0](https://github.com/dsebastien/obsidian-kanban-action-planner/compare/1.12.0...1.13.0) (2026-08-11)
+
+### Features
+
+* **plugin:** add a quick-capture + button to column headers ([dbaacdc](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/dbaacdc90d3ff524d9564ef4438a18f17cb47e03))
+* **plugin:** create cards from the board (quick capture) ([787af77](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/787af7764eec811cd04062c2efaae92a87117ddf)), closes [#46](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/46)
+
+### Bug Fixes
+
+* **plugin:** drop cards for notes deleted outside the board ([23def47](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/23def475b0742ec8c08833e71285c8436333497b))
+* **plugin:** keep the column scroll put on send to top/bottom ([2b4b77f](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/2b4b77f24478f31c59ca22c39044462327656007))
+* **plugin:** stop dragged cards snapping back to their old column ([aa4cd19](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/aa4cd19ed98cfae61798cf68d4c03fe13eb5c16d))
+
 ## [1.12.0](https://github.com/dsebastien/obsidian-kanban-action-planner/compare/1.11.0...1.12.0) (2026-07-29)
 
 ### Features
@@ -373,6 +386,7 @@ All notable changes to this project will be documented in this file.
 
 * **plugin:** match Starter Kit's {{quarter}} placeholder format (Q2, not 2) ([4fde618](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/4fde6185c5956e3f6fd2ca3a9b03e70cf5e16840))
 * **plugin:** persist discovered statuses so Show empty columns works ([cf91b81](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/cf91b81a1b0786e35c73f4885882e2dc33564c62))
+
 
 
 

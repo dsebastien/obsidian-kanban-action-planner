@@ -1,5 +1,18 @@
 # Release Notes
 
+## 1.13.0 (2026-08-11)
+
+### Features
+
+- **plugin:** add a quick-capture + button to column headers
+- **plugin:** create cards from the board (quick capture)
+
+### Bug Fixes
+
+- **plugin:** drop cards for notes deleted outside the board
+- **plugin:** keep the column scroll put on send to top/bottom
+- **plugin:** stop dragged cards snapping back to their old column
+
 ## 1.12.0 (2026-07-29)
 
 ### Features
