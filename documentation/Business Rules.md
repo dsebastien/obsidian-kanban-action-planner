@@ -362,7 +362,15 @@ When a new business rule is mentioned:
     its card through `liveCard()` first — reused DOM nodes keep handlers that close over
     pre-rebuild card objects. Failed writes roll back precisely (lane value revert; bulk paths
     revert/restore only the failed cards) — optimistic state never outlives a write that didn't
-    land.
+    land. **Pending status writes** (`domain/pending-write.ts`): the optimistic model is recreated
+    from the metadata cache by every rebuild, and Obsidian re-parses a written note on its own
+    schedule — so a rebuild landing in that window used to re-derive the OLD status and snap the
+    card back to the column it was dragged out of. `applyMove` records `{value, previous, until}`
+    per card and `toCard` prefers the written value **only** while the cache still holds exactly
+    the superseded value, dropping the record as soon as the cache reports anything else (our
+    write, or an edit made elsewhere — never masked) or after a 5s deadline (a write that never
+    landed must not pin the board to a value that isn't on disk). A failed write clears it before
+    re-deriving.
 33. **Card title source (issue #4).** The card heading is the **note name by default**, or a
     **per-view `titleProperty`** (Configure view → Cards; any `note.*`/`formula.*`/`file.*` id,
     read-only) when set. Resolution is `resolveCardTitle` in `card-display.service.ts`

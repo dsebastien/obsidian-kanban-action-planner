@@ -122,6 +122,8 @@ import {
     setZoomTerm
 } from '../../domain/filter-query'
 import type { CardSearchRecord, FilterContext, FilterQuery } from '../../domain/filter-query'
+import { resolvePendingWrite } from '../../domain/pending-write'
+import type { PendingWrite } from '../../domain/pending-write'
 import { parseEmbedParams } from '../../domain/embed-params'
 import type { EmbedParams } from '../../domain/embed-params'
 import { CalendarDnd } from '../../ui/calendar/calendar-dnd'
@@ -219,6 +221,13 @@ interface ObsidianSettings {
  * out of the view's filters, hence the bound.
  */
 const REVEAL_NEW_CARD_TIMEOUT_MS = 5000
+
+/**
+ * How long a card move's status write outranks the metadata cache (issue #64
+ * follow-up). Long enough to cover a slow re-parse, short enough that a write
+ * which never landed corrects itself instead of leaving the board lying.
+ */
+const PENDING_STATUS_WRITE_TIMEOUT_MS = 5000
 
 /**
  * A captured "keep this card where it is" anchor inside one column's card list,
@@ -371,6 +380,13 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
      * {@link pickScrollAnchor}).
      */
     private pendingScrollAnchor: PendingScrollAnchor | null = null
+    /**
+     * Status writes not yet observed in the metadata cache, keyed by card path.
+     * A rebuild landing in that window would otherwise re-derive the card from
+     * the pre-write cache and snap it back to the column it was dragged out of
+     * (see {@link resolvePendingWrite}).
+     */
+    private readonly pendingStatusWrites = new Map<string, PendingWrite>()
 
     // Multi-select + bulk actions (issue #18) — owned by the BoardSelection controller.
     private selectionBarEl: HTMLElement | null = null
@@ -2132,10 +2148,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         // The card's own type's status property (mixed boards) — per-view
         // override and board default fall out of statusPropertyForFile.
         const statusProperty = this.statusPropertyForFile(file)
-        const statusValue =
-            statusProperty === null
-                ? null
-                : normalizeStatusValue(getFrontmatterValue(this.app, file, statusProperty))
+        const statusValue = this.settledStatus(file.path, this.cachedStatus(file, statusProperty))
         const order = coerceOrder(getFrontmatterValue(this.app, file, this.orderProperty))
         const display = this.cardDisplayFor(file)
         const laneValue =
@@ -2152,6 +2165,26 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             relationships,
             contexts: this.contextsForFile(file)
         }
+    }
+
+    /** A note's status exactly as the metadata cache currently holds it. */
+    private cachedStatus(file: TFile, statusProperty: string | null): string | null {
+        if (statusProperty === null) return null
+        return normalizeStatusValue(getFrontmatterValue(this.app, file, statusProperty))
+    }
+
+    /**
+     * The status to render for a note: the cached one, unless a move's write is
+     * still in flight and the cache has not caught up yet — see
+     * {@link resolvePendingWrite}. A settled write is forgotten here, so the
+     * override lives exactly as long as the staleness it covers.
+     */
+    private settledStatus(path: string, cached: string | null): string | null {
+        const pending = this.pendingStatusWrites.get(path)
+        if (!pending) return cached
+        const resolved = resolvePendingWrite(pending, cached, window.performance.now())
+        if (resolved.settled) this.pendingStatusWrites.delete(path)
+        return resolved.value
     }
 
     /** A note's GTD contexts (original casing, note order), or `[]` when unset. */
@@ -2369,7 +2402,20 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         }
 
         const previousStatus = card.statusValue
-        if (statusChanged) card.statusValue = newStatus
+        if (statusChanged) {
+            card.statusValue = newStatus
+            // Outrank the metadata cache until it reports the write (issue #64
+            // follow-up): the optimistic model below is recreated by every
+            // rebuild from the cache, so a rebuild landing before Obsidian
+            // re-parses the note would snap the card back to its old column.
+            // `previous` is read from the cache, not from the model, so a
+            // second move of the same card records the value it must mask.
+            this.pendingStatusWrites.set(card.key, {
+                value: newStatus,
+                previous: this.cachedStatus(card.file, statusProperty),
+                until: window.performance.now() + PENDING_STATUS_WRITE_TIMEOUT_MS
+            })
+        }
         this.applyFilterAndRender()
 
         // Persist. Each write triggers onDataUpdated → a debounced rebuild that
@@ -2395,7 +2441,9 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         } catch (error) {
             // A failed write leaves disk behind the optimistic model, and no
             // echo will correct it — re-derive everything from the metadata
-            // cache so the board shows what actually landed.
+            // cache so the board shows what actually landed. Drop the pending
+            // write first, or it would mask the very state being re-derived.
+            this.pendingStatusWrites.delete(card.key)
             log('Card move write failed; re-deriving the board state.', 'error', error)
             new Notice('Failed to save the card move.')
             void this.resolveAndRebuild()
