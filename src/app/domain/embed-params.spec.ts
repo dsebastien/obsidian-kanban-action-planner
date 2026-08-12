@@ -3,7 +3,7 @@ import { parseEmbedParams } from './embed-params'
 import type { EmbedParams } from './embed-params'
 
 /** All-null params: what any alias without recognized keys must yield. */
-const NONE: EmbedParams = { mode: null, heightPx: null, contexts: [], filter: null }
+const NONE: EmbedParams = { mode: null, heightPx: null, contexts: [], columns: [], filter: null }
 
 describe('parseEmbedParams', () => {
     it('yields zero params for empty and blank aliases', () => {
@@ -75,6 +75,7 @@ describe('parseEmbedParams', () => {
             mode: 'board',
             heightPx: null,
             contexts: [],
+            columns: [],
             filter: 'due:<week parent:="My Project"'
         })
     })
@@ -90,8 +91,42 @@ describe('parseEmbedParams', () => {
             mode: 'board',
             heightPx: null,
             contexts: ['@work'],
+            columns: [],
             filter: 'status:doing'
         })
+    })
+
+    it('parses columns= as a comma-separated list with optional quotes', () => {
+        expect(parseEmbedParams('columns=todo').columns).toEqual(['todo'])
+        expect(parseEmbedParams('columns=todo,doing').columns).toEqual(['todo', 'doing'])
+        expect(parseEmbedParams('COLUMN=done').columns).toEqual(['done']) // key + singular alias
+        expect(parseEmbedParams('columns="10 TODO"').columns).toEqual(['10 TODO'])
+        expect(parseEmbedParams('columns="10 TODO","20 In progress"').columns).toEqual([
+            '10 TODO',
+            '20 In progress'
+        ])
+        expect(parseEmbedParams('columns="10 TODO",done').columns).toEqual(['10 TODO', 'done'])
+        expect(parseEmbedParams('columns=').columns).toEqual([]) // empty ignored
+        expect(parseEmbedParams('columns=,,').columns).toEqual([]) // blanks dropped
+        expect(parseEmbedParams('columns=a columns=b').columns).toEqual(['b']) // last wins
+        // Unterminated quote runs to the end of the token, never throws.
+        expect(parseEmbedParams('columns="10 TODO').columns).toEqual(['10 TODO'])
+    })
+
+    it('columns= must precede filter= (filter swallows the rest)', () => {
+        expect(parseEmbedParams('mode=board columns="10 TODO" filter=tag:urgent')).toEqual({
+            mode: 'board',
+            heightPx: null,
+            contexts: [],
+            columns: ['10 TODO'],
+            filter: 'tag:urgent'
+        })
+        expect(parseEmbedParams('filter=tag:urgent columns=todo').columns).toEqual([])
+    })
+
+    it('quoted runs elsewhere in the alias do not disturb other keys', () => {
+        expect(parseEmbedParams('"some words" mode=wbs').mode).toBe('wbs')
+        expect(parseEmbedParams('columns="a b" height=300').heightPx).toBe(300)
     })
 
     it('matches the filter key case-insensitively and ignores an empty filter', () => {
@@ -107,6 +142,7 @@ describe('parseEmbedParams', () => {
             mode: 'timeline',
             heightPx: 350,
             contexts: ['@work'],
+            columns: [],
             filter: 'status:doing'
         })
     })
@@ -116,6 +152,7 @@ describe('parseEmbedParams', () => {
             mode: 'triage',
             heightPx: 250,
             contexts: [],
+            columns: [],
             filter: null
         })
     })
@@ -125,6 +162,7 @@ describe('parseEmbedParams', () => {
             mode: 'calendar',
             heightPx: 500,
             contexts: [],
+            columns: [],
             filter: null
         })
         expect(parseEmbedParams('\tfilter=  title:foo  ').filter).toBe('title:foo') // outer trim only

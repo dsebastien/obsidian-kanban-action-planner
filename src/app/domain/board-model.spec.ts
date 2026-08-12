@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test'
-import { buildBoard, buildSingleLaneBoard } from './board-model'
+import { buildBoard, buildSingleLaneBoard, restrictBoardColumns } from './board-model'
 import type { BoardCardBase } from './board-model'
 import type { ColumnDef } from './note-type'
 import { splitStatusValue } from './status'
@@ -247,5 +247,67 @@ describe('buildBoard per-lane column sets (columnsForLane)', () => {
             '20 Doing',
             '30 Done'
         ])
+    })
+})
+
+describe('restrictBoardColumns', () => {
+    const cards = [card('a', '10 Todo', 1), card('b', '20 Doing', 1), card('c', 'Mystery', 1)]
+
+    it('returns the board unchanged for empty terms', () => {
+        const board = buildBoard(cards, columns, { grouped: false })
+        expect(restrictBoardColumns(board, [])).toBe(board)
+    })
+
+    it('keeps only columns matching a term (case-insensitive substring)', () => {
+        const board = restrictBoardColumns(buildBoard(cards, columns, { grouped: false }), ['todo'])
+        expect(board.lanes[0]?.columns.map((c) => c.column.id)).toEqual(['10 Todo'])
+        expect(board.lanes[0]?.columns[0]?.cards.map((c) => c.key)).toEqual(['a'])
+    })
+
+    it('matches the full status value as well as the label', () => {
+        const board = restrictBoardColumns(buildBoard(cards, columns, { grouped: false }), [
+            '20 Doing'
+        ])
+        expect(board.lanes[0]?.columns.map((c) => c.column.id)).toEqual(['20 Doing'])
+    })
+
+    it('keeps a set of columns, preserving board order', () => {
+        const board = restrictBoardColumns(buildBoard(cards, columns, { grouped: false }), [
+            'done',
+            'todo'
+        ])
+        expect(board.lanes[0]?.columns.map((c) => c.column.id)).toEqual(['10 Todo', '30 Done'])
+    })
+
+    it('matches the synthetic Unmapped column by label', () => {
+        const board = restrictBoardColumns(buildBoard(cards, columns, { grouped: false }), [
+            'unmapped'
+        ])
+        expect(board.lanes[0]?.columns.map((c) => c.column.id)).toEqual([UNMAPPED_COLUMN_ID])
+        expect(board.lanes[0]?.columns[0]?.cards.map((c) => c.key)).toEqual(['c'])
+    })
+
+    it('yields empty lanes when nothing matches (typo stays visible)', () => {
+        const board = restrictBoardColumns(buildBoard(cards, columns, { grouped: false }), ['nope'])
+        expect(board.lanes[0]?.columns).toEqual([])
+    })
+
+    it('applies per lane on a grouped board and keeps lane cardCount intact', () => {
+        const grouped = buildBoard(
+            [
+                { ...card('a', '10 Todo', 1), laneValue: 'L1' },
+                { ...card('b', '20 Doing', 1), laneValue: 'L1' },
+                { ...card('c', '10 Todo', 1), laneValue: 'L2' }
+            ],
+            columns,
+            { grouped: true }
+        )
+        const board = restrictBoardColumns(grouped, ['doing'])
+        expect(board.isMultiLane).toBe(true)
+        for (const lane of board.lanes) {
+            expect(lane.columns.every((c) => c.column.id === '20 Doing')).toBe(true)
+        }
+        expect(board.lanes[0]?.cardCount).toBe(2)
+        expect(board.lanes[1]?.cardCount).toBe(1)
     })
 })

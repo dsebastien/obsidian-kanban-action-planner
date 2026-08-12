@@ -51,6 +51,13 @@ single project with a `filter=parent:…` override:
 - `context=` — pin the embed to one or more [contexts](#contexts-work-home-) (comma-separated,
   no spaces), e.g. `context=@work` or `context=@work,@home`. Put it **before** `filter=` (which
   swallows the rest of the alias).
+- `columns=` — show only the named board column(s), e.g. a single Doing column or a
+  Todo + Doing subset. Comma-separated; quote names containing spaces:
+  `columns="20 Doing"` or `columns=todo,doing`. Each name matches case-insensitively as a
+  substring of the column's status value or label (`todo` matches a `10 TODO` column;
+  `unmapped` matches the Unmapped bucket). Board mode only. The card menu still offers every
+  status, so a card moved to a hidden column simply leaves the embed. Put it **before**
+  `filter=`.
 - `filter=` — everything after `filter=` is the initial [filter query](#filtering-search-bar),
   exactly as you'd type it in the filter box (the match count shows in the toolbar as usual).
   One caveat: a wikilink alias can't contain `|`, so write `OR` instead of `|` in embed filters.

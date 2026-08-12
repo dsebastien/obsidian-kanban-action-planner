@@ -227,6 +227,36 @@ export function buildBoard<T extends BoardCardBase>(
     return { isMultiLane: lanes.length > 1, lanes }
 }
 
+/**
+ * Restrict a built board to the columns matching any of `terms` (issue #128:
+ * embedding a single column or a column subset). Each term is matched
+ * case-insensitively as a substring of the column's status value or label,
+ * so `todo` matches a "10 TODO" column and `unmapped` matches the synthetic
+ * Unmapped bucket. Applied per lane; lane `cardCount` keeps counting the
+ * lane's full card set — only the rendered columns shrink. Empty `terms`
+ * returns the board unchanged; terms matching nothing yield empty lanes
+ * (visible feedback for a typo rather than a silently ignored override).
+ */
+export function restrictBoardColumns<T extends BoardCardBase>(
+    board: Board<T>,
+    terms: ReadonlyArray<string>
+): Board<T> {
+    if (terms.length === 0) return board
+    const needles = terms.map((t) => t.toLowerCase())
+    const matches = (column: ColumnDef): boolean => {
+        const value = column.statusValue.toLowerCase()
+        const label = column.label.toLowerCase()
+        return needles.some((n) => value.includes(n) || label.includes(n))
+    }
+    return {
+        isMultiLane: board.isMultiLane,
+        lanes: board.lanes.map((lane) => ({
+            ...lane,
+            columns: lane.columns.filter((c) => matches(c.column))
+        }))
+    }
+}
+
 function singleLane<T extends BoardCardBase>(
     id: string,
     label: string,

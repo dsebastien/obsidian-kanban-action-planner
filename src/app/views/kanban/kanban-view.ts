@@ -36,7 +36,7 @@ import {
 } from '../../domain/automation'
 import { runAutomationRules } from '../../services/automation.service'
 import { archiveFolderPrefixes } from '../../domain/archive-paths'
-import { buildBoard } from '../../domain/board-model'
+import { buildBoard, restrictBoardColumns } from '../../domain/board-model'
 import { NO_TYPE_ID, groupByTypeAndStatus } from '../../domain/timeline'
 import { resolvePaneGroupDrop } from '../../domain/pane-drop'
 import type { EstimateConfig } from '../../domain/estimate'
@@ -1238,6 +1238,15 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
                     )
                 }))
             }
+        }
+        // Embed column restriction (issue #128): a `columns=` alias override
+        // narrows the rendered board to the matching columns only. The card
+        // menu still offers the full status vocabulary (this.columns), so a
+        // card can be moved out of the visible subset — it then simply
+        // leaves the embed.
+        const embedColumns = this.embedParams?.columns ?? []
+        if (embedColumns.length > 0) {
+            board = restrictBoardColumns(board, embedColumns)
         }
         this.board = board
         // The board MODEL above is always refreshed (handlers resolve cards
