@@ -22,8 +22,8 @@
  * unrecognized tokens are ignored (never throws).
  */
 
-/** The five mutually-exclusive view modes (Board / Calendar / Timeline / Triage / WBS). */
-export const VIEW_MODES = ['board', 'calendar', 'timeline', 'triage', 'wbs'] as const
+/** The six mutually-exclusive view modes (Board / Calendar / Timeline / WBS / Triage / Agenda). */
+export const VIEW_MODES = ['board', 'calendar', 'timeline', 'triage', 'wbs', 'agenda'] as const
 export type ViewMode = (typeof VIEW_MODES)[number]
 
 /** Height clamp bounds (px) for the `height=` param. */

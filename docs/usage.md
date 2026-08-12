@@ -44,8 +44,8 @@ single project with a `filter=parent:…` override:
 
 ![Embedded views in different modes]({{ '/images/embed-modes.png' | relative_url }})
 
-- `mode=` — `board` (or `kanban`), `calendar`, `timeline`, `triage`, or `wbs`. Editing the
-  embed line updates the rendered embed in place.
+- `mode=` — `board` (or `kanban`), `calendar`, `timeline`, `triage`, `wbs`, or `agenda`.
+  Editing the embed line updates the rendered embed in place.
 - `height=` — the embed's height cap in pixels (kept between 200 and 2000); the embed still
   shrinks below it when the content is smaller.
 - `context=` — pin the embed to one or more [contexts](#contexts-work-home-) (comma-separated,
@@ -380,6 +380,28 @@ The property names are **configurable** in **Settings → Community plugins → 
 under **Review (triage)**. They default to `last_reviewed`, `review_interval`, and `review_count`.
 A **Default review interval (days)** (default **30**) is used for notes that don't set their own
 interval. Review works on **any** Kanban view via the scope switch, with no per-view setup needed.
+
+## Agenda mode
+
+Where the board answers "what state is everything in", **Agenda** answers "what's on my plate
+right now": a flat, prioritized list of **Overdue**, **Today** (due or scheduled today), and
+**Upcoming** (due or scheduled in the next 7 days). Switch to it with the **Agenda** button at
+the end of the mode switch (or the **Toggle agenda mode** command).
+
+- The **Today / Week** switch controls the look-ahead: **Today** shows only overdue and
+  today's items; **Week** adds the Upcoming section.
+- **Available only** (on by default) hides cards that can't be started right now — deferred,
+  blocked, or done (see [Defer dates and availability](#defer-dates-and-availability-next-actions)).
+  The bar shows how many were hidden, and switching it off shows them muted in place.
+- Rows are sorted by date, then manual order, then title. **Click** to open the note
+  (Ctrl/Cmd-click for a new tab), **right-click** for the usual card menu — set the status,
+  reschedule, archive, and so on without leaving the list.
+- The agenda respects the active **filter** (and the Base's own filters), like every mode.
+- A past _scheduled_ date alone never lists a card — a slipped schedule is not an overdue
+  deadline. Reschedule it from the calendar, or give it a due date.
+
+The agenda is the "do" end of the workflow: triage clarifies, the board organizes, the
+calendar plans — the agenda tells you what's next **now**.
 
 ## Swimlanes (grouping)
 
@@ -979,9 +1001,10 @@ saved into the `.base` file, like the Board/Calendar/Triage mode).
 
 Each Kanban view remembers how you left it, **per view**, across reloads and reopening Obsidian:
 
-- Board vs **Calendar** vs **Timeline** vs **WBS** vs **Triage** mode, and the calendar
-  **range** (Week/Month/Quarter/Year), **active tab**, **panel collapsed** state, and the
-  **Scheduled/Deadlines** legend toggles.
+- Board vs **Calendar** vs **Timeline** vs **WBS** vs **Triage** vs **Agenda** mode, and the
+  calendar **range** (Week/Month/Quarter/Year), **active tab**, **panel collapsed** state, and
+  the **Scheduled/Deadlines** legend toggles.
+- The agenda **window** (Today/Week) and its **Available only** toggle.
 - The timeline **range** (Week/Month/Quarter/Year), its **panel collapsed** state, and its
   **hidden types**.
 - The WBS **collapsed nodes** and its **panel collapsed** state.
@@ -1247,6 +1270,7 @@ is active, and each can be given a hotkey in **Settings → Hotkeys**):
 - **Toggle timeline mode**
 - **Toggle WBS mode**
 - **Toggle triage mode** / **Configure triage**
+- **Toggle agenda mode**
 - **Focus filter**: jump to the filter box
 - **Clear filter**
 - **Go to next swimlane** / **Go to previous swimlane**

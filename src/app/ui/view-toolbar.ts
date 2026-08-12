@@ -68,6 +68,9 @@ export function renderViewToolbar(
     addModeButton(modeSwitch, 'Triage', state.mode === 'triage', () =>
         callbacks.onSetMode('triage')
     )
+    addModeButton(modeSwitch, 'Agenda', state.mode === 'agenda', () =>
+        callbacks.onSetMode('agenda')
+    )
 
     rightEl.empty()
     if (state.showLaneNav) {

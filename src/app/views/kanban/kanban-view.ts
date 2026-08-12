@@ -37,6 +37,9 @@ import {
 import { runAutomationRules } from '../../services/automation.service'
 import { archiveFolderPrefixes } from '../../domain/archive-paths'
 import { buildBoard, restrictBoardColumns, restrictBoardLanes } from '../../domain/board-model'
+import { buildAgenda } from '../../domain/agenda'
+import type { AgendaWindow } from '../../domain/agenda'
+import { renderAgendaView } from '../../ui/agenda/agenda-view'
 import { NO_TYPE_ID, groupByTypeAndStatus } from '../../domain/timeline'
 import { resolvePaneGroupDrop } from '../../domain/pane-drop'
 import type { EstimateConfig } from '../../domain/estimate'
@@ -114,6 +117,7 @@ import type { DateDimension } from '../../domain/calendar'
 import {
     getContextTerms,
     getZoomTerm,
+    isAvailable,
     isDeferred,
     isEmptyQuery,
     matchesFilterQuery,
@@ -828,6 +832,11 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         this.setViewMode(this.wbsMode() ? 'board' : 'wbs')
     }
 
+    /** Toggle agenda mode (returns to board when already in agenda) — issue #39. */
+    toggleAgenda(): void {
+        this.setViewMode(this.agendaMode() ? 'board' : 'agenda')
+    }
+
     /** Put the cursor in the filter box. */
     focusFilter(): void {
         this.filterBar?.focus()
@@ -1211,6 +1220,15 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             this.lastRenderSignature = null
             this.renderToolbar(false)
             this.wbs?.render(cards)
+            return
+        }
+
+        if (this.agendaMode()) {
+            // Ungated (cheap flat render; its date reads are not covered by
+            // the pass signature).
+            this.lastRenderSignature = null
+            this.renderToolbar(false)
+            this.renderAgenda(cards)
             return
         }
 
@@ -3365,6 +3383,10 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         return this.viewMode() === 'wbs'
     }
 
+    private agendaMode(): boolean {
+        return this.viewMode() === 'agenda'
+    }
+
     /** The active view mode (triage wins, else calendar, timeline, WBS, board). */
     private viewMode(): ViewMode {
         // Embed override (issue #103): ephemeral, independent of the flags
@@ -3374,6 +3396,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         if (this.viewConfig.get('calendarMode') === true) return 'calendar'
         if (this.viewConfig.get('timelineMode') === true) return 'timeline'
         if (this.viewConfig.get('wbsMode') === true) return 'wbs'
+        if (this.viewConfig.get('agendaMode') === true) return 'agenda'
         return 'board'
     }
 
@@ -3393,6 +3416,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             this.viewConfig.set('triageMode', mode === 'triage')
             this.viewConfig.set('timelineMode', mode === 'timeline')
             this.viewConfig.set('wbsMode', mode === 'wbs')
+            this.viewConfig.set('agendaMode', mode === 'agenda')
         }
         if (mode === 'triage') {
             // Fresh queue snapshot each time triage is (re)entered.
@@ -3423,6 +3447,59 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
     private toggleCompactMode(): void {
         this.viewConfig.set('compactMode', !this.compactMode())
         this.rebuild()
+    }
+
+    // ── Agenda mode (issue #39) ───────────────────────────────
+
+    /** The agenda look-ahead window, persisted per view (embed-safe overlay). */
+    private agendaWindow(): AgendaWindow {
+        return this.viewConfig.get('agendaWindow') === 'today' ? 'today' : 'week'
+    }
+
+    /** Whether the agenda hides unavailable cards (issue #113); default on. */
+    private agendaAvailableOnly(): boolean {
+        return this.viewConfig.get('agendaAvailableOnly') !== false
+    }
+
+    /**
+     * Render agenda mode (issue #39): a flat, prioritized Overdue / Today /
+     * Upcoming list over the SAME (already filtered) card set as the board.
+     * Availability (issue #113) comes from the search records so the two
+     * features share one definition.
+     */
+    private renderAgenda(cards: KanbanCard[]): void {
+        if (!this.boardEl) return
+        const today = startOfDay(new Date())
+        const inputs = cards.map((card) => {
+            const rec = this.searchByKey.get(card.key)
+            return {
+                ...card,
+                title: card.display.title,
+                due: rec?.due ?? null,
+                scheduled: parseFrontmatterDate(
+                    getFrontmatterValue(this.app, card.file, this.scheduledDateProperty)
+                ),
+                available: rec ? isAvailable(rec, today) : true
+            }
+        })
+        const model = buildAgenda(inputs, today, this.agendaWindow(), this.agendaAvailableOnly())
+        renderAgendaView(
+            this.boardEl,
+            model,
+            { window: this.agendaWindow(), availableOnly: this.agendaAvailableOnly(), today },
+            {
+                onOpen: (card, newTab) => this.openCard(card, newTab),
+                onContextMenu: (card, event) => this.showCardMenu(card, event),
+                onSetWindow: (window) => {
+                    this.viewConfig.set('agendaWindow', window)
+                    this.rebuild()
+                },
+                onToggleAvailableOnly: () => {
+                    this.viewConfig.set('agendaAvailableOnly', !this.agendaAvailableOnly())
+                    this.rebuild()
+                }
+            }
+        )
     }
 
     // ── Triage mode (issue #53) ───────────────────────────────

@@ -2771,6 +2771,111 @@
     }
 
     /* ========================================================================
+       AGENDA MODE (issue #39): a flat, prioritized Overdue / Today / Upcoming
+       list — lean rows (title + date chips), window switch + available-only
+       toggle in a small bar above the sections.
+       ======================================================================== */
+
+    .kap-root .kap-agenda {
+        @apply flex h-full min-h-0 flex-col gap-3 overflow-y-auto p-2;
+        scrollbar-gutter: stable;
+    }
+
+    .kap-root .kap-agenda-bar {
+        @apply flex flex-wrap items-center gap-2;
+    }
+
+    .kap-agenda-available-toggle {
+        @apply cursor-pointer rounded-md px-2 py-1 text-xs;
+        background: var(--background-secondary);
+        color: var(--text-muted);
+        border: 1px solid var(--background-modifier-border);
+    }
+
+    .kap-agenda-available-toggle.kap-agenda-toggle-active {
+        background: var(--interactive-accent);
+        color: var(--text-on-accent);
+        border-color: var(--interactive-accent);
+    }
+
+    .kap-agenda-hidden-count {
+        @apply text-xs;
+        color: var(--text-faint);
+    }
+
+    .kap-agenda-group-title {
+        @apply mb-1 flex items-baseline gap-2 text-sm font-semibold;
+        color: var(--text-normal);
+    }
+
+    .kap-agenda-group-overdue .kap-agenda-group-title {
+        color: var(--text-error);
+    }
+
+    .kap-agenda-group-count {
+        @apply text-xs font-normal;
+        color: var(--text-faint);
+    }
+
+    .kap-agenda-list {
+        @apply flex flex-col gap-1;
+    }
+
+    .kap-agenda-row {
+        @apply flex cursor-pointer items-center gap-2 rounded-md px-3 py-1.5;
+        background: var(--background-primary);
+        border: 1px solid var(--background-modifier-border);
+    }
+
+    .kap-agenda-row:hover {
+        background: var(--background-modifier-hover);
+    }
+
+    .kap-agenda-row:focus-visible {
+        outline: 2px solid var(--interactive-accent);
+        outline-offset: -1px;
+    }
+
+    .kap-agenda-row-unavailable {
+        opacity: 0.55;
+    }
+
+    .kap-agenda-row-title {
+        @apply min-w-0 flex-1 truncate text-sm;
+        color: var(--text-normal);
+    }
+
+    .kap-agenda-row-chips {
+        @apply flex shrink-0 items-center gap-1;
+    }
+
+    .kap-agenda-chip {
+        @apply rounded px-1.5 py-0.5 text-xs whitespace-nowrap;
+        background: var(--background-secondary);
+        color: var(--text-muted);
+    }
+
+    .kap-agenda-chip-overdue {
+        @apply font-semibold;
+        color: var(--text-error);
+        background: color-mix(
+            in srgb,
+            var(--color-red, var(--text-error)) 14%,
+            var(--background-secondary)
+        );
+    }
+
+    .kap-agenda-chip-today {
+        @apply font-semibold;
+        color: var(--color-orange, var(--text-warning, var(--text-muted)));
+    }
+
+    .kap-agenda-empty {
+        @apply py-8 text-center text-sm;
+        color: var(--text-faint);
+    }
+
+    /* ========================================================================
        WBS mode (issue #76): the "Needs planning" panel (shared
        .kap-scheduling-panel shell + the calendar's ugroup headers) beside a
        flat indented tree — one .kap-wbs-row per visible node.
