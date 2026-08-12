@@ -16,7 +16,11 @@ export function buildCardSearchRecord(
     app: App,
     card: KanbanCard,
     dueDateProperty: string,
-    ancestorLabels: ReadonlyArray<string> = []
+    ancestorLabels: ReadonlyArray<string> = [],
+    /** Defer ("can't start until") property, backing `defer:`/`is:` (issue #113). */
+    deferDateProperty: string | null = null,
+    /** Whether the note counts as done per its type's done definition (issue #113). */
+    done = false
 ): CardSearchRecord {
     const file = card.file
     const cache = app.metadataCache.getFileCache(file)
@@ -52,6 +56,9 @@ export function buildCardSearchRecord(
     }
 
     const due = parseFrontmatterDate(getFrontmatterValue(app, file, dueDateProperty))
+    const defer = deferDateProperty
+        ? parseFrontmatterDate(getFrontmatterValue(app, file, deferDateProperty))
+        : null
 
     return {
         title: card.display.title.toLowerCase(),
@@ -64,6 +71,8 @@ export function buildCardSearchRecord(
         ancestors: ancestorLabels.map((l) => l.toLowerCase()),
         tags,
         due,
+        defer,
+        done,
         props
     }
 }

@@ -19,6 +19,7 @@ function noteTypeWith(done: NoteType['done'], statusProperty = 'status'): NoteTy
             enabled: false,
             scheduledDateProperty: 'scheduled',
             dueDateProperty: 'due',
+            deferDateProperty: '',
             dateFormat: 'YYYY-MM-DD',
             defaultRange: 'month',
             tabSort: 'order'

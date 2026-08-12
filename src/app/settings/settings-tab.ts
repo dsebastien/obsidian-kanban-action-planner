@@ -278,6 +278,13 @@ export class KanbanActionPlannerSettingTab extends PluginSettingTab {
         )
         text('Due date property', 'Date a note is due.', 'defaultDueDateProperty', 'date_due')
         text(
+            'Defer date property',
+            'Date before which a note cannot be started ("can\'t start until"). ' +
+                'Deferred cards render muted and are excluded by the is:available filter.',
+            'defaultDeferDateProperty',
+            'date_defer'
+        )
+        text(
             'Estimate property',
             'Days a note is expected to take. The default for every note type — a note ' +
                 'type can override the property and unit (days or minutes) in its ' +

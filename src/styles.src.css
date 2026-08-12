@@ -1098,6 +1098,19 @@
         border-left-color: var(--text-error);
     }
 
+    /* A deferred card (defer date in the future, issue #113) is muted like
+       off-window timeline bars: visible but clearly not-yet-actionable. The
+       opacity channel keeps it distinguishable from blocked (left accent)
+       and overdue/due-today (background) — signals compose. */
+    .kap-card-deferred {
+        opacity: 0.55;
+    }
+
+    .kap-card-deferred:hover,
+    .kap-card-deferred:focus-visible {
+        opacity: 1;
+    }
+
     /* Due-date emphasis (issue #22). Uses the *background* channel so it reads at
        a glance and stays distinguishable from the blocked card's red *left
        accent* — a card that is both blocked and overdue shows both signals. */

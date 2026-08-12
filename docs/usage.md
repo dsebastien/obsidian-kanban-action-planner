@@ -228,8 +228,8 @@ Click the **?** for an in-app cheat-sheet.
 - **Comma = OR** within one property: `status:active,done`.
 - Recognized names: `title`, `status` (matches the value or its column label), `parent`,
   `ancestor` (any **transitive** parent — the parent, its parent, and so on), `child`,
-  `sibling`, `blocked`, `tag`, `due`, **or any frontmatter property** (e.g. `urgency:now`,
-  `effort:large`), even properties not shown on the card.
+  `sibling`, `blocked`, `tag`, `due`, `defer`, `is`, **or any frontmatter property**
+  (e.g. `urgency:now`, `effort:large`), even properties not shown on the card.
 - **`:` matches substrings; `:=` matches the whole value.** `parent:app` matches children of
   both `App` and `App Backend`; `parent:="App"` matches only `App` (still case-insensitive).
   Works for every qualifier (`status:=done`, `tag:=work`, …).
@@ -240,6 +240,23 @@ Click the **?** for an in-app cheat-sheet.
   `due:quarter` / `due:year` (the calendar period containing today).
 - Comparisons: `due:>2026-01-01`, `due:<2026-01-01`, `due:>=…`, `due:<=…`, or an exact day
   `due:2026-01-15`.
+
+**Defer dates and availability (Next actions)**
+
+A **defer date** ("can't start until") marks a card as not-yet-actionable until that day.
+The property is `date_defer` by default — change it globally in the plugin settings, or per
+note type via the type's calendar config. Cards deferred to the future render **muted** on
+the board (hover to read them normally).
+
+- `defer:` takes the same keywords and comparisons as `due:` (`defer:none`,
+  `defer:>2026-09-01`, …).
+- `is:` matches availability states: **`is:available`** (not deferred, not blocked, not
+  done — GTD's "next actions"), `is:deferred`, `is:blocked`, `is:done`. All negatable
+  (`-is:done`).
+
+Typing **`is:available`** in the filter box (or saving it with the view, or pinning it in an
+embed with `filter=is:available`) turns any board into a **Next actions** list: everything
+you see can actually be started now.
 
 Example: `book parent:"PKM" status:active OR due:overdue`.
 

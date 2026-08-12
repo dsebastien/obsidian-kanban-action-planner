@@ -104,6 +104,8 @@ export function createDefaultNoteType(
             enabled: false,
             scheduledDateProperty: defaults.scheduledDateProperty,
             dueDateProperty: defaults.dueDateProperty,
+            // Empty = follow the global default (issue #113).
+            deferDateProperty: '',
             dateFormat: defaults.dateFormat,
             defaultRange: 'month',
             tabSort: defaults.orderProperty

@@ -5,6 +5,7 @@ import {
     DEFAULT_CONTEXTS_PROPERTY,
     DEFAULT_DATE_FORMAT,
     DEFAULT_DUE_DATE_PROPERTY,
+    DEFAULT_DEFER_DATE_PROPERTY,
     DEFAULT_DUE_SOON_THRESHOLD_DAYS,
     DEFAULT_ESTIMATE_PROPERTY,
     DEFAULT_MILESTONES_PROPERTY,
@@ -46,6 +47,11 @@ export const pluginSettingsSchema = z.object({
     defaultContextsProperty: z.string().default(DEFAULT_CONTEXTS_PROPERTY),
     defaultScheduledDateProperty: z.string(),
     defaultDueDateProperty: z.string(),
+    /**
+     * Defer ("can't start until") date property (issue #113). `.default()` so
+     * older `data.json` still parses cleanly instead of resetting settings.
+     */
+    defaultDeferDateProperty: z.string().default(DEFAULT_DEFER_DATE_PROPERTY),
     /** Days a note is expected to take (timeline bar length; issue #80 rework). */
     defaultEstimateProperty: z.string(),
     /**
@@ -106,6 +112,7 @@ export const DEFAULT_SETTINGS: PluginSettings = {
     defaultContextsProperty: DEFAULT_CONTEXTS_PROPERTY,
     defaultScheduledDateProperty: DEFAULT_SCHEDULED_DATE_PROPERTY,
     defaultDueDateProperty: DEFAULT_DUE_DATE_PROPERTY,
+    defaultDeferDateProperty: DEFAULT_DEFER_DATE_PROPERTY,
     defaultEstimateProperty: DEFAULT_ESTIMATE_PROPERTY,
     minutesPerDay: DEFAULT_MINUTES_PER_DAY,
     defaultMilestonesProperty: DEFAULT_MILESTONES_PROPERTY,

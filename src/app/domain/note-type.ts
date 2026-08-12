@@ -193,6 +193,12 @@ export const calendarConfigSchema = z.object({
     enabled: z.boolean(),
     scheduledDateProperty: z.string(),
     dueDateProperty: z.string(),
+    /**
+     * Per-type defer ("can't start until") property override (issue #113).
+     * Empty = use the global default. `.default('')` so profiles stored
+     * before this field existed still parse.
+     */
+    deferDateProperty: z.string().default(''),
     dateFormat: z.string(),
     defaultRange: z.enum(['week', 'month', 'quarter', 'year']),
     tabSort: z.string()

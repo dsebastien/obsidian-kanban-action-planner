@@ -24,7 +24,7 @@ import type {
     NoteType,
     RelationshipRole
 } from '../../domain/note-type'
-import { resolveDoneConfig } from '../../domain/done'
+import { isDoneValue, resolveDoneConfig } from '../../domain/done'
 import type { ResolvedDoneConfig } from '../../domain/done'
 import {
     dedupeRules,
@@ -114,6 +114,7 @@ import type { DateDimension } from '../../domain/calendar'
 import {
     getContextTerms,
     getZoomTerm,
+    isDeferred,
     isEmptyQuery,
     matchesFilterQuery,
     parseFilterQuery,
@@ -282,6 +283,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
     private statusProperty: string | null = null
     private orderProperty = 'manual_order'
     private dueDateProperty = 'date_due'
+    private deferDateProperty = 'date_defer'
     private availableProperties: string[] = []
     private noteType: NoteType = createDefaultNoteType(DEFAULT_NOTE_TYPE_ID, 'Default', 'local')
     private noteTypeStatusValues: string[] | null = null
@@ -1016,6 +1018,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         this.orderProperty = this.resolveOrderProperty()
         this.dueDateProperty = this.resolveDueDateProperty()
         this.scheduledDateProperty = this.resolveScheduledDateProperty()
+        this.deferDateProperty = this.resolveDeferDateProperty()
 
         // Per-type resolution (mixed boards): each file's role properties,
         // active roles, and heuristics come from its OWN recognized type.
@@ -1046,7 +1049,10 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
                     this.dueDateProperty,
                     // Transitive parents, climbed through the board's notes,
                     // for `ancestor:` / descendants zoom (issue #74).
-                    ancestorPaths(c.key, this.relationshipsByPath).map(labelForPath)
+                    ancestorPaths(c.key, this.relationshipsByPath).map(labelForPath),
+                    // Defer date + done state back `defer:` / `is:` (issue #113).
+                    this.deferDateProperty,
+                    this.isCardDone(c)
                 )
             ])
         )
@@ -1785,6 +1791,17 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
     }
 
     /**
+     * Whether a card's note counts as done per its type's done definition
+     * (issue #113: `is:done` / the done leg of `is:available`). False when
+     * the type has no done config.
+     */
+    private isCardDone(card: KanbanCard): boolean {
+        const config = this.doneConfigFor(card)
+        if (!config) return false
+        return isDoneValue(getFrontmatterValue(this.app, card.file, config.property), config.values)
+    }
+
+    /**
      * The automation rules for a note: its own type's; untyped notes fall
      * back to the active/default note type (the archive/done pattern).
      */
@@ -1967,6 +1984,20 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             basesPropToName(this.viewConfig.get('scheduledDateProperty')) ??
             this.noteType.calendar.scheduledDateProperty ??
             this.plugin.settings.defaultScheduledDateProperty
+        )
+    }
+
+    /**
+     * The defer ("can't start until") property (issue #113): per-view
+     * override, else the note type's calendar override (empty = unset), else
+     * the global default.
+     */
+    private resolveDeferDateProperty(): string {
+        const perType = this.noteType.calendar.deferDateProperty.trim()
+        return (
+            basesPropToName(this.viewConfig.get('deferDateProperty')) ??
+            (perType.length > 0 ? perType : null) ??
+            this.plugin.settings.defaultDeferDateProperty
         )
     }
 
@@ -2179,6 +2210,9 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         const laneValue =
             this.laneGrouping.kind === 'none' ? null : (this.laneValueByPath.get(file.path) ?? null)
         const relationships = toCardRelationships(this.relationshipsByPath.get(file.path))
+        const defer = parseFrontmatterDate(
+            getFrontmatterValue(this.app, file, this.deferDateProperty)
+        )
         return {
             key: file.path,
             file,
@@ -2188,7 +2222,8 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             laneValue,
             display,
             relationships,
-            contexts: this.contextsForFile(file)
+            contexts: this.contextsForFile(file),
+            deferred: isDeferred(defer, startOfDay(new Date()))
         }
     }
 

@@ -48,6 +48,8 @@ export function renderCard(
     if (card.display.dueState === 'overdue') el.addClass('kap-card-overdue')
     else if (card.display.dueState === 'today') el.addClass('kap-card-due-today')
     if (card.relationships.blocked_by.length > 0) el.addClass('kap-card-blocked')
+    // Deferred = defer date in the future (issue #113): muted, not-yet-actionable.
+    if (card.deferred) el.addClass('kap-card-deferred')
 
     const cd = card.display.countdown
 

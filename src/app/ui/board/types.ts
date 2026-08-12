@@ -86,4 +86,9 @@ export interface KanbanCard extends BoardCardBase {
      * and calendar/timeline color-coding.
      */
     contexts: string[]
+    /**
+     * Whether the card's defer date lies in the future — not yet actionable
+     * (issue #113). Renders muted on the board.
+     */
+    deferred: boolean
 }

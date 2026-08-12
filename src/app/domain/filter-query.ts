@@ -20,9 +20,11 @@ import { parseFrontmatterDate, startOfDay, toDateKey } from './calendar'
  * - Comma in a value = OR (`status:active,done`).
  * - Leading `-` or a standalone `NOT` negates the next clause.
  * - Reserved names (`title`, `status`, `parent`, `ancestor`, `child`, `sibling`,
- *   `blocked`, `tag`, `due`) win over a same-named frontmatter property; any
- *   other name is a frontmatter property lookup.
- * - `due:` is the only qualifier with comparison operators and date keywords.
+ *   `blocked`, `tag`, `due`, `defer`, `is`) win over a same-named frontmatter
+ *   property; any other name is a frontmatter property lookup.
+ * - `due:` and `defer:` carry comparison operators and date keywords.
+ * - `is:` matches availability states (issue #113): `available`, `deferred`,
+ *   `blocked`, `done`.
  * - Best-effort: malformed input never throws.
  */
 
@@ -79,6 +81,10 @@ export interface CardSearchRecord {
     tags: string[]
     /** Parsed due date (local midnight) or null. */
     due: Date | null
+    /** Parsed defer date ("can't start until", issue #113) or null. */
+    defer: Date | null
+    /** Whether the note counts as done per its type's done definition (issue #113). */
+    done: boolean
     /** Frontmatter property name (lowercased) → its value(s), lowercased. */
     props: Map<string, string[]>
 }
@@ -180,7 +186,7 @@ function toClause(token: string, negated: boolean): FilterClause | null {
     }
     const name = body.slice(0, colon).toLowerCase()
     let rawValue = body.slice(colon + 1)
-    if (name === 'due') {
+    if (name === 'due' || name === 'defer') {
         const { op, rest } = parseDueOp(rawValue)
         const values = splitValues(rest)
         if (values.length === 0) return null
@@ -288,6 +294,39 @@ function matchDueValue(
     }
 }
 
+/**
+ * Whether a defer date makes the card not-yet-actionable (issue #113):
+ * a defer date strictly in the future. A defer of today (or unset) is
+ * actionable.
+ */
+export function isDeferred(defer: Date | null, today: Date): boolean {
+    return defer !== null && compareDay(defer, today, '>')
+}
+
+/**
+ * GTD availability (issue #113): a card is available when it is not
+ * deferred, not blocked, and not done — i.e. it can actually be started now.
+ */
+export function isAvailable(rec: CardSearchRecord, today: Date): boolean {
+    return !isDeferred(rec.defer, today) && rec.rels.blocked_by.length === 0 && !rec.done
+}
+
+/** Evaluate a single `is:` candidate value (issue #113). Unknown values never match. */
+function matchStateValue(rec: CardSearchRecord, value: string, ctx: FilterContext): boolean {
+    switch (value) {
+        case 'available':
+            return isAvailable(rec, ctx.today)
+        case 'deferred':
+            return isDeferred(rec.defer, ctx.today)
+        case 'blocked':
+            return rec.rels.blocked_by.length > 0
+        case 'done':
+            return rec.done
+        default:
+            return false
+    }
+}
+
 /** Roles addressable by a `name:` qualifier (aliases included). */
 const ROLE_ALIASES: Record<string, RelationshipRole> = {
     parent: 'parent',
@@ -310,6 +349,8 @@ const ROLE_ALIASES: Record<string, RelationshipRole> = {
  */
 export const RESERVED_QUALIFIER_NAMES: ReadonlySet<string> = new Set<string>([
     'due',
+    'defer',
+    'is',
     'title',
     'status',
     'tag',
@@ -328,6 +369,16 @@ function matchQualifier(rec: CardSearchRecord, clause: FilterClause, ctx: Filter
         clause.exact ? haystack === v : haystack.includes(v)
     if (name === 'due') {
         return clause.values.some((v) => matchDueValue(rec.due, clause.op, v, ctx))
+    }
+    if (name === 'defer') {
+        // Same keyword/date grammar as `due:`, evaluated against the defer
+        // date (issue #113): `defer:none`, `defer:>today`, `defer:<2026-09-01`, …
+        return clause.values.some((v) => matchDueValue(rec.defer, clause.op, v, ctx))
+    }
+    if (name === 'is') {
+        // Availability states (issue #113): `is:available`, `is:deferred`,
+        // `is:blocked`, `is:done` (negatable with `-is:…`).
+        return clause.values.some((v) => matchStateValue(rec, v, ctx))
     }
     if (name === 'title') {
         return clause.values.some((v) => hits(rec.title, v))

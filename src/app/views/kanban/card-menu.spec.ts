@@ -40,7 +40,8 @@ function makeCard(): KanbanCard {
             countdown: null
         },
         relationships: { blocked_by: [], parent: [], child: [], sibling: [] },
-        contexts: []
+        contexts: [],
+        deferred: false
     }
 }
 

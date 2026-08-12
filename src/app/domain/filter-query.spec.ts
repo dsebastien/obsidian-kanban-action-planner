@@ -35,6 +35,8 @@ function record(over: Partial<CardSearchRecord> = {}): CardSearchRecord {
         ancestors: [],
         tags: [],
         due: null,
+        defer: null,
+        done: false,
         props: new Map()
     }
     return { ...base, ...over }
@@ -464,5 +466,71 @@ describe('RESERVED_QUALIFIER_NAMES', () => {
     it('does not reserve an ordinary frontmatter property name', () => {
         expect(RESERVED_QUALIFIER_NAMES.has('contexts')).toBe(false)
         expect(RESERVED_QUALIFIER_NAMES.has('priority')).toBe(false)
+    })
+})
+
+describe('defer: qualifier (issue #113)', () => {
+    const future = new Date(2026, 6, 10) // after TODAY (2026-06-28)
+    const past = new Date(2026, 5, 20)
+
+    it('matches with the due-style keywords and comparisons', () => {
+        expect(match('defer:none', record())).toBe(true)
+        expect(match('defer:none', record({ defer: future }))).toBe(false)
+        expect(match('defer:today', record({ defer: TODAY }))).toBe(true)
+        // Operators apply to explicit dates (keywords ignore them, like due:).
+        expect(match('defer:>2026-06-28', record({ defer: future }))).toBe(true)
+        expect(match('defer:>2026-06-28', record({ defer: past }))).toBe(false)
+        expect(match('defer:<2026-07-01', record({ defer: past }))).toBe(true)
+    })
+})
+
+describe('is: qualifier (issue #113)', () => {
+    const future = new Date(2026, 6, 10)
+    const past = new Date(2026, 5, 20)
+
+    it('is:deferred matches only future defer dates', () => {
+        expect(match('is:deferred', record({ defer: future }))).toBe(true)
+        expect(match('is:deferred', record({ defer: past }))).toBe(false)
+        expect(match('is:deferred', record({ defer: TODAY }))).toBe(false) // today = actionable
+        expect(match('is:deferred', record())).toBe(false)
+    })
+
+    it('is:blocked matches cards with blockers', () => {
+        expect(
+            match(
+                'is:blocked',
+                record({ rels: { parent: [], sibling: [], child: [], blocked_by: ['x'] } })
+            )
+        ).toBe(true)
+        expect(match('is:blocked', record())).toBe(false)
+    })
+
+    it('is:done matches the resolved done state', () => {
+        expect(match('is:done', record({ done: true }))).toBe(true)
+        expect(match('is:done', record())).toBe(false)
+    })
+
+    it('is:available = not deferred AND not blocked AND not done', () => {
+        expect(match('is:available', record())).toBe(true)
+        expect(match('is:available', record({ defer: future }))).toBe(false)
+        expect(match('is:available', record({ defer: past }))).toBe(true) // past defer is actionable
+        expect(match('is:available', record({ done: true }))).toBe(false)
+        expect(
+            match(
+                'is:available',
+                record({ rels: { parent: [], sibling: [], child: [], blocked_by: ['x'] } })
+            )
+        ).toBe(false)
+    })
+
+    it('negates and composes like any clause', () => {
+        expect(match('-is:deferred', record({ defer: future }))).toBe(false)
+        expect(match('-is:done book', record({ haystack: 'my book' }))).toBe(true)
+        expect(match('is:nonsense', record())).toBe(false) // unknown state never matches
+    })
+
+    it('is and defer are reserved qualifier names', () => {
+        expect(RESERVED_QUALIFIER_NAMES.has('is')).toBe(true)
+        expect(RESERVED_QUALIFIER_NAMES.has('defer')).toBe(true)
     })
 })
