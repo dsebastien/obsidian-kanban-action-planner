@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'bun:test'
-import { buildBoard, buildSingleLaneBoard, restrictBoardColumns } from './board-model'
+import {
+    buildBoard,
+    buildSingleLaneBoard,
+    restrictBoardColumns,
+    restrictBoardLanes
+} from './board-model'
 import type { BoardCardBase } from './board-model'
 import type { ColumnDef } from './note-type'
 import { splitStatusValue } from './status'
@@ -309,5 +314,50 @@ describe('restrictBoardColumns', () => {
         }
         expect(board.lanes[0]?.cardCount).toBe(2)
         expect(board.lanes[1]?.cardCount).toBe(1)
+    })
+})
+
+describe('restrictBoardLanes', () => {
+    const lanedCards = [
+        { ...card('a', '10 Todo', 1), laneValue: '10 Work' },
+        { ...card('b', '20 Doing', 1), laneValue: '20 Home' },
+        { ...card('c', '10 Todo', 1) }
+    ]
+
+    it('returns the board unchanged for empty terms', () => {
+        const board = buildBoard(lanedCards, columns, { grouped: true })
+        expect(restrictBoardLanes(board, [])).toBe(board)
+    })
+
+    it('keeps only lanes matching a term (case-insensitive substring on the label)', () => {
+        const board = restrictBoardLanes(buildBoard(lanedCards, columns, { grouped: true }), [
+            'home'
+        ])
+        expect(board.lanes.map((l) => l.lane.label)).toEqual(['Home'])
+        expect(board.isMultiLane).toBe(false) // single remaining lane renders chrome-free
+    })
+
+    it('keeps a lane subset and stays multi-lane', () => {
+        const board = restrictBoardLanes(buildBoard(lanedCards, columns, { grouped: true }), [
+            'work',
+            'home'
+        ])
+        expect(board.lanes.map((l) => l.lane.label)).toEqual(['Work', 'Home'])
+        expect(board.isMultiLane).toBe(true)
+    })
+
+    it('matches the Ungrouped catch-all lane by label', () => {
+        const board = restrictBoardLanes(buildBoard(lanedCards, columns, { grouped: true }), [
+            'ungrouped'
+        ])
+        expect(board.lanes.map((l) => l.lane.id)).toEqual([UNGROUPED_LANE_ID])
+    })
+
+    it('yields an empty board when nothing matches (typo stays visible)', () => {
+        const board = restrictBoardLanes(buildBoard(lanedCards, columns, { grouped: true }), [
+            'nope'
+        ])
+        expect(board.lanes).toEqual([])
+        expect(board.isMultiLane).toBe(false)
     })
 })

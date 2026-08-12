@@ -58,6 +58,11 @@ single project with a `filter=parent:…` override:
   `unmapped` matches the Unmapped bucket). Board mode only. The card menu still offers every
   status, so a card moved to a hidden column simply leaves the embed. Put it **before**
   `filter=`.
+- `lanes=` — show only the named [swimlane(s)](#swimlanes-grouping),
+  same list syntax as `columns=` (`lanes="10 Must"` or `lanes=work,home`; `ungrouped` matches
+  the catch-all lane). Names match case-insensitively as substrings of the lane label. A
+  restriction leaving a single lane renders it chrome-free, like a naturally single-lane
+  board. Combines with `columns=`. Board mode only; put it **before** `filter=`.
 - `filter=` — everything after `filter=` is the initial [filter query](#filtering-search-bar),
   exactly as you'd type it in the filter box (the match count shows in the toolbar as usual).
   One caveat: a wikilink alias can't contain `|`, so write `OR` instead of `|` in embed filters.

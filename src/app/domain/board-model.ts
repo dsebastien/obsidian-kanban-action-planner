@@ -257,6 +257,28 @@ export function restrictBoardColumns<T extends BoardCardBase>(
     }
 }
 
+/**
+ * Restrict a built board to the swimlanes matching any of `terms` (issue
+ * #131: embedding a single lane or a lane subset). Each term is matched
+ * case-insensitively as a substring of the lane label (`ungrouped` matches
+ * the catch-all lane's label). `isMultiLane` is recomputed, so a restriction
+ * resolving to a single lane renders chrome-free like a naturally
+ * single-lane board. Empty `terms` returns the board unchanged; terms
+ * matching nothing yield an empty board (visible feedback for a typo).
+ */
+export function restrictBoardLanes<T extends BoardCardBase>(
+    board: Board<T>,
+    terms: ReadonlyArray<string>
+): Board<T> {
+    if (terms.length === 0) return board
+    const needles = terms.map((t) => t.toLowerCase())
+    const lanes = board.lanes.filter((lane) => {
+        const label = lane.lane.label.toLowerCase()
+        return needles.some((n) => label.includes(n))
+    })
+    return { isMultiLane: lanes.length > 1, lanes }
+}
+
 function singleLane<T extends BoardCardBase>(
     id: string,
     label: string,

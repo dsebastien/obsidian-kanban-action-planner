@@ -11,15 +11,15 @@
  *
  * Grammar: whitespace-separated `key=value` tokens; a double-quoted run
  * inside a value keeps its spaces (`columns="10 TODO"`). Recognized keys
- * (case-insensitive): `mode`, `height`, `context`, `columns`, `filter`.
- * `filter=` consumes the REMAINDER of the alias verbatim — the filter
- * language itself contains spaces/colons/quotes. Note it uses `|` as OR,
- * which a wikilink alias cannot carry — write `OR` in embeds. `context=`
- * takes a single comma-separated list of context values (no spaces) and
- * `columns=` a comma-separated list of column names (quote names with
- * spaces); both must appear BEFORE `filter=` (which swallows everything
- * after it). Invalid values and unrecognized tokens are ignored (never
- * throws).
+ * (case-insensitive): `mode`, `height`, `context`, `columns`, `lanes`,
+ * `filter`. `filter=` consumes the REMAINDER of the alias verbatim — the
+ * filter language itself contains spaces/colons/quotes. Note it uses `|`
+ * as OR, which a wikilink alias cannot carry — write `OR` in embeds.
+ * `context=` takes a single comma-separated list of context values (no
+ * spaces); `columns=` and `lanes=` take comma-separated lists of column /
+ * swimlane names (quote names with spaces); all must appear BEFORE
+ * `filter=` (which swallows everything after it). Invalid values and
+ * unrecognized tokens are ignored (never throws).
  */
 
 /** The five mutually-exclusive view modes (Board / Calendar / Timeline / Triage / WBS). */
@@ -44,6 +44,12 @@ export interface EmbedParams {
      * substrings of the column's status value or label.
      */
     columns: string[]
+    /**
+     * Swimlane names to restrict the board to (issue #131), original casing;
+     * empty when the embed shows every lane. Matched case-insensitively as
+     * substrings of the lane label (`ungrouped` matches the catch-all lane).
+     */
+    lanes: string[]
     /** Initial filter query, or null (fall back to the saved query). */
     filter: string | null
 }
@@ -107,11 +113,11 @@ function tokenizeAlias(alias: string): AliasToken[] {
 }
 
 /**
- * `columns=` value: comma-separated items, each optionally double-quoted
- * (quotes carry spaces through tokenization and are stripped here). Commas
- * inside quotes belong to the item.
+ * `columns=` / `lanes=` value: comma-separated items, each optionally
+ * double-quoted (quotes carry spaces through tokenization and are stripped
+ * here). Commas inside quotes belong to the item.
  */
-function parseColumnList(value: string): string[] {
+function parseNameList(value: string): string[] {
     const items: string[] = []
     let current = ''
     let inQuotes = false
@@ -137,6 +143,7 @@ export function parseEmbedParams(alias: string): EmbedParams {
         heightPx: null,
         contexts: [],
         columns: [],
+        lanes: [],
         filter: null
     }
     for (const { text: token, index } of tokenizeAlias(alias)) {
@@ -169,8 +176,12 @@ export function parseEmbedParams(alias: string): EmbedParams {
         } else if (key === 'column' || key === 'columns') {
             // Comma-separated column names; quote names containing spaces
             // (issue #128). A later valid repeat wins.
-            const values = parseColumnList(value)
+            const values = parseNameList(value)
             if (values.length > 0) params.columns = values
+        } else if (key === 'lane' || key === 'lanes') {
+            // Comma-separated swimlane names (issue #131), same list syntax.
+            const values = parseNameList(value)
+            if (values.length > 0) params.lanes = values
         }
     }
     return params

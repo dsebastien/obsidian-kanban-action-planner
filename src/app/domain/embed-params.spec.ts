@@ -3,7 +3,14 @@ import { parseEmbedParams } from './embed-params'
 import type { EmbedParams } from './embed-params'
 
 /** All-null params: what any alias without recognized keys must yield. */
-const NONE: EmbedParams = { mode: null, heightPx: null, contexts: [], columns: [], filter: null }
+const NONE: EmbedParams = {
+    mode: null,
+    heightPx: null,
+    contexts: [],
+    columns: [],
+    lanes: [],
+    filter: null
+}
 
 describe('parseEmbedParams', () => {
     it('yields zero params for empty and blank aliases', () => {
@@ -76,6 +83,7 @@ describe('parseEmbedParams', () => {
             heightPx: null,
             contexts: [],
             columns: [],
+            lanes: [],
             filter: 'due:<week parent:="My Project"'
         })
     })
@@ -92,6 +100,7 @@ describe('parseEmbedParams', () => {
             heightPx: null,
             contexts: ['@work'],
             columns: [],
+            lanes: [],
             filter: 'status:doing'
         })
     })
@@ -113,12 +122,34 @@ describe('parseEmbedParams', () => {
         expect(parseEmbedParams('columns="10 TODO').columns).toEqual(['10 TODO'])
     })
 
+    it('parses lanes= with the same list syntax as columns=', () => {
+        expect(parseEmbedParams('lanes=work').lanes).toEqual(['work'])
+        expect(parseEmbedParams('LANE=work').lanes).toEqual(['work']) // key + singular alias
+        expect(parseEmbedParams('lanes="10 Must",ungrouped').lanes).toEqual([
+            '10 Must',
+            'ungrouped'
+        ])
+        expect(parseEmbedParams('lanes=').lanes).toEqual([]) // empty ignored
+        expect(parseEmbedParams('lanes=a lanes=b').lanes).toEqual(['b']) // last wins
+        expect(parseEmbedParams('filter=tag:x lanes=a').lanes).toEqual([]) // after filter=
+        // Combines with columns=.
+        expect(parseEmbedParams('lanes=work columns=doing')).toEqual({
+            mode: null,
+            heightPx: null,
+            contexts: [],
+            columns: ['doing'],
+            lanes: ['work'],
+            filter: null
+        })
+    })
+
     it('columns= must precede filter= (filter swallows the rest)', () => {
         expect(parseEmbedParams('mode=board columns="10 TODO" filter=tag:urgent')).toEqual({
             mode: 'board',
             heightPx: null,
             contexts: [],
             columns: ['10 TODO'],
+            lanes: [],
             filter: 'tag:urgent'
         })
         expect(parseEmbedParams('filter=tag:urgent columns=todo').columns).toEqual([])
@@ -143,6 +174,7 @@ describe('parseEmbedParams', () => {
             heightPx: 350,
             contexts: ['@work'],
             columns: [],
+            lanes: [],
             filter: 'status:doing'
         })
     })
@@ -153,6 +185,7 @@ describe('parseEmbedParams', () => {
             heightPx: 250,
             contexts: [],
             columns: [],
+            lanes: [],
             filter: null
         })
     })
@@ -163,6 +196,7 @@ describe('parseEmbedParams', () => {
             heightPx: 500,
             contexts: [],
             columns: [],
+            lanes: [],
             filter: null
         })
         expect(parseEmbedParams('\tfilter=  title:foo  ').filter).toBe('title:foo') // outer trim only
