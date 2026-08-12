@@ -2767,8 +2767,13 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         buildCardMenu(this.liveCard(card), this.cardMenuHost, extend).showAtMouseEvent(event)
     }
 
-    /** Keyboard-triggered card menu, anchored just below the card (issue #20). */
+    /**
+     * Keyboard-triggered card menu, anchored just below the card (issue #20).
+     * Like the pointer path, a card belonging to a multi-card selection gets
+     * the bulk menu instead (issue #130).
+     */
     private showCardMenuAt(card: KanbanCard, cardEl: HTMLElement): void {
+        if (this.selection?.handleContextMenuAt(card, cardEl)) return
         const rect = cardEl.getBoundingClientRect()
         buildCardMenu(this.liveCard(card), this.cardMenuHost).showAtPosition({
             x: rect.left,

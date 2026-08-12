@@ -131,7 +131,20 @@ export class BoardSelection {
     handleContextMenu(card: KanbanCard, event: MouseEvent): boolean {
         if (!this.mode || !this.keys.has(card.key) || this.keys.size < 2) return false
         event.preventDefault()
-        this.openBulkMenu(event)
+        this.buildBulkMenu().showAtMouseEvent(event)
+        return true
+    }
+
+    /**
+     * Keyboard twin of {@link handleContextMenu} (issue #130): the ContextMenu
+     * key / Shift+F10 on a card belonging to a multi-card selection opens the
+     * bulk menu anchored below the card, matching the single-card keyboard
+     * menu's placement. Returns true when consumed.
+     */
+    handleContextMenuAt(card: KanbanCard, cardEl: HTMLElement): boolean {
+        if (!this.mode || !this.keys.has(card.key) || this.keys.size < 2) return false
+        const rect = cardEl.getBoundingClientRect()
+        this.buildBulkMenu().showAtPosition({ x: rect.left, y: rect.bottom })
         return true
     }
 
@@ -251,12 +264,13 @@ export class BoardSelection {
     }
 
     /**
-     * The right-click bulk menu (issue #129): the selection bar's actions at
-     * the pointer. Status entries mirror the single-card menu's
-     * `Set status: …` naming; a mixed-type selection shows a disabled hint
-     * instead (a silently missing section would read as a bug).
+     * The bulk context menu (issues #129/#130): the selection bar's actions
+     * at the pointer or the focused card. Status entries mirror the
+     * single-card menu's `Set status: …` naming; a mixed-type selection
+     * shows a disabled hint instead (a silently missing section would read
+     * as a bug).
      */
-    private openBulkMenu(event: MouseEvent): void {
+    private buildBulkMenu(): Menu {
         const menu = new Menu()
         const count = this.keys.size
         const columns = this.host.columnsForSelection(this.selectedCards())
@@ -292,7 +306,7 @@ export class BoardSelection {
                 .setIcon('x-circle')
                 .onClick(() => this.clear())
         )
-        menu.showAtMouseEvent(event)
+        return menu
     }
 
     /**

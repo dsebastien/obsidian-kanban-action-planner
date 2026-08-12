@@ -917,10 +917,10 @@ Press the **Select** button (the checklist icon next to the gear) to enter **sel
   are selected, with bulk actions: **Set status** (pick a column, or clear), **Archive**,
   **Open** (each in a new tab), and **Clear**. The actions are disabled until at least one card
   is selected; the bar keeps its place so the board never jumps as you select.
-- **Right-click** a selected card to get the same bulk actions at the pointer — with two or
-  more cards selected, the context menu acts on the **whole selection** (set status, archive,
-  open, clear selection). Right-clicking an unselected card still opens the regular
-  single-card menu.
+- **Right-click** a selected card (or press the **menu key** / **Shift+F10** on a focused one)
+  to get the same bulk actions at the pointer — with two or more cards selected, the context
+  menu acts on the **whole selection** (set status, archive, open, clear selection).
+  Right-clicking an unselected card still opens the regular single-card menu.
 - Press **Select** again to leave select mode.
 
 Bulk writes are applied to each note and a summary notice reports how many succeeded (and any
