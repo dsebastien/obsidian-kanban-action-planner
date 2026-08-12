@@ -120,6 +120,21 @@ export class BoardSelection {
         return true
     }
 
+    /**
+     * Handle a card context-menu. Returns true when consumed: selection mode
+     * is active and the card is part of a multi-card selection, so the bulk
+     * menu (the selection bar's actions) opens instead of the single-card
+     * menu — a right-click acts on the whole selection (issue #129).
+     * Right-clicking an unselected card (or a lone selected card) falls back
+     * to the regular card menu.
+     */
+    handleContextMenu(card: KanbanCard, event: MouseEvent): boolean {
+        if (!this.mode || !this.keys.has(card.key) || this.keys.size < 2) return false
+        event.preventDefault()
+        this.openBulkMenu(event)
+        return true
+    }
+
     /** Re-apply selected styling to card nodes and (re)render the action bar. */
     refresh(): void {
         const boardEl = this.host.boardEl()
@@ -209,17 +224,73 @@ export class BoardSelection {
             return
         }
         const menu = new Menu()
-        for (const col of columns) {
-            menu.addItem((item) =>
-                item.setTitle(col.label).onClick(() => void this.bulkSetStatus(col.statusValue))
-            )
-        }
+        this.addBulkStatusItems(menu, columns, '')
         menu.addSeparator()
         menu.addItem((item) =>
             item
                 .setTitle('Clear status')
                 .setIcon('x')
                 .onClick(() => void this.bulkSetStatus(null))
+        )
+        menu.showAtMouseEvent(event)
+    }
+
+    /** One `Set status` entry per shared column, with an optional title prefix. */
+    private addBulkStatusItems(
+        menu: Menu,
+        columns: ReadonlyArray<ColumnDef>,
+        prefix: string
+    ): void {
+        for (const col of columns) {
+            menu.addItem((item) =>
+                item
+                    .setTitle(`${prefix}${col.label}`)
+                    .onClick(() => void this.bulkSetStatus(col.statusValue))
+            )
+        }
+    }
+
+    /**
+     * The right-click bulk menu (issue #129): the selection bar's actions at
+     * the pointer. Status entries mirror the single-card menu's
+     * `Set status: …` naming; a mixed-type selection shows a disabled hint
+     * instead (a silently missing section would read as a bug).
+     */
+    private openBulkMenu(event: MouseEvent): void {
+        const menu = new Menu()
+        const count = this.keys.size
+        const columns = this.host.columnsForSelection(this.selectedCards())
+        if (columns === null) {
+            menu.addItem((item) =>
+                item.setTitle('Set status: selection mixes note types').setDisabled(true)
+            )
+        } else {
+            this.addBulkStatusItems(menu, columns, `Set status (${String(count)} cards): `)
+            menu.addItem((item) =>
+                item
+                    .setTitle('Clear status')
+                    .setIcon('x')
+                    .onClick(() => void this.bulkSetStatus(null))
+            )
+        }
+        menu.addSeparator()
+        menu.addItem((item) =>
+            item
+                .setTitle(`Archive ${String(count)} cards`)
+                .setIcon('archive')
+                .onClick(() => void this.bulkArchive())
+        )
+        menu.addItem((item) =>
+            item
+                .setTitle(`Open ${String(count)} cards`)
+                .setIcon('file-symlink')
+                .onClick(() => this.bulkOpen())
+        )
+        menu.addItem((item) =>
+            item
+                .setTitle('Clear selection')
+                .setIcon('x-circle')
+                .onClick(() => this.clear())
         )
         menu.showAtMouseEvent(event)
     }

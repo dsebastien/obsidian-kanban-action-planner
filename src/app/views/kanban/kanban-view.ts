@@ -1279,7 +1279,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             {
                 onOpen: (card, newTab) => this.openCard(card, newTab),
                 onCardClick: (card, event) => this.onCardClick(card, event),
-                onContextMenu: (card, event) => this.showCardMenu(card, event),
+                onContextMenu: (card, event) => this.onCardContextMenu(card, event),
                 onToggleLane: (laneId) => this.toggleLane(laneId),
                 onToggleColumn: (columnId) => this.toggleColumn(columnId),
                 onRelationship: (card, role, event) => this.showRelatedMenu(card, role, event),
@@ -1532,6 +1532,18 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
     private onCardClick(card: KanbanCard, event: MouseEvent): void {
         if (!this.selection?.handleClick(card, event)) {
             this.openCard(card, event.ctrlKey || event.metaKey)
+        }
+    }
+
+    /**
+     * Card context-menu: a right-click on a card belonging to a multi-card
+     * selection acts on the WHOLE selection (issue #129) — the bulk menu
+     * opens instead of the single-card menu, whose `Set status` would only
+     * write the clicked card and read as "the selection was ignored".
+     */
+    private onCardContextMenu(card: KanbanCard, event: MouseEvent): void {
+        if (!this.selection?.handleContextMenu(card, event)) {
+            this.showCardMenu(card, event)
         }
     }
 
