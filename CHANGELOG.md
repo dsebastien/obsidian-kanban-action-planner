@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.14.0](https://github.com/dsebastien/obsidian-kanban-action-planner/compare/1.13.0...1.14.0) (2026-08-12)
+
+### Features
+
+* **plugin:** agenda mode - a prioritized Overdue / Today / Upcoming list ([c23fd0b](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/c23fd0beeea6bfa5cb28746f31e5ed4825a81d0b)), closes [#113](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/113) [#39](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/39)
+* **plugin:** defer dates + availability filtering (Next actions) ([55ba57c](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/55ba57cdd756ba37ae186a6975ae9b48fbd93ee9)), closes [#113](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/113)
+* **plugin:** embed a single column or column subset via columns= ([03adb2d](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/03adb2d22e4e41fc1a999d4f13abbe22ac430559)), closes [#128](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/128)
+* **plugin:** embed a single swimlane or lane subset via lanes= ([8231b54](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/8231b54d050ec3a3893a4cde1ece56beda973cca)), closes [#128](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/128) [#131](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/131)
+* **plugin:** reorder mode tabs to Board, Calendar, Timeline, WBS, Triage ([cbcc512](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/cbcc51242e2eeed0ccda02a80430b5e444e439c6)), closes [#127](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/127)
+
+### Bug Fixes
+
+* **plugin:** keyboard card menu respects an active multi-selection ([18aa5f3](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/18aa5f3d9f3d8ad54008207fcfd4701567c5e24e)), closes [#129](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/129) [#130](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/130)
+* **plugin:** right-click on a multi-card selection acts on the whole selection ([be464cc](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/be464cc3f1e1810542090aea4e71d5617a1b8622)), closes [#129](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/129)
+
 ## [1.13.0](https://github.com/dsebastien/obsidian-kanban-action-planner/compare/1.12.0...1.13.0) (2026-08-11)
 
 ### Features
@@ -386,6 +401,7 @@ All notable changes to this project will be documented in this file.
 
 * **plugin:** match Starter Kit's {{quarter}} placeholder format (Q2, not 2) ([4fde618](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/4fde6185c5956e3f6fd2ca3a9b03e70cf5e16840))
 * **plugin:** persist discovered statuses so Show empty columns works ([cf91b81](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/cf91b81a1b0786e35c73f4885882e2dc33564c62))
+
 
 
 

@@ -1,5 +1,20 @@
 # Release Notes
 
+## 1.14.0 (2026-08-12)
+
+### Features
+
+- **plugin:** agenda mode - a prioritized Overdue / Today / Upcoming list [#39](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/39)
+- **plugin:** defer dates + availability filtering (Next actions)
+- **plugin:** embed a single column or column subset via columns=
+- **plugin:** embed a single swimlane or lane subset via lanes= [#131](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/131)
+- **plugin:** reorder mode tabs to Board, Calendar, Timeline, WBS, Triage
+
+### Bug Fixes
+
+- **plugin:** keyboard card menu respects an active multi-selection [#130](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/130)
+- **plugin:** right-click on a multi-card selection acts on the whole selection
+
 ## 1.13.0 (2026-08-11)
 
 ### Features
