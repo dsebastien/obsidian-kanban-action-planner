@@ -260,7 +260,7 @@ context there to pin or unpin it as a filter (the same as the **@** switcher).
 
 When a backlog feels overwhelming, **Triage** mode replaces the board with a **focused,
 one-card-at-a-time queue**, so you clarify items in short passes instead of facing the whole wall
-at once. Switch to it with the **Triage** button next to **Board** / **Calendar** (or the **Toggle
+at once. Switch to it with the **Triage** button at the end of the mode switch (or the **Toggle
 triage mode** command).
 
 ![Triage mode, clarifying one card at a time]({{ '/images/triage.png' | relative_url }})
@@ -638,7 +638,7 @@ property** (e.g. a priority or estimate). To narrow the panel, use the toolbar
 
 Where the calendar answers "what happens on day X", the **Timeline** shows how the work spreads
 and overlaps **over time**: one row per card on a shared axis, Gantt-style. Switch to it with the
-**Timeline** button next to **Board / Calendar / Triage** (or the **Toggle timeline mode**
+**Timeline** button next to **Board / Calendar** (or the **Toggle timeline mode**
 command).
 
 ![The timeline placing cards by start date and estimate]({{ '/images/timeline.png' | relative_url }})
@@ -946,7 +946,7 @@ saved into the `.base` file, like the Board/Calendar/Triage mode).
 
 Each Kanban view remembers how you left it, **per view**, across reloads and reopening Obsidian:
 
-- Board vs **Calendar** vs **Timeline** vs **Triage** vs **WBS** mode, and the calendar
+- Board vs **Calendar** vs **Timeline** vs **WBS** vs **Triage** mode, and the calendar
   **range** (Week/Month/Quarter/Year), **active tab**, **panel collapsed** state, and the
   **Scheduled/Deadlines** legend toggles.
 - The timeline **range** (Week/Month/Quarter/Year), its **panel collapsed** state, and its

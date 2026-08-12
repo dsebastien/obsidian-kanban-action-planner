@@ -64,10 +64,10 @@ export function renderViewToolbar(
     addModeButton(modeSwitch, 'Timeline', state.mode === 'timeline', () =>
         callbacks.onSetMode('timeline')
     )
+    addModeButton(modeSwitch, 'WBS', state.mode === 'wbs', () => callbacks.onSetMode('wbs'))
     addModeButton(modeSwitch, 'Triage', state.mode === 'triage', () =>
         callbacks.onSetMode('triage')
     )
-    addModeButton(modeSwitch, 'WBS', state.mode === 'wbs', () => callbacks.onSetMode('wbs'))
 
     rightEl.empty()
     if (state.showLaneNav) {
