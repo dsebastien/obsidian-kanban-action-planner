@@ -1,5 +1,11 @@
 # Release Notes
 
+## 1.15.1 (2026-08-19)
+
+### Bug Fixes
+
+- **plugin:** stop board drags from selecting surrounding note text
+
 ## 1.15.0 (2026-08-19)
 
 ### Features
