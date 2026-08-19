@@ -5,7 +5,7 @@ import {
     restrictBoardColumns,
     restrictBoardLanes
 } from './board-model'
-import type { BoardCardBase } from './board-model'
+import type { BoardCardBase, NameMatcher } from './board-model'
 import type { ColumnDef } from './note-type'
 import { splitStatusValue } from './status'
 import { UNGROUPED_LANE_ID, UNMAPPED_COLUMN_ID } from '../constants'
@@ -255,6 +255,12 @@ describe('buildBoard per-lane column sets (columnsForLane)', () => {
     })
 })
 
+/** Substring name terms, the default for `columns=` / `lanes=`. */
+const sub = (...names: string[]): NameMatcher[] => names.map((text) => ({ text, exact: false }))
+
+/** Whole-name terms, written `=name` in an embed alias. */
+const exact = (...names: string[]): NameMatcher[] => names.map((text) => ({ text, exact: true }))
+
 describe('restrictBoardColumns', () => {
     const cards = [card('a', '10 Todo', 1), card('b', '20 Doing', 1), card('c', 'Mystery', 1)]
 
@@ -264,37 +270,83 @@ describe('restrictBoardColumns', () => {
     })
 
     it('keeps only columns matching a term (case-insensitive substring)', () => {
-        const board = restrictBoardColumns(buildBoard(cards, columns, { grouped: false }), ['todo'])
+        const board = restrictBoardColumns(
+            buildBoard(cards, columns, { grouped: false }),
+            sub('todo')
+        )
         expect(board.lanes[0]?.columns.map((c) => c.column.id)).toEqual(['10 Todo'])
         expect(board.lanes[0]?.columns[0]?.cards.map((c) => c.key)).toEqual(['a'])
     })
 
     it('matches the full status value as well as the label', () => {
-        const board = restrictBoardColumns(buildBoard(cards, columns, { grouped: false }), [
-            '20 Doing'
-        ])
+        const board = restrictBoardColumns(
+            buildBoard(cards, columns, { grouped: false }),
+            sub('20 Doing')
+        )
         expect(board.lanes[0]?.columns.map((c) => c.column.id)).toEqual(['20 Doing'])
     })
 
     it('keeps a set of columns, preserving board order', () => {
-        const board = restrictBoardColumns(buildBoard(cards, columns, { grouped: false }), [
-            'done',
-            'todo'
-        ])
+        const board = restrictBoardColumns(
+            buildBoard(cards, columns, { grouped: false }),
+            sub('done', 'todo')
+        )
         expect(board.lanes[0]?.columns.map((c) => c.column.id)).toEqual(['10 Todo', '30 Done'])
     })
 
     it('matches the synthetic Unmapped column by label', () => {
-        const board = restrictBoardColumns(buildBoard(cards, columns, { grouped: false }), [
-            'unmapped'
-        ])
+        const board = restrictBoardColumns(
+            buildBoard(cards, columns, { grouped: false }),
+            sub('unmapped')
+        )
         expect(board.lanes[0]?.columns.map((c) => c.column.id)).toEqual([UNMAPPED_COLUMN_ID])
         expect(board.lanes[0]?.columns[0]?.cards.map((c) => c.key)).toEqual(['c'])
     })
 
     it('yields empty lanes when nothing matches (typo stays visible)', () => {
-        const board = restrictBoardColumns(buildBoard(cards, columns, { grouped: false }), ['nope'])
+        const board = restrictBoardColumns(
+            buildBoard(cards, columns, { grouped: false }),
+            sub('nope')
+        )
         expect(board.lanes[0]?.columns).toEqual([])
+    })
+
+    it('matches the whole status value or label for an exact term', () => {
+        const board = restrictBoardColumns(
+            buildBoard(cards, columns, { grouped: false }),
+            exact('20 Doing')
+        )
+        expect(board.lanes[0]?.columns.map((c) => c.column.id)).toEqual(['20 Doing'])
+        // The label alone ("Doing", once the numeric prefix is split off) also matches whole.
+        expect(
+            restrictBoardColumns(
+                buildBoard(cards, columns, { grouped: false }),
+                exact('doing')
+            ).lanes[0]?.columns.map((c) => c.column.id)
+        ).toEqual(['20 Doing'])
+    })
+
+    it('rejects a partial name for an exact term (the point of the prefix)', () => {
+        // `do` as a substring sweeps up every column whose label contains it.
+        expect(
+            restrictBoardColumns(
+                buildBoard(cards, columns, { grouped: false }),
+                sub('do')
+            ).lanes[0]?.columns.map((c) => c.column.id)
+        ).toEqual(['10 Todo', '20 Doing', '30 Done'])
+        // Exact keeps nothing: no column is named exactly "do".
+        expect(
+            restrictBoardColumns(buildBoard(cards, columns, { grouped: false }), exact('do'))
+                .lanes[0]?.columns
+        ).toEqual([])
+    })
+
+    it('mixes exact and substring terms in one restriction', () => {
+        const board = restrictBoardColumns(buildBoard(cards, columns, { grouped: false }), [
+            ...exact('20 Doing'),
+            ...sub('done')
+        ])
+        expect(board.lanes[0]?.columns.map((c) => c.column.id)).toEqual(['20 Doing', '30 Done'])
     })
 
     it('applies per lane on a grouped board and keeps lane cardCount intact', () => {
@@ -307,7 +359,7 @@ describe('restrictBoardColumns', () => {
             columns,
             { grouped: true }
         )
-        const board = restrictBoardColumns(grouped, ['doing'])
+        const board = restrictBoardColumns(grouped, sub('doing'))
         expect(board.isMultiLane).toBe(true)
         for (const lane of board.lanes) {
             expect(lane.columns.every((c) => c.column.id === '20 Doing')).toBe(true)
@@ -330,33 +382,48 @@ describe('restrictBoardLanes', () => {
     })
 
     it('keeps only lanes matching a term (case-insensitive substring on the label)', () => {
-        const board = restrictBoardLanes(buildBoard(lanedCards, columns, { grouped: true }), [
-            'home'
-        ])
+        const board = restrictBoardLanes(
+            buildBoard(lanedCards, columns, { grouped: true }),
+            sub('home')
+        )
         expect(board.lanes.map((l) => l.lane.label)).toEqual(['Home'])
         expect(board.isMultiLane).toBe(false) // single remaining lane renders chrome-free
     })
 
     it('keeps a lane subset and stays multi-lane', () => {
-        const board = restrictBoardLanes(buildBoard(lanedCards, columns, { grouped: true }), [
-            'work',
-            'home'
-        ])
+        const board = restrictBoardLanes(
+            buildBoard(lanedCards, columns, { grouped: true }),
+            sub('work', 'home')
+        )
         expect(board.lanes.map((l) => l.lane.label)).toEqual(['Work', 'Home'])
         expect(board.isMultiLane).toBe(true)
     })
 
     it('matches the Ungrouped catch-all lane by label', () => {
-        const board = restrictBoardLanes(buildBoard(lanedCards, columns, { grouped: true }), [
-            'ungrouped'
-        ])
+        const board = restrictBoardLanes(
+            buildBoard(lanedCards, columns, { grouped: true }),
+            sub('ungrouped')
+        )
         expect(board.lanes.map((l) => l.lane.id)).toEqual([UNGROUPED_LANE_ID])
     })
 
-    it('yields an empty board when nothing matches (typo stays visible)', () => {
-        const board = restrictBoardLanes(buildBoard(lanedCards, columns, { grouped: true }), [
-            'nope'
+    it('matches the whole lane label for an exact term', () => {
+        const build = () => buildBoard(lanedCards, columns, { grouped: true })
+        expect(restrictBoardLanes(build(), exact('Work')).lanes.map((l) => l.lane.label)).toEqual([
+            'Work'
         ])
+        // A partial label no longer matches once the term is exact.
+        expect(restrictBoardLanes(build(), sub('wor')).lanes.map((l) => l.lane.label)).toEqual([
+            'Work'
+        ])
+        expect(restrictBoardLanes(build(), exact('wor')).lanes).toEqual([])
+    })
+
+    it('yields an empty board when nothing matches (typo stays visible)', () => {
+        const board = restrictBoardLanes(
+            buildBoard(lanedCards, columns, { grouped: true }),
+            sub('nope')
+        )
         expect(board.lanes).toEqual([])
         expect(board.isMultiLane).toBe(false)
     })

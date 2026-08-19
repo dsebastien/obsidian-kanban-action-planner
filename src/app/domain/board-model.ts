@@ -228,25 +228,51 @@ export function buildBoard<T extends BoardCardBase>(
 }
 
 /**
+ * One name term used to restrict a board's columns or swimlanes.
+ *
+ * `exact: false` (the default, written `doing`) matches the name as a
+ * case-insensitive SUBSTRING — convenient, but `do` then matches both "Todo"
+ * and "Doing". `exact: true` (written `=doing` in an embed alias) requires the
+ * whole status value or label to be equal, case-insensitively, which is the
+ * way to disambiguate names that contain one another.
+ */
+export interface NameMatcher {
+    /** The name to match, with its original casing and no `=` prefix. */
+    text: string
+    /** Whole-name equality instead of substring containment. */
+    exact: boolean
+}
+
+/** Case-insensitive match of one already-lowercased candidate against a term. */
+function matchesTerm(candidate: string, term: NameMatcher, needle: string): boolean {
+    return term.exact ? candidate === needle : candidate.includes(needle)
+}
+
+/**
  * Restrict a built board to the columns matching any of `terms` (issue #128:
- * embedding a single column or a column subset). Each term is matched
- * case-insensitively as a substring of the column's status value or label,
- * so `todo` matches a "10 TODO" column and `unmapped` matches the synthetic
- * Unmapped bucket. Applied per lane; lane `cardCount` keeps counting the
- * lane's full card set — only the rendered columns shrink. Empty `terms`
- * returns the board unchanged; terms matching nothing yield empty lanes
- * (visible feedback for a typo rather than a silently ignored override).
+ * embedding a single column or a column subset). A term matches
+ * case-insensitively against the column's status value or label — as a
+ * substring by default (`todo` matches a "10 TODO" column, `unmapped` matches
+ * the synthetic Unmapped bucket), or as a whole-name equality when
+ * `exact` is set (issue #134), so `10 TODO` can be selected without also
+ * pulling in "10 TODO REVIEW". Applied per lane; lane `cardCount` keeps
+ * counting the lane's full card set — only the rendered columns shrink. Empty
+ * `terms` returns the board unchanged; terms matching nothing yield empty
+ * lanes (visible feedback for a typo rather than a silently ignored override).
  */
 export function restrictBoardColumns<T extends BoardCardBase>(
     board: Board<T>,
-    terms: ReadonlyArray<string>
+    terms: ReadonlyArray<NameMatcher>
 ): Board<T> {
     if (terms.length === 0) return board
-    const needles = terms.map((t) => t.toLowerCase())
+    const needles = terms.map((t) => t.text.toLowerCase())
     const matches = (column: ColumnDef): boolean => {
         const value = column.statusValue.toLowerCase()
         const label = column.label.toLowerCase()
-        return needles.some((n) => value.includes(n) || label.includes(n))
+        return terms.some((term, i) => {
+            const needle = needles[i] ?? ''
+            return matchesTerm(value, term, needle) || matchesTerm(label, term, needle)
+        })
     }
     return {
         isMultiLane: board.isMultiLane,
@@ -259,22 +285,23 @@ export function restrictBoardColumns<T extends BoardCardBase>(
 
 /**
  * Restrict a built board to the swimlanes matching any of `terms` (issue
- * #131: embedding a single lane or a lane subset). Each term is matched
- * case-insensitively as a substring of the lane label (`ungrouped` matches
- * the catch-all lane's label). `isMultiLane` is recomputed, so a restriction
- * resolving to a single lane renders chrome-free like a naturally
- * single-lane board. Empty `terms` returns the board unchanged; terms
- * matching nothing yield an empty board (visible feedback for a typo).
+ * #131: embedding a single lane or a lane subset). A term is matched
+ * case-insensitively against the lane label (`ungrouped` matches the
+ * catch-all lane's label) — as a substring by default, or as a whole-label
+ * equality when `exact` is set (issue #134). `isMultiLane` is recomputed, so
+ * a restriction resolving to a single lane renders chrome-free like a
+ * naturally single-lane board. Empty `terms` returns the board unchanged;
+ * terms matching nothing yield an empty board (visible feedback for a typo).
  */
 export function restrictBoardLanes<T extends BoardCardBase>(
     board: Board<T>,
-    terms: ReadonlyArray<string>
+    terms: ReadonlyArray<NameMatcher>
 ): Board<T> {
     if (terms.length === 0) return board
-    const needles = terms.map((t) => t.toLowerCase())
+    const needles = terms.map((t) => t.text.toLowerCase())
     const lanes = board.lanes.filter((lane) => {
         const label = lane.lane.label.toLowerCase()
-        return needles.some((n) => label.includes(n))
+        return terms.some((term, i) => matchesTerm(label, term, needles[i] ?? ''))
     })
     return { isMultiLane: lanes.length > 1, lanes }
 }

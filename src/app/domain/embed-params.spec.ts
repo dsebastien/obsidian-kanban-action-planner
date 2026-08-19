@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'bun:test'
 import { parseEmbedParams } from './embed-params'
 import type { EmbedParams } from './embed-params'
+import type { NameMatcher } from './board-model'
+
+/** Substring name terms: what a bare `columns=`/`lanes=` item parses to. */
+const sub = (...names: string[]): NameMatcher[] => names.map((text) => ({ text, exact: false }))
+
+/** Whole-name terms: what an `=`-prefixed item parses to. */
+const exact = (...names: string[]): NameMatcher[] => names.map((text) => ({ text, exact: true }))
 
 /** All-null params: what any alias without recognized keys must yield. */
 const NONE: EmbedParams = {
@@ -106,39 +113,58 @@ describe('parseEmbedParams', () => {
     })
 
     it('parses columns= as a comma-separated list with optional quotes', () => {
-        expect(parseEmbedParams('columns=todo').columns).toEqual(['todo'])
-        expect(parseEmbedParams('columns=todo,doing').columns).toEqual(['todo', 'doing'])
-        expect(parseEmbedParams('COLUMN=done').columns).toEqual(['done']) // key + singular alias
-        expect(parseEmbedParams('columns="10 TODO"').columns).toEqual(['10 TODO'])
-        expect(parseEmbedParams('columns="10 TODO","20 In progress"').columns).toEqual([
-            '10 TODO',
-            '20 In progress'
-        ])
-        expect(parseEmbedParams('columns="10 TODO",done').columns).toEqual(['10 TODO', 'done'])
+        expect(parseEmbedParams('columns=todo').columns).toEqual(sub('todo'))
+        expect(parseEmbedParams('columns=todo,doing').columns).toEqual(sub('todo', 'doing'))
+        expect(parseEmbedParams('COLUMN=done').columns).toEqual(sub('done')) // key + singular alias
+        expect(parseEmbedParams('columns="10 TODO"').columns).toEqual(sub('10 TODO'))
+        expect(parseEmbedParams('columns="10 TODO","20 In progress"').columns).toEqual(
+            sub('10 TODO', '20 In progress')
+        )
+        expect(parseEmbedParams('columns="10 TODO",done').columns).toEqual(sub('10 TODO', 'done'))
         expect(parseEmbedParams('columns=').columns).toEqual([]) // empty ignored
         expect(parseEmbedParams('columns=,,').columns).toEqual([]) // blanks dropped
-        expect(parseEmbedParams('columns=a columns=b').columns).toEqual(['b']) // last wins
+        expect(parseEmbedParams('columns=a columns=b').columns).toEqual(sub('b')) // last wins
         // Unterminated quote runs to the end of the token, never throws.
-        expect(parseEmbedParams('columns="10 TODO').columns).toEqual(['10 TODO'])
+        expect(parseEmbedParams('columns="10 TODO').columns).toEqual(sub('10 TODO'))
+    })
+
+    it('reads a leading = on an item as a whole-name (exact) term', () => {
+        expect(parseEmbedParams('columns==doing').columns).toEqual(exact('doing'))
+        // The `=` may sit on either side of the quotes — quotes are stripped first.
+        expect(parseEmbedParams('columns=="20 Doing"').columns).toEqual(exact('20 Doing'))
+        expect(parseEmbedParams('columns="=20 Doing"').columns).toEqual(exact('20 Doing'))
+        // Per item, so a list mixes both kinds freely.
+        expect(parseEmbedParams('columns==todo,doing').columns).toEqual([
+            ...exact('todo'),
+            ...sub('doing')
+        ])
+        // Whitespace between the prefix and the name is tolerated.
+        expect(parseEmbedParams('columns="= 20 Doing"').columns).toEqual(exact('20 Doing'))
+        // A bare `=` names nothing and is dropped like any other blank item.
+        expect(parseEmbedParams('columns==').columns).toEqual([])
+        expect(parseEmbedParams('columns==,doing').columns).toEqual(sub('doing'))
+        // A name that really starts with `=` is written with a doubled prefix.
+        expect(parseEmbedParams('columns===odd').columns).toEqual(exact('=odd'))
+        // Same syntax on lanes=.
+        expect(parseEmbedParams('lanes==work').lanes).toEqual(exact('work'))
     })
 
     it('parses lanes= with the same list syntax as columns=', () => {
-        expect(parseEmbedParams('lanes=work').lanes).toEqual(['work'])
-        expect(parseEmbedParams('LANE=work').lanes).toEqual(['work']) // key + singular alias
-        expect(parseEmbedParams('lanes="10 Must",ungrouped').lanes).toEqual([
-            '10 Must',
-            'ungrouped'
-        ])
+        expect(parseEmbedParams('lanes=work').lanes).toEqual(sub('work'))
+        expect(parseEmbedParams('LANE=work').lanes).toEqual(sub('work')) // key + singular alias
+        expect(parseEmbedParams('lanes="10 Must",ungrouped').lanes).toEqual(
+            sub('10 Must', 'ungrouped')
+        )
         expect(parseEmbedParams('lanes=').lanes).toEqual([]) // empty ignored
-        expect(parseEmbedParams('lanes=a lanes=b').lanes).toEqual(['b']) // last wins
+        expect(parseEmbedParams('lanes=a lanes=b').lanes).toEqual(sub('b')) // last wins
         expect(parseEmbedParams('filter=tag:x lanes=a').lanes).toEqual([]) // after filter=
         // Combines with columns=.
         expect(parseEmbedParams('lanes=work columns=doing')).toEqual({
             mode: null,
             heightPx: null,
             contexts: [],
-            columns: ['doing'],
-            lanes: ['work'],
+            columns: sub('doing'),
+            lanes: sub('work'),
             filter: null
         })
     })
@@ -148,7 +174,7 @@ describe('parseEmbedParams', () => {
             mode: 'board',
             heightPx: null,
             contexts: [],
-            columns: ['10 TODO'],
+            columns: sub('10 TODO'),
             lanes: [],
             filter: 'tag:urgent'
         })

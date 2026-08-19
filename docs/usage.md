@@ -55,14 +55,23 @@ single project with a `filter=parent:…` override:
   Todo + Doing subset. Comma-separated; quote names containing spaces:
   `columns="20 Doing"` or `columns=todo,doing`. Each name matches case-insensitively as a
   substring of the column's status value or label (`todo` matches a `10 TODO` column;
-  `unmapped` matches the Unmapped bucket). Board mode only. The card menu still offers every
-  status, so a card moved to a hidden column simply leaves the embed. Put it **before**
-  `filter=`.
+  `unmapped` matches the Unmapped bucket). Prefix a name with `=` to require the **whole**
+  status value or label instead — `columns==done` keeps only `Done`, where `columns=done`
+  would also keep a `Done (archived)` column. The prefix is per name, so a list can mix both
+  (`columns==todo,doing`), and it may sit inside or outside the quotes
+  (`columns=="20 Doing"` and `columns="=20 Doing"` are the same). Board mode only. The card
+  menu still offers every status, so a card moved to a hidden column simply leaves the embed.
+  Put it **before** `filter=`.
 - `lanes=` — show only the named [swimlane(s)](#swimlanes-grouping),
-  same list syntax as `columns=` (`lanes="10 Must"` or `lanes=work,home`; `ungrouped` matches
-  the catch-all lane). Names match case-insensitively as substrings of the lane label. A
+  same list syntax as `columns=`, `=` prefix included (`lanes="10 Must"`, `lanes=work,home`,
+  `lanes==work`; `ungrouped` matches the catch-all lane). Names match case-insensitively
+  against the lane label, as a substring or — with the prefix — whole. A
   restriction leaving a single lane renders it chrome-free, like a naturally single-lane
   board. Combines with `columns=`. Board mode only; put it **before** `filter=`.
+
+Both lists **filter** the board rather than re-order it: the columns and lanes you keep are
+rendered in the board's own configured order, whatever order you listed them in.
+
 - `filter=` — everything after `filter=` is the initial [filter query](#filtering-search-bar),
   exactly as you'd type it in the filter box (the match count shows in the toolbar as usual).
   One caveat: a wikilink alias can't contain `|`, so write `OR` instead of `|` in embed filters.

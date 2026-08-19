@@ -17,10 +17,14 @@
  * as OR, which a wikilink alias cannot carry — write `OR` in embeds.
  * `context=` takes a single comma-separated list of context values (no
  * spaces); `columns=` and `lanes=` take comma-separated lists of column /
- * swimlane names (quote names with spaces); all must appear BEFORE
- * `filter=` (which swallows everything after it). Invalid values and
- * unrecognized tokens are ignored (never throws).
+ * swimlane names (quote names with spaces), each matched as a substring
+ * unless prefixed with `=` for whole-name equality (`columns==doing`,
+ * issue #134); all must appear BEFORE `filter=` (which swallows everything
+ * after it). Invalid values and unrecognized tokens are ignored (never
+ * throws).
  */
+
+import type { NameMatcher } from './board-model'
 
 /** The six mutually-exclusive view modes (Board / Calendar / Timeline / WBS / Triage / Agenda). */
 export const VIEW_MODES = ['board', 'calendar', 'timeline', 'triage', 'wbs', 'agenda'] as const
@@ -40,16 +44,18 @@ export interface EmbedParams {
     contexts: string[]
     /**
      * Column names to restrict the board to (issue #128), original casing;
-     * empty when the embed shows every column. Matched case-insensitively as
-     * substrings of the column's status value or label.
+     * empty when the embed shows every column. Matched case-insensitively
+     * against the column's status value or label — as a substring, or as a
+     * whole name for terms written with the `=` prefix (issue #134).
      */
-    columns: string[]
+    columns: NameMatcher[]
     /**
      * Swimlane names to restrict the board to (issue #131), original casing;
-     * empty when the embed shows every lane. Matched case-insensitively as
-     * substrings of the lane label (`ungrouped` matches the catch-all lane).
+     * empty when the embed shows every lane. Matched case-insensitively
+     * against the lane label (`ungrouped` matches the catch-all lane), as a
+     * substring or — with the `=` prefix — as a whole name.
      */
-    lanes: string[]
+    lanes: NameMatcher[]
     /** Initial filter query, or null (fall back to the saved query). */
     filter: string | null
 }
@@ -116,8 +122,14 @@ function tokenizeAlias(alias: string): AliasToken[] {
  * `columns=` / `lanes=` value: comma-separated items, each optionally
  * double-quoted (quotes carry spaces through tokenization and are stripped
  * here). Commas inside quotes belong to the item.
+ *
+ * A leading `=` on an item asks for whole-name equality instead of the
+ * default substring match (issue #134) — `columns==doing` or, equivalently,
+ * `columns="=20 Doing"` and `columns=="20 Doing"` (the quotes are stripped
+ * before the prefix is read, so it may sit on either side of them). A name
+ * that genuinely starts with `=` is therefore written `==name`.
  */
-function parseNameList(value: string): string[] {
+function parseNameList(value: string): NameMatcher[] {
     const items: string[] = []
     let current = ''
     let inQuotes = false
@@ -129,7 +141,12 @@ function parseNameList(value: string): string[] {
         } else current += ch
     }
     items.push(current)
-    return items.map((v) => v.trim()).filter((v) => v.length > 0)
+    return items
+        .map((v) => v.trim())
+        .map((v) =>
+            v.startsWith('=') ? { text: v.slice(1).trim(), exact: true } : { text: v, exact: false }
+        )
+        .filter((m) => m.text.length > 0)
 }
 
 /**

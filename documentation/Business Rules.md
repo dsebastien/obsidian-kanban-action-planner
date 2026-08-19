@@ -684,10 +684,27 @@ unset`; numbers compare numerically, else trimmed case-insensitive strings; miss
     (pure `domain/embed-params.ts` `parseEmbedParams`): whitespace-separated `key=value`
     tokens, keys case-insensitive — `mode=<board|calendar|timeline|triage|wbs>`,
     `height=<px>` (positive integer, optional `px` suffix, clamped to [200, 2000]),
+    `context=<a,b>`, `columns=<a,b>` / `lanes=<a,b>` (board mode only; see below),
     `filter=<query>` consumes the REMAINDER of the alias verbatim (the filter language
     carries spaces/colons/quotes; an alias cannot carry `|`, so embed filters must write
-    `OR`). Invalid values and unknown tokens are ignored — a plain human alias yields zero
-    params, never errors. **An embedded instance NEVER writes ANY key to the shared view
+    `OR`) — so every other key MUST precede `filter=`. Invalid values and unknown tokens are
+    ignored — a plain human alias yields zero params, never errors.
+    **Column / swimlane subsetting (issues #128, #131, #134).** `columns=` and `lanes=` take
+    the SAME comma-separated name-list syntax, parsed by one `parseNameList` into
+    `NameMatcher { text, exact }` and applied by `board-model`'s `restrictBoardColumns` /
+    `restrictBoardLanes`. Names containing spaces are double-quoted (the tokenizer keeps a
+    quoted run in one token; `parseNameList` strips the quotes). A name matches
+    case-insensitively against the column's status value **or** label (lanes: the lane
+    label; `ungrouped` matches the catch-all lane, `unmapped` the synthetic bucket) — as a
+    SUBSTRING by default, or as WHOLE-NAME EQUALITY when the item carries a leading `=`
+    (`columns==doing`). The prefix is stripped after unquoting, so it may sit inside or
+    outside the quotes; a name that genuinely starts with `=` is written `==name`. Exactness
+    is PER ITEM, so one list mixes both kinds. These params **filter, never re-order**: the
+    surviving columns/lanes keep the board's own configured order regardless of the order
+    they were listed in (order is owned by the view/note type per rules 2 and 7, and an
+    embed is a projection that must not invent one). Terms matching nothing yield an empty
+    lane/board — deliberate visible feedback for a typo rather than a silently ignored
+    override — and lane `cardCount` still counts the lane's full card set. **An embedded instance NEVER writes ANY key to the shared view
     config** — persisting would silently rewrite the view for every other consumer. ALL
     view-config writes (mode flags, `filterQuery`, panel/lane/column collapse, compact mode,
     column reorder, triage config, calendar/timeline/WBS durable state, …) funnel through
