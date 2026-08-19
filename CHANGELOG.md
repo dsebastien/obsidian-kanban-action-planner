@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.15.0](https://github.com/dsebastien/obsidian-kanban-action-planner/compare/1.14.0...1.15.0) (2026-08-19)
+
+### Features
+
+* **plugin:** whole-name columns=/lanes= embed terms via an = prefix ([e1e0bf1](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/e1e0bf1476b4d8c6334dda249b3d02e9782b7137))
+
 ## [1.14.0](https://github.com/dsebastien/obsidian-kanban-action-planner/compare/1.13.0...1.14.0) (2026-08-12)
 
 ### Features
@@ -401,6 +407,7 @@ All notable changes to this project will be documented in this file.
 
 * **plugin:** match Starter Kit's {{quarter}} placeholder format (Q2, not 2) ([4fde618](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/4fde6185c5956e3f6fd2ca3a9b03e70cf5e16840))
 * **plugin:** persist discovered statuses so Show empty columns works ([cf91b81](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/cf91b81a1b0786e35c73f4885882e2dc33564c62))
+
 
 
 

@@ -1,5 +1,11 @@
 # Release Notes
 
+## 1.15.0 (2026-08-19)
+
+### Features
+
+- **plugin:** whole-name columns=/lanes= embed terms via an = prefix
+
 ## 1.14.0 (2026-08-12)
 
 ### Features
