@@ -35,6 +35,15 @@
         overflow: hidden;
         color: var(--text-normal);
 
+        /* Cards, columns, timeline bars and calendar chips are dragged with raw
+           pointer events (no HTML5 DnD), so a press-and-move on the board starts
+           a native text selection. Embedded in a markdown note that selection
+           does not stop at the board: it runs from the card straight into the
+           surrounding note text, which stays visibly highlighted afterwards.
+           Suppress selection across the board chrome; the rule right below
+           re-enables it wherever text is actually meant to be typed or copied. */
+        user-select: none;
+
         /* Shared motion vocabulary. Every transition/animation duration below
            is driven by these, so the reduced-motion block at the end of the
            layer can disable all motion by zeroing them — no per-rule overrides,
@@ -44,6 +53,14 @@
         --kap-transition: 150ms;
         --kap-transition-slow: 240ms;
         --kap-ease: cubic-bezier(0.2, 0, 0, 1);
+    }
+
+    /* Text the user types into (filter, config fields) or is expected to select
+       and copy must stay selectable despite the board-wide user-select:none. */
+    .kap-root input,
+    .kap-root textarea,
+    .kap-root [contenteditable='true'] {
+        user-select: text;
     }
 
     /* Embedded in a markdown note (issue #103): the embed wrapper has no
