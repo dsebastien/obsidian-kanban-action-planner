@@ -2291,6 +2291,18 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
     }
 
     /**
+     * The date the countdown badge counts down to (issue #68): the deadline by
+     * default, or the scheduled date for boards that triage by when work lands.
+     * Only the badge follows this — the overdue/due-today card emphasis stays on
+     * the deadline.
+     */
+    private countdownDateProperty(): string {
+        return this.viewConfig.get('countdownSource') === 'scheduled'
+            ? this.scheduledDateProperty
+            : this.dueDateProperty
+    }
+
+    /**
      * Build a card's display from the current config + settings (issue #50/#62).
      * Extracted so a lightweight presentational refresh ({@link refreshCardDisplay})
      * can recompute just the display without re-deriving the whole card.
@@ -2311,7 +2323,8 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             {
                 show: this.viewConfig.get('showDueCountdown') === true,
                 soonDays: this.plugin.settings.dueSoonThresholdDays,
-                placement: this.plugin.settings.dueCountdownStyle
+                placement: this.plugin.settings.dueCountdownStyle,
+                property: this.countdownDateProperty()
             },
             (id) => this.allowedValuesForCardField(file, id),
             overrides
@@ -3189,11 +3202,12 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         const soonDays = this.plugin.settings.dueSoonThresholdDays
         const placement = this.plugin.settings.dueCountdownStyle
         const today = startOfDay(new Date())
+        const countdownProperty = this.countdownDateProperty()
         for (const card of this.allCards) {
             const countdown = show
                 ? formatCountdown(
                       parseFrontmatterDate(
-                          getFrontmatterValue(this.app, card.file, this.dueDateProperty)
+                          getFrontmatterValue(this.app, card.file, countdownProperty)
                       ),
                       today,
                       soonDays,

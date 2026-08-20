@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 import type { App, BasesEntry, BasesPropertyId, TFile } from 'obsidian'
+import type { CardDisplay } from '../ui/board/types'
 import {
     buildCardDisplay,
     computeDueState,
@@ -136,6 +137,64 @@ describe('buildCardDisplay write overrides (issue #105, finding 4.3)', () => {
         )
         expect(display.dueState).toBe('none')
         expect(display.countdown).toBeNull()
+    })
+})
+
+describe('buildCardDisplay countdown source (issue #68)', () => {
+    // eslint-disable-next-line obsidianmd/no-tfile-tfolder-cast -- test fake: only .basename is read
+    const file = { basename: 'the-note' } as unknown as TFile
+    const config = {
+        getOrder: (): BasesPropertyId[] => [],
+        getDisplayName: (id: BasesPropertyId): string => id
+    }
+    // Both dates come from the override map, so no App/vault read happens.
+    // The deadline is TODAY and the scheduled date is 2 days out, so the two
+    // sources are always distinguishable — in the badge AND in the due state.
+    const build = (
+        property?: string | null,
+        dates: ReadonlyMap<string, string | null> = new Map([
+            ['date_due', '2026-06-28'],
+            ['date_scheduled', '2026-06-30']
+        ])
+    ): CardDisplay =>
+        buildCardDisplay(
+            {} as App,
+            file,
+            entryOf({}),
+            config,
+            null,
+            'date_due',
+            TODAY,
+            { show: true, soonDays: 7, placement: 'title', ...(property ? { property } : {}) },
+            () => [],
+            dates
+        )
+
+    it('counts down to the deadline by default', () => {
+        expect(build().countdown?.text).toBe('Today')
+    })
+
+    it('counts down to the scheduled date when that is the source', () => {
+        expect(build('date_scheduled').countdown?.text).toBe('In 2d')
+    })
+
+    it('keeps the due state on the deadline whichever source the badge follows', () => {
+        // Overdue/due-today emphasis is about what is owed — it must not drift
+        // onto the start date just because the badge did.
+        expect(build().dueState).toBe('today')
+        expect(build('date_scheduled').dueState).toBe('today')
+    })
+
+    it('shows no countdown when the chosen source is unset, without touching the due state', () => {
+        const display = build(
+            'date_scheduled',
+            new Map<string, string | null>([
+                ['date_due', '2026-06-28'],
+                ['date_scheduled', null]
+            ])
+        )
+        expect(display.countdown).toBeNull()
+        expect(display.dueState).toBe('today')
     })
 })
 

@@ -163,8 +163,18 @@ export function buildCardDisplay(
     titleProperty: BasesPropertyId | null,
     dueDateProperty: string | null,
     today: Date,
-    /** Due-countdown config (issue #62): show flag, soon-threshold, placement. */
-    countdown: { show: boolean; soonDays: number; placement: CountdownPlacement },
+    /**
+     * Countdown config (issue #62): show flag, soon-threshold, placement, plus
+     * the date it counts down to (issue #68) — the deadline by default, or the
+     * scheduled date when the view counts down to when work is planned to start.
+     * `property` never affects `dueState`, which always follows the deadline.
+     */
+    countdown: {
+        show: boolean
+        soonDays: number
+        placement: CountdownPlacement
+        property?: string | null
+    },
     /** Allowed values for a property id (for heat ranking); defaults to none. */
     allowedValuesFor: (id: BasesPropertyId) => ReadonlyArray<string> = () => [],
     /**
@@ -227,22 +237,31 @@ export function buildCardDisplay(
         })
     }
 
-    let dueRaw: unknown = null
-    if (dueDateProperty) {
-        const dueKey = dueDateProperty.toLowerCase()
-        dueRaw = overrides?.has(dueKey)
-            ? (overrides.get(dueKey) ?? null)
-            : getFrontmatterValue(app, file, dueDateProperty)
+    /** Read a date property, honoring the just-written overrides. */
+    const readDate = (property: string | null): Date | null => {
+        if (!property) return null
+        const key = property.toLowerCase()
+        const raw = overrides?.has(key)
+            ? (overrides.get(key) ?? null)
+            : getFrontmatterValue(app, file, property)
+        return parseFrontmatterDate(raw)
     }
-    const due = parseFrontmatterDate(dueRaw)
+
+    const due = readDate(dueDateProperty)
+    // The countdown may follow a different date than the deadline (issue #68);
+    // when it is the same property, reuse the value rather than re-reading.
+    const countdownProperty = countdown.property ?? dueDateProperty
+    const countdownDate = countdownProperty === dueDateProperty ? due : readDate(countdownProperty)
     return {
         title: resolveCardTitle(entry, titleProperty, file.basename),
         fields,
         coverUrl: null,
         wrap: true,
+        // Always the deadline: overdue/due-today emphasis is about what is owed,
+        // not about when you planned to start.
         dueState: computeDueState(due, today),
         countdown: countdown.show
-            ? formatCountdown(due, today, countdown.soonDays, countdown.placement)
+            ? formatCountdown(countdownDate, today, countdown.soonDays, countdown.placement)
             : null
     }
 }

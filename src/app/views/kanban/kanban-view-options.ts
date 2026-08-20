@@ -195,6 +195,19 @@ export function getKanbanViewOptions(app: App, settings: PluginSettings): BasesA
                     key: 'showDueCountdown',
                     displayName: 'Show due countdown',
                     default: false
+                },
+                {
+                    // Which date the countdown counts down to (issue #68). The
+                    // overdue/due-today card emphasis always follows the
+                    // deadline regardless of this.
+                    type: 'dropdown',
+                    key: 'countdownSource',
+                    displayName: 'Countdown counts down to',
+                    default: 'deadline',
+                    options: {
+                        deadline: 'Deadline (due date)',
+                        scheduled: 'Scheduled date (when you plan to start)'
+                    }
                 }
             ]
         },

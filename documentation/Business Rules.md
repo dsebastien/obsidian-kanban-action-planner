@@ -332,7 +332,12 @@ When a new business rule is mentioned:
     **auto granularity** (days under 2 weeks, then weeks under ~2 months, then months). `tone`
     extends the #22 `dueState` scale — `overdue` (red) / `today` (amber) / `soon` (orange, within the
     threshold) / `future` (muted) — and drives **color, not visibility**. Reuses the already-resolved
-    `dueDateProperty` (no new property config). **Visibility is per-view** (`showDueCountdown`
+    date properties (no new property config): the **source is per-view** (`countdownSource`,
+    `deadline` [default] / `scheduled` — issue #68), so a board that triages by when work lands can
+    count down to `scheduledDateProperty` instead. **`dueState` always follows the deadline
+    regardless of the countdown source** — overdue/due-today emphasis is about what is owed, not
+    about when you planned to start — and a card with no value for the chosen source shows no badge
+    while keeping its due state. **Visibility is per-view** (`showDueCountdown`
     toggle, default **off**). **Position and color threshold are global plugin settings**:
     `dueCountdownStyle` (`title` right-aligned title-row pill [default] / `chip` field chip / `corner`
     absolute top-right / `footer` full-width row) and `dueSoonThresholdDays` (default **7**). Rendered

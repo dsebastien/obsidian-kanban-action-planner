@@ -1067,6 +1067,11 @@ changing your notes. They're grouped:
   to the note name when it is missing or empty). Formulas allowed.
 - **Show due countdown**: show the `In 3d` / `2d overdue` badge on cards. Its position and the
   "soon" threshold are global plugin settings.
+- **Countdown counts down to**: whether that badge tracks the **deadline** (the due date — the
+  default) or the **scheduled date** (when you plan to start). Pick `scheduled` on a board you
+  triage by when work lands rather than by when it is owed: `In 2d` then means "planned to start
+  in 2 days". The overdue / due-today card emphasis always follows the deadline, whichever the
+  badge tracks — a card with no value for the chosen date simply shows no badge.
 
 **Swimlanes**
 
