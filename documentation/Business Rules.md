@@ -781,3 +781,24 @@ unset`; numbers compare numerically, else trimmed case-insensitive strings; miss
     - **Quick capture writes exactly one file.** The new card takes the order after the last
       card in its column — it never renumbers the column's other notes — and order is only
       written under the manual sort.
+
+45. **Column aggregates (issue #23).** A view can roll one numeric property up per column
+    (`columnAggregate` = `none` (default) / `sum` / `avg` / `min` / `max`, over
+    `columnAggregateProperty`), rendered next to the card count as `Σ 13` / `avg 4.5`.
+    - **Non-numeric values are skipped, never coerced to zero** — an unset or textual value
+      must not drag an average down or invent a floor. Booleans are not numbers here, and a
+      blank string is nothing rather than 0. A column with no numeric value at all shows **no**
+      badge (not `Σ 0`), because zero and "nothing to measure" are different readings.
+    - **The picked property is read-only**, so `formula.*` / `file.*` columns are offered
+      alongside frontmatter. Bases property ids carry no value type, so the picker cannot be
+      narrowed to numeric properties — the skip above is what keeps the result honest.
+    - **An estimate aggregate normalizes units before summing.** When the picked property IS a
+      card's own estimate property, its value goes through `readEstimate` into days, and the
+      total renders through `formatDuration` — so a board mixing a days-based type with a
+      minutes-based one (tasknotes-style `time_estimate`) never adds 3 days to 90 minutes.
+    - **The aggregate is part of the render gate.** It reads a property no card signature
+      covers, so the computed labels themselves go into `renderPassSignature` — otherwise
+      editing an aggregated property would change the total and be skipped as an unchanged
+      render pass. The badge syncs idempotently on the patch path (added, updated, and
+      **removed** when it turns off or the column loses its last numeric value), and is
+      inserted after the count so it never lands past the quick-capture `+`.

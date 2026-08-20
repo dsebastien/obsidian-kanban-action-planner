@@ -31,6 +31,12 @@ export interface BoardRenderCallbacks {
      * Absent = the affordance is not rendered (turned off, or embedded).
      */
     onAddCard?: (laneId: string, columnId: string) => void
+    /**
+     * Column aggregate label (issue #23), e.g. `Σ 13`, drawn next to the card
+     * count. The view owns reading the property and the math; `null` (or an
+     * absent callback) means no aggregate badge for that column.
+     */
+    aggregateLabel?: (laneId: string, columnId: string) => string | null
 }
 
 /** `data-board-struct` records the rendered lane/column shape for patch vs full-render. */
@@ -198,6 +204,7 @@ function renderColumns(
         header.createSpan({ cls: 'kap-column-title', text: column.label })
         const countEl = header.createSpan({ cls: 'kap-column-count' })
         setColumnCount(colEl, countEl, cards.length, column.wipLimit)
+        syncColumnAggregate(colEl, column.id, laneId, callbacks)
 
         const listEl = colEl.createDiv({ cls: 'kap-column-cards' })
         listEl.setAttribute('role', 'list')
@@ -273,6 +280,40 @@ function syncAddCardAffordances(
     }
 }
 
+/**
+ * Add / update / remove a column's aggregate badge (issue #23) idempotently, so
+ * the incremental patch path keeps it in sync — including turning the option
+ * off, which must remove the span rather than leave a stale value behind.
+ *
+ * The badge is inserted right after the count (never appended), so switching
+ * the option on for a mounted board doesn't drop it after the quick-capture
+ * `+` button that `syncAddCardAffordances` puts at the end of the header.
+ */
+function syncColumnAggregate(
+    colEl: HTMLElement,
+    columnId: string,
+    laneId: string,
+    callbacks: BoardRenderCallbacks
+): void {
+    const headerEl = colEl.querySelector<HTMLElement>(':scope > .kap-column-header')
+    if (!headerEl) return
+    const existing = headerEl.querySelector<HTMLElement>(':scope > .kap-column-aggregate')
+    const label = callbacks.aggregateLabel?.(laneId, columnId) ?? null
+
+    if (label === null) {
+        existing?.remove()
+        return
+    }
+    if (existing) {
+        existing.setText(label)
+        return
+    }
+    const el = createSpan({ cls: 'kap-column-aggregate', text: label })
+    const countEl = headerEl.querySelector<HTMLElement>(':scope > .kap-column-count')
+    if (countEl) countEl.insertAdjacentElement('afterend', el)
+    else headerEl.appendChild(el)
+}
+
 /** Patch each column's card list in place against the desired cards. */
 function patchColumns(
     boardEl: HTMLElement,
@@ -291,7 +332,9 @@ function patchColumns(
         const countEl = colEl.querySelector<HTMLElement>('.kap-column-count')
         if (countEl) setColumnCount(colEl, countEl, cards.length, column.wipLimit)
 
-        syncAddCardAffordances(colEl, column.id, colEl.dataset['laneId'] ?? '', callbacks)
+        const laneId = colEl.dataset['laneId'] ?? ''
+        syncColumnAggregate(colEl, column.id, laneId, callbacks)
+        syncAddCardAffordances(colEl, column.id, laneId, callbacks)
 
         const collapsed = collapsedColumns.has(column.id)
         colEl.toggleClass('kap-column-collapsed', collapsed)

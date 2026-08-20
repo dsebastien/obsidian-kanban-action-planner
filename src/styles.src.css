@@ -572,6 +572,16 @@
         font-weight: var(--font-normal, 400);
     }
 
+    /* Column aggregate (issue #23): a roll-up of one numeric property next to
+       the count. Subdued and monospaced so the count stays the primary read and
+       digits don't jitter the header width as cards move. */
+    .kap-column-aggregate {
+        @apply flex-none whitespace-nowrap;
+        color: var(--text-faint);
+        font-size: var(--font-smaller, 0.8em);
+        font-family: var(--font-monospace);
+    }
+
     /* Over its soft WIP limit (issue #16): red, bold count + a red header rule. */
     .kap-column-over-limit .kap-column-count {
         color: var(--text-error);
@@ -599,6 +609,13 @@
     .kap-column-collapsed .kap-column-title {
         @apply flex-none;
         writing-mode: vertical-rl;
+    }
+
+    /* The collapsed bar is ~44px wide: the aggregate would either overflow it or
+       force the header taller, and the count already answers "how much is in
+       here". Hidden until the column is expanded. */
+    .kap-column-collapsed .kap-column-aggregate {
+        @apply hidden;
     }
 
     .kap-column-cards {

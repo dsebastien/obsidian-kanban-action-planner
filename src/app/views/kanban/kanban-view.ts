@@ -43,6 +43,14 @@ import { renderAgendaView } from '../../ui/agenda/agenda-view'
 import { NO_TYPE_ID, groupByTypeAndStatus } from '../../domain/timeline'
 import { resolvePaneGroupDrop } from '../../domain/pane-drop'
 import type { EstimateConfig } from '../../domain/estimate'
+import { formatDuration, readEstimate } from '../../domain/estimate'
+import type { AggregateKind } from '../../domain/column-aggregate'
+import {
+    computeAggregate,
+    formatAggregateLabel,
+    readAggregateKind,
+    toAggregateNumber
+} from '../../domain/column-aggregate'
 import { compareTabCards, coerceSortValue } from '../../domain/calendar-tabs'
 import type { SortDirection, TabSortKey, TabSortMode } from '../../domain/calendar-tabs'
 import type { Board, UnmappedPosition } from '../../domain/board-model'
@@ -314,6 +322,12 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
     // Collapsed lane/column ids load lazily from config once (issue #19).
     private collapseInitialized = false
     private board: Board<KanbanCard> = { lanes: [], isMultiLane: false }
+    /**
+     * Column aggregate labels (issue #23) for the current board, keyed by
+     * {@link aggregateKey}. Recomputed with the board (before the render gate,
+     * which hashes it) so the renderer only has to look one up.
+     */
+    private aggregateLabels = new Map<string, string>()
     private cardsByKey = new Map<string, KanbanCard>()
     // Triage (issue #53): a stable ordered queue snapshot (card keys) captured on
     // entering triage, and the cursor into it. Null = needs (re)building.
@@ -1277,6 +1291,10 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             board = restrictBoardLanes(board, embedLanes)
         }
         this.board = board
+        // Before the gate below: the render signature hashes these labels, so
+        // editing an aggregated property re-renders even though nothing in the
+        // card signatures changed (issue #23).
+        this.aggregateLabels = this.computeColumnAggregates(board)
         // The board MODEL above is always refreshed (handlers resolve cards
         // through it and cardsByKey), but when nothing the render would draw
         // changed, the DOM pass and its side effects are skipped.
@@ -1314,6 +1332,10 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
                 onMoveColumn: (card, direction) => this.moveCardColumn(card, direction),
                 onReorderCard: (card, direction) => this.reorderCard(card, direction),
                 onKeyboardMenu: (card, cardEl) => this.showCardMenuAt(card, cardEl),
+                aggregateLabel: (laneId, columnId) =>
+                    this.aggregateLabels.get(
+                        KanbanActionPlannerView.aggregateKey(laneId, columnId)
+                    ) ?? null,
                 ...(this.addCardEnabled()
                     ? {
                           onAddCard: (laneId: string, columnId: string) => {
@@ -1434,6 +1456,10 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
                 // The quick-capture footer is chrome the board signature doesn't
                 // cover, so toggling the option would otherwise be gated away.
                 this.addCardEnabled(),
+                // Likewise the aggregate badge: it reads a property no card
+                // signature covers, so the computed labels themselves go in
+                // (sorted — a Map is not JSON-serializable in a stable order).
+                [...this.aggregateLabels.entries()].sort((a, b) => a[0].localeCompare(b[0])),
                 boardRenderSignature(this.board, this.collapsedLanes, this.collapsedColumns)
             ])
         }
@@ -2178,6 +2204,80 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             return coerceSortValue(getFrontmatterValue(this.app, card.file, ref.name))
         }
         return unwrapValue(this.entriesByPath.get(card.key)?.getValue(ref.id) ?? null)
+    }
+
+    /** The per-view column aggregate function (issue #23). */
+    private columnAggregateKind(): AggregateKind {
+        return readAggregateKind(this.viewConfig.get('columnAggregate'))
+    }
+
+    /**
+     * A card's contribution to the column aggregate (issue #23).
+     *
+     * When the picked property IS this card's own estimate property, the value
+     * goes through {@link readEstimate} and comes back in **days** — otherwise a
+     * board mixing a days-based type with a minutes-based one (tasknotes-style
+     * `time_estimate`) would sum 3 days and 90 minutes into "93". Any other
+     * property is a plain number, and non-numeric values drop out.
+     */
+    private aggregateValueFor(
+        card: KanbanCard,
+        ref: PropertyRef
+    ): { value: number | null; isEstimate: boolean } {
+        if (ref.kind === 'note') {
+            const estimate = this.estimateConfigFor(card)
+            if (estimate.property.toLowerCase() === ref.name.toLowerCase()) {
+                const resolved = readEstimate(
+                    getFrontmatterValue(this.app, card.file, ref.name),
+                    estimate.unit,
+                    this.plugin.settings.minutesPerDay
+                )
+                return { value: resolved?.days ?? null, isEstimate: true }
+            }
+        }
+        return { value: toAggregateNumber(this.readScalarProperty(card, ref)), isEstimate: false }
+    }
+
+    /** Map key for a column's aggregate — lane + column, since lanes differ. */
+    private static aggregateKey(laneId: string, columnId: string): string {
+        return `${laneId} ${columnId}`
+    }
+
+    /**
+     * Compute every column's aggregate label (issue #23). Returns an empty map
+     * when the option is off or no property is picked, which is also what makes
+     * the renderer drop the badge.
+     */
+    private computeColumnAggregates(board: Board<KanbanCard>): Map<string, string> {
+        const labels = new Map<string, string>()
+        const kind = this.columnAggregateKind()
+        if (kind === 'none') return labels
+        const ref = parsePropertyRef(this.viewConfig.get('columnAggregateProperty'))
+        if (!ref) return labels
+
+        for (const lane of board.lanes) {
+            for (const { column, cards } of lane.columns) {
+                const values: (number | null)[] = []
+                let anyEstimate = false
+                for (const card of cards) {
+                    const { value, isEstimate } = this.aggregateValueFor(card, ref)
+                    if (isEstimate) anyEstimate = true
+                    values.push(value)
+                }
+                // Estimate values are days — render them through the shared
+                // duration grammar ("1d 2h") rather than as decimal days.
+                const label = formatAggregateLabel(
+                    kind,
+                    computeAggregate(values, kind),
+                    anyEstimate
+                        ? (days): string => formatDuration(days, this.plugin.settings.minutesPerDay)
+                        : undefined
+                )
+                if (label !== null)
+                    labels.set(KanbanActionPlannerView.aggregateKey(lane.lane.id, column.id), label)
+            }
+        }
+        return labels
     }
 
     /**

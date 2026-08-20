@@ -1052,6 +1052,14 @@ changing your notes. They're grouped:
   (right). It still only appears when something is unmapped.
 - **Show "Add card" in columns**: show the per-column quick-capture button (on by default). See
   [Creating cards from the board](#creating-cards-from-the-board-quick-capture).
+- **Column aggregate** / **Column aggregate property**: roll one numeric property up per column
+  and show it next to the card count — `Σ 13` for a sum, or an average, minimum, or maximum.
+  Non-numeric and empty values are skipped (they are not counted as zero), so a column with
+  nothing numeric in it shows no badge at all. The property can be a **base formula**
+  (`formula.…`) or a `file.…` column, since the aggregate only reads. Picking your **estimate**
+  property rolls estimates up in the usual `1d 2h` grammar, converting each note type's own unit
+  (days or minutes) first — so a board mixing both still sums correctly. Aggregates hide on a
+  collapsed column.
 
 **Cards**
 

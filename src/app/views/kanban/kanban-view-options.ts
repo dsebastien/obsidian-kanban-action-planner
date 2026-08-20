@@ -145,6 +145,32 @@ export function getKanbanViewOptions(app: App, settings: PluginSettings): BasesA
                     key: 'showAddCard',
                     displayName: 'Show "Add card" in columns',
                     default: true
+                },
+                {
+                    // Column aggregate (issue #23): a roll-up of one numeric
+                    // property next to the card count, for a capacity/load read.
+                    type: 'dropdown',
+                    key: 'columnAggregate',
+                    displayName: 'Column aggregate',
+                    default: 'none',
+                    options: {
+                        none: 'None',
+                        sum: 'Sum (Σ)',
+                        avg: 'Average',
+                        min: 'Minimum',
+                        max: 'Maximum'
+                    }
+                },
+                {
+                    // Read-only: the aggregate never writes, so formulas and
+                    // file.* columns are fair game. Bases property ids carry no
+                    // value type, so non-numeric values are skipped at
+                    // aggregate time rather than filtered out of this picker.
+                    type: 'property',
+                    key: 'columnAggregateProperty',
+                    displayName: 'Column aggregate property',
+                    placeholder: 'Numeric property to roll up (formulas allowed)',
+                    filter: readOnlyPropertyFilter
                 }
             ]
         },
