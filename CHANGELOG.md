@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.16.0](https://github.com/dsebastien/obsidian-kanban-action-planner/compare/1.15.1...1.16.0) (2026-08-20)
+
+### Features
+
+* **plugin:** column aggregates in the column header ([c41ffb6](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/c41ffb60beec85b0041662938e7326cf1dba3e47))
+* **plugin:** let the due countdown follow the scheduled date ([406ff5b](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/406ff5b8ab750bc75ab5f224bfae1072d661f2da)), closes [#68](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/68)
+
 ## [1.15.1](https://github.com/dsebastien/obsidian-kanban-action-planner/compare/1.15.0...1.15.1) (2026-08-19)
 
 ### Bug Fixes
@@ -413,6 +420,7 @@ All notable changes to this project will be documented in this file.
 
 * **plugin:** match Starter Kit's {{quarter}} placeholder format (Q2, not 2) ([4fde618](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/4fde6185c5956e3f6fd2ca3a9b03e70cf5e16840))
 * **plugin:** persist discovered statuses so Show empty columns works ([cf91b81](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/cf91b81a1b0786e35c73f4885882e2dc33564c62))
+
 
 
 

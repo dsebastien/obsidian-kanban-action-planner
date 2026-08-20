@@ -1,5 +1,12 @@
 # Release Notes
 
+## 1.16.0 (2026-08-20)
+
+### Features
+
+- **plugin:** column aggregates in the column header
+- **plugin:** let the due countdown follow the scheduled date
+
 ## 1.15.1 (2026-08-19)
 
 ### Bug Fixes
