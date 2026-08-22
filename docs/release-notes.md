@@ -1,5 +1,11 @@
 # Release Notes
 
+## 1.16.1 (2026-08-22)
+
+### Bug Fixes
+
+- **plugin:** make drag-and-drop work in boards embedded in Canvas
+
 ## 1.16.0 (2026-08-20)
 
 ### Features
