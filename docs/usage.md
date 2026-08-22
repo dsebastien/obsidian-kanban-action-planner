@@ -98,6 +98,8 @@ above. Two things differ from a note embed:
   inside the board without moving the canvas card. To move the canvas card itself, drag it by
   its edge or by any empty spot on the board (the toolbar background, an empty column area).
 
+![A board embedded in a Canvas card]({{ '/images/embed-canvas.png' | relative_url }})
+
 ## Columns from status
 
 Cards are placed by a **status property**. The plugin looks for a property named `status`
