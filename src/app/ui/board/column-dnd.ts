@@ -19,6 +19,7 @@
  * popout windows.
  */
 
+import { claimPointerDrag } from '../pointer-claim'
 import { insertionLineOffset } from './drop-indicator'
 
 const DRAG_THRESHOLD_PX = 5
@@ -87,6 +88,7 @@ export class ColumnDnd {
         const boardEl = columnEl?.closest<HTMLElement>('.kap-board') ?? null
         if (!columnEl || !boardEl || columnEl.dataset['columnId'] === this.unmappedId) return
         if (this.draggableColumns(boardEl).length < 2) return
+        claimPointerDrag(e)
 
         this.pointerId = e.pointerId
         this.dragWin = this.containerEl.win

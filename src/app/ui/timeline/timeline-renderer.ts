@@ -1,3 +1,4 @@
+import { claimPointerDrag } from '../pointer-claim'
 import { Menu } from 'obsidian'
 import type { CalendarRange } from '../../domain/calendar'
 import { resizeEstimate, resizeFromStart } from '../../domain/timeline'
@@ -543,6 +544,7 @@ function makeDraggable(
     }
     el.addEventListener('pointerdown', (down) => {
         if (down.button !== 0) return
+        claimPointerDrag(down)
         down.preventDefault()
         dragActive = true
         const startX = down.clientX

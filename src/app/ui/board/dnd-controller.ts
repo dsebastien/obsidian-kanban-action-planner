@@ -22,6 +22,7 @@
  */
 
 import { insertionLineOffset } from './drop-indicator'
+import { claimPointerDrag } from '../pointer-claim'
 
 const DRAG_THRESHOLD_PX = 5
 /** Placeholder line thickness (px) — keep in sync with `.kap-card-placeholder`. */
@@ -82,6 +83,7 @@ export class BoardDnd {
         const target = e.target as HTMLElement | null
         const cardEl = target?.closest<HTMLElement>('.kap-card') ?? null
         if (!cardEl || !this.containerEl.contains(cardEl)) return
+        claimPointerDrag(e)
 
         this.pointerId = e.pointerId
         this.dragWin = this.containerEl.win

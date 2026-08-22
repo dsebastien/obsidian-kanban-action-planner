@@ -154,6 +154,22 @@
         overflow-y: auto;
     }
 
+    /* Embedded in an Obsidian Canvas node (issue #154): the node IS the size
+       control, so the `height=` alias is ignored and --kap-embed-height is
+       driven from the node's content box (see `detectCanvasHost`). A definite
+       height puts the root back on the full-leaf path — every mode gets its own
+       internal scroller again — so resizing the node resizes the board instead
+       of scrolling one tall block inside it. */
+    .kap-root.kap-embedded.kap-in-canvas {
+        height: var(--kap-embed-height, 100%);
+        max-height: var(--kap-embed-height, 100%);
+    }
+
+    .kap-root.kap-embedded.kap-in-canvas .kap-board-host {
+        flex-basis: 0%;
+        overflow-y: visible;
+    }
+
     /* Top toolbar: mode switch (left) · filter (grows) · nav + gear (right).
        Wraps on very narrow widths so the filter input drops to its own line. */
     .kap-root .kap-toolbar {

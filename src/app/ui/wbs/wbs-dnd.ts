@@ -22,6 +22,7 @@
  * view's own window / document so drags work in popout windows.
  */
 
+import { claimPointerDrag } from '../pointer-claim'
 import { cssEscapeAttr } from '../../utils/css-escape'
 
 const DRAG_THRESHOLD_PX = 5
@@ -101,6 +102,7 @@ export class WbsDnd {
         // Context rows (ancestors outside the view's results) are drop
         // targets only — their own frontmatter is never dragged around.
         if (sourceEl.dataset['wbsContext'] === '1') return
+        claimPointerDrag(e)
 
         this.pointerId = e.pointerId
         this.dragWin = this.containerEl.win

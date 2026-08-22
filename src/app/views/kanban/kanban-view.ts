@@ -1,4 +1,5 @@
 import { BasesView, debounce, getAllTags, Menu, Notice, TFile } from 'obsidian'
+import { offsetTopWithin } from '../../utils/offset-top'
 import type {
     BasesEntry,
     BasesPropertyId,
@@ -243,6 +244,13 @@ const REVEAL_NEW_CARD_TIMEOUT_MS = 5000
 const PENDING_STATUS_WRITE_TIMEOUT_MS = 5000
 
 /**
+ * Floor for a board sized to its Canvas node (issue #154). A node dragged
+ * smaller than this keeps a usable board that scrolls inside the node instead
+ * of collapsing to a sliver of toolbar.
+ */
+const CANVAS_MIN_EMBED_HEIGHT_PX = 160
+
+/**
  * A captured "keep this card where it is" anchor inside one column's card list,
  * consumed by the render pass that follows a Send to top / Send to bottom.
  */
@@ -454,6 +462,13 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
     private wbs: WbsController | null = null
     private wbsDnd: WbsDnd | null = null
     private resizeObserver: ResizeObserver | null = null
+    // Canvas embed (issue #154). Inside a Canvas node the NODE is the size
+    // control: `height=` is ignored and --kap-embed-height is driven from the
+    // node's content box instead, so resizing the node resizes the board.
+    private canvasScrollerEl: HTMLElement | null = null
+    private canvasResizeObserver: ResizeObserver | null = null
+    /** Last height (px) pushed to --kap-embed-height — kills observer feedback. */
+    private canvasHeightPx = 0
     private readonly debouncedResize: Debouncer<[], void>
     /**
      * Board width (px) at the last equalize pass — width-unchanged resize
@@ -797,6 +812,9 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         this.resizeObserver = null
         this.embedAltObserver?.disconnect()
         this.embedAltObserver = null
+        this.canvasResizeObserver?.disconnect()
+        this.canvasResizeObserver = null
+        this.canvasScrollerEl = null
         this.dnd?.destroy()
         this.dnd = null
         this.columnDnd?.destroy()
@@ -1112,6 +1130,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         const wrapper = this.containerEl.closest('.internal-embed.bases-embed')
         if (!wrapper) return
         rootEl.addClass('kap-embedded')
+        this.detectCanvasHost(rootEl)
         this.applyEmbedParams(parseEmbedParams(wrapper.getAttribute('alt') ?? ''))
         // Editing the embed line in the note reuses the SAME wrapper and view
         // instance — Obsidian only rewrites the `alt` attribute in place — so
@@ -1128,6 +1147,53 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
     }
 
     /**
+     * Canvas hosts the embed inside a fixed-size node (issue #154). Unlike a
+     * markdown note — where the embed has no definite height and must size to
+     * content under the `height=` cap — the node IS the height, and users
+     * expect resizing it to resize the board. So detect the node, ignore
+     * `height=`, and drive --kap-embed-height from the node's scroll container
+     * (which Canvas resizes for us). A definite height also restores the
+     * full-leaf behaviour: every mode gets its own internal scroller again.
+     */
+    private detectCanvasHost(rootEl: HTMLElement): void {
+        const nodeContentEl = this.containerEl.closest<HTMLElement>('.canvas-node-content')
+        if (!nodeContentEl) return
+        rootEl.addClass('kap-in-canvas')
+        // The preview view is the node's scroll container AND a positioned
+        // element, so it is both what Canvas resizes and a valid offsetParent
+        // anchor. A `.base` file node has no preview view — the content box
+        // itself is positioned there.
+        this.canvasScrollerEl =
+            nodeContentEl.querySelector<HTMLElement>('.markdown-preview-view') ?? nodeContentEl
+        this.canvasResizeObserver = new ResizeObserver(() => {
+            this.syncCanvasHeight()
+        })
+        this.canvasResizeObserver.observe(this.canvasScrollerEl)
+        this.syncCanvasHeight()
+    }
+
+    /**
+     * Push the height left inside the canvas node — its content box minus
+     * whatever sits above the board (the embed wrapper's own leading content
+     * and the Bases embed header). Measured through the offsetParent chain
+     * rather than client rects so canvas zoom (a CSS transform on the node)
+     * does not scale the number. The last value is remembered so the
+     * ResizeObserver our own write triggers settles instead of looping.
+     */
+    private syncCanvasHeight(): void {
+        const scrollerEl = this.canvasScrollerEl
+        const rootEl = this.rootEl
+        if (!scrollerEl || !rootEl?.isConnected) return
+        const available = Math.max(
+            CANVAS_MIN_EMBED_HEIGHT_PX,
+            scrollerEl.clientHeight - offsetTopWithin(rootEl, scrollerEl)
+        )
+        if (Math.abs(available - this.canvasHeightPx) < 1) return
+        this.canvasHeightPx = available
+        rootEl.style.setProperty('--kap-embed-height', `${String(available)}px`)
+    }
+
+    /**
      * Apply (or re-apply, on an embed-line edit) the alias overrides. The
      * `height=` param feeds the CSS cap through a scoped custom property
      * (dynamic value → inline style is the lint-legal channel); without the
@@ -1139,7 +1205,10 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         this.ephemeralMode = params.mode
         const rootEl = this.rootEl
         if (rootEl) {
-            if (params.heightPx !== null) {
+            if (this.canvasScrollerEl) {
+                // In a Canvas the node's own size wins (issue #154).
+                this.syncCanvasHeight()
+            } else if (params.heightPx !== null) {
                 rootEl.style.setProperty('--kap-embed-height', `${String(params.heightPx)}px`)
             } else {
                 rootEl.style.removeProperty('--kap-embed-height')
