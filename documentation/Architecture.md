@@ -59,6 +59,15 @@ The core is a custom Obsidian **Bases view** (Obsidian ≥ 1.12.0 API):
   inner percentage chains indefinite, so at the cap the `.kap-board-host` (given
   `flex-basis: auto; overflow-y: auto` in embeds) scrolls as one unit rather than per column
   (this also stopped the ResizeObserver loop spam).
+- **Canvas embeds (issue #154).** Same embed pipeline inside an Obsidian Canvas node, two
+  deltas: (1) every drag controller claims its gesture via `ui/pointer-claim.ts`
+  (`claimPointerDrag` = `stopPropagation` only) so Canvas's node-drag never hijacks a card
+  drag — board chrome still bubbles, keeping the node movable; (2) sizing inverts —
+  `detectCanvasHost` (called from `detectEmbed`) adds `kap-in-canvas`, ignores `height=`, and
+  drives `--kap-embed-height` from the node's `.markdown-preview-view` scroller via its own
+  ResizeObserver (offsetParent-chain measurement in `utils/offset-top.ts`, zoom-transform-safe;
+  160px floor; last-value guard against loops), so the node's size controls the board and the
+  root re-enters the full-leaf per-column-scroller layout.
 - **Live config propagation.** The plugin tracks open views in a `Set` (`trackKanbanView` /
   `untrackKanbanView`, wired in the view's load/unload). `saveSettings()` — the single sink for
   every note-type/settings write — calls `view.onSettingsChanged()` (debounced rebuild) on each,

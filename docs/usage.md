@@ -47,7 +47,8 @@ single project with a `filter=parent:…` override:
 - `mode=` — `board` (or `kanban`), `calendar`, `timeline`, `triage`, `wbs`, or `agenda`.
   Editing the embed line updates the rendered embed in place.
 - `height=` — the embed's height cap in pixels (kept between 200 and 2000); the embed still
-  shrinks below it when the content is smaller.
+  shrinks below it when the content is smaller. Ignored inside a Canvas, where the canvas
+  card's own size controls the board (see below).
 - `context=` — pin the embed to one or more [contexts](#contexts-work-home-) (comma-separated,
   no spaces), e.g. `context=@work` or `context=@work,@home`. Put it **before** `filter=` (which
   swallows the rest of the alias).
@@ -85,6 +86,17 @@ setting changed _inside_ the embed applies to that embed only and is forgotten w
 re-renders. The view saved in the `.base` file (and shown everywhere else it is open) is never
 touched by an embed. Card edits are real, though: dragging a card to another column, scheduling
 it, and so on write to the note's frontmatter as usual.
+
+**Embedding in a Canvas.** The same embed link works inside an
+[Obsidian Canvas](https://help.obsidian.md/plugins/canvas) card, with all the alias overrides
+above. Two things differ from a note embed:
+
+- **The canvas card controls the size.** `height=` is ignored: the board fills the card, and
+  resizing the card resizes the board (each column keeps its own scroller, like a full-leaf
+  view). Below ~160&nbsp;px the board stops shrinking and scrolls inside the card instead.
+- **Dragging works as usual.** Cards, columns, calendar chips, WBS rows, and timeline bars drag
+  inside the board without moving the canvas card. To move the canvas card itself, drag it by
+  its edge or by any empty spot on the board (the toolbar background, an empty column area).
 
 ## Columns from status
 

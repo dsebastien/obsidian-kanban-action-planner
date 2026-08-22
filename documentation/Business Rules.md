@@ -730,6 +730,17 @@ unset`; numbers compare numerically, else trimmed case-insensitive strings; miss
     spam); `height=` sets the custom property inline. Frontmatter writes from an embed
     (status drops, scheduling, …) stay fully live — only view-config persistence is
     suppressed.
+    **Canvas embeds (issue #154).** The same embed rendered inside an Obsidian Canvas node
+    (detected via `containerEl.closest('.canvas-node-content')` in `detectCanvasHost`, which
+    adds `kap-in-canvas` next to `kap-embedded`) inverts the sizing contract: the NODE is the
+    size control. `height=` is IGNORED there; `--kap-embed-height` is driven from the node's
+    `.markdown-preview-view` scroller by a dedicated ResizeObserver (offsetParent-chain
+    measurement via `utils/offset-top.ts` — client rects would return zoom-scaled pixels
+    under the canvas transform; a last-pushed-value guard stops observer feedback), floored
+    at `CANVAS_MIN_EMBED_HEIGHT_PX` (160) so a tiny node scrolls instead of collapsing. With
+    a definite height the root re-enters the full-leaf layout path (per-column scrollers),
+    so resizing the node resizes the board. Every other embed rule (projection, alias
+    overrides, live frontmatter writes) applies unchanged.
 43. **Drag input correctness (issue #109).** Two invariants for every pointer-drag surface:
     (a) **Touch never loses native scrolling, and a pan never writes.** Drag sources use a
     directional `touch-action` instead of `none`: `pan-y` on board cards, calendar chips,
@@ -744,6 +755,17 @@ unset`; numbers compare numerically, else trimmed case-insensitive strings; miss
     rAF loop) to the container's own window (`containerEl.win`, captured per drag) and use
     `containerEl.doc` for `elementFromPoint` + ghost parenting — never the main `window` /
     `activeDocument`. The timeline already binds to `el.ownerDocument` (same invariant).
+    (c) **Drag controllers claim the gesture from drag-capable hosts (issue #154).** Obsidian
+    Canvas starts a node-selection drag for any `pointerdown` bubbling out of a node's
+    content, so on a Canvas-embedded board grabbing a card dragged the whole node. Every
+    drag surface (cards, column headers, calendar chips, WBS rows + pane cards, timeline
+    bars) calls `ui/pointer-claim.ts` `claimPointerDrag(e)` — a bare `stopPropagation` —
+    at the exact point it takes ownership of the gesture (after all its own
+    should-this-start-a-drag guards passed). NEVER `stopImmediatePropagation` (sibling
+    controllers listen on the same `boardEl` and must still see the event) and NEVER
+    `preventDefault` (it would break focus and the click that opens a note). A pointerdown
+    on board chrome/background still bubbles, so the canvas node stays movable by its
+    empty space.
 
 44. **Quick capture (issue #46).** Every status column carries two entry points — a **+** in
     its header and an **Add card** footer under the cards (never on the synthetic Unmapped
