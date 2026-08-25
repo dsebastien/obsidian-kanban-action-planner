@@ -6,6 +6,12 @@ A status property you define becomes the columns. You drag cards between them, r
 
 > Requires Obsidian 1.12+ (the Bases view API). Desktop only (mobile isn't supported yet).
 
+## Video tour
+
+A complete walkthrough of the plugin (~25 minutes): boards, calendar, timeline, triage, WBS, embeds, and how every change lands in your notes:
+
+[![Video tour of the Kanban Action Planner](https://img.youtube.com/vi/umCB9CQire4/maxresdefault.jpg)](https://www.youtube.com/watch?v=umCB9CQire4)
+
 ## Screenshots
 
 A Base read as a board. A configurable status property drives the columns, and each card shows the properties from your Bases view:

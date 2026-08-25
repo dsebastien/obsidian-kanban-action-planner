@@ -5,6 +5,12 @@ nav_order: 2
 
 # Usage
 
+## Video tour
+
+Prefer watching? Here's a complete walkthrough of the plugin (~25 minutes), covering the boards, calendar, timeline, triage, WBS, and embeds:
+
+<iframe style="width: 100%; aspect-ratio: 16 / 9;" src="https://www.youtube.com/embed/umCB9CQire4" title="Kanban Action Planner - complete video tour" frameborder="0" allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+
 ## Add a Kanban view to a Base
 
 1. Open a **Base** (or create one).
