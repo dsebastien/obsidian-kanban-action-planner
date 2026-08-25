@@ -534,3 +534,53 @@ describe('is: qualifier (issue #113)', () => {
         expect(RESERVED_QUALIFIER_NAMES.has('defer')).toBe(true)
     })
 })
+
+describe('context: qualifier aliases (issue #166)', () => {
+    const withContexts = (prop: string, values: string[]): CardSearchRecord =>
+        record({ props: new Map([[prop, values.map((v) => v.toLowerCase())]]) })
+    const ctxWith = (contextsProp: string): FilterContext => ({ ...CTX, contextsProp })
+    const matchWith = (input: string, rec: CardSearchRecord, ctx: FilterContext): boolean =>
+        matchesFilterQuery(rec, parseFilterQuery(input), ctx)
+
+    it('resolves context: and contexts: to the configured property', () => {
+        const rec = withContexts('contexts', ['@work', '@home'])
+        const ctx = ctxWith('contexts')
+        expect(matchWith('context:@work', rec, ctx)).toBe(true)
+        expect(matchWith('contexts:@work', rec, ctx)).toBe(true)
+        expect(matchWith('context:@errands', rec, ctx)).toBe(false)
+    })
+
+    it('follows a custom contexts property name', () => {
+        const rec = withContexts('gtd_contexts', ['@work'])
+        const ctx = ctxWith('gtd_contexts')
+        expect(matchWith('context:@work', rec, ctx)).toBe(true)
+        expect(matchWith('contexts:@work', rec, ctx)).toBe(true)
+        // The literal property lookup keeps working alongside the alias.
+        expect(matchWith('gtd_contexts:@work', rec, ctx)).toBe(true)
+    })
+
+    it('falls back to a literal property lookup when no contextsProp is set', () => {
+        const rec = withContexts('contexts', ['@work'])
+        expect(match('contexts:@work', rec)).toBe(true)
+        expect(match('context:@work', rec)).toBe(false) // no `context` property
+    })
+
+    it('supports exact matching, OR values, and negation', () => {
+        const rec = withContexts('contexts', ['@work'])
+        const ctx = ctxWith('contexts')
+        expect(matchWith('context:="@work"', rec, ctx)).toBe(true)
+        expect(matchWith('context:="@wo"', rec, ctx)).toBe(false)
+        expect(matchWith('context:@home,@work', rec, ctx)).toBe(true)
+        expect(matchWith('-context:@work', rec, ctx)).toBe(false)
+        expect(matchWith('-context:@errands', rec, ctx)).toBe(true)
+    })
+
+    it('never matches a record without the configured property', () => {
+        expect(matchWith('context:@work', record(), ctxWith('contexts'))).toBe(false)
+    })
+
+    it('stays OFF the reserved-names guard so the default property name is allowed', () => {
+        expect(RESERVED_QUALIFIER_NAMES.has('context')).toBe(false)
+        expect(RESERVED_QUALIFIER_NAMES.has('contexts')).toBe(false)
+    })
+})

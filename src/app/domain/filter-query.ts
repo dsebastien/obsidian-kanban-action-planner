@@ -59,6 +59,13 @@ export interface DayRange {
 export interface FilterContext {
     today: Date
     periods: Record<'week' | 'month' | 'quarter' | 'year', DayRange>
+    /**
+     * The configured GTD contexts property name, lowercased (issue #166).
+     * When set, the `context:` / `contexts:` qualifier aliases resolve to this
+     * property, so `context:@work` works whatever the property is called.
+     * When absent, the aliases fall back to a literal property lookup.
+     */
+    contextsProp?: string
 }
 
 /** Per-card searchable data, all text lowercased. */
@@ -391,6 +398,16 @@ function matchQualifier(rec: CardSearchRecord, clause: FilterClause, ctx: Filter
     }
     if (name === 'ancestor' || name === 'ancestors') {
         return clause.values.some((v) => rec.ancestors.some((a) => hits(a, v)))
+    }
+    if (name === 'context' || name === 'contexts') {
+        // GTD context aliases (issue #166): resolve to the CONFIGURED contexts
+        // property so `context:@work` works whatever the property is called.
+        // Deliberately NOT in RESERVED_QUALIFIER_NAMES — the default contexts
+        // property is itself named `contexts`, and reserving the name would
+        // make the settings-time guard reject that default.
+        const contextValues = rec.props.get(ctx.contextsProp ?? name)
+        if (!contextValues) return false
+        return clause.values.some((v) => contextValues.some((pv) => hits(pv, v)))
     }
     const role = ROLE_ALIASES[name]
     if (role) {

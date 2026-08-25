@@ -712,7 +712,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             canDrop: (sourceKey, sourceParentKey, target) =>
                 target.kind === 'paneGroup'
                     ? this.canDropOnPaneGroup(sourceKey, target.typeId, target.status)
-                    : (this.wbs?.canDrop(sourceKey, sourceParentKey, target) ?? false),
+                    : this.wbs?.canDrop(sourceKey, sourceParentKey, target) ?? false,
             onDrop: (sourceKey, sourceParentKey, target) => {
                 if (target.kind === 'paneGroup') {
                     this.dropOnPaneGroup(sourceKey, target.typeId, target.status)
@@ -1034,8 +1034,8 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
                 const raw = !ref
                     ? null
                     : ref.kind === 'note'
-                      ? getFrontmatterValue(this.app, file, ref.name)
-                      : unwrapValue(this.entriesByPath.get(file.path)?.getValue(ref.id) ?? null)
+                    ? getFrontmatterValue(this.app, file, ref.name)
+                    : unwrapValue(this.entriesByPath.get(file.path)?.getValue(ref.id) ?? null)
                 map.set(file.path, normalizeLaneValue(raw))
             }
             return map
@@ -1070,7 +1070,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             this.archiveFolderPrefixes(),
             (path) => {
                 const type = this.noteTypeByPath.get(path)
-                return type ? (findNoteType(this.plugin, type.id) ?? null) : null
+                return type ? findNoteType(this.plugin, type.id) ?? null : null
             }
         )
         this.detectEmbed()
@@ -1251,7 +1251,9 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         this.filterEmptyEl?.setText(
             zoom === null
                 ? 'No cards match the filter.'
-                : `No cards match the filter. ${zoom.field === 'ancestor' ? 'Descendants' : 'Children'} of "${zoom.title}" may be excluded by this view's own Base filters.`
+                : `No cards match the filter. ${
+                      zoom.field === 'ancestor' ? 'Descendants' : 'Children'
+                  } of "${zoom.title}" may be excluded by this view's own Base filters.`
         )
         this.filterEmptyEl?.toggleClass('kap-hidden', !(active && cards.length === 0))
 
@@ -1372,7 +1374,11 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         this.renderToolbar(this.board.lanes.length > 1)
 
         log(
-            `Kanban rebuild: ${String(cards.length)}/${String(this.allCards.length)} cards, ${String(this.columns.length)} columns, ${String(board.lanes.length)} lane(s), noteType "${this.noteType.name}"`,
+            `Kanban rebuild: ${String(cards.length)}/${String(
+                this.allCards.length
+            )} cards, ${String(this.columns.length)} columns, ${String(
+                board.lanes.length
+            )} lane(s), noteType "${this.noteType.name}"`,
             'debug'
         )
 
@@ -1606,7 +1612,9 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
     private columnCardsEl(laneId: string, columnId: string): HTMLElement | null {
         if (!this.boardEl) return null
         const colEl = this.boardEl.querySelector<HTMLElement>(
-            `.kap-column[data-column-id="${cssEscapeAttr(columnId)}"][data-lane-id="${cssEscapeAttr(laneId)}"]`
+            `.kap-column[data-column-id="${cssEscapeAttr(columnId)}"][data-lane-id="${cssEscapeAttr(
+                laneId
+            )}"]`
         )
         return colEl?.querySelector<HTMLElement>(':scope > .kap-column-cards') ?? null
     }
@@ -2408,7 +2416,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         const order = coerceOrder(getFrontmatterValue(this.app, file, this.orderProperty))
         const display = this.cardDisplayFor(file)
         const laneValue =
-            this.laneGrouping.kind === 'none' ? null : (this.laneValueByPath.get(file.path) ?? null)
+            this.laneGrouping.kind === 'none' ? null : this.laneValueByPath.get(file.path) ?? null
         const relationships = toCardRelationships(this.relationshipsByPath.get(file.path))
         const defer = parseFrontmatterDate(
             getFrontmatterValue(this.app, file, this.deferDateProperty)
@@ -2498,7 +2506,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         const newStatus =
             target.columnId === UNMAPPED_COLUMN_ID
                 ? null
-                : (this.columnStatusValue(target.columnId, target.laneId) ?? card.statusValue)
+                : this.columnStatusValue(target.columnId, target.laneId) ?? card.statusValue
         await this.applyMove(card, newStatus, target.laneId, target.columnId, target.index)
     }
 
@@ -2833,7 +2841,9 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
                 ? ` in the “${laneId}” swimlane`
                 : ''
         const folder = normalizeCreationFolder(resolvePlaceholders(config.folder, ctx))
-        return `The note is created in ${folder.length > 0 ? `“${folder}”` : 'the vault root'} and lands in ${where}${lane}.`
+        return `The note is created in ${
+            folder.length > 0 ? `“${folder}”` : 'the vault root'
+        } and lands in ${where}${lane}.`
     }
 
     /** Live preview for the modal: the exact path + template that will be used. */
@@ -2938,7 +2948,9 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         const unmet = this.unmetFilterFacts(file, facts, properties)
         if (unmet.length > 0) {
             new Notice(
-                `Created “${file.basename}” in “${file.parent?.path ?? '/'}”, but this view filters on ${unmet.join(', ')} — the card does not appear here.`,
+                `Created “${file.basename}” in “${
+                    file.parent?.path ?? '/'
+                }”, but this view filters on ${unmet.join(', ')} — the card does not appear here.`,
                 8000
             )
         }
@@ -3476,8 +3488,8 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
                     typeof raw === 'string'
                         ? raw
                         : typeof raw === 'number' || typeof raw === 'boolean'
-                          ? String(raw)
-                          : null
+                        ? String(raw)
+                        : null
                 return {
                     name: def.name,
                     displayName: def.displayName,
@@ -4148,8 +4160,8 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         const dueText = !last
             ? 'never reviewed'
             : due
-              ? `overdue ${String(weight)}d`
-              : `in ${String(-weight)}d`
+            ? `overdue ${String(weight)}d`
+            : `in ${String(-weight)}d`
         return [
             { label: 'Last reviewed', text: last ? toDateKey(last) : 'never', progress: null },
             { label: 'Reviews', text: String(count ?? 0), progress: null },
@@ -4511,6 +4523,9 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         const firstDay = this.plugin.settings.firstDayOfWeek
         return {
             today,
+            // `context:` / `contexts:` aliases resolve to the configured
+            // contexts property (issue #166).
+            contextsProp: this.contextsProperty().toLowerCase(),
             periods: {
                 week: periodRange('week', today, firstDay),
                 month: periodRange('month', today, firstDay),
