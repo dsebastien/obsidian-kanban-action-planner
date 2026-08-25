@@ -1,5 +1,17 @@
 # Release Notes
 
+## 1.17.0 (2026-08-25)
+
+### Features
+
+- **plugin:** resolve context: filter qualifier to the configured contexts property
+
+### Bug Fixes
+
+- **plugin:** force the context-row chip ghosting past Obsidian's unlayered disabled style
+- **plugin:** ghost read-only chips on WBS context rows
+- **plugin:** size the WBS expand/collapse-all icons so they stop collapsing to a sliver
+
 ## 1.16.1 (2026-08-22)
 
 ### Bug Fixes

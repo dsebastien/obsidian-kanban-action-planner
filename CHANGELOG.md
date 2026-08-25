@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.17.0](https://github.com/dsebastien/obsidian-kanban-action-planner/compare/1.16.1...1.17.0) (2026-08-25)
+
+### Features
+
+* **plugin:** resolve context: filter qualifier to the configured contexts property ([6bd2ab8](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/6bd2ab8c54e19445cb47e58f9d83bf07719ca70a)), closes [#166](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/166)
+
+### Bug Fixes
+
+* **plugin:** force the context-row chip ghosting past Obsidian's unlayered disabled style ([f8ae679](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/f8ae67981ef8219ed4681c93209aa1671b56d3bc)), closes [#167](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/167)
+* **plugin:** ghost read-only chips on WBS context rows ([40df73f](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/40df73fbc695acde29d6681280cec4be921b419a)), closes [#167](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/167)
+* **plugin:** size the WBS expand/collapse-all icons so they stop collapsing to a sliver ([927db36](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/927db367cdce35070bdd9b11d2a0ea1f4b6ffe7d)), closes [#168](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/168)
+
 ## [1.16.1](https://github.com/dsebastien/obsidian-kanban-action-planner/compare/1.16.0...1.16.1) (2026-08-22)
 
 ### Bug Fixes
@@ -426,6 +438,7 @@ All notable changes to this project will be documented in this file.
 
 * **plugin:** match Starter Kit's {{quarter}} placeholder format (Q2, not 2) ([4fde618](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/4fde6185c5956e3f6fd2ca3a9b03e70cf5e16840))
 * **plugin:** persist discovered statuses so Show empty columns works ([cf91b81](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/cf91b81a1b0786e35c73f4885882e2dc33564c62))
+
 
 
 
