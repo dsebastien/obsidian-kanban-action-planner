@@ -127,11 +127,11 @@ export function formatNaturalDatePreview(date: Date, today: Date): string {
         delta === 0
             ? 'today'
             : delta === 1
-            ? 'tomorrow'
-            : delta === -1
-            ? 'yesterday'
-            : delta > 1
-            ? `in ${String(delta)} days`
-            : `${String(-delta)} days ago`
+              ? 'tomorrow'
+              : delta === -1
+                ? 'yesterday'
+                : delta > 1
+                  ? `in ${String(delta)} days`
+                  : `${String(-delta)} days ago`
     return `${dayNames[date.getDay()] ?? ''} ${toDateKey(date)} · ${relative}`
 }

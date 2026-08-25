@@ -27,9 +27,9 @@ different slices of the same notes.
 
 ## Common use cases
 
--   A task board: `status` of `10 Todo` / `20 Doing` / `30 Done`, reordered by priority.
--   A reading list: `status` of `To read` / `Reading` / `Read`.
--   A content pipeline: `status` of `Idea` / `Draft` / `Review` / `Published`.
+- A task board: `status` of `10 Todo` / `20 Doing` / `30 Done`, reordered by priority.
+- A reading list: `status` of `To read` / `Reading` / `Read`.
+- A content pipeline: `status` of `Idea` / `Draft` / `Review` / `Published`.
 
 ## Troubleshooting
 

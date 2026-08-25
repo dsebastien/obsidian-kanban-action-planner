@@ -132,11 +132,11 @@ export class CalendarDnd {
         const groupEl =
             dayEl || !this.sourceInPanel
                 ? null
-                : el?.closest<HTMLElement>('[data-pane-drop-status]') ?? null
+                : (el?.closest<HTMLElement>('[data-pane-drop-status]') ?? null)
         const panelEl =
             dayEl || this.sourceInPanel
                 ? null
-                : el?.closest<HTMLElement>('[data-calendar-panel]') ?? null
+                : (el?.closest<HTMLElement>('[data-calendar-panel]') ?? null)
 
         let target: CalendarDropTarget | null = null
         if (dayEl) {

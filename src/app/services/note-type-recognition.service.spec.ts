@@ -21,7 +21,7 @@ function fakePlugin(noteTypes: NoteType[]): KanbanActionPlannerPlugin {
 // getAllTags is mocked to return [] in test-setup, so these cover path/folder rules.
 const app = { metadataCache: { getFileCache: () => null } } as unknown as App
 // eslint-disable-next-line obsidianmd/no-tfile-tfolder-cast -- test fake; recognizeLocalNoteType only reads `.path`
-const file = (path: string): TFile => ({ path } as unknown as TFile)
+const file = (path: string): TFile => ({ path }) as unknown as TFile
 
 describe('recognizeLocalNoteType (issue #31)', () => {
     it('matches a file to a local type by folder rule', () => {

@@ -52,7 +52,7 @@ function unwrap<T>(res: unknown): T | null {
     if (res === null || res === undefined) return null
     if (typeof res === 'object' && 'success' in res) {
         const r = res as { success: boolean; data?: T }
-        return r.success ? r.data ?? null : null
+        return r.success ? (r.data ?? null) : null
     }
     return res as T
 }

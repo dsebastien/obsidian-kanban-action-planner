@@ -226,9 +226,9 @@ export class WbsDnd {
         const groupEl =
             rowEl || this.sourceIsRow
                 ? null
-                : el?.closest<HTMLElement>('[data-pane-drop-status]') ?? null
+                : (el?.closest<HTMLElement>('[data-pane-drop-status]') ?? null)
         const panelEl =
-            rowEl || !this.sourceIsRow ? null : el?.closest<HTMLElement>('.kap-wbs-panel') ?? null
+            rowEl || !this.sourceIsRow ? null : (el?.closest<HTMLElement>('.kap-wbs-panel') ?? null)
         const targetKey = rowEl?.dataset['cardKey'] ?? null
 
         let target: WbsDropTarget | null = null

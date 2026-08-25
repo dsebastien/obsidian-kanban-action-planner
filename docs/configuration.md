@@ -9,20 +9,20 @@ nav_order: 3
 
 Settings live in three places, by scope:
 
--   **Plugin settings** (**Settings → Community plugins → Kanban Action Planner**) — vault-wide
-    **defaults** (property names, default statuses, date format) **plus a central "Note types"
-    list**. Each note type's shared config (statuses, colors, cards, relationships, estimate
-    property + unit, archiving)
-    is defined here once and applied by **every** board to its recognized notes — no need to
-    reconfigure a type per board. When the Obsidian Starter Kit is present, its note types are
-    synchronized into this list automatically; the **Default** entry covers notes with no
-    recognized type. Click **Configure** next to a type to edit it.
--   **Per-board configuration** (**Configure view** — the Bases view options for the Kanban view)
-    — settings for **this board only**, grouped into **Columns**, **Cards**, **Swimlanes**,
-    **Filters**, and **Calendar**. Pickers for properties the board **writes** (status, order,
-    grouping) list only your notes' **frontmatter** properties; read-only pickers (card sort,
-    panel sort, title) also offer `formula.*` and `file.*` columns. When the Obsidian Starter Kit
-    is enabled, frontmatter pickers are further limited to your note types' known properties.
+- **Plugin settings** (**Settings → Community plugins → Kanban Action Planner**) — vault-wide
+  **defaults** (property names, default statuses, date format) **plus a central "Note types"
+  list**. Each note type's shared config (statuses, colors, cards, relationships, estimate
+  property + unit, archiving)
+  is defined here once and applied by **every** board to its recognized notes — no need to
+  reconfigure a type per board. When the Obsidian Starter Kit is present, its note types are
+  synchronized into this list automatically; the **Default** entry covers notes with no
+  recognized type. Click **Configure** next to a type to edit it.
+- **Per-board configuration** (**Configure view** — the Bases view options for the Kanban view)
+  — settings for **this board only**, grouped into **Columns**, **Cards**, **Swimlanes**,
+  **Filters**, and **Calendar**. Pickers for properties the board **writes** (status, order,
+  grouping) list only your notes' **frontmatter** properties; read-only pickers (card sort,
+  panel sort, title) also offer `formula.*` and `file.*` columns. When the Obsidian Starter Kit
+  is enabled, frontmatter pickers are further limited to your note types' known properties.
 
 The **gear** in the board's top-right is a shortcut that opens the plugin's **Note types**
 settings (note-type config — colors, cards, relationships, estimate, archiving, default swimlane
@@ -104,11 +104,11 @@ right in both light and dark themes.
 A board can be split into horizontal **lanes**. The grouping is saved per note type (and can be
 overridden per view):
 
--   **None** — one plain board.
--   **By note type** — one lane per recognized Starter Kit note type.
--   **By property** — one lane per distinct value of a chosen property; lanes order by a numeric
-    prefix the same way columns do. Cards missing the value collect in an **Ungrouped** lane
-    (hidden when empty).
+- **None** — one plain board.
+- **By note type** — one lane per recognized Starter Kit note type.
+- **By property** — one lane per distinct value of a chosen property; lanes order by a numeric
+  prefix the same way columns do. Cards missing the value collect in an **Ungrouped** lane
+  (hidden when empty).
 
 Dragging a card to another lane rewrites the grouping property to the target lane's value (or
 clears it for Ungrouped). Note-type lanes are read-only — a note's type comes from its
@@ -148,7 +148,7 @@ the other note). A non-empty **blocked by** flags the card (red badge + edge) an
 Archiving **moves** a note out of the board into a folder, saved per note type in **Configure
 board → Archiving**:
 
--   **Archive folder** — destination path. Supports placeholders resolved at archive time:
+- **Archive folder** — destination path. Supports placeholders resolved at archive time:
 
     | Placeholder    | Resolves to         | Example             |
     | -------------- | ------------------- | ------------------- |
@@ -164,9 +164,9 @@ board → Archiving**:
     Placeholders are case-insensitive. Leaving the folder blank disables archiving. Missing
     folders are created; a name clash gets a numeric suffix so nothing is overwritten.
 
--   **Auto-archive on status** — optional (off by default). Select **one or more** statuses; a
-    card is archived the moment it **transitions into** any of them. Reordering within such a
-    status does nothing.
+- **Auto-archive on status** — optional (off by default). Select **one or more** statuses; a
+  card is archived the moment it **transitions into** any of them. Reordering within such a
+  status does nothing.
 
 Manual archiving is available from a card's right-click menu (**Archive**). Moves go through
 Obsidian's file manager, so wikilinks to the note are updated and stay valid.
@@ -257,32 +257,32 @@ order:
 
 **Triggers**
 
--   **Enters a status** / **Leaves a status** — toggle any of the type's status values; the
-    rule fires when a note transitions into (or out of) one of them, whether by drag, the
-    card menu, the WBS status dot, a pane drop, a bulk edit, or triage. It fires once per
-    actual transition — dropping a card back on its own column does nothing.
--   **Enters a done state** — fires when the note enters any of the type's done values (see
-    [Done state](#done-state)) from a non-done one. Completed, Abandoned, Superseded — one
-    rule covers them all, and moving between two done states does not re-fire it.
--   **Is archived** — fires just before the note moves to its archive folder (manual, bulk,
-    or status-triggered), so property changes land on the archived note.
--   **Property matches a condition** — `property = / ≠ / > / ≥ / < / ≤ value`, or `is set` /
-    `is unset`. Numbers compare numerically, everything else as case-insensitive text (ISO
-    dates order correctly). The rule fires when the condition **becomes** true — editing
-    `progress` from 40 to 100 fires a `progress ≥ 100` rule once; nudging it from 100 to 110
-    doesn't. Any edit source counts, including typing in the editor — as long as a board
-    showing the note is open.
+- **Enters a status** / **Leaves a status** — toggle any of the type's status values; the
+  rule fires when a note transitions into (or out of) one of them, whether by drag, the
+  card menu, the WBS status dot, a pane drop, a bulk edit, or triage. It fires once per
+  actual transition — dropping a card back on its own column does nothing.
+- **Enters a done state** — fires when the note enters any of the type's done values (see
+  [Done state](#done-state)) from a non-done one. Completed, Abandoned, Superseded — one
+  rule covers them all, and moving between two done states does not re-fire it.
+- **Is archived** — fires just before the note moves to its archive folder (manual, bulk,
+  or status-triggered), so property changes land on the archived note.
+- **Property matches a condition** — `property = / ≠ / > / ≥ / < / ≤ value`, or `is set` /
+  `is unset`. Numbers compare numerically, everything else as case-insensitive text (ISO
+  dates order correctly). The rule fires when the condition **becomes** true — editing
+  `progress` from 40 to 100 fires a `progress ≥ 100` rule once; nudging it from 100 to 110
+  doesn't. Any edit source counts, including typing in the editor — as long as a board
+  showing the note is open.
 
 **Actions**
 
--   **Set property** — the value supports the archive placeholders (`{{date}}`,
-    `{{year}}`, `{{month}}`, `{{day}}`, `{{week}}`, `{{quarter}}`, `{{datetime}}`,
-    `{{uuid}}`); plain numbers and `true`/`false` are written as numbers and booleans.
--   **Remove property** — deletes the property (e.g. clear `date_due` when a task is done).
--   **Add tag / Remove tag** — edits the frontmatter `tags` list (case-insensitive, `#`
-    optional).
--   **Move to folder** — the same placeholder-driven move archiving uses: folders are
-    created on demand, name collisions get a numeric suffix, links are preserved.
+- **Set property** — the value supports the archive placeholders (`{{date}}`,
+  `{{year}}`, `{{month}}`, `{{day}}`, `{{week}}`, `{{quarter}}`, `{{datetime}}`,
+  `{{uuid}}`); plain numbers and `true`/`false` are written as numbers and booleans.
+- **Remove property** — deletes the property (e.g. clear `date_due` when a task is done).
+- **Add tag / Remove tag** — edits the frontmatter `tags` list (case-insensitive, `#`
+  optional).
+- **Move to folder** — the same placeholder-driven move archiving uses: folders are
+  created on demand, name collisions get a numeric suffix, links are preserved.
 
 Automation writes never trigger other automation rules (no cascades). If a transition
 both auto-archives the note and matches rules, the property/tag actions run first and the

@@ -428,7 +428,7 @@ function reconcileTree(shell: HTMLElement, model: WbsViewModel, callbacks: WbsCa
     const activeEl = tree.ownerDocument.activeElement
     const focusedInstance =
         activeEl instanceof HTMLElement && tree.contains(activeEl)
-            ? activeEl.closest<HTMLElement>('.kap-wbs-row')?.dataset['wbsKey'] ?? null
+            ? (activeEl.closest<HTMLElement>('.kap-wbs-row')?.dataset['wbsKey'] ?? null)
             : null
 
     const existingEls = Array.from(tree.querySelectorAll<HTMLElement>(':scope > .kap-wbs-row'))
@@ -659,8 +659,8 @@ function renderDatesChip(parent: HTMLElement, row: WbsRowModel, callbacks: WbsCa
         row.startLabel === null
             ? 'No start date'
             : row.endLabel === null
-            ? row.startLabel
-            : `${row.startLabel} → ${row.endLabel}`
+              ? row.startLabel
+              : `${row.startLabel} → ${row.endLabel}`
     const card = row.card
     const btn = parent.createEl('button', {
         cls: 'kap-wbs-chip-btn kap-wbs-dates',
@@ -670,8 +670,8 @@ function renderDatesChip(parent: HTMLElement, row: WbsRowModel, callbacks: WbsCa
             title: !card
                 ? 'Span covered by children — read-only (note outside this view’s filters)'
                 : row.datesDerived
-                ? 'Span covered by children — click to set a start date'
-                : 'Set start date'
+                  ? 'Span covered by children — click to set a start date'
+                  : 'Set start date'
         }
     })
     if (row.startLabel === null) btn.addClass('kap-wbs-chip-unset')
@@ -726,10 +726,10 @@ function renderEstimateChip(
     const title = !card
         ? 'Children rollup — read-only (note outside this view’s filters)'
         : row.rollupSuffix !== null
-        ? `Set estimate — children rollup ${row.rollupSuffix.slice(2)} differs`
-        : row.estimateDerived
-        ? 'Derived from children — click to persist or adjust'
-        : 'Set estimate'
+          ? `Set estimate — children rollup ${row.rollupSuffix.slice(2)} differs`
+          : row.estimateDerived
+            ? 'Derived from children — click to persist or adjust'
+            : 'Set estimate'
     const btn = parent.createEl('button', {
         cls: 'kap-wbs-chip-btn kap-wbs-estimate',
         attr: { type: 'button', title }

@@ -261,7 +261,7 @@ export function effectiveProgress(
     let sum = 0
     let weightSum = 0
     for (const child of children) {
-        const weight = weighted ? child.weight ?? 1 : 1
+        const weight = weighted ? (child.weight ?? 1) : 1
         sum += (child.progress ?? 0) * weight
         weightSum += weight
     }
@@ -343,7 +343,7 @@ export function createWbsRollups(
             let sum = 0
             let weightSum = 0
             for (const child of children) {
-                const weight = weighted ? child.weight ?? 1 : 1
+                const weight = weighted ? (child.weight ?? 1) : 1
                 sum += (child.progress ?? 0) * weight
                 weightSum += weight
             }

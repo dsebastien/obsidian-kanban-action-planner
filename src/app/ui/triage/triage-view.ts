@@ -123,7 +123,7 @@ export function renderTriageView(
     // a new card the caller asks to reset, so the next card starts at its title.
     const prevScroll = options.scrollToTop
         ? 0
-        : container.querySelector<HTMLElement>('.kap-triage-body')?.scrollTop ?? 0
+        : (container.querySelector<HTMLElement>('.kap-triage-body')?.scrollTop ?? 0)
 
     // Preserve keyboard focus across the full teardown (issue #105, finding
     // 4.2): interactive elements carry a stable `data-kap-focus` key; when one
@@ -132,7 +132,7 @@ export function renderTriageView(
     const active = container.ownerDocument.activeElement
     const focusKey =
         active instanceof HTMLElement && container.contains(active)
-            ? active.closest<HTMLElement>('[data-kap-focus]')?.dataset['kapFocus'] ?? null
+            ? (active.closest<HTMLElement>('[data-kap-focus]')?.dataset['kapFocus'] ?? null)
             : null
     const restoreFocus = (): void => {
         if (!focusKey) return

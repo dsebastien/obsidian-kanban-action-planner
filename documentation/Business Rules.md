@@ -773,7 +773,6 @@ When a new business rule is mentioned:
     them (`column-dnd` bails on `target.closest('button')`). Creating a note is a fixed pipeline whose ORDER is the
     invariant: ensure folder → `vault.create('')` → open it when configured → apply the
     template (awaited) → write ALL card-defining frontmatter in ONE transaction.
-
     - **The template runs before the property write, never after.** Templater merges a
       template's frontmatter OVER the file's own (non-empty scalars win, arrays concatenate),
       so properties written first would be silently overridden — a `tp.system.suggester`

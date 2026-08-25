@@ -21,7 +21,7 @@ const entryOf = (values: Record<string, string>): BasesEntry =>
             const v = values[id]
             return v === undefined ? null : { toString: (): string => v }
         }
-    } as unknown as BasesEntry)
+    }) as unknown as BasesEntry
 
 describe('resolveCardTitle (issue #4)', () => {
     const entry = entryOf({

@@ -13,11 +13,11 @@ Yes, but read-only and partial. `services/starter-kit.service.ts` feature-detect
 property values). It does **not** read the creation-relevant fields the OSK API already
 exposes on each note type:
 
--   `associatedFolder` — target folder (supports `{{year}}`-style expressions)
--   `templatePath` — the type's template file
--   `noteNamePrefix` / `noteNameSuffix` — name decoration (often part of the type's own
-    regex recognition mapping, e.g. `.* \(Task\)$`)
--   `properties[].required` / `defaultValue` and `tags`
+- `associatedFolder` — target folder (supports `{{year}}`-style expressions)
+- `templatePath` — the type's template file
+- `noteNamePrefix` / `noteNameSuffix` — name decoration (often part of the type's own
+  regex recognition mapping, e.g. `.* \(Task\)$`)
+- `properties[].required` / `defaultValue` and `tags`
 
 This milestone extends the adapter to read those, so a Starter Kit type needs zero extra
 configuration in this plugin.
@@ -55,23 +55,23 @@ and the Starter Kit's own create-note command:
 
 ### Domain (pure, unit-tested)
 
--   `domain/base-filters.ts` — parse a `BasesConfigFile`-shaped filter tree into
-    `{ folders, tags, properties }`. Only top-level `and` conjunctions contribute facts
-    (`or`/`not` do not imply anything a new note must satisfy). Recognizes
-    `file.inFolder("…")`, `file.hasTag("…")`, `note.prop == "…"` / `prop == "…"`,
-    `prop.contains("…")`.
--   `domain/note-creation.ts` — pure planning: decorate the title with prefix/suffix,
-    resolve placeholders, build + uniquify the target path, and decide which template
-    strategy applies.
+- `domain/base-filters.ts` — parse a `BasesConfigFile`-shaped filter tree into
+  `{ folders, tags, properties }`. Only top-level `and` conjunctions contribute facts
+  (`or`/`not` do not imply anything a new note must satisfy). Recognizes
+  `file.inFolder("…")`, `file.hasTag("…")`, `note.prop == "…"` / `prop == "…"`,
+  `prop.contains("…")`.
+- `domain/note-creation.ts` — pure planning: decorate the title with prefix/suffix,
+  resolve placeholders, build + uniquify the target path, and decide which template
+  strategy applies.
 
 ### Services
 
--   `services/starter-kit.service.ts` — expose `creationDefaults(noteType)` reading
-    `associatedFolder` / `templatePath` / `noteNamePrefix` / `noteNameSuffix`.
--   `services/note-creation.service.ts` — the imperative pipeline:
-    `ensureFolder → vault.create('') → applyTemplate (awaited) → processFrontMatter (once)`.
--   `services/templater.service.ts` — the Templater adapter (availability,
-    `write_template_to_file`, auto-trigger resolution, pending-marker guard).
+- `services/starter-kit.service.ts` — expose `creationDefaults(noteType)` reading
+  `associatedFolder` / `templatePath` / `noteNamePrefix` / `noteNameSuffix`.
+- `services/note-creation.service.ts` — the imperative pipeline:
+  `ensureFolder → vault.create('') → applyTemplate (awaited) → processFrontMatter (once)`.
+- `services/templater.service.ts` — the Templater adapter (availability,
+  `write_template_to_file`, auto-trigger resolution, pending-marker guard).
 
 ### Config
 
@@ -89,14 +89,14 @@ suggesters and placeholders showing the inherited Starter Kit values.
 
 ### UI
 
--   Two entry points per column (not on the synthetic Unmapped column), behind a per-view
-    `showAddCard` toggle (default on): a **+** in the column header (always in reach, hidden
-    while collapsed) and a labelled `+ Add card` footer under the cards. Both are `<button>`s,
-    which the column-reorder drag already ignores.
--   `ui/create-note-modal.ts` — title input + live preview of the resulting path and the
-    template that will be applied.
--   The created card is focused/scrolled to; when the note ends up outside the view's
-    filters (a template may move it), that is reported instead of silently vanishing.
+- Two entry points per column (not on the synthetic Unmapped column), behind a per-view
+  `showAddCard` toggle (default on): a **+** in the column header (always in reach, hidden
+  while collapsed) and a labelled `+ Add card` footer under the cards. Both are `<button>`s,
+  which the column-reorder drag already ignores.
+- `ui/create-note-modal.ts` — title input + live preview of the resulting path and the
+  template that will be applied.
+- The created card is focused/scrolled to; when the note ends up outside the view's
+  filters (a template may move it), that is reported instead of silently vanishing.
 
 ### Frontmatter written (single transaction, after templating)
 
@@ -117,16 +117,16 @@ updated.
 Real vault, Templater + Starter Kit, against `TPL Task.md` (six `tp.system.suggester`
 prompts, a `tp.file.rename` and a `tp.file.move`):
 
--   The modal previews the resolved path (`20 Actions/24 Tasks/… (Task).md`) and the
-    Starter Kit template before creating.
--   Answering the template's status prompt with **Done** while adding to **This Quarter**
-    produced `status: 30 - This Quarter` — the column wins, every other template answer is
-    kept.
--   Exactly one template application (one `## Action` heading, one frontmatter block); the
-    template's own rename/move was a no-op because the note was already in the right place.
--   `tp.file.cursor()` resolves when the note opens; the marker is stripped when it does not.
--   Base filter tags (`kapqc`) merged into the template's own tags; the card appeared in the
-    clicked column.
+- The modal previews the resolved path (`20 Actions/24 Tasks/… (Task).md`) and the
+  Starter Kit template before creating.
+- Answering the template's status prompt with **Done** while adding to **This Quarter**
+  produced `status: 30 - This Quarter` — the column wins, every other template answer is
+  kept.
+- Exactly one template application (one `## Action` heading, one frontmatter block); the
+  template's own rename/move was a no-op because the note was already in the right place.
+- `tp.file.cursor()` resolves when the note opens; the marker is stripped when it does not.
+- Base filter tags (`kapqc`) merged into the template's own tags; the card appeared in the
+  clicked column.
 
 ### Adversarial review (Codex, xhigh) — accepted findings, all fixed
 
@@ -152,11 +152,11 @@ prompts, a `tp.file.rename` and a `tp.file.move`):
 
 ### Deliberately not changed (documented in code)
 
--   **Starter Kit `tags` / required-property defaults are not written.** The Starter Kit
-    makes auto-adding those an explicit opt-in, and a type's template already supplies them.
-    Only the type's tag _recognition_ mappings (plus the Base's filter tags) are written —
-    the minimum for the card to be recognized and to match the view.
--   **Templater's loose `includes` test for its templates folder is reproduced verbatim.**
-    Tightening it would apply a template where Templater itself applies none.
--   **A Starter Kit template cannot be switched off per type** (empty means inherit). Point
-    the type at a different template instead.
+- **Starter Kit `tags` / required-property defaults are not written.** The Starter Kit
+  makes auto-adding those an explicit opt-in, and a type's template already supplies them.
+  Only the type's tag _recognition_ mappings (plus the Base's filter tags) are written —
+  the minimum for the card to be recognized and to match the view.
+- **Templater's loose `includes` test for its templates folder is reproduced verbatim.**
+  Tightening it would apply a template where Templater itself applies none.
+- **A Starter Kit template cannot be switched off per type** (empty means inherit). Point
+  the type at a different template instead.

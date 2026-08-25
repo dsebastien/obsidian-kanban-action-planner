@@ -28,7 +28,7 @@ import type { NameMatcher } from './board-model'
 
 /** The six mutually-exclusive view modes (Board / Calendar / Timeline / WBS / Triage / Agenda). */
 export const VIEW_MODES = ['board', 'calendar', 'timeline', 'triage', 'wbs', 'agenda'] as const
-export type ViewMode = typeof VIEW_MODES[number]
+export type ViewMode = (typeof VIEW_MODES)[number]
 
 /** Height clamp bounds (px) for the `height=` param. */
 export const EMBED_MIN_HEIGHT_PX = 200

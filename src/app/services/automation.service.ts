@@ -110,7 +110,7 @@ async function runAction(
                 result.moveError =
                     moved.reason === 'no-folder'
                         ? 'no destination folder configured'
-                        : moved.message ?? 'unknown error'
+                        : (moved.message ?? 'unknown error')
             }
             return
         }

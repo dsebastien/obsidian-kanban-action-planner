@@ -80,8 +80,8 @@ export const archiveConfigSchema = z
             triggerStatuses && triggerStatuses.length > 0
                 ? triggerStatuses
                 : triggerStatus
-                ? [triggerStatus]
-                : []
+                  ? [triggerStatus]
+                  : []
         return { archiveFolder, triggerStatuses: [...new Set(list)] }
     })
 export type ArchiveConfig = z.infer<typeof archiveConfigSchema>

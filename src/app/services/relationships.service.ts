@@ -160,7 +160,7 @@ export async function removeRelationshipLink(
 /** Build a {@link NoteRecord} for one file. */
 function toRecord(app: App, file: TFile, props: Record<RelationshipRole, string>): NoteRecord {
     const cache = app.metadataCache.getFileCache(file)
-    const tags = (cache ? getAllTags(cache) ?? [] : [])
+    const tags = (cache ? (getAllTags(cache) ?? []) : [])
         .map(normalizeTag)
         .filter((t) => t.length > 0)
     const roleLinks: Partial<Record<RelationshipRole, string[]>> = {}

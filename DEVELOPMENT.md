@@ -4,9 +4,9 @@ This guide explains how to build, run, and test the plugin locally.
 
 ## Prerequisites
 
--   [Bun](https://bun.sh/) (latest version)
--   [Git](https://git-scm.com/)
--   An Obsidian vault for testing
+- [Bun](https://bun.sh/) (latest version)
+- [Git](https://git-scm.com/)
+- An Obsidian vault for testing
 
 ## Setup
 
@@ -71,11 +71,11 @@ bun run dev
 
 This will:
 
--   Compile TypeScript
--   Bundle the plugin
--   Build Tailwind CSS
--   Copy files to your vault's plugin directory
--   Watch for changes and rebuild automatically
+- Compile TypeScript
+- Bundle the plugin
+- Build Tailwind CSS
+- Copy files to your vault's plugin directory
+- Watch for changes and rebuild automatically
 
 ### Type Checking
 
@@ -116,9 +116,9 @@ bun run build
 
 This creates optimized production files in the `dist/` directory:
 
--   `main.js` - Bundled plugin code
--   `manifest.json` - Plugin manifest
--   `styles.css` - Compiled styles
+- `main.js` - Bundled plugin code
+- `manifest.json` - Plugin manifest
+- `styles.css` - Compiled styles
 
 ## Testing in Obsidian
 
@@ -134,9 +134,9 @@ This creates optimized production files in the `dist/` directory:
 
 If you prefer not to use the environment variable, manually copy these files to `<YourVault>/.obsidian/plugins/<your-plugin-id>/`:
 
--   `dist/main.js`
--   `dist/manifest.json`
--   `dist/styles.css`
+- `dist/main.js`
+- `dist/manifest.json`
+- `dist/styles.css`
 
 ## Available Scripts
 
@@ -157,18 +157,18 @@ If you prefer not to use the environment variable, manually copy these files to 
 
 ### Plugin not appearing in Obsidian
 
--   Verify `OBSIDIAN_VAULT_LOCATION` points to the correct vault
--   Check that files exist in `<vault>/.obsidian/plugins/<your-plugin-id>/`
--   Restart Obsidian
--   Ensure Community plugins are enabled
+- Verify `OBSIDIAN_VAULT_LOCATION` points to the correct vault
+- Check that files exist in `<vault>/.obsidian/plugins/<your-plugin-id>/`
+- Restart Obsidian
+- Ensure Community plugins are enabled
 
 ### Build errors
 
--   Run `bun install` to ensure dependencies are up to date
--   Check `bun run tsc` for TypeScript errors
--   Check `bun run lint` for linting issues
+- Run `bun install` to ensure dependencies are up to date
+- Check `bun run tsc` for TypeScript errors
+- Check `bun run lint` for linting issues
 
 ### Changes not reflecting
 
--   Use **Ctrl/Cmd + R** in Obsidian to reload
--   Check the developer console (**Ctrl/Cmd + Shift + I**) for errors
+- Use **Ctrl/Cmd + R** in Obsidian to reload
+- Check the developer console (**Ctrl/Cmd + Shift + I**) for errors

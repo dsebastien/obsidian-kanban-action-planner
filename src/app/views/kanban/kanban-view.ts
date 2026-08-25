@@ -712,7 +712,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             canDrop: (sourceKey, sourceParentKey, target) =>
                 target.kind === 'paneGroup'
                     ? this.canDropOnPaneGroup(sourceKey, target.typeId, target.status)
-                    : this.wbs?.canDrop(sourceKey, sourceParentKey, target) ?? false,
+                    : (this.wbs?.canDrop(sourceKey, sourceParentKey, target) ?? false),
             onDrop: (sourceKey, sourceParentKey, target) => {
                 if (target.kind === 'paneGroup') {
                     this.dropOnPaneGroup(sourceKey, target.typeId, target.status)
@@ -1034,8 +1034,8 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
                 const raw = !ref
                     ? null
                     : ref.kind === 'note'
-                    ? getFrontmatterValue(this.app, file, ref.name)
-                    : unwrapValue(this.entriesByPath.get(file.path)?.getValue(ref.id) ?? null)
+                      ? getFrontmatterValue(this.app, file, ref.name)
+                      : unwrapValue(this.entriesByPath.get(file.path)?.getValue(ref.id) ?? null)
                 map.set(file.path, normalizeLaneValue(raw))
             }
             return map
@@ -1070,7 +1070,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             this.archiveFolderPrefixes(),
             (path) => {
                 const type = this.noteTypeByPath.get(path)
-                return type ? findNoteType(this.plugin, type.id) ?? null : null
+                return type ? (findNoteType(this.plugin, type.id) ?? null) : null
             }
         )
         this.detectEmbed()
@@ -2416,7 +2416,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         const order = coerceOrder(getFrontmatterValue(this.app, file, this.orderProperty))
         const display = this.cardDisplayFor(file)
         const laneValue =
-            this.laneGrouping.kind === 'none' ? null : this.laneValueByPath.get(file.path) ?? null
+            this.laneGrouping.kind === 'none' ? null : (this.laneValueByPath.get(file.path) ?? null)
         const relationships = toCardRelationships(this.relationshipsByPath.get(file.path))
         const defer = parseFrontmatterDate(
             getFrontmatterValue(this.app, file, this.deferDateProperty)
@@ -2506,7 +2506,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         const newStatus =
             target.columnId === UNMAPPED_COLUMN_ID
                 ? null
-                : this.columnStatusValue(target.columnId, target.laneId) ?? card.statusValue
+                : (this.columnStatusValue(target.columnId, target.laneId) ?? card.statusValue)
         await this.applyMove(card, newStatus, target.laneId, target.columnId, target.index)
     }
 
@@ -3488,8 +3488,8 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
                     typeof raw === 'string'
                         ? raw
                         : typeof raw === 'number' || typeof raw === 'boolean'
-                        ? String(raw)
-                        : null
+                          ? String(raw)
+                          : null
                 return {
                     name: def.name,
                     displayName: def.displayName,
@@ -4160,8 +4160,8 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         const dueText = !last
             ? 'never reviewed'
             : due
-            ? `overdue ${String(weight)}d`
-            : `in ${String(-weight)}d`
+              ? `overdue ${String(weight)}d`
+              : `in ${String(-weight)}d`
         return [
             { label: 'Last reviewed', text: last ? toDateKey(last) : 'never', progress: null },
             { label: 'Reviews', text: String(count ?? 0), progress: null },

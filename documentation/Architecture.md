@@ -6,74 +6,74 @@ for invariants see [`Business Rules.md`](./Business%20Rules.md).
 
 ## Entry points
 
--   `src/main.ts` — default-exports the plugin class only.
--   `src/app/plugin.ts` — `KanbanActionPlannerPlugin`: settings load/save (Zod-validated,
-    Immer-immutable), registers the Bases view, adds the settings tab.
+- `src/main.ts` — default-exports the plugin class only.
+- `src/app/plugin.ts` — `KanbanActionPlannerPlugin`: settings load/save (Zod-validated,
+  Immer-immutable), registers the Bases view, adds the settings tab.
 
 ## The Bases view
 
 The core is a custom Obsidian **Bases view** (Obsidian ≥ 1.12.0 API):
 
--   Registered via `Plugin.registerBasesView(KANBAN_VIEW_TYPE, { name, icon, factory, options })`.
--   `factory: (controller, containerEl) => KanbanActionPlannerView` — the view mounts all its
-    DOM inside `containerEl`.
--   `KanbanActionPlannerView extends BasesView` implements `type`, `onload`, `onunload`, and
-    `onDataUpdated`. The filtered note set is read from `this.data.data` (a `BasesQueryResult`
-    whose `BasesEntry` objects expose `.file: TFile` and `.getValue(propertyId)`); it is
-    **replaced** on every update and never cached. Per-view state is persisted via
-    `this.config.get/set`.
--   **Filter bar (issue #34).** A "JQL-lite" query, parsed by the pure, unit-tested
-    `domain/filter-query.ts` (`parseFilterQuery` → OR-of-AND-groups AST; `matchesFilterQuery`
-    over a per-card `CardSearchRecord`). `services/card-search.service.ts` (`buildCardSearchRecord`,
-    unit-tested) builds one `CardSearchRecord` per card from the metadata cache (lowercased title,
-    relationship names, tags, all frontmatter values, status value+label, parsed due date) so
-    keystroke matching does no file reads. `rebuild()` derives
-    the unfiltered `allCards` + records once; `applyFilterAndRender()` filters and renders, and is
-    also called directly (debounced ~150 ms) on a filter keystroke — so typing re-renders without
-    re-deriving cards/relationships. The filter input is a **persistent** toolbar element
-    (`ui/filter-bar.ts`) in its own slot between the re-rendered mode-switch (left) and actions
-    (right) slots, so it never loses focus. The query persists per-view in `config.filterQuery`;
-    it applies in both board and calendar mode and replaced the old `calendarFilter` option.
--   **Markdown-note embeds (issue #103).** Obsidian natively renders the view inside
-    `![[….base#View|…]]` embeds; the alias lands verbatim in the wrapper's `alt` attribute and is
-    parsed by the pure `domain/embed-params.ts` (`parseEmbedParams` → `mode`/`heightPx`/`filter`;
-    the module also owns the `ViewMode` union, re-exported type-only by `ui/view-toolbar.ts` to
-    keep domain→ui layering clean). Detection is lazy (`detectEmbed` — containerEl can be detached
-    when the factory runs): re-checked each rebuild and on the first real-dimension resize until
-    the root is connected, then `containerEl.closest('.internal-embed.bases-embed')`, cached.
-    Embeds are **projections** (rule 42): ALL view-config reads/writes funnel through
-    `EmbedAwareConfig` (`view-config.ts`, unit-tested) — pass-through outside embeds, in-memory
-    overlay (preferred by `get()`) inside them, so every interaction (mode, filter incl. zoom,
-    panel/lane/column collapse, compact toggle, column reorder, triage config, …) still works but
-    the shared `.base` view is never rewritten from an embed. No direct `this.config.set` calls
-    exist in the view. `viewMode()` — the single funnel for all mode readers — returns the
-    ephemeral override first; `setViewMode()` in an embed updates it in memory; `loadFilterQuery`
-    seeds from the `filter=` param through the normal parse path. Editing the embed line reuses
-    the same wrapper/view — Obsidian only rewrites the `alt` attribute — so a `MutationObserver`
-    on it re-applies the overrides live (`applyEmbedParams`). `isEmbedded()` forces a
-    synchronous `detectEmbed()` first, so a config-write decision landing between DOM attach and
-    the next detection pass can never leak (at interaction time the DOM is always connected).
-    Containment: `kap-embedded` on `.kap-root` sizes to content under a `max-height` cap of
-    `var(--kap-embed-height, 30rem)` (`height=` sets the cap inline) — small result sets take only
-    the space they need, like native Bases table embeds. The root's content-based height makes the
-    inner percentage chains indefinite, so at the cap the `.kap-board-host` (given
-    `flex-basis: auto; overflow-y: auto` in embeds) scrolls as one unit rather than per column
-    (this also stopped the ResizeObserver loop spam).
--   **Canvas embeds (issue #154).** Same embed pipeline inside an Obsidian Canvas node, two
-    deltas: (1) every drag controller claims its gesture via `ui/pointer-claim.ts`
-    (`claimPointerDrag` = `stopPropagation` only) so Canvas's node-drag never hijacks a card
-    drag — board chrome still bubbles, keeping the node movable; (2) sizing inverts —
-    `detectCanvasHost` (called from `detectEmbed`) adds `kap-in-canvas`, ignores `height=`, and
-    drives `--kap-embed-height` from the node's `.markdown-preview-view` scroller via its own
-    ResizeObserver (offsetParent-chain measurement in `utils/offset-top.ts`, zoom-transform-safe;
-    160px floor; last-value guard against loops), so the node's size controls the board and the
-    root re-enters the full-leaf per-column-scroller layout.
--   **Live config propagation.** The plugin tracks open views in a `Set` (`trackKanbanView` /
-    `untrackKanbanView`, wired in the view's load/unload). `saveSettings()` — the single sink for
-    every note-type/settings write — calls `view.onSettingsChanged()` (debounced rebuild) on each,
-    so a note-type edit (colors, swimlanes, relationships, archiving) refreshes every open board
-    immediately. Card **fields** come from the Bases view's property selection (#50), not the note
-    type, so they update through the normal Bases view update when you change the view's properties.
+- Registered via `Plugin.registerBasesView(KANBAN_VIEW_TYPE, { name, icon, factory, options })`.
+- `factory: (controller, containerEl) => KanbanActionPlannerView` — the view mounts all its
+  DOM inside `containerEl`.
+- `KanbanActionPlannerView extends BasesView` implements `type`, `onload`, `onunload`, and
+  `onDataUpdated`. The filtered note set is read from `this.data.data` (a `BasesQueryResult`
+  whose `BasesEntry` objects expose `.file: TFile` and `.getValue(propertyId)`); it is
+  **replaced** on every update and never cached. Per-view state is persisted via
+  `this.config.get/set`.
+- **Filter bar (issue #34).** A "JQL-lite" query, parsed by the pure, unit-tested
+  `domain/filter-query.ts` (`parseFilterQuery` → OR-of-AND-groups AST; `matchesFilterQuery`
+  over a per-card `CardSearchRecord`). `services/card-search.service.ts` (`buildCardSearchRecord`,
+  unit-tested) builds one `CardSearchRecord` per card from the metadata cache (lowercased title,
+  relationship names, tags, all frontmatter values, status value+label, parsed due date) so
+  keystroke matching does no file reads. `rebuild()` derives
+  the unfiltered `allCards` + records once; `applyFilterAndRender()` filters and renders, and is
+  also called directly (debounced ~150 ms) on a filter keystroke — so typing re-renders without
+  re-deriving cards/relationships. The filter input is a **persistent** toolbar element
+  (`ui/filter-bar.ts`) in its own slot between the re-rendered mode-switch (left) and actions
+  (right) slots, so it never loses focus. The query persists per-view in `config.filterQuery`;
+  it applies in both board and calendar mode and replaced the old `calendarFilter` option.
+- **Markdown-note embeds (issue #103).** Obsidian natively renders the view inside
+  `![[….base#View|…]]` embeds; the alias lands verbatim in the wrapper's `alt` attribute and is
+  parsed by the pure `domain/embed-params.ts` (`parseEmbedParams` → `mode`/`heightPx`/`filter`;
+  the module also owns the `ViewMode` union, re-exported type-only by `ui/view-toolbar.ts` to
+  keep domain→ui layering clean). Detection is lazy (`detectEmbed` — containerEl can be detached
+  when the factory runs): re-checked each rebuild and on the first real-dimension resize until
+  the root is connected, then `containerEl.closest('.internal-embed.bases-embed')`, cached.
+  Embeds are **projections** (rule 42): ALL view-config reads/writes funnel through
+  `EmbedAwareConfig` (`view-config.ts`, unit-tested) — pass-through outside embeds, in-memory
+  overlay (preferred by `get()`) inside them, so every interaction (mode, filter incl. zoom,
+  panel/lane/column collapse, compact toggle, column reorder, triage config, …) still works but
+  the shared `.base` view is never rewritten from an embed. No direct `this.config.set` calls
+  exist in the view. `viewMode()` — the single funnel for all mode readers — returns the
+  ephemeral override first; `setViewMode()` in an embed updates it in memory; `loadFilterQuery`
+  seeds from the `filter=` param through the normal parse path. Editing the embed line reuses
+  the same wrapper/view — Obsidian only rewrites the `alt` attribute — so a `MutationObserver`
+  on it re-applies the overrides live (`applyEmbedParams`). `isEmbedded()` forces a
+  synchronous `detectEmbed()` first, so a config-write decision landing between DOM attach and
+  the next detection pass can never leak (at interaction time the DOM is always connected).
+  Containment: `kap-embedded` on `.kap-root` sizes to content under a `max-height` cap of
+  `var(--kap-embed-height, 30rem)` (`height=` sets the cap inline) — small result sets take only
+  the space they need, like native Bases table embeds. The root's content-based height makes the
+  inner percentage chains indefinite, so at the cap the `.kap-board-host` (given
+  `flex-basis: auto; overflow-y: auto` in embeds) scrolls as one unit rather than per column
+  (this also stopped the ResizeObserver loop spam).
+- **Canvas embeds (issue #154).** Same embed pipeline inside an Obsidian Canvas node, two
+  deltas: (1) every drag controller claims its gesture via `ui/pointer-claim.ts`
+  (`claimPointerDrag` = `stopPropagation` only) so Canvas's node-drag never hijacks a card
+  drag — board chrome still bubbles, keeping the node movable; (2) sizing inverts —
+  `detectCanvasHost` (called from `detectEmbed`) adds `kap-in-canvas`, ignores `height=`, and
+  drives `--kap-embed-height` from the node's `.markdown-preview-view` scroller via its own
+  ResizeObserver (offsetParent-chain measurement in `utils/offset-top.ts`, zoom-transform-safe;
+  160px floor; last-value guard against loops), so the node's size controls the board and the
+  root re-enters the full-leaf per-column-scroller layout.
+- **Live config propagation.** The plugin tracks open views in a `Set` (`trackKanbanView` /
+  `untrackKanbanView`, wired in the view's load/unload). `saveSettings()` — the single sink for
+  every note-type/settings write — calls `view.onSettingsChanged()` (debounced rebuild) on each,
+  so a note-type edit (colors, swimlanes, relationships, archiving) refreshes every open board
+  immediately. Card **fields** come from the Bases view's property selection (#50), not the note
+  type, so they update through the normal Bases view update when you change the view's properties.
 
 ## Layering (target)
 
@@ -138,20 +138,20 @@ Edit only `src/styles.src.css`; the root `styles.css` is generated.
 
 Creating a note from a column is split across four files so the fragile part stays testable:
 
--   `domain/note-creation.ts` (pure) — the config layering (`resolveCreationConfig`), name
-    decoration (`buildNoteBasename`), path building (`buildUniquePath`), and the core-Templates
-    placeholder substitution. Also owns `creationConfigSchema`, embedded in `noteTypeSchema` as
-    the optional `creation` field.
--   `domain/base-filters.ts` (pure) — `collectFilterFacts` turns a serialized
-    `BasesConfigFile` filter tree into the folder / tags / property equalities a new note must
-    carry. Only `and`-reachable expressions count.
--   `services/templater.service.ts` — the whole Templater adapter: availability,
-    `write_template_to_file`, resolving the template its create-trigger would apply,
-    `claimTemplaterFile` (suppressing that trigger for the duration of the flow), and
-    `stripCursorMarkers`. Every member is feature-detected; Templater has no published API.
--   `services/note-creation.service.ts` — the imperative pipeline, whose ORDER is the invariant
-    (see business rule 44): create empty → open (when configured) → template (awaited) →
-    frontmatter in one transaction.
+- `domain/note-creation.ts` (pure) — the config layering (`resolveCreationConfig`), name
+  decoration (`buildNoteBasename`), path building (`buildUniquePath`), and the core-Templates
+  placeholder substitution. Also owns `creationConfigSchema`, embedded in `noteTypeSchema` as
+  the optional `creation` field.
+- `domain/base-filters.ts` (pure) — `collectFilterFacts` turns a serialized
+  `BasesConfigFile` filter tree into the folder / tags / property equalities a new note must
+  carry. Only `and`-reachable expressions count.
+- `services/templater.service.ts` — the whole Templater adapter: availability,
+  `write_template_to_file`, resolving the template its create-trigger would apply,
+  `claimTemplaterFile` (suppressing that trigger for the duration of the flow), and
+  `stripCursorMarkers`. Every member is feature-detected; Templater has no published API.
+- `services/note-creation.service.ts` — the imperative pipeline, whose ORDER is the invariant
+  (see business rule 44): create empty → open (when configured) → template (awaited) →
+  frontmatter in one transaction.
 
 The view (`promptCreateCard` / `createCard`) only computes WHAT to write (status from the
 clicked column, lane value, order, tags) and reveals the result. Reading the Base's filters goes
