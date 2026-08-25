@@ -877,7 +877,10 @@ tasks belong to projects), the out-of-view ancestors still appear as muted **con
 chains are followed through each note's own type configuration (tasks → projects → goals).
 Context rows are display-only (no chips to edit, no dragging them), but they show the
 rollups derived from their in-view descendants, you can click them to open the note, and
-you can **drop rows onto them** to set a parent. Out-of-view _children_ are not shown.
+you can **drop rows onto them** to set a parent. Their chips render **ghosted** to signal
+they are read-only — to set an estimate, a date, or progress on such a note, open the note
+itself, or widen the view's filters so it becomes a regular row. Out-of-view _children_
+are not shown.
 A note with **several parents** shows under each of them (marked ⧉). Fold
 and unfold any node with the chevron (**←/→** on a focused row also work, and **↑/↓** move
 between rows) — collapse state is remembered per view, and the two buttons above the tree

@@ -102,8 +102,7 @@
         background: var(--background-secondary);
         border-color: var(--background-modifier-border);
         box-shadow: var(--shadow-s);
-        transition:
-            color var(--kap-transition) var(--kap-ease),
+        transition: color var(--kap-transition) var(--kap-ease),
             border-color var(--kap-transition) var(--kap-ease),
             box-shadow var(--kap-transition) var(--kap-ease),
             transform var(--kap-transition) var(--kap-ease);
@@ -231,8 +230,7 @@
     .kap-root .kap-filter-zoom-dismiss {
         @apply inline-flex flex-none items-center justify-center w-4 h-4 p-0 border-0 rounded-full cursor-pointer bg-transparent;
         color: var(--text-muted);
-        transition:
-            color var(--kap-transition) var(--kap-ease),
+        transition: color var(--kap-transition) var(--kap-ease),
             background-color var(--kap-transition) var(--kap-ease);
     }
 
@@ -275,8 +273,7 @@
     .kap-root .kap-filter-context-dismiss {
         @apply inline-flex flex-none items-center justify-center w-4 h-4 p-0 border-0 rounded-full cursor-pointer bg-transparent;
         color: var(--text-muted);
-        transition:
-            color var(--kap-transition) var(--kap-ease),
+        transition: color var(--kap-transition) var(--kap-ease),
             background-color var(--kap-transition) var(--kap-ease);
     }
 
@@ -311,8 +308,7 @@
     .kap-root .kap-filter-help {
         @apply inline-flex flex-none items-center justify-center w-5 h-5 p-0 border-0 rounded cursor-pointer bg-transparent;
         color: var(--text-muted);
-        transition:
-            color var(--kap-transition) var(--kap-ease),
+        transition: color var(--kap-transition) var(--kap-ease),
             background-color var(--kap-transition) var(--kap-ease);
     }
 
@@ -459,8 +455,7 @@
         @apply inline-flex items-center justify-center h-7 px-3 border-0 rounded cursor-pointer text-[0.85em];
         color: var(--text-muted);
         background: var(--background-modifier-hover);
-        transition:
-            color var(--kap-transition) var(--kap-ease),
+        transition: color var(--kap-transition) var(--kap-ease),
             background-color var(--kap-transition) var(--kap-ease);
     }
 
@@ -566,8 +561,7 @@
     .kap-column-toggle {
         @apply inline-flex flex-none items-center justify-center w-6 h-6 p-0 border-0 rounded cursor-pointer bg-transparent;
         color: var(--text-muted);
-        transition:
-            color var(--kap-transition) var(--kap-ease),
+        transition: color var(--kap-transition) var(--kap-ease),
             background-color var(--kap-transition) var(--kap-ease);
     }
 
@@ -653,8 +647,7 @@
        rule regardless of specificity (see .kap-mode-btn-active). */
     .kap-root .kap-column-add {
         @apply flex flex-none items-center justify-center rounded cursor-pointer;
-        transition:
-            color var(--kap-transition) var(--kap-ease),
+        transition: color var(--kap-transition) var(--kap-ease),
             background-color var(--kap-transition) var(--kap-ease);
         width: var(--size-4-5, 1.25rem) !important;
         height: var(--size-4-5, 1.25rem) !important;
@@ -699,8 +692,7 @@
        rationale as .kap-mode-btn-active. */
     .kap-root .kap-add-card {
         @apply items-center justify-center gap-1.5 rounded;
-        transition:
-            color var(--kap-transition) var(--kap-ease),
+        transition: color var(--kap-transition) var(--kap-ease),
             background-color var(--kap-transition) var(--kap-ease);
         display: flex !important;
         width: 100% !important;
@@ -769,8 +761,7 @@
     .kap-lane-toggle {
         @apply inline-flex items-center justify-center w-7 h-7 p-0 border-0 rounded cursor-pointer bg-transparent;
         color: var(--text-muted);
-        transition:
-            color var(--kap-transition) var(--kap-ease),
+        transition: color var(--kap-transition) var(--kap-ease),
             background-color var(--kap-transition) var(--kap-ease);
     }
 
@@ -837,8 +828,7 @@
            touch gesture starts the card drag instead (issue #109). */
         touch-action: pan-y;
         box-shadow: var(--shadow-s);
-        transition:
-            border-color var(--kap-transition) var(--kap-ease),
+        transition: border-color var(--kap-transition) var(--kap-ease),
             box-shadow var(--kap-transition) var(--kap-ease),
             transform var(--kap-transition) var(--kap-ease);
     }
@@ -1123,8 +1113,7 @@
         @apply inline-flex items-center gap-1 h-5 px-1 border-0 rounded cursor-pointer text-[0.85em];
         color: var(--text-muted);
         background: var(--background-modifier-hover);
-        transition:
-            color var(--kap-transition) var(--kap-ease),
+        transition: color var(--kap-transition) var(--kap-ease),
             background-color var(--kap-transition) var(--kap-ease);
     }
 
@@ -1301,8 +1290,7 @@
     .kap-panel-toggle {
         @apply inline-flex items-center justify-center h-6 w-6 shrink-0 border-0 rounded cursor-pointer bg-transparent;
         color: var(--text-muted);
-        transition:
-            color var(--kap-transition) var(--kap-ease),
+        transition: color var(--kap-transition) var(--kap-ease),
             background-color var(--kap-transition) var(--kap-ease);
     }
 
@@ -1333,8 +1321,7 @@
         @apply flex-1 inline-flex items-center justify-center gap-1 h-7 px-2 border-0 rounded cursor-pointer text-[0.85em];
         color: var(--text-muted);
         background: var(--background-modifier-hover);
-        transition:
-            color var(--kap-transition) var(--kap-ease),
+        transition: color var(--kap-transition) var(--kap-ease),
             background-color var(--kap-transition) var(--kap-ease);
     }
 
@@ -1398,8 +1385,7 @@
         @apply inline-flex items-center justify-center h-7 px-2 border-0 rounded cursor-pointer text-[0.85em];
         color: var(--text-muted);
         background: var(--background-modifier-hover);
-        transition:
-            color var(--kap-transition) var(--kap-ease),
+        transition: color var(--kap-transition) var(--kap-ease),
             background-color var(--kap-transition) var(--kap-ease),
             transform var(--kap-transition) var(--kap-ease);
     }
@@ -1505,8 +1491,7 @@
     .kap-cal-daynum {
         @apply text-[0.8em] self-end leading-none cursor-pointer rounded px-1;
         color: var(--text-muted);
-        transition:
-            color var(--kap-transition) var(--kap-ease),
+        transition: color var(--kap-transition) var(--kap-ease),
             background-color var(--kap-transition) var(--kap-ease);
     }
 
@@ -1553,8 +1538,7 @@
         /* pan-y keeps native vertical panel/day-list scrolling on touch — a
            horizontal touch gesture starts the chip drag instead (issue #109). */
         touch-action: pan-y;
-        transition:
-            background-color var(--kap-transition) var(--kap-ease),
+        transition: background-color var(--kap-transition) var(--kap-ease),
             transform var(--kap-transition) var(--kap-ease);
     }
 
@@ -1634,9 +1618,7 @@
     }
 
     .kap-cal-legend-pinned .kap-cal-legend-swatch {
-        box-shadow:
-            0 0 0 2px var(--background-primary),
-            0 0 0 3px var(--kap-ctx-color);
+        box-shadow: 0 0 0 2px var(--background-primary), 0 0 0 3px var(--kap-ctx-color);
     }
 
     .kap-cal-legend-item:hover {
@@ -1673,8 +1655,7 @@
         outline: 2px dashed var(--interactive-accent);
         outline-offset: -2px;
         background: var(--background-modifier-hover);
-        transition:
-            outline-color var(--kap-transition) var(--kap-ease),
+        transition: outline-color var(--kap-transition) var(--kap-ease),
             background-color var(--kap-transition) var(--kap-ease);
     }
 
@@ -1817,8 +1798,7 @@
     .kap-config-modal .kap-settings-tab {
         @apply flex items-center gap-2 px-3 py-2 rounded cursor-pointer;
         color: var(--text-muted);
-        transition:
-            color var(--kap-transition, 150ms) ease,
+        transition: color var(--kap-transition, 150ms) ease,
             background-color var(--kap-transition, 150ms) ease;
     }
 
@@ -2203,8 +2183,7 @@
         color: var(--text-muted);
         background: var(--background-modifier-hover) !important;
         box-shadow: none !important;
-        transition:
-            color var(--kap-transition) var(--kap-ease),
+        transition: color var(--kap-transition) var(--kap-ease),
             background-color var(--kap-transition) var(--kap-ease);
     }
 
@@ -2318,8 +2297,7 @@
        the day guide renders inside it. */
     .kap-root .kap-tl-drop-lane {
         @apply sticky top-0 z-10 flex h-8 items-center;
-        background:
-            repeating-linear-gradient(
+        background: repeating-linear-gradient(
                 45deg,
                 transparent 0 6px,
                 color-mix(in srgb, var(--interactive-accent) 14%, transparent) 6px 12px
@@ -2471,8 +2449,7 @@
         border-radius: 999px;
         background: var(--background-modifier-hover);
         color: var(--text-muted);
-        transition:
-            background var(--kap-transition) var(--kap-ease),
+        transition: background var(--kap-transition) var(--kap-ease),
             color var(--kap-transition) var(--kap-ease);
     }
 
@@ -2494,8 +2471,7 @@
         @apply inline-flex items-center justify-center w-7 h-7 rounded cursor-pointer border-0;
         background: var(--background-modifier-hover);
         color: var(--text-muted);
-        transition:
-            background var(--kap-transition) var(--kap-ease),
+        transition: background var(--kap-transition) var(--kap-ease),
             color var(--kap-transition) var(--kap-ease);
     }
 
@@ -2522,8 +2498,7 @@
     .kap-root .kap-triage-queue-item {
         @apply flex w-full items-center h-8 px-2 border-0 rounded cursor-pointer bg-transparent text-left text-[0.82em];
         color: var(--text-normal);
-        transition:
-            color var(--kap-transition) var(--kap-ease),
+        transition: color var(--kap-transition) var(--kap-ease),
             background-color var(--kap-transition) var(--kap-ease);
     }
 
@@ -2616,8 +2591,7 @@
         background: var(--interactive-normal);
         border-color: var(--background-modifier-border);
         color: var(--text-muted);
-        transition:
-            color var(--kap-transition) var(--kap-ease),
+        transition: color var(--kap-transition) var(--kap-ease),
             border-color var(--kap-transition) var(--kap-ease);
     }
 
@@ -2705,8 +2679,7 @@
         background: var(--background-primary);
         border-color: var(--background-modifier-border);
         color: var(--text-normal);
-        transition:
-            background var(--kap-transition) var(--kap-ease),
+        transition: background var(--kap-transition) var(--kap-ease),
             border-color var(--kap-transition) var(--kap-ease);
     }
 
@@ -2961,8 +2934,7 @@
         /* pan-y keeps native vertical pane scrolling on touch — a horizontal
            touch gesture starts the drag (set a parent) instead (issue #109). */
         touch-action: pan-y;
-        transition:
-            background-color var(--kap-transition) var(--kap-ease),
+        transition: background-color var(--kap-transition) var(--kap-ease),
             border-color var(--kap-transition) var(--kap-ease);
     }
 
@@ -2990,8 +2962,7 @@
     .kap-root .kap-wbs-treebar-btn {
         @apply inline-flex items-center justify-center h-6 w-6 shrink-0 border-0 rounded cursor-pointer bg-transparent p-0;
         color: var(--text-muted);
-        transition:
-            color var(--kap-transition) var(--kap-ease),
+        transition: color var(--kap-transition) var(--kap-ease),
             background-color var(--kap-transition) var(--kap-ease);
     }
 
@@ -2999,6 +2970,7 @@
         background: var(--background-modifier-hover);
         color: var(--text-normal);
     }
+
 
     /* The tree scrolls on its own so the panel never squeezes it out. */
     .kap-root .kap-wbs-tree {
@@ -3014,8 +2986,7 @@
         /* pan-y keeps native vertical tree scrolling on touch — a horizontal
            touch gesture starts the drag (re-parent) instead (issue #109). */
         touch-action: pan-y;
-        transition:
-            background-color var(--kap-transition) var(--kap-ease),
+        transition: background-color var(--kap-transition) var(--kap-ease),
             border-color var(--kap-transition) var(--kap-ease);
     }
 
@@ -3046,6 +3017,14 @@
     .kap-root .kap-wbs-row-context > .kap-wbs-title {
         @apply italic;
         color: var(--text-muted);
+    }
+
+    /* Context-row chips are read-only rollups (the note sits outside the
+       view's filters) — ghost them so a dead click reads as "not editable
+       here", not as a broken control (issue #167). */
+    .kap-root .kap-wbs-row-context .kap-wbs-chip-btn:disabled {
+        opacity: 0.45;
+        cursor: default;
     }
 
     .kap-root .kap-wbs-context-badge {
