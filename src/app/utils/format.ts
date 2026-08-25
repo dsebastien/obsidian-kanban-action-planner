@@ -13,7 +13,7 @@ export function stripWikiLink(value: string): string {
     const pipe = inner.indexOf('|')
     const target = pipe === -1 ? inner : inner.slice(pipe + 1)
     // For a plain link, show the basename rather than a full path.
-    const base = target.includes('/') ? (target.split('/').pop() ?? target) : target
+    const base = target.includes('/') ? target.split('/').pop() ?? target : target
     return base.trim()
 }
 

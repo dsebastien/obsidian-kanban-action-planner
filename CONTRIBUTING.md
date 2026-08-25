@@ -6,8 +6,8 @@ Thank you for your interest in contributing to this project!
 
 ### Prerequisites
 
-- [Bun](https://bun.sh/) (latest version)
-- [Git](https://git-scm.com/)
+-   [Bun](https://bun.sh/) (latest version)
+-   [Git](https://git-scm.com/)
 
 ### Fork and Clone
 
@@ -42,8 +42,8 @@ bun run setup
 
 That script runs `git config --local --replace-all include.path ../.gitconfig` — the path is relative to `.git/`, so `../.gitconfig` resolves to the repo root. Git then reads the tracked `.gitconfig`, picking up:
 
-- **`pre-commit` → `scripts/git-hooks/format-staged.sh`** — runs Prettier over the staged files and re-stages them.
-- **`commit-msg` → `bunx commitlint --edit`** — validates the commit message against `commitlint.config.ts`.
+-   **`pre-commit` → `scripts/git-hooks/format-staged.sh`** — runs Prettier over the staged files and re-stages them.
+-   **`commit-msg` → `bunx commitlint --edit`** — validates the commit message against `commitlint.config.ts`.
 
 Confirm the hooks are wired up:
 
@@ -54,7 +54,7 @@ git hook list commit-msg
 
 ### Requirements
 
-- Git **≥ 2.54** is required for config-based hooks. Older Git versions silently ignore them, so the hooks won't run (but nothing will break).
+-   Git **≥ 2.54** is required for config-based hooks. Older Git versions silently ignore them, so the hooks won't run (but nothing will break).
 
 ### Why not Husky?
 
@@ -72,10 +72,10 @@ git checkout -b feature/your-feature-name
 
 Use descriptive branch names:
 
-- `feature/` for new features
-- `fix/` for bug fixes
-- `docs/` for documentation changes
-- `refactor/` for code refactoring
+-   `feature/` for new features
+-   `fix/` for bug fixes
+-   `docs/` for documentation changes
+-   `refactor/` for code refactoring
 
 ### Development
 
@@ -113,12 +113,12 @@ git commit -m "feat: add new feature description"
 
 Common prefixes:
 
-- `feat:` new feature
-- `fix:` bug fix
-- `docs:` documentation changes
-- `refactor:` code refactoring
-- `test:` adding or updating tests
-- `chore:` maintenance tasks
+-   `feat:` new feature
+-   `fix:` bug fix
+-   `docs:` documentation changes
+-   `refactor:` code refactoring
+-   `test:` adding or updating tests
+-   `chore:` maintenance tasks
 
 ### Keep Your Fork Updated
 
@@ -150,19 +150,19 @@ git push origin feature/your-feature-name
 
 ## Pull Request Guidelines
 
-- Keep PRs focused on a single change
-- Ensure all CI checks pass
-- Update documentation if needed
-- Add tests for new functionality
-- Be responsive to feedback and review comments
+-   Keep PRs focused on a single change
+-   Ensure all CI checks pass
+-   Update documentation if needed
+-   Add tests for new functionality
+-   Be responsive to feedback and review comments
 
 ## Code Style
 
 This project uses:
 
-- **ESLint** for linting
-- **Prettier** for formatting
-- **TypeScript** with strict mode enabled
+-   **ESLint** for linting
+-   **Prettier** for formatting
+-   **TypeScript** with strict mode enabled
 
 The CI pipeline enforces these standards. Run `bun run format` and `bun run lint` before committing.
 

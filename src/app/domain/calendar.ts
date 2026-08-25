@@ -56,7 +56,9 @@ const WEEKDAY_FULL = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'F
 
 /** Human-readable long date, e.g. `Thursday, June 18, 2026` (for the focused day). */
 export function formatLongDate(date: Date): string {
-    return `${WEEKDAY_FULL[date.getDay()] ?? ''}, ${MONTH_NAMES[date.getMonth()] ?? ''} ${String(date.getDate())}, ${String(date.getFullYear())}`
+    return `${WEEKDAY_FULL[date.getDay()] ?? ''}, ${MONTH_NAMES[date.getMonth()] ?? ''} ${String(
+        date.getDate()
+    )}, ${String(date.getFullYear())}`
 }
 
 /** A new date `n` days after `date` (negative for earlier); local midnight. */
@@ -170,7 +172,9 @@ export function weekBlock(
     }
     const end = week[6]?.date ?? start
     return {
-        label: `${MONTH_NAMES[start.getMonth()] ?? ''} ${String(start.getDate())} – ${MONTH_NAMES[end.getMonth()] ?? ''} ${String(end.getDate())}, ${String(end.getFullYear())}`,
+        label: `${MONTH_NAMES[start.getMonth()] ?? ''} ${String(start.getDate())} – ${
+            MONTH_NAMES[end.getMonth()] ?? ''
+        } ${String(end.getDate())}, ${String(end.getFullYear())}`,
         weeks: [week]
     }
 }

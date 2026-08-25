@@ -190,7 +190,7 @@ export function buildCardDisplay(
     const noteOverride = (id: BasesPropertyId): string | null | undefined => {
         if (!overrides || overrides.size === 0 || !id.startsWith('note.')) return undefined
         const key = id.slice('note.'.length).toLowerCase()
-        return overrides.has(key) ? (overrides.get(key) ?? null) : undefined
+        return overrides.has(key) ? overrides.get(key) ?? null : undefined
     }
 
     const fields: CardFieldView[] = []
@@ -242,7 +242,7 @@ export function buildCardDisplay(
         if (!property) return null
         const key = property.toLowerCase()
         const raw = overrides?.has(key)
-            ? (overrides.get(key) ?? null)
+            ? overrides.get(key) ?? null
             : getFrontmatterValue(app, file, property)
         return parseFrontmatterDate(raw)
     }

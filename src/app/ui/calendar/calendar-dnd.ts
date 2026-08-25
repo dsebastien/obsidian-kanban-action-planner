@@ -119,7 +119,9 @@ export class CalendarDnd {
 
     private updateGhost(e: PointerEvent): void {
         if (!this.ghostEl || this.reducedMotion) return
-        this.ghostEl.style.transform = `translate(${String(e.clientX + 8)}px, ${String(e.clientY + 8)}px)`
+        this.ghostEl.style.transform = `translate(${String(e.clientX + 8)}px, ${String(
+            e.clientY + 8
+        )}px)`
     }
 
     private updateDropTarget(e: PointerEvent): void {
@@ -130,11 +132,11 @@ export class CalendarDnd {
         const groupEl =
             dayEl || !this.sourceInPanel
                 ? null
-                : (el?.closest<HTMLElement>('[data-pane-drop-status]') ?? null)
+                : el?.closest<HTMLElement>('[data-pane-drop-status]') ?? null
         const panelEl =
             dayEl || this.sourceInPanel
                 ? null
-                : (el?.closest<HTMLElement>('[data-calendar-panel]') ?? null)
+                : el?.closest<HTMLElement>('[data-calendar-panel]') ?? null
 
         let target: CalendarDropTarget | null = null
         if (dayEl) {

@@ -51,7 +51,9 @@ export async function runAutomationRules(
                 await runAction(app, file, action, ctx, result)
             } catch (error: unknown) {
                 log(
-                    `Automation "${rule.name || rule.id}": ${action.kind} failed for "${file.path}".`,
+                    `Automation "${rule.name || rule.id}": ${action.kind} failed for "${
+                        file.path
+                    }".`,
                     'error',
                     error
                 )
@@ -108,7 +110,7 @@ async function runAction(
                 result.moveError =
                     moved.reason === 'no-folder'
                         ? 'no destination folder configured'
-                        : (moved.message ?? 'unknown error')
+                        : moved.message ?? 'unknown error'
             }
             return
         }

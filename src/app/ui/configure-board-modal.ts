@@ -568,7 +568,9 @@ export class ConfigureBoardModal extends Modal {
         await setAutomations(this.plugin, this.noteTypeId, [
             ...current,
             {
-                id: `rule-${Date.now().toString(36)}-${Math.floor(Math.random() * 1e6).toString(36)}`,
+                id: `rule-${Date.now().toString(36)}-${Math.floor(Math.random() * 1e6).toString(
+                    36
+                )}`,
                 name: '',
                 enabled: true,
                 trigger: { kind: 'status-entered', statuses: [] },
@@ -1289,14 +1291,14 @@ export class ConfigureBoardModal extends Modal {
                         value === 'note-type'
                             ? { kind: 'note-type' }
                             : value === 'property'
-                              ? {
-                                    kind: 'property',
-                                    property:
-                                        grouping.kind === 'property'
-                                            ? grouping.property
-                                            : (this.availableProperties[0] ?? '')
-                                }
-                              : { kind: 'none' }
+                            ? {
+                                  kind: 'property',
+                                  property:
+                                      grouping.kind === 'property'
+                                          ? grouping.property
+                                          : this.availableProperties[0] ?? ''
+                              }
+                            : { kind: 'none' }
                     void this.mutate(() => setLaneGrouping(this.plugin, this.noteTypeId, next))
                 })
             })

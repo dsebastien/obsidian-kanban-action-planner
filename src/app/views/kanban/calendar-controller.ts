@@ -471,7 +471,7 @@ export class CalendarController {
 
     private cardTags(file: KanbanCard['file']): string[] {
         const cache = this.host.app.metadataCache.getFileCache(file)
-        return cache ? (getAllTags(cache) ?? []) : []
+        return cache ? getAllTags(cache) ?? [] : []
     }
 
     /** The frontmatter date properties a drag of `dimension` writes/clears. */

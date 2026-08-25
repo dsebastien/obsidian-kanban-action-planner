@@ -810,7 +810,9 @@ function makeMilestoneDraggable(
             if (!moved) return
             const delta = Math.round((move.clientX - startX) / dayWidth)
             const snapped = delta * dayWidth
-            diamond.style.transform = `translate(calc(-50% + ${String(snapped)}px), -50%) rotate(45deg)`
+            diamond.style.transform = `translate(calc(-50% + ${String(
+                snapped
+            )}px), -50%) rotate(45deg)`
             diamond.addClass('kap-tl-dragging')
             const date = callbacks.labelForDayOffset(milestone.dayOffset + delta)
             label.show(`◆ → ${date}`, move.clientX, move.clientY)

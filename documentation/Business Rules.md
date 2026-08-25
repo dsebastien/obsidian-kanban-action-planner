@@ -633,8 +633,7 @@ When a new business rule is mentioned:
     status values), `done-entered` (enters any rule-39 done value from a non-done one;
     requires a STATUS-BASED done definition — `doneIsStatusBased`), `archived` (fires just
     before the note moves, from ALL archive paths: manual menu, bulk, status-triggered),
-    and `property-condition` (`property <op> value`, ops `= ≠ > ≥ < ≤ / is set / is
-unset`; numbers compare numerically, else trimmed case-insensitive strings; missing
+    and `property-condition` (`property <op> value`, ops `= ≠ > ≥ < ≤ / is set / is unset`; numbers compare numerically, else trimmed case-insensitive strings; missing
     values only match `unset` — never `not-equals`). **Actions:** set property
     (placeholder-expanded value — the archive `{{year}}`/`{{date}}`/… vocabulary — then
     coerced: CANONICAL numeric strings → numbers, true/false → booleans, else trimmed
@@ -774,6 +773,7 @@ unset`; numbers compare numerically, else trimmed case-insensitive strings; miss
     them (`column-dnd` bails on `target.closest('button')`). Creating a note is a fixed pipeline whose ORDER is the
     invariant: ensure folder → `vault.create('')` → open it when configured → apply the
     template (awaited) → write ALL card-defining frontmatter in ONE transaction.
+
     - **The template runs before the property write, never after.** Templater merges a
       template's frontmatter OVER the file's own (non-empty scalars win, arrays concatenate),
       so properties written first would be silently overridden — a `tp.system.suggester`

@@ -172,7 +172,9 @@ export class WbsDnd {
         // NOT motion to reduce — suppressing it would pin the ghost at the
         // viewport corner for the whole drag.
         if (!this.ghostEl) return
-        this.ghostEl.style.transform = `translate(${String(e.clientX + 8)}px, ${String(e.clientY + 8)}px)`
+        this.ghostEl.style.transform = `translate(${String(e.clientX + 8)}px, ${String(
+            e.clientY + 8
+        )}px)`
     }
 
     /**
@@ -224,9 +226,9 @@ export class WbsDnd {
         const groupEl =
             rowEl || this.sourceIsRow
                 ? null
-                : (el?.closest<HTMLElement>('[data-pane-drop-status]') ?? null)
+                : el?.closest<HTMLElement>('[data-pane-drop-status]') ?? null
         const panelEl =
-            rowEl || !this.sourceIsRow ? null : (el?.closest<HTMLElement>('.kap-wbs-panel') ?? null)
+            rowEl || !this.sourceIsRow ? null : el?.closest<HTMLElement>('.kap-wbs-panel') ?? null
         const targetKey = rowEl?.dataset['cardKey'] ?? null
 
         let target: WbsDropTarget | null = null
@@ -285,7 +287,9 @@ export class WbsDnd {
     private resolveSourceEl(): void {
         if (this.sourceKey === null) return
         const selector = this.sourceIsRow
-            ? `.kap-wbs-row[data-card-key="${cssEscapeAttr(this.sourceKey)}"][data-parent-key="${cssEscapeAttr(this.sourceParentKey ?? '')}"]`
+            ? `.kap-wbs-row[data-card-key="${cssEscapeAttr(
+                  this.sourceKey
+              )}"][data-parent-key="${cssEscapeAttr(this.sourceParentKey ?? '')}"]`
             : `.kap-wbs-pane-card[data-card-key="${cssEscapeAttr(this.sourceKey)}"]`
         const el = this.containerEl.querySelector<HTMLElement>(selector)
         if (el) {

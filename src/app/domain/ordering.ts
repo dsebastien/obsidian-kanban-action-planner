@@ -50,8 +50,8 @@ export function renumberedOrders(count: number): number[] {
  */
 export function computeInsertOrder(sortedOrders: number[], targetIndex: number): number {
     const clamped = Math.max(0, Math.min(targetIndex, sortedOrders.length))
-    const before = clamped > 0 ? (sortedOrders[clamped - 1] ?? null) : null
-    const after = clamped < sortedOrders.length ? (sortedOrders[clamped] ?? null) : null
+    const before = clamped > 0 ? sortedOrders[clamped - 1] ?? null : null
+    const after = clamped < sortedOrders.length ? sortedOrders[clamped] ?? null : null
     return orderBetween(before, after)
 }
 

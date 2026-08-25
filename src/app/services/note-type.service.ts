@@ -516,7 +516,7 @@ export async function resolveActiveNoteType(
 /** Build the pure recognition view of a file (path + normalized tags). */
 function toRecognitionFile(app: App, file: TFile): RecognitionFile {
     const cache = app.metadataCache.getFileCache(file)
-    const tags = (cache ? (getAllTags(cache) ?? []) : []).map((t) =>
+    const tags = (cache ? getAllTags(cache) ?? [] : []).map((t) =>
         t.toLowerCase().replace(/^#+/, '')
     )
     return { path: file.path, tags }

@@ -36,7 +36,7 @@ export function buildCardSearchRecord(
         haystack.push(...lowered)
     }
 
-    const tags = (cache ? (getAllTags(cache) ?? []) : []).map((t) =>
+    const tags = (cache ? getAllTags(cache) ?? [] : []).map((t) =>
         t.replace(/^#/, '').toLowerCase()
     )
     haystack.push(...tags)

@@ -325,7 +325,7 @@ export function axisTicks(
                 tickAt(
                     offset,
                     days,
-                    monthStart ? (MONTH_SHORT[date.getMonth()] ?? '') : '',
+                    monthStart ? MONTH_SHORT[date.getMonth()] ?? '' : '',
                     monthStart
                 )
             )

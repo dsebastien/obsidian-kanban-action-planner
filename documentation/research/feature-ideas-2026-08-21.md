@@ -48,12 +48,12 @@ Consolidated findings from exploring every resource listed in [issue #1](https:/
 
 ## Fold into existing issues (spec enrichment, not new)
 
-- **#44 (subtask progress):** segmented bar in detailed mode / ring in compact mode; optional inline expandable subtask list on the card; manual subtask reorder that persists (done items keep user order).
-- **#48 (recurring):** completion-based vs calendar-based recurrence toggle (chores must not stack up); multi-weekday selection ("every Tue, Thu"); auto-generated follow-up task when a delegated item goes stale (ties into Waiting On).
-- **#120 (ICS overlay):** two-way CalDAV sync as the explicit stretch beyond read-only.
-- **#59 (API):** scoped personal API keys; document + test the external-write contract (an agent/script writing a valid note must appear on the board with zero manual steps — first-class use case).
-- **#114 (saved views):** cross-mode filter carry-over (verify the typed filter survives board↔calendar↔timeline↔WBS switches); board picker/switcher as physical scope-splitting, not just re-filtering.
-- **#47 (inline edits):** grow into the full card context-menu idea (top-tier #4).
+-   **#44 (subtask progress):** segmented bar in detailed mode / ring in compact mode; optional inline expandable subtask list on the card; manual subtask reorder that persists (done items keep user order).
+-   **#48 (recurring):** completion-based vs calendar-based recurrence toggle (chores must not stack up); multi-weekday selection ("every Tue, Thu"); auto-generated follow-up task when a delegated item goes stale (ties into Waiting On).
+-   **#120 (ICS overlay):** two-way CalDAV sync as the explicit stretch beyond read-only.
+-   **#59 (API):** scoped personal API keys; document + test the external-write contract (an agent/script writing a valid note must appear on the board with zero manual steps — first-class use case).
+-   **#114 (saved views):** cross-mode filter carry-over (verify the typed filter survives board↔calendar↔timeline↔WBS switches); board picker/switcher as physical scope-splitting, not just re-filtering.
+-   **#47 (inline edits):** grow into the full card context-menu idea (top-tier #4).
 
 ## Round 2 — broader plugin landscape (2026-08-21, same day)
 
@@ -63,10 +63,10 @@ A second sweep beyond issue #1's list: mgmeyers **Obsidian Kanban** (the classic
 
 **Obsidian is building a native Bases Kanban view (roadmap: "Active") and a Calendar view ("Planned"); Cards/gallery, Maps, List, group-by, cross-note lookup (`file()`, `Link.asFile()`) and the Bases view API have already shipped.** Native aggregation/rollups have NOT shipped. Implications:
 
-- Never compete on the basics — the native MVP will own "columns + drag/drop". KAP's defensible layer is state machines, automation, relationships + rollups, WBS/Gantt/Triage/Agenda, GTD workflow depth.
-- Plan to ride `file()`/`Link.asFile()` for relationship resolution instead of maintaining fully proprietary resolution.
-- The Bases-kanban niche is crowding fast (Power Bases, Kanban Bases View, Base Board, bases-kanban/Hans Kanban) — differentiation must be _legible_ (docs, comparison pages), not just real.
-- Both classic kanban plugins are effectively decaying (mgmeyers → community-archive org, "is this maintained?" issues; CardBoard last commit Feb 2024) — a migration audience exists now.
+-   Never compete on the basics — the native MVP will own "columns + drag/drop". KAP's defensible layer is state machines, automation, relationships + rollups, WBS/Gantt/Triage/Agenda, GTD workflow depth.
+-   Plan to ride `file()`/`Link.asFile()` for relationship resolution instead of maintaining fully proprietary resolution.
+-   The Bases-kanban niche is crowding fast (Power Bases, Kanban Bases View, Base Board, bases-kanban/Hans Kanban) — differentiation must be _legible_ (docs, comparison pages), not just real.
+-   Both classic kanban plugins are effectively decaying (mgmeyers → community-archive org, "is this maintained?" issues; CardBoard last commit Feb 2024) — a migration audience exists now.
 
 ### Strongest cross-corroborated gap: hour-level scheduling
 
@@ -74,38 +74,38 @@ Time-of-day on `date_scheduled`/`date_due` + an hour-grid time-blocking view is 
 
 ### Other high-signal finds (per source, deduplicated)
 
-- **TaskNotes** (closest relative; now fully Bases-native with web/iOS/Android companions on a portable "mdbase" format): typed dependency relationships (`FINISHTOSTART`/etc. + ISO-8601 lag `gap`, auto reverse-sync); Eisenhower matrix view (its #4 request); relative + absolute reminders; scheduled (cron-like) automations; conditional capture templates; click-to-cycle status badge; Canvas snapshot export with dependency edges. Interop package: align `blocked_by` with their `blockedBy`/`reltype`/`gap`, read their user-field registry, match reminder field shape.
-- **Task Genius**: MCP server for agent access (sharper shape for #59); habit tracking + rewards (explicit anti-lesson: its settings sprawl came from bolting on parallel subsystems — any KAP adoption must extend the existing property/automation model).
-- **mgmeyers Kanban** top unserved requests KAP could still add: multi-row wrapping column layout (20+ 👍), board-embedded-in-Canvas (15 👍), GitHub issues integration (13 👍), column-ordering config, "stamp completion date" as a one-click preset (34 👍 across dupes — achievable via automations today; ship it as a recipe).
-- **Day Planner / Time Ruler / Full Calendar** ergonomics: auto-stretch an open-ended block until the next scheduled item; configurable visible hour range; drag-on-empty-canvas creation (gesture sets start + duration); ICS **export** feed (inverse of #120's overlay); rolling "next 3 hours" sidebar widget.
-- **Obsidian Tasks** requests: dependency-aware urgency scoring (14 👍); frontmatter minimalism — never write unset scaffold properties (9 👍); per-occurrence skip/postpone for recurrence.
-- **Projects (archived)**: inline-checkbox subtasks as sub-cards under a note-card (its top request — the softer version of Operon's inline indexing); drag-to-reorder table columns.
-- **DB Folder (archived)**: multi-cell copy/paste + drag-fill for a table mode; row numbers. Its death lesson: non-native UI breaks on mobile/themes — KAP's native-Bases-view architecture is the fix, say so.
-- **Bases ecosystem conventions**: consume Bases formula fields as config (colors, dates) rather than inventing DSLs; natural-language → view/filter/rule config is an emerging pattern (AI chart config already exists).
-- **TaskForge** (mobile companion): notification intelligence — dependency-aware (no pings for blocked tasks), working-hours-aware, actionable (complete/snooze from the notification). The right spec for KAP reminders.
-- **Gallery mode: skip.** Native Cards view already ships cover images/fit/aspect — it sits as a sibling tab on the same `.base`. Only a task-optimized grid (badges for WIP/blocked/triage) would add value; low priority.
+-   **TaskNotes** (closest relative; now fully Bases-native with web/iOS/Android companions on a portable "mdbase" format): typed dependency relationships (`FINISHTOSTART`/etc. + ISO-8601 lag `gap`, auto reverse-sync); Eisenhower matrix view (its #4 request); relative + absolute reminders; scheduled (cron-like) automations; conditional capture templates; click-to-cycle status badge; Canvas snapshot export with dependency edges. Interop package: align `blocked_by` with their `blockedBy`/`reltype`/`gap`, read their user-field registry, match reminder field shape.
+-   **Task Genius**: MCP server for agent access (sharper shape for #59); habit tracking + rewards (explicit anti-lesson: its settings sprawl came from bolting on parallel subsystems — any KAP adoption must extend the existing property/automation model).
+-   **mgmeyers Kanban** top unserved requests KAP could still add: multi-row wrapping column layout (20+ 👍), board-embedded-in-Canvas (15 👍), GitHub issues integration (13 👍), column-ordering config, "stamp completion date" as a one-click preset (34 👍 across dupes — achievable via automations today; ship it as a recipe).
+-   **Day Planner / Time Ruler / Full Calendar** ergonomics: auto-stretch an open-ended block until the next scheduled item; configurable visible hour range; drag-on-empty-canvas creation (gesture sets start + duration); ICS **export** feed (inverse of #120's overlay); rolling "next 3 hours" sidebar widget.
+-   **Obsidian Tasks** requests: dependency-aware urgency scoring (14 👍); frontmatter minimalism — never write unset scaffold properties (9 👍); per-occurrence skip/postpone for recurrence.
+-   **Projects (archived)**: inline-checkbox subtasks as sub-cards under a note-card (its top request — the softer version of Operon's inline indexing); drag-to-reorder table columns.
+-   **DB Folder (archived)**: multi-cell copy/paste + drag-fill for a table mode; row numbers. Its death lesson: non-native UI breaks on mobile/themes — KAP's native-Bases-view architecture is the fix, say so.
+-   **Bases ecosystem conventions**: consume Bases formula fields as config (colors, dates) rather than inventing DSLs; natural-language → view/filter/rule config is an emerging pattern (AI chart config already exists).
+-   **TaskForge** (mobile companion): notification intelligence — dependency-aware (no pings for blocked tasks), working-hours-aware, actionable (complete/snooze from the notification). The right spec for KAP reminders.
+-   **Gallery mode: skip.** Native Cards view already ships cover images/fit/aspect — it sits as a sibling tab on the same `.base`. Only a task-optimized grid (badges for WIP/blocked/triage) would add value; low priority.
 
 ## Holistic value-adds (first-principles, not competitor-derived)
 
 Thinking from the user journeys the plugin serves — capture → clarify → organize → engage → reflect — rather than from competitor feature lists:
 
-- **Trust: undo/redo for board operations.** Every drag, bulk action, and automation writes frontmatter across many files. A session-scoped undo stack with a toast ("Moved 12 cards — Undo") converts the scariest property of the plugin (it edits your notes) into a confidence feature. Nobody in the space has this.
-- **Onboarding: board doctor + "why isn't this note here?" inspector.** A diagnostic that answers the #1 support question of every Bases/query plugin: paste a note path, see exactly which filter/status/type rule excluded it or which column caught it. Plus a first-run wizard that scans actual property values and proposes statuses/columns from them. Directly cuts support load and bad reviews.
-- **Planning ritual support: "Plan my day/week" flow.** A guided pass — pick from available (is:available) cards into today's plan with a live capacity bar (sum of estimates vs configured hours/day), then write date_scheduled. The weekly variant walks project by project: no next action → flag as stalled. Extends triage (#122) and capacity (#58) into a ritual, which matches how people actually use action systems (and the OSK daily/weekly workflow).
-- **Next-action discipline.** Mark or derive one next action per project; `is:next` filter qualifier; stalled-project detection (project in progress with zero available children). Sharper, GTD-native version of the filed alignment check (#55).
-- **Calendar workload heat.** Color each calendar day by scheduled-estimate load vs capacity so overcommitment is visible at a glance before it happens. The visual complement of #58.
-- **Focus/engage mode.** Spotlight one card (from Agenda/board), with an optional timer that feeds the filed time-tracking property (#119) — done → next card. Bridges planning to actual execution, where most planning tools stop.
-- **Project blueprints.** Instantiate a project note plus its standard task set (with relative dates and relationships pre-wired) from a template — recurring project structures (launch checklist, article pipeline) in one action. Quick capture for whole subtrees.
-- **Reporting/export.** Generate a markdown/HTML weekly report (done this week from history/status changes, what moved, what's overdue, next week's plan) into a vault note — shareable, journal-ready, and a natural daily/weekly-note companion.
-- **AI-assist layer (opt-in).** Card → "propose subtasks" (writes WBS children), triage assistant proposing priority/estimate/contexts from note content, natural-language bulk commands ("push everything overdue in project X to next week"). Rides the plugin-API work (#59) and fits the agent-driven-vault trend; no task board in the Obsidian space has a native AI layer yet.
-- **Automation rule dry-run.** Preview what a rule would have done against current notes before enabling it (list of would-be writes). Automation that edits files needs a rehearsal mode; pairs with undo.
-- **Dashboard/overview mode.** One read-only surface across the whole action system: per-goal progress bars (reusing WBS rollups), counts by status/type, overdue and aging highlights, context load. The "10,000-foot" mode the five existing modes don't provide.
-- **i18n.** Competitors ship 2-8 languages (Operon 8, Moonlight 2, tududi 24); localization measurably widens community adoption and is cheap if done before the string count grows further.
+-   **Trust: undo/redo for board operations.** Every drag, bulk action, and automation writes frontmatter across many files. A session-scoped undo stack with a toast ("Moved 12 cards — Undo") converts the scariest property of the plugin (it edits your notes) into a confidence feature. Nobody in the space has this.
+-   **Onboarding: board doctor + "why isn't this note here?" inspector.** A diagnostic that answers the #1 support question of every Bases/query plugin: paste a note path, see exactly which filter/status/type rule excluded it or which column caught it. Plus a first-run wizard that scans actual property values and proposes statuses/columns from them. Directly cuts support load and bad reviews.
+-   **Planning ritual support: "Plan my day/week" flow.** A guided pass — pick from available (is:available) cards into today's plan with a live capacity bar (sum of estimates vs configured hours/day), then write date_scheduled. The weekly variant walks project by project: no next action → flag as stalled. Extends triage (#122) and capacity (#58) into a ritual, which matches how people actually use action systems (and the OSK daily/weekly workflow).
+-   **Next-action discipline.** Mark or derive one next action per project; `is:next` filter qualifier; stalled-project detection (project in progress with zero available children). Sharper, GTD-native version of the filed alignment check (#55).
+-   **Calendar workload heat.** Color each calendar day by scheduled-estimate load vs capacity so overcommitment is visible at a glance before it happens. The visual complement of #58.
+-   **Focus/engage mode.** Spotlight one card (from Agenda/board), with an optional timer that feeds the filed time-tracking property (#119) — done → next card. Bridges planning to actual execution, where most planning tools stop.
+-   **Project blueprints.** Instantiate a project note plus its standard task set (with relative dates and relationships pre-wired) from a template — recurring project structures (launch checklist, article pipeline) in one action. Quick capture for whole subtrees.
+-   **Reporting/export.** Generate a markdown/HTML weekly report (done this week from history/status changes, what moved, what's overdue, next week's plan) into a vault note — shareable, journal-ready, and a natural daily/weekly-note companion.
+-   **AI-assist layer (opt-in).** Card → "propose subtasks" (writes WBS children), triage assistant proposing priority/estimate/contexts from note content, natural-language bulk commands ("push everything overdue in project X to next week"). Rides the plugin-API work (#59) and fits the agent-driven-vault trend; no task board in the Obsidian space has a native AI layer yet.
+-   **Automation rule dry-run.** Preview what a rule would have done against current notes before enabling it (list of would-be writes). Automation that edits files needs a rehearsal mode; pairs with undo.
+-   **Dashboard/overview mode.** One read-only surface across the whole action system: per-goal progress bars (reusing WBS rollups), counts by status/type, overdue and aging highlights, context load. The "10,000-foot" mode the five existing modes don't provide.
+-   **i18n.** Competitors ship 2-8 languages (Operon 8, Moonlight 2, tududi 24); localization measurably widens community adoption and is cheap if done before the string count grows further.
 
 ## Positioning & docs lessons (no code)
 
-- **Migration docs win mindshare.** Operon's "coming from Obsidian Tasks / TaskNotes" guides are why it converts skeptics. Write "coming from Kanban plugin / Kanban Moonlight / Tasks / TaskNotes" pages.
-- **State the uninstall guarantee.** "What survives if you remove the plugin: everything — it's all frontmatter" came up unprompted as a top trust concern. One README/FAQ section, zero code.
-- **Publish explicit non-goals.** Belki's stated ceilings ("no Kanban, no sync, no settings sprawl") measurably reduced scope-creep pressure and built trust. Decide and declare: multi-user, push notifications, inline-checkbox indexing.
-- **Positioning risk:** "frontmatter-driven Kanban" is now table stakes (Moonlight uses the same pitch). Lead with what only KAP does: WBS rollups, relationship graph + focus, automation rules, state machines per note type, five modes on one dataset.
-- **The Operon question to answer deliberately:** inline `- [ ]` checkbox indexing alongside note-based cards is Operon's core differentiator and the one structural gap. Huge scope; either commit to it as a long-term bet or declare it a non-goal and own the "one note = one card" model loudly.
+-   **Migration docs win mindshare.** Operon's "coming from Obsidian Tasks / TaskNotes" guides are why it converts skeptics. Write "coming from Kanban plugin / Kanban Moonlight / Tasks / TaskNotes" pages.
+-   **State the uninstall guarantee.** "What survives if you remove the plugin: everything — it's all frontmatter" came up unprompted as a top trust concern. One README/FAQ section, zero code.
+-   **Publish explicit non-goals.** Belki's stated ceilings ("no Kanban, no sync, no settings sprawl") measurably reduced scope-creep pressure and built trust. Decide and declare: multi-user, push notifications, inline-checkbox indexing.
+-   **Positioning risk:** "frontmatter-driven Kanban" is now table stakes (Moonlight uses the same pitch). Lead with what only KAP does: WBS rollups, relationship graph + focus, automation rules, state machines per note type, five modes on one dataset.
+-   **The Operon question to answer deliberately:** inline `- [ ]` checkbox indexing alongside note-based cards is Operon's core differentiator and the one structural gap. Huge scope; either commit to it as a long-term bet or declare it a non-goal and own the "one note = one card" model loudly.

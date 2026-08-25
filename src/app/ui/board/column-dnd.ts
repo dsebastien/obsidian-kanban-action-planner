@@ -133,7 +133,9 @@ export class ColumnDnd {
 
     private updateGhost(e: PointerEvent): void {
         if (!this.ghostEl || this.reducedMotion) return
-        this.ghostEl.style.transform = `translate(${String(e.clientX + 8)}px, ${String(e.clientY + 8)}px)`
+        this.ghostEl.style.transform = `translate(${String(e.clientX + 8)}px, ${String(
+            e.clientY + 8
+        )}px)`
     }
 
     private updateTarget(e: PointerEvent): void {
