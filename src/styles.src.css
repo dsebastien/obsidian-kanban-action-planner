@@ -2971,6 +2971,14 @@
         color: var(--text-normal);
     }
 
+    /* shrink-0 + explicit size: the inline-flex button otherwise crushes the
+       chevron svg to a ~1px sliver, leaving the expand/collapse-all buttons
+       looking empty (issue #168; same pattern as .kap-column-toggle). */
+    .kap-root .kap-wbs-treebar-btn .svg-icon {
+        @apply shrink-0;
+        width: var(--icon-s, 1em);
+        height: var(--icon-s, 1em);
+    }
 
     /* The tree scrolls on its own so the panel never squeezes it out. */
     .kap-root .kap-wbs-tree {
