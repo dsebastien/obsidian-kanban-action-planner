@@ -50,6 +50,13 @@ export interface CardMenuHost {
     writeCardDate(card: KanbanCard, dimension: DateDimension, isoDate: string | null): Promise<void>
     /** Open the date picker for a card's scheduled date or deadline. */
     promptDate(card: KanbanCard, dimension: DateDimension, current: Date | null): void
+    // Time tracking (issue #119): a single global start/stop session.
+    /** Whether the active time session tracks THIS card. */
+    isTrackingCard(card: KanbanCard): boolean
+    /** Start tracking this card (stops any other active session first). */
+    startTracking(card: KanbanCard): Promise<void>
+    /** Stop the active session, writing its elapsed minutes to the card. */
+    stopTracking(card: KanbanCard): Promise<void>
     openRelated(note: RelatedNote, newTab: boolean): void
     /** Zoom (issue #74): re-filter the board to the card's children. */
     focusOnChildren(card: KanbanCard): void
@@ -134,6 +141,7 @@ export function buildCardMenu(
     addEnumSetMenuItems(menu, card, host)
     addContextSetMenuItems(menu, card, host)
     addSchedulingMenuItems(menu, card, host)
+    addTimeTrackingMenuItems(menu, card, host)
     if (host.archivingConfigured(card)) {
         menu.addSeparator()
         menu.addItem((item) =>
@@ -354,6 +362,22 @@ function addSchedulingMenuItems(menu: Menu, card: KanbanCard, host: CardMenuHost
                 .onClick(() => void host.writeCardDate(card, 'deadline', null))
         )
     }
+}
+
+/**
+ * Time tracking items (issue #119): one Start/Stop toggle per card. Starting
+ * a card while another is tracked stops that session first (the host writes
+ * its elapsed minutes), so only one session ever runs.
+ */
+function addTimeTrackingMenuItems(menu: Menu, card: KanbanCard, host: CardMenuHost): void {
+    const tracking = host.isTrackingCard(card)
+    menu.addItem((i) =>
+        i
+            .setTitle(tracking ? 'Stop time tracking' : 'Start time tracking')
+            .setIcon(tracking ? 'timer-off' : 'timer')
+            .setSection('kap-track')
+            .onClick(() => void (tracking ? host.stopTracking(card) : host.startTracking(card)))
+    )
 }
 
 /** Add "open related note" items (blockers first) when the card has any. */

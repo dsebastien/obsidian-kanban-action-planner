@@ -7,6 +7,7 @@ import { getKanbanViewOptions } from './views/kanban/kanban-view-options'
 import { KANBAN_VIEW_ICON, KANBAN_VIEW_NAME, KANBAN_VIEW_TYPE } from './constants'
 import { log } from '../utils/log'
 import { registerWhatsNewView } from './whats-new'
+import { stopTimeSession } from './services/time-tracking.service'
 import { produce } from 'immer'
 
 export class KanbanActionPlannerPlugin extends Plugin {
@@ -135,6 +136,17 @@ export class KanbanActionPlannerPlugin extends Plugin {
             id: 'previous-swimlane',
             name: 'Go to previous swimlane',
             checkCallback: onActiveView((view) => view.goToLane(-1))
+        })
+        // Time tracking (issue #119): stopping works from anywhere — the
+        // session is global, so no Kanban view needs to be focused.
+        this.addCommand({
+            id: 'stop-time-tracking',
+            name: 'Stop time tracking',
+            checkCallback: (checking: boolean): boolean => {
+                if (!this.settings.activeTimeSession) return false
+                if (!checking) void stopTimeSession(this)
+                return true
+            }
         })
     }
 

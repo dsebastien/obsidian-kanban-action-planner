@@ -10,6 +10,7 @@ import {
     effectiveEstimate,
     effectiveProgress,
     parseProgress,
+    subtreeDuration,
     subtreeSpan
 } from './wbs'
 import type { WbsNode } from './wbs'
@@ -494,5 +495,38 @@ describe('createWbsRollups', () => {
         )
         for (const node of allNodes(trees)) rollups.effectiveProgress(node)
         expect(reads).toBe(paths.length)
+    })
+})
+
+describe('subtreeDuration (issue #119)', () => {
+    test('sums own durations over the node and its descendants (actuals ADD)', () => {
+        const trees = forest(['goal', 'project', 'task'], {
+            goal: ['project'],
+            project: ['task']
+        })
+        const durations: Record<string, number | null> = { goal: 30, project: null, task: 90 }
+        const durationOf = (path: string): number | null => durations[path] ?? null
+        expect(subtreeDuration(trees[0] as WbsNode, durationOf)).toBe(120)
+    })
+
+    test('null when nothing in the subtree carries a duration', () => {
+        const trees = forest(['a', 'b'], { a: ['b'] })
+        expect(subtreeDuration(trees[0] as WbsNode, () => null)).toBeNull()
+    })
+
+    test('a shared (multi-parent) subtree counts once — distinct paths only', () => {
+        // shared appears under both p1 and p2; the root sums it once.
+        const trees = forest(['root', 'p1', 'p2', 'shared'], {
+            root: ['p1', 'p2'],
+            p1: ['shared'],
+            p2: ['shared']
+        })
+        const durationOf = (path: string): number | null => (path === 'shared' ? 60 : null)
+        expect(subtreeDuration(trees[0] as WbsNode, durationOf)).toBe(60)
+    })
+
+    test('a leaf reports its own duration', () => {
+        const trees = forest(['solo'], {})
+        expect(subtreeDuration(trees[0] as WbsNode, () => 45)).toBe(45)
     })
 })

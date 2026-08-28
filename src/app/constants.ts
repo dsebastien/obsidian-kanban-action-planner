@@ -37,6 +37,10 @@ export const DEFAULT_MINUTES_PER_DAY = 480
 export const DEFAULT_MILESTONES_PROPERTY = 'milestones'
 /** Completion percentage 0–100 (drives the WBS progress bars; issue #76). */
 export const DEFAULT_PROGRESS_PROPERTY = 'progress'
+/** Tracked time in minutes, accumulated by start/stop sessions (issue #119). */
+export const DEFAULT_DURATION_PROPERTY = 'duration'
+/** Persisted subtree tracked-time rollup in minutes (issue #119). */
+export const DEFAULT_TOTAL_DURATION_PROPERTY = 'total_duration'
 
 /** Default review (spaced-repetition) property names (issue #57; configurable). */
 export const DEFAULT_REVIEWED_DATE_PROPERTY = 'last_reviewed'

@@ -388,6 +388,32 @@ export function subtreeSpan(
 }
 
 /**
+ * The subtree's tracked-time rollup (issue #119): the sum of OWN durations
+ * over the node itself and every DISTINCT descendant. Unlike estimates
+ * (where an own value replaces the subtree's contribution), tracked time is
+ * an actual — time logged on the parent AND on its children both happened,
+ * so they add. Distinct paths only, so a shared (multi-parent) subtree
+ * counts once. Null when nothing in the subtree carries a duration.
+ */
+export function subtreeDuration(
+    node: WbsNode,
+    durationOf: (path: string) => number | null
+): number | null {
+    let sum = 0
+    let found = false
+    const consider = (path: string): void => {
+        const own = durationOf(path)
+        if (own !== null) {
+            sum += own
+            found = true
+        }
+    }
+    consider(node.path)
+    for (const path of descendantPaths(node)) consider(path)
+    return found ? sum : null
+}
+
+/**
  * Top-down estimate distribution (issue #76, owner comment): split what
  * remains of the parent's OWN estimate — after subtracting the children's
  * effective estimates — equally across the direct children whose subtree

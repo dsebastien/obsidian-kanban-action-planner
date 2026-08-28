@@ -322,6 +322,20 @@ export class KanbanActionPlannerSettingTab extends PluginSettingTab {
             'defaultProgressProperty',
             'progress'
         )
+        text(
+            'Duration property',
+            'Tracked time in minutes, accumulated by the card menu’s start/stop ' +
+                'time-tracking sessions.',
+            'defaultDurationProperty',
+            'duration'
+        )
+        text(
+            'Total duration property',
+            'Persisted tracked-time rollup (minutes): the WBS row menu’s ' +
+                '"Save total tracked time" writes the subtree total here.',
+            'defaultTotalDurationProperty',
+            'total_duration'
+        )
         new Setting(containerEl)
             .setName('Contexts property')
             .setDesc(

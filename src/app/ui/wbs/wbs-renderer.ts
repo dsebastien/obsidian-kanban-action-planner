@@ -83,6 +83,14 @@ export interface WbsRowModel {
     /** Effective progress 0–100 (own, or derived from children), or null. */
     progress: number | null
     progressDerived: boolean
+    /**
+     * Tracked time (issue #119): the subtree's total tracked minutes (own +
+     * distinct descendants — actuals ADD), segmented per unit like the
+     * estimate chip. Null = nothing tracked in the subtree.
+     */
+    trackedParts: DurationParts | null
+    /** Children contributed to the total (styled derived, like rollups). */
+    trackedDerived: boolean
     /** Due countdown text (`in 3d`, `2d overdue`) + tone; null = no due date. */
     dueLabel: string | null
     dueTone: CountdownTone | null
@@ -568,6 +576,7 @@ function buildRowNode(
     renderDatesChip(meta, row, callbacks)
     renderDueChip(meta, row, callbacks)
     renderEstimateChip(meta, row, callbacks, minutesPerDay)
+    renderTrackedChip(meta, row)
 
     const open = (newTab: boolean): void => {
         if (row.card) callbacks.onOpen(row.card, newTab)
@@ -762,6 +771,38 @@ function renderEstimateChip(
             startEstimateEdit(btn, row, card, callbacks, minutesPerDay)
         )
     } else btn.disabled = true
+}
+
+/**
+ * Tracked-time chip (issue #119): the subtree's total tracked time, display
+ * only — sessions start/stop from the card menu, and the rollup persists via
+ * the row menu's "Save total tracked time". Same fixed unit slots as the
+ * estimate chip so tracked and estimated durations align by unit.
+ */
+function renderTrackedChip(parent: HTMLElement, row: WbsRowModel): void {
+    const title =
+        row.trackedParts === null
+            ? 'No tracked time — start a session from the card menu'
+            : row.trackedDerived
+              ? 'Tracked time, children included — save it via the row menu'
+              : 'Tracked time'
+    const btn = parent.createEl('button', {
+        cls: 'kap-wbs-chip-btn kap-wbs-tracked',
+        attr: { 'type': 'button', title, 'aria-label': `Tracked time: ${title}` }
+    })
+    btn.disabled = true
+    const grid = btn.createDiv({ cls: 'kap-wbs-est-grid' })
+    const lead = grid.createSpan({ cls: 'kap-wbs-est-lead' })
+    lead.setText('⏱')
+    if (row.trackedParts) {
+        if (row.trackedDerived) btn.addClass('kap-wbs-chip-derived')
+        grid.createSpan({ cls: 'kap-wbs-est-seg', text: row.trackedParts.d ?? '' })
+        grid.createSpan({ cls: 'kap-wbs-est-seg', text: row.trackedParts.h ?? '' })
+        grid.createSpan({ cls: 'kap-wbs-est-seg', text: row.trackedParts.m ?? '' })
+    } else {
+        btn.addClass('kap-wbs-chip-unset')
+        grid.createSpan({ cls: 'kap-wbs-est-empty', text: '–' })
+    }
 }
 
 /**

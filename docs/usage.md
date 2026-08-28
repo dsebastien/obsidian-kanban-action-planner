@@ -996,6 +996,25 @@ the Base's own result set only.
 The WBS never creates notes — it structures, estimates, and re-parents the ones the Base
 already selects.
 
+## Time tracking
+
+Track actual time against your estimates (issue #119), straight from the cards:
+
+- **Start / Stop time tracking** in a card's right-click menu starts (or stops) a session
+  for that note. Only **one session runs at a time** — starting another card stops the
+  previous session first, writing its elapsed time. A global **Stop time tracking** command
+  stops the active session from anywhere.
+- Stopping adds the elapsed whole minutes to the note's **duration** property (configurable
+  as **Duration property**; minutes, accumulated across sessions). The session survives an
+  Obsidian restart — elapsed time derives from the stored start, not a running timer.
+- The **WBS** shows a **⏱ tracked** chip per row: the subtree's total tracked time — own
+  minutes plus every distinct descendant's (actuals **add**; unlike estimates, an own value
+  never replaces the children's contribution). A total the children contributed to is styled
+  derived, and the row menu offers **Save total tracked time** to persist it (in minutes) to
+  the **Total duration property** (`total_duration` by default).
+- Tracked time renders with the same `d / h / m` grammar as estimates, sized by **Minutes
+  per day**, so tracked vs estimated reads side by side.
+
 ## Keyboard
 
 Cards are fully keyboard-operable. **Tab** to a card, then:

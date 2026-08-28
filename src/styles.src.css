@@ -3208,6 +3208,18 @@
         border-color: var(--text-error);
     }
 
+    /* Tracked-time chip (issue #119): display-only — same fixed unit slots
+       as the estimate chip so tracked and estimated align by unit. */
+    .kap-root .kap-wbs-tracked {
+        width: 8.5rem;
+        cursor: default;
+    }
+
+    .kap-root .kap-wbs-tracked:hover {
+        background: transparent;
+        color: var(--text-muted);
+    }
+
     /* Due chip: countdown text on the issue-#62 tone ramp (color only). */
     .kap-root .kap-wbs-due {
         width: 7rem;

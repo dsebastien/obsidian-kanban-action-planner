@@ -21,6 +21,7 @@ import {
     effectiveEstimate,
     effectiveProgress,
     parseProgress,
+    subtreeDuration,
     subtreeSpan
 } from '../../domain/wbs'
 import type { WbsNode } from '../../domain/wbs'
@@ -32,6 +33,7 @@ import {
     getFrontmatterValue,
     setProperty
 } from '../../services/frontmatter.service'
+import { formatTrackedMinutes, readDurationMinutes } from '../../services/time-tracking.service'
 import {
     addRelationshipLink,
     directLinkTargets,
@@ -108,6 +110,9 @@ export interface WbsHost {
     /** First day of the week (0 = Sunday … 6 = Saturday) for NL date entry. */
     firstDayOfWeek(): number
     progressProperty(): string
+    /** Tracked-time (minutes) property + persisted rollup property (issue #119). */
+    durationProperty(): string
+    totalDurationProperty(): string
     scheduledProperty(): string
     /** Resolved due-date property (the rows' due chip reads and writes it). */
     deadlineProperty(): string
@@ -331,6 +336,25 @@ export class WbsController {
         // Memoized rollups (issue #100): each node's estimate/progress rollup
         // is computed once per render, not re-walked for every ancestor row.
         const rollups = createWbsRollups(estimateOf, progressOf)
+        // Tracked time (issue #119): own duration in minutes, per-render cached.
+        const durationCache = new Map<string, number | null>()
+        const durationOf = (path: string): number | null => {
+            let value = durationCache.get(path)
+            if (value === undefined) {
+                const card = byKey.get(path)
+                value = card
+                    ? readDurationMinutes(
+                          getFrontmatterValue(
+                              this.host.app,
+                              card.file,
+                              this.host.durationProperty()
+                          )
+                      )
+                    : null
+                durationCache.set(path, value)
+            }
+            return value
+        }
         const startCache = new Map<string, Date | null>()
         const startOf = (path: string): Date | null => {
             let value = startCache.get(path)
@@ -407,6 +431,10 @@ export class WbsController {
             }
             const due = card ? this.readDate(card, this.host.deadlineProperty()) : null
             const countdown = formatCountdown(due, today, this.host.dueSoonDays(), 'chip')
+            // Tracked time (issue #119): own minutes + distinct-descendant sum
+            // (actuals ADD — own never replaces the children's contribution).
+            const ownTracked = durationOf(node.path)
+            const totalTracked = subtreeDuration(node, durationOf)
             const collapsed = this.collapsedNodes.has(node.path)
             rows.push({
                 card,
@@ -438,6 +466,11 @@ export class WbsController {
                 datesDerived,
                 progress: progress.value,
                 progressDerived: progress.derived,
+                trackedParts:
+                    totalTracked !== null
+                        ? durationParts(totalTracked / minutesPerDay, minutesPerDay)
+                        : null,
+                trackedDerived: totalTracked !== null && totalTracked !== (ownTracked ?? 0),
                 dueLabel: countdown?.text ?? null,
                 dueTone: countdown?.tone ?? null,
                 dueDateKey: due ? toDateKey(due) : null
@@ -572,6 +605,7 @@ export class WbsController {
                 startProperty: this.host.startProperty(),
                 deadlineProperty: this.host.deadlineProperty(),
                 progressProperty: this.host.progressProperty(),
+                durationProperty: this.host.durationProperty(),
                 dueSoonDays: this.host.dueSoonDays(),
                 todayKey: toDateKey(startOfDay(new Date())),
                 comparator: this.host.comparatorKey()
@@ -1014,6 +1048,33 @@ export class WbsController {
                     .onClick(() => void this.distributeToChildren(card, ownDays))
             )
         }
+        // Tracked-time rollup, save-on-demand (issue #119): the subtree's
+        // total (own + distinct descendants) persisted to the totalDuration
+        // property in minutes. Offered only when children contribute — a
+        // leaf's own duration is already durable.
+        const totalTracked = subtreeDuration(node, this.durationOfPath)
+        if (
+            totalTracked !== null &&
+            node.children.length > 0 &&
+            totalTracked !== (this.durationOfPath(card.key) ?? 0)
+        ) {
+            menu.addItem((item) =>
+                item
+                    .setTitle(
+                        `Save total tracked time (${formatTrackedMinutes(totalTracked, this.host.minutesPerDay())})`
+                    )
+                    .setIcon('timer')
+                    .setSection('kap-wbs')
+                    .onClick(() => {
+                        void setProperty(
+                            this.host.app,
+                            card.file,
+                            this.host.totalDurationProperty(),
+                            totalTracked
+                        )
+                    })
+            )
+        }
     }
 
     /**
@@ -1043,6 +1104,16 @@ export class WbsController {
             config.unit,
             this.host.minutesPerDay()
         )
+    }
+
+    /** A path's own tracked minutes, read from frontmatter (menu-time, uncached). */
+    private readonly durationOfPath = (path: string): number | null => {
+        const card = this.host.allCardForKey(path)
+        return card
+            ? readDurationMinutes(
+                  getFrontmatterValue(this.host.app, card.file, this.host.durationProperty())
+              )
+            : null
     }
 
     /** A path's own progress, read from frontmatter (menu-time, uncached). */

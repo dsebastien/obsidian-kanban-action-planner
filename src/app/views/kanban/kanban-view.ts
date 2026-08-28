@@ -114,6 +114,11 @@ import {
 } from '../../services/card-display.service'
 import { listEnumProperties } from '../../services/enum.service'
 import { buildCardSearchRecord, stringifyForSearch } from '../../services/card-search.service'
+import {
+    isTrackingPath,
+    startTimeSession,
+    stopTimeSession
+} from '../../services/time-tracking.service'
 import { archiveNote, liveExpressionContext } from '../../services/archive.service'
 import {
     addDays,
@@ -679,6 +684,8 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             minutesPerDay: () => this.plugin.settings.minutesPerDay,
             firstDayOfWeek: () => this.plugin.settings.firstDayOfWeek,
             progressProperty: () => this.resolveProgressProperty(),
+            durationProperty: () => this.plugin.settings.defaultDurationProperty,
+            totalDurationProperty: () => this.plugin.settings.defaultTotalDurationProperty,
             scheduledProperty: () => this.scheduledDateProperty,
             deadlineProperty: () => this.dueDateProperty,
             dueSoonDays: () => this.plugin.settings.dueSoonThresholdDays,
@@ -3085,6 +3092,10 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             cardDate: (card, dimension) => this.cardDate(card, dimension),
             writeCardDate: (card, dimension, iso) => this.writeCardDate(card, dimension, iso),
             promptDate: (card, dimension, current) => this.promptDate(card, dimension, current),
+            // Time tracking (issue #119): one global session in the settings.
+            isTrackingCard: (card) => isTrackingPath(this.plugin, card.key),
+            startTracking: (card) => startTimeSession(this.plugin, card.key),
+            stopTracking: () => stopTimeSession(this.plugin),
             openRelated: (note, newTab) => this.openRelated(note, newTab),
             focusOnChildren: (card) => this.focusOnChildren(card),
             focusOnDescendants: (card) => this.focusOnDescendants(card.display.title),

@@ -60,6 +60,9 @@ function makeHost(overrides: Partial<CardMenuHost> = {}): CardMenuHost {
         cardDate: () => null,
         writeCardDate: () => Promise.resolve(),
         promptDate: () => {},
+        isTrackingCard: () => false,
+        startTracking: () => Promise.resolve(),
+        stopTracking: () => Promise.resolve(),
         openRelated: () => {},
         focusOnChildren: () => {},
         focusOnDescendants: () => {},
@@ -171,7 +174,8 @@ describe('buildCardMenu — extend hook (issue #80)', () => {
         'Schedule for tomorrow',
         'Schedule on a date…',
         'Set deadline today',
-        'Set deadline on a date…'
+        'Set deadline on a date…',
+        'Start time tracking'
     ]
 
     const titlesOf = (items: MenuItemRecord[]): string[] =>
@@ -244,5 +248,19 @@ describe('buildCardMenu — contexts submenu (fast-follow item 8)', () => {
             [card, '@home', false],
             [card, '@work', true]
         ])
+    })
+})
+
+describe('buildCardMenu — time tracking (issue #119)', () => {
+    it('offers Start time tracking when the card is not tracked', () => {
+        const items = menuItems(makeCard(), makeHost({ isTrackingCard: () => false }))
+        expect(items.some((i) => i.title === 'Start time tracking')).toBe(true)
+        expect(items.some((i) => i.title === 'Stop time tracking')).toBe(false)
+    })
+
+    it('offers Stop time tracking when the card is tracked', () => {
+        const items = menuItems(makeCard(), makeHost({ isTrackingCard: () => true }))
+        expect(items.some((i) => i.title === 'Stop time tracking')).toBe(true)
+        expect(items.some((i) => i.title === 'Start time tracking')).toBe(false)
     })
 })

@@ -47,6 +47,7 @@ const baseConfig: WbsSignatureConfig = {
     startProperty: 'date_scheduled',
     deadlineProperty: 'date_due',
     progressProperty: 'progress',
+    durationProperty: 'duration',
     dueSoonDays: 7,
     todayKey: '2026-07-17',
     comparator: 'order'

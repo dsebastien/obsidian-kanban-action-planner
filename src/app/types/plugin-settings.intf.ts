@@ -7,6 +7,7 @@ import {
     DEFAULT_DUE_DATE_PROPERTY,
     DEFAULT_DEFER_DATE_PROPERTY,
     DEFAULT_DUE_SOON_THRESHOLD_DAYS,
+    DEFAULT_DURATION_PROPERTY,
     DEFAULT_ESTIMATE_PROPERTY,
     DEFAULT_MILESTONES_PROPERTY,
     DEFAULT_MINUTES_PER_DAY,
@@ -18,7 +19,8 @@ import {
     DEFAULT_REVIEW_INTERVAL_PROPERTY,
     DEFAULT_REVIEWED_DATE_PROPERTY,
     DEFAULT_SCHEDULED_DATE_PROPERTY,
-    DEFAULT_STATUS_PROPERTY
+    DEFAULT_STATUS_PROPERTY,
+    DEFAULT_TOTAL_DURATION_PROPERTY
 } from '../constants'
 
 /** Current settings schema version; bump when the shape changes (migrations). */
@@ -63,6 +65,22 @@ export const pluginSettingsSchema = z.object({
     defaultMilestonesProperty: z.string(),
     /** Completion percentage 0–100 (WBS progress bars; issue #76). */
     defaultProgressProperty: z.string(),
+    /**
+     * Time tracking (issue #119). `duration` accumulates tracked minutes from
+     * start/stop sessions; `totalDuration` is the persisted subtree rollup.
+     * `.default()` so older `data.json` still parses cleanly.
+     */
+    defaultDurationProperty: z.string().default(DEFAULT_DURATION_PROPERTY),
+    defaultTotalDurationProperty: z.string().default(DEFAULT_TOTAL_DURATION_PROPERTY),
+    /**
+     * The single active time-tracking session (issue #119): the tracked
+     * note's path and the epoch-ms start. Persisted so a restart mid-session
+     * loses nothing; null = no session running.
+     */
+    activeTimeSession: z
+        .object({ path: z.string(), startedAt: z.number() })
+        .nullable()
+        .default(null),
     /** Review (spaced-repetition) property names (issue #57). */
     reviewedDateProperty: z.string(),
     reviewIntervalProperty: z.string(),
@@ -117,6 +135,9 @@ export const DEFAULT_SETTINGS: PluginSettings = {
     minutesPerDay: DEFAULT_MINUTES_PER_DAY,
     defaultMilestonesProperty: DEFAULT_MILESTONES_PROPERTY,
     defaultProgressProperty: DEFAULT_PROGRESS_PROPERTY,
+    defaultDurationProperty: DEFAULT_DURATION_PROPERTY,
+    defaultTotalDurationProperty: DEFAULT_TOTAL_DURATION_PROPERTY,
+    activeTimeSession: null,
     reviewedDateProperty: DEFAULT_REVIEWED_DATE_PROPERTY,
     reviewIntervalProperty: DEFAULT_REVIEW_INTERVAL_PROPERTY,
     reviewCountProperty: DEFAULT_REVIEW_COUNT_PROPERTY,
