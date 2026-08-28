@@ -424,6 +424,8 @@ right now": a flat, prioritized list of **Overdue**, **Today** (due or scheduled
 **Upcoming** (due or scheduled in the next 7 days). Switch to it with the **Agenda** button at
 the end of the mode switch (or the **Toggle agenda mode** command).
 
+![Agenda mode, listing overdue items first]({{ '/images/agenda.png' | relative_url }})
+
 - The **Today / Week** switch controls the look-ahead: **Today** shows only overdue and
   today's items; **Week** adds the Upcoming section.
 - **Available only** (on by default) hides cards that can't be started right now — deferred,

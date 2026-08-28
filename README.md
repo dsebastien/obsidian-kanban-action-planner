@@ -38,6 +38,10 @@ Break the same work down as a WBS tree, with estimates, progress, and dates roll
 
 ![WBS mode](docs/images/wbs.png)
 
+Or see what's on your plate right now with the Agenda: a flat, prioritized list of Overdue, Today, and Upcoming items, with a Today/Week window switch and an Available only toggle:
+
+![Agenda mode](docs/images/agenda.png)
+
 Filter as you type with a compact query language:
 
 ![Filter as you type](docs/images/filter.png)
