@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.18.0](https://github.com/dsebastien/obsidian-kanban-action-planner/compare/1.17.0...1.18.0) (2026-08-28)
+
+### Features
+
+* column triage — one-card pass over a board column with carousel status swipes ([bcbd994](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/bcbd9949434fdd65fac817aafaf596f3bdc24962)), closes [#122](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/122) [#170](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/170)
+* column triage v2 — status tray, card stack, stamp/confetti animations ([1d0c707](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/1d0c707bdd76b9511e29045c9224f5697382c2bd)), closes [#170](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/170) [#170](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/170) [#122](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/122)
+* filter aliases for configured properties (scheduled, estimate, progress, order) ([6efd910](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/6efd9108000a73b183e30e634bc02768da6d27f8)), closes [#169](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/169)
+* focus mode — single-card spotlight with timer ([0f20bd5](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/0f20bd54507b59eb69e6e08a4b22ae26db73800d)), closes [#119](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/119) [#160](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/160)
+* keyboard and swipe triage quick actions ([1d852b6](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/1d852b6a3e6f80aee4d4dc7bb84db862ad8de423)), closes [#122](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/122)
+* time tracking with duration and totalDuration WBS rollup ([4a54d72](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/4a54d7287b71662c6f92bfd9815eb8f5789b6680)), closes [#119](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/119)
+
+### Bug Fixes
+
+* column triage v2 — final-review hardening ([c7054ac](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/c7054aca3a98e4e130c98407e319efc2f4e011a4)), closes [#170](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/170)
+* column-triage rails pinned to 30px by Obsidian's unlayered button height ([d15654c](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/d15654cf616a4f2f1f88d6272cff917ca9ac6de9)), closes [#170](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/170)
+* filter-bar focus ring, swipe outcome badges, column-triage drop targets ([d27fe20](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/d27fe20e0031da9d63a02f681147393cac62ad91)), closes [#122](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/122) [#160](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/160) [#169](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/169) [#170](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/170)
+
 ## [1.17.0](https://github.com/dsebastien/obsidian-kanban-action-planner/compare/1.16.1...1.17.0) (2026-08-25)
 
 ### Features
@@ -438,6 +455,7 @@ All notable changes to this project will be documented in this file.
 
 * **plugin:** match Starter Kit's {{quarter}} placeholder format (Q2, not 2) ([4fde618](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/4fde6185c5956e3f6fd2ca3a9b03e70cf5e16840))
 * **plugin:** persist discovered statuses so Show empty columns works ([cf91b81](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/cf91b81a1b0786e35c73f4885882e2dc33564c62))
+
 
 
 

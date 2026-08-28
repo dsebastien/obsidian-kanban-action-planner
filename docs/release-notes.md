@@ -1,5 +1,22 @@
 # Release Notes
 
+## 1.18.0 (2026-08-28)
+
+### Features
+
+- column triage — one-card pass over a board column with carousel status swipes [#170](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/170)
+- column triage v2 — status tray, card stack, stamp/confetti animations [#170](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/170) [#122](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/122)
+- filter aliases for configured properties (scheduled, estimate, progress, order)
+- focus mode — single-card spotlight with timer [#160](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/160)
+- keyboard and swipe triage quick actions
+- time tracking with duration and totalDuration WBS rollup
+
+### Bug Fixes
+
+- column triage v2 — final-review hardening
+- column-triage rails pinned to 30px by Obsidian's unlayered button height
+- filter-bar focus ring, swipe outcome badges, column-triage drop targets [#160](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/160) [#169](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/169) [#170](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/170)
+
 ## 1.17.0 (2026-08-25)
 
 ### Features
