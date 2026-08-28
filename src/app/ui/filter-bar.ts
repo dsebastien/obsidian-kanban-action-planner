@@ -22,12 +22,13 @@ const HELP_ROWS: ReadonlyArray<{ syntax: string; desc: string }> = [
     { syntax: 'parent:="App"', desc: 'exact whole-value match (: is substring)' },
     { syntax: 'status:active,done', desc: 'comma = OR within a property' },
     { syntax: 'due:overdue', desc: 'today · overdue · none · week · month · quarter · year' },
-    { syntax: 'due:>2026-01-01', desc: 'date compare: < > <= >= (defer: works the same)' },
-    { syntax: 'is:available', desc: 'available · deferred · blocked · done' }
+    { syntax: 'due:>2026-01-01', desc: 'date compare: < > <= >= (defer:, scheduled: too)' },
+    { syntax: 'is:available', desc: 'available · deferred · blocked · done' },
+    { syntax: 'estimate:>4h', desc: 'numbers: estimate (d·h·m), progress, order · none = unset' }
 ]
 
 const PROPERTY_HINT =
-    'Properties: title, status, parent, ancestor (any transitive parent), child, sibling, blocked, tag, due, defer, is, or any frontmatter property.'
+    'Properties: title, status, parent, ancestor (any transitive parent), child, sibling, blocked, tag, due, defer, scheduled, is, estimate, progress, order, or any frontmatter property.'
 
 /**
  * The persistent filter input in the view toolbar. Created once and kept alive

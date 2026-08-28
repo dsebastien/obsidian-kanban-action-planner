@@ -4,8 +4,25 @@ import { parseFrontmatterDate } from '../domain/calendar'
 import type { CardSearchRecord } from '../domain/filter-query'
 import type { RelationshipRole } from '../domain/note-type'
 import { splitStatusValue } from '../domain/status'
-import { getFrontmatterValue } from './frontmatter.service'
+import { coerceOrder, getFrontmatterValue } from './frontmatter.service'
 import type { KanbanCard } from '../ui/board/types'
+
+/**
+ * Configured-property values resolved by the view for the #169 filter aliases
+ * (`scheduled:`, `estimate:`, `progress:`, `order:`). Estimate arrives already
+ * resolved into DAYS because its property AND unit are per note type
+ * (`estimateConfigFor`), which only the view can resolve.
+ */
+export interface CardSearchExtras {
+    /** The resolved scheduled-date property, backing `scheduled:`. */
+    scheduledDateProperty?: string | null
+    /** The card's resolved estimate in days (unit-converted), backing `estimate:`. */
+    estimateDays?: number | null
+    /** The resolved progress property, backing `progress:`. */
+    progressProperty?: string | null
+    /** The resolved manual-order property, backing `order:`. */
+    orderProperty?: string | null
+}
 
 /**
  * Build a card's lowercased search index from the metadata cache, so keystroke
@@ -20,7 +37,9 @@ export function buildCardSearchRecord(
     /** Defer ("can't start until") property, backing `defer:`/`is:` (issue #113). */
     deferDateProperty: string | null = null,
     /** Whether the note counts as done per its type's done definition (issue #113). */
-    done = false
+    done = false,
+    /** Configured-property values for the #169 aliases. */
+    extras: CardSearchExtras = {}
 ): CardSearchRecord {
     const file = card.file
     const cache = app.metadataCache.getFileCache(file)
@@ -59,6 +78,17 @@ export function buildCardSearchRecord(
     const defer = deferDateProperty
         ? parseFrontmatterDate(getFrontmatterValue(app, file, deferDateProperty))
         : null
+    // Configured-property aliases (issue #169): resolved here so the pure
+    // matcher never needs to know the properties' real names.
+    const scheduled = extras.scheduledDateProperty
+        ? parseFrontmatterDate(getFrontmatterValue(app, file, extras.scheduledDateProperty))
+        : null
+    const progress = extras.progressProperty
+        ? coerceOrder(getFrontmatterValue(app, file, extras.progressProperty))
+        : null
+    const order = extras.orderProperty
+        ? coerceOrder(getFrontmatterValue(app, file, extras.orderProperty))
+        : null
 
     return {
         title: card.display.title.toLowerCase(),
@@ -72,6 +102,10 @@ export function buildCardSearchRecord(
         tags,
         due,
         defer,
+        scheduled,
+        estimate: extras.estimateDays ?? null,
+        progress,
+        order,
         done,
         props
     }

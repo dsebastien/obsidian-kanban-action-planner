@@ -1093,7 +1093,15 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
                     ancestorPaths(c.key, this.relationshipsByPath).map(labelForPath),
                     // Defer date + done state back `defer:` / `is:` (issue #113).
                     this.deferDateProperty,
-                    this.isCardDone(c)
+                    this.isCardDone(c),
+                    // Configured-property filter aliases (issue #169):
+                    // `scheduled:` / `estimate:` / `progress:` / `order:`.
+                    {
+                        scheduledDateProperty: this.scheduledDateProperty,
+                        estimateDays: this.estimateDaysFor(c),
+                        progressProperty: this.resolveProgressProperty(),
+                        orderProperty: this.orderProperty
+                    }
                 )
             ])
         )
@@ -1898,6 +1906,20 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             property: override.property.trim() || this.plugin.settings.defaultEstimateProperty,
             unit: override.unit
         }
+    }
+
+    /**
+     * The card's estimate resolved into DAYS through its own type's estimate
+     * config (property + unit), for the `estimate:` filter alias (issue #169).
+     */
+    private estimateDaysFor(card: KanbanCard): number | null {
+        const config = this.estimateConfigFor(card)
+        const resolved = readEstimate(
+            getFrontmatterValue(this.app, card.file, config.property),
+            config.unit,
+            this.plugin.settings.minutesPerDay
+        )
+        return resolved?.days ?? null
     }
 
     /**
@@ -4526,6 +4548,9 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             // `context:` / `contexts:` aliases resolve to the configured
             // contexts property (issue #166).
             contextsProp: this.contextsProperty().toLowerCase(),
+            // Unit-suffixed `estimate:` values convert through the global
+            // minutes-per-day setting (issue #169).
+            minutesPerDay: this.plugin.settings.minutesPerDay,
             periods: {
                 week: periodRange('week', today, firstDay),
                 month: periodRange('month', today, firstDay),

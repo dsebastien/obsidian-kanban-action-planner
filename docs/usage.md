@@ -256,9 +256,9 @@ Click the **?** for an in-app cheat-sheet.
 - **Comma = OR** within one property: `status:active,done`.
 - Recognized names: `title`, `status` (matches the value or its column label), `parent`,
   `ancestor` (any **transitive** parent — the parent, its parent, and so on), `child`,
-  `sibling`, `blocked`, `tag`, `due`, `defer`, `is`, `context` / `contexts` (your GTD
-  contexts — see below), **or any frontmatter property** (e.g. `urgency:now`,
-  `effort:large`), even properties not shown on the card.
+  `sibling`, `blocked`, `tag`, `due`, `defer`, `scheduled`, `is`, `estimate`, `progress`,
+  `order`, `context` / `contexts` (your GTD contexts — see below), **or any frontmatter
+  property** (e.g. `urgency:now`, `effort:large`), even properties not shown on the card.
 - **`context:` / `contexts:` always target your configured contexts property**, whatever
   it is called: `context:@work`, `context:@home,@errands` (comma = OR). You never need to
   remember the property's actual name.
@@ -272,6 +272,23 @@ Click the **?** for an in-app cheat-sheet.
   `due:quarter` / `due:year` (the calendar period containing today).
 - Comparisons: `due:>2026-01-01`, `due:<2026-01-01`, `due:>=…`, `due:<=…`, or an exact day
   `due:2026-01-15`.
+
+**Configured-property aliases (scheduled, estimate, progress, order)**
+
+Like `context:`, these qualifiers always target the **configured** property — whatever it is
+actually called in your frontmatter — so you never need to remember its real name:
+
+- `scheduled:` takes the same keywords and comparisons as `due:`, evaluated against your
+  scheduled-date property: `scheduled:today`, `scheduled:none`, `scheduled:week`,
+  `scheduled:>2026-09-01`.
+- `estimate:` compares the resolved estimate **unit-aware**: a plain number is days
+  (`estimate:>=2`), or add a `d` / `h` / `m` suffix — `estimate:>4h`, `estimate:<=30m`,
+  `estimate:2d`. Minute-based note types (per-type estimate overrides) convert through
+  your **minutes per day** setting, so a 240-minute task matches both `estimate:4h` and
+  `estimate:0.5`.
+- `progress:` and `order:` compare numbers against the configured progress and manual-order
+  properties: `progress:100`, `progress:<50`, `order:>=10`.
+- `none` matches cards with no value: `estimate:none`, `progress:none`, `scheduled:none`.
 
 **Defer dates and availability (Next actions)**
 

@@ -36,6 +36,10 @@ function record(over: Partial<CardSearchRecord> = {}): CardSearchRecord {
         tags: [],
         due: null,
         defer: null,
+        scheduled: null,
+        estimate: null,
+        progress: null,
+        order: null,
         done: false,
         props: new Map()
     }
@@ -532,6 +536,95 @@ describe('is: qualifier (issue #113)', () => {
     it('is and defer are reserved qualifier names', () => {
         expect(RESERVED_QUALIFIER_NAMES.has('is')).toBe(true)
         expect(RESERVED_QUALIFIER_NAMES.has('defer')).toBe(true)
+    })
+})
+
+describe('configured-property qualifier aliases (issue #169)', () => {
+    const future = new Date(2026, 6, 10) // after TODAY (2026-06-28)
+    const past = new Date(2026, 5, 20)
+
+    it('parses comparison operators for the new qualifiers', () => {
+        expect(parseFilterQuery('scheduled:>=2026-01-01').groups[0]?.[0]).toMatchObject({
+            name: 'scheduled',
+            op: '>=',
+            values: ['2026-01-01']
+        })
+        expect(parseFilterQuery('estimate:>4h').groups[0]?.[0]).toMatchObject({
+            name: 'estimate',
+            op: '>',
+            values: ['4h']
+        })
+        expect(parseFilterQuery('progress:<50').groups[0]?.[0]).toMatchObject({
+            name: 'progress',
+            op: '<',
+            values: ['50']
+        })
+    })
+
+    it('scheduled: takes the due-style keywords and comparisons', () => {
+        expect(match('scheduled:none', record())).toBe(true)
+        expect(match('scheduled:none', record({ scheduled: future }))).toBe(false)
+        expect(match('scheduled:today', record({ scheduled: TODAY }))).toBe(true)
+        expect(match('scheduled:overdue', record({ scheduled: past }))).toBe(true)
+        expect(match('scheduled:overdue', record({ scheduled: future }))).toBe(false)
+        expect(match('scheduled:>2026-06-28', record({ scheduled: future }))).toBe(true)
+        expect(match('scheduled:>2026-06-28', record({ scheduled: past }))).toBe(false)
+        expect(match('scheduled:week', record({ scheduled: TODAY }))).toBe(true)
+    })
+
+    it('estimate: compares plain numbers as days', () => {
+        expect(match('estimate:none', record())).toBe(true)
+        expect(match('estimate:none', record({ estimate: 2 }))).toBe(false)
+        expect(match('estimate:2', record({ estimate: 2 }))).toBe(true)
+        expect(match('estimate:>=2', record({ estimate: 2 }))).toBe(true)
+        expect(match('estimate:>2', record({ estimate: 2 }))).toBe(false)
+        expect(match('estimate:<3', record({ estimate: 2 }))).toBe(true)
+    })
+
+    it('estimate: converts d/h/m unit suffixes through minutesPerDay', () => {
+        // 240 minutes at 480 min/day = 0.5 days.
+        const half = record({ estimate: 0.5 })
+        expect(match('estimate:4h', half)).toBe(true)
+        expect(match('estimate:0.5', half)).toBe(true)
+        expect(match('estimate:240m', half)).toBe(true)
+        expect(match('estimate:>3h', half)).toBe(true)
+        expect(match('estimate:<2h', half)).toBe(false)
+        expect(match('estimate:1d', record({ estimate: 1 }))).toBe(true)
+        // A custom minutes-per-day changes the conversion (240m = 1 day at 240/day).
+        const ctx: FilterContext = { ...CTX, minutesPerDay: 240 }
+        expect(
+            matchesFilterQuery(record({ estimate: 1 }), parseFilterQuery('estimate:4h'), ctx)
+        ).toBe(true)
+    })
+
+    it('estimate: never matches a malformed value', () => {
+        expect(match('estimate:soon', record({ estimate: 2 }))).toBe(false)
+        expect(match('estimate:4x', record({ estimate: 2 }))).toBe(false)
+    })
+
+    it('progress: and order: compare numbers, with none for unset', () => {
+        expect(match('progress:none', record())).toBe(true)
+        expect(match('progress:100', record({ progress: 100 }))).toBe(true)
+        expect(match('progress:<50', record({ progress: 30 }))).toBe(true)
+        expect(match('progress:<50', record({ progress: 80 }))).toBe(false)
+        expect(match('progress:>=50', record({ progress: 50 }))).toBe(true)
+        expect(match('order:none', record())).toBe(true)
+        expect(match('order:>=10', record({ order: 12 }))).toBe(true)
+        expect(match('order:<10', record({ order: 12 }))).toBe(false)
+    })
+
+    it('negates and composes like any clause', () => {
+        expect(match('-progress:100', record({ progress: 100 }))).toBe(false)
+        expect(match('-estimate:none book', record({ haystack: 'my book', estimate: 1 }))).toBe(
+            true
+        )
+        expect(match('scheduled:today OR progress:100', record({ progress: 100 }))).toBe(true)
+    })
+
+    it('stays OFF the reserved-names guard so same-named properties are allowed', () => {
+        for (const name of ['scheduled', 'estimate', 'progress', 'order']) {
+            expect(RESERVED_QUALIFIER_NAMES.has(name)).toBe(false)
+        }
     })
 })
 

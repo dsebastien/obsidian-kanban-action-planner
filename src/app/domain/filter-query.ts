@@ -22,13 +22,16 @@ import { parseFrontmatterDate, startOfDay, toDateKey } from './calendar'
  * - Reserved names (`title`, `status`, `parent`, `ancestor`, `child`, `sibling`,
  *   `blocked`, `tag`, `due`, `defer`, `is`) win over a same-named frontmatter
  *   property; any other name is a frontmatter property lookup.
- * - `due:` and `defer:` carry comparison operators and date keywords.
+ * - `due:`, `defer:`, and `scheduled:` carry comparison operators and date keywords.
  * - `is:` matches availability states (issue #113): `available`, `deferred`,
  *   `blocked`, `done`.
+ * - `estimate:`, `progress:`, and `order:` compare numbers against the CONFIGURED
+ *   properties (issue #169), resolved into the record at build time; `estimate:`
+ *   values are unit-aware (`4h`, `30m`, `2d`; plain = days).
  * - Best-effort: malformed input never throws.
  */
 
-/** Comparison operator (only meaningful for `due:`). */
+/** Comparison operator (for `due:`-style dates and the numeric qualifiers). */
 export type CompareOp = '=' | '<' | '>' | '<=' | '>='
 
 /** One parsed clause: a bare term (`name === null`) or a `name:value` qualifier. */
@@ -66,6 +69,11 @@ export interface FilterContext {
      * When absent, the aliases fall back to a literal property lookup.
      */
     contextsProp?: string
+    /**
+     * Minutes in one workday (issue #169), for unit-suffixed `estimate:`
+     * values (`estimate:>4h` → 240 minutes → days). Absent = 480 (8h).
+     */
+    minutesPerDay?: number
 }
 
 /** Per-card searchable data, all text lowercased. */
@@ -90,6 +98,17 @@ export interface CardSearchRecord {
     due: Date | null
     /** Parsed defer date ("can't start until", issue #113) or null. */
     defer: Date | null
+    /** Parsed scheduled date, from the configured scheduled property (issue #169). */
+    scheduled: Date | null
+    /**
+     * Resolved estimate in DAYS (fractional for minute-based note types),
+     * from the card's own type's estimate config (issue #169), or null.
+     */
+    estimate: number | null
+    /** Numeric progress, from the configured progress property (issue #169), or null. */
+    progress: number | null
+    /** Numeric manual order, from the configured order property (issue #169), or null. */
+    order: number | null
     /** Whether the note counts as done per its type's done definition (issue #113). */
     done: boolean
     /** Frontmatter property name (lowercased) → its value(s), lowercased. */
@@ -166,7 +185,21 @@ function splitValues(raw: string): string[] {
     return parts.map((s) => unquote(s.trim()).toLowerCase()).filter((s) => s.length > 0)
 }
 
-/** Peel a leading comparison operator off a `due:` value. */
+/**
+ * Qualifier names whose values carry a leading comparison operator: the date
+ * qualifiers (`due:`, `defer:`, `scheduled:`) and the numeric configured-property
+ * aliases (`estimate:`, `progress:`, `order:`; issue #169).
+ */
+const COMPARE_QUALIFIER_NAMES: ReadonlySet<string> = new Set([
+    'due',
+    'defer',
+    'scheduled',
+    'estimate',
+    'progress',
+    'order'
+])
+
+/** Peel a leading comparison operator off a compare-qualifier value. */
 function parseDueOp(raw: string): { op: CompareOp; rest: string } {
     const v = raw.trim()
     if (v.startsWith('>=')) return { op: '>=', rest: v.slice(2) }
@@ -193,7 +226,7 @@ function toClause(token: string, negated: boolean): FilterClause | null {
     }
     const name = body.slice(0, colon).toLowerCase()
     let rawValue = body.slice(colon + 1)
-    if (name === 'due' || name === 'defer') {
+    if (COMPARE_QUALIFIER_NAMES.has(name)) {
         const { op, rest } = parseDueOp(rawValue)
         const values = splitValues(rest)
         if (values.length === 0) return null
@@ -301,6 +334,58 @@ function matchDueValue(
     }
 }
 
+/** Compare two numbers under an operator (equality is epsilon-tolerant for unit math). */
+function compareNumber(actual: number, target: number, op: CompareOp): boolean {
+    const eq = Math.abs(actual - target) < 1e-9
+    switch (op) {
+        case '=':
+            return eq
+        case '<':
+            return actual < target && !eq
+        case '>':
+            return actual > target && !eq
+        case '<=':
+            return actual < target || eq
+        case '>=':
+            return actual > target || eq
+    }
+}
+
+/**
+ * Evaluate a numeric qualifier candidate (issue #169): `none` matches an
+ * unset value; anything else parses as a number (non-numbers never match).
+ */
+function matchNumericValue(actual: number | null, op: CompareOp, value: string): boolean {
+    if (value === 'none') return actual === null
+    if (actual === null) return false
+    const target = value.trim() === '' ? NaN : Number(value)
+    return Number.isFinite(target) && compareNumber(actual, target, op)
+}
+
+/**
+ * Evaluate an `estimate:` candidate (issue #169), unit-aware: a `d`/`h`/`m`
+ * suffix converts to days through `minutesPerDay` (default 480); a plain
+ * number is days — matching the record's resolved days value.
+ */
+function matchEstimateValue(
+    estimate: number | null,
+    op: CompareOp,
+    value: string,
+    ctx: FilterContext
+): boolean {
+    if (value === 'none') return estimate === null
+    if (estimate === null) return false
+    const parsed = /^(\d+(?:\.\d+)?)\s*([dhm])?$/.exec(value.trim())
+    if (!parsed) return false
+    const amount = Number(parsed[1])
+    if (!Number.isFinite(amount)) return false
+    const perDay = ctx.minutesPerDay && ctx.minutesPerDay > 0 ? ctx.minutesPerDay : 480
+    const unit = parsed[2]
+    const targetDays =
+        unit === 'h' ? (amount * 60) / perDay : unit === 'm' ? amount / perDay : amount
+    return compareNumber(estimate, targetDays, op)
+}
+
 /**
  * Whether a defer date makes the card not-yet-actionable (issue #113):
  * a defer date strictly in the future. A defer of today (or unset) is
@@ -353,6 +438,11 @@ const ROLE_ALIASES: Record<string, RelationshipRole> = {
  * reserved qualifier, or `setContextTerms`/`removeZoomTerm` fight over the same
  * tokens) cannot drift. Derived from {@link ROLE_ALIASES} plus the names
  * handled inline (`due`/`title`/`status`/`tag(s)`/`ancestor(s)`).
+ *
+ * The configured-property aliases (`context(s)`, `scheduled`, `estimate`,
+ * `progress`, `order`; issues #166/#169) are deliberately NOT in this set:
+ * users may legitimately configure properties with those exact names, and
+ * reserving them would make the settings-time guard reject the defaults.
  */
 export const RESERVED_QUALIFIER_NAMES: ReadonlySet<string> = new Set<string>([
     'due',
@@ -381,6 +471,24 @@ function matchQualifier(rec: CardSearchRecord, clause: FilterClause, ctx: Filter
         // Same keyword/date grammar as `due:`, evaluated against the defer
         // date (issue #113): `defer:none`, `defer:>today`, `defer:<2026-09-01`, …
         return clause.values.some((v) => matchDueValue(rec.defer, clause.op, v, ctx))
+    }
+    if (name === 'scheduled') {
+        // Same keyword/date grammar as `due:`, evaluated against the CONFIGURED
+        // scheduled-date property resolved into the record (issue #169).
+        return clause.values.some((v) => matchDueValue(rec.scheduled, clause.op, v, ctx))
+    }
+    if (name === 'estimate') {
+        // Unit-aware numeric comparison against the resolved estimate in days
+        // (issue #169): `estimate:none`, `estimate:>=2`, `estimate:>4h`.
+        return clause.values.some((v) => matchEstimateValue(rec.estimate, clause.op, v, ctx))
+    }
+    if (name === 'progress' || name === 'order') {
+        // Numeric comparisons against the configured progress / manual-order
+        // property (issue #169): `progress:100`, `progress:<50`, `order:>=10`.
+        // Like `context:`, deliberately NOT in RESERVED_QUALIFIER_NAMES — users
+        // may legitimately name their properties `progress`, `order`, etc.
+        const actual = name === 'progress' ? rec.progress : rec.order
+        return clause.values.some((v) => matchNumericValue(actual, clause.op, v))
     }
     if (name === 'is') {
         // Availability states (issue #113): `is:available`, `is:deferred`,
