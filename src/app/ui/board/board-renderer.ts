@@ -33,9 +33,16 @@ export interface BoardRenderCallbacks {
     onAddCard?: (laneId: string, columnId: string) => void
     /**
      * Column triage (issue #170): start a one-card pass over this column.
-     * Absent = the header affordance is not rendered.
+     * The EXACT rendered lane + card keys are passed so the pass snapshots
+     * precisely what the user clicked (per-type lanes can render different
+     * column definitions for the same id). Absent = no header affordance.
      */
-    onTriageColumn?: (columnId: string) => void
+    onTriageColumn?: (info: {
+        columnId: string
+        laneId: string
+        label: string
+        cardKeys: string[]
+    }) => void
     /**
      * Column aggregate label (issue #23), e.g. `Σ 13`, drawn next to the card
      * count. The view owns reading the property and the math; `null` (or an
@@ -221,7 +228,21 @@ function renderColumns(
             setIcon(triageBtn, 'gallery-horizontal-end')
             triageBtn.addEventListener('click', (e) => {
                 e.stopPropagation()
-                onTriageColumn(column.id)
+                // Read the keys from the column's CURRENT DOM, not the closure:
+                // the keyed patch path (patchColumns) moves card nodes around
+                // without re-running renderColumns, so the captured `cards`
+                // array goes stale after the first drag (v2 review F3).
+                const cardKeys = Array.from(
+                    colEl.querySelectorAll<HTMLElement>('.kap-column-cards [data-card-key]')
+                )
+                    .map((el) => el.dataset['cardKey'] ?? '')
+                    .filter((key) => key.length > 0)
+                onTriageColumn({
+                    columnId: column.id,
+                    laneId,
+                    label: column.label,
+                    cardKeys
+                })
             })
         }
         const countEl = header.createSpan({ cls: 'kap-column-count' })

@@ -124,7 +124,12 @@ import {
 } from '../../services/time-tracking.service'
 import { removeFocusView, renderFocusView, updateFocusTimerLabel } from '../../ui/focus/focus-view'
 import type { FocusCardData, FocusRelatedGroup } from '../../ui/focus/focus-view'
-import { removeColumnTriageView, renderColumnTriageView } from '../../ui/board/column-triage-view'
+import {
+    animateColumnTriageDecision,
+    removeColumnTriageView,
+    renderColumnTriageView
+} from '../../ui/board/column-triage-view'
+import type { ColumnTriageChip } from '../../ui/board/column-triage-view'
 import { archiveNote, liveExpressionContext } from '../../services/archive.service'
 import {
     addDays,
@@ -181,7 +186,14 @@ import type {
     TriageEditableProp,
     TriagePaneModel
 } from '../../ui/triage/triage-view'
-import { buildTriageQueue, bumpEnumValue, isPropUnset, reviewState, unsetCount } from './triage'
+import {
+    buildTriageQueue,
+    bumpEnumValue,
+    isPropUnset,
+    pruneTriageQueue,
+    reviewState,
+    unsetCount
+} from './triage'
 import type { TriageRank } from './triage'
 import { TriageConfigModal } from '../../ui/triage/triage-config-modal'
 import type { TriageConfigData } from '../../ui/triage/triage-config-modal'
@@ -356,14 +368,29 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
     // the 1s timer-label tick (running only while the overlay is mounted).
     private focusCardKey: string | null = null
     private focusTimerId: number | null = null
-    // Column triage (issue #170): the source column's pass — remaining card
-    // keys and the cursor into them. Null = off.
+    // Column triage (issue #170, v2): the pass's state machine — the exact
+    // rendered card keys snapshotted at start, the cursor, progress totals,
+    // the `busy` input lock, and a generation token invalidating stale
+    // async completions. Null = off.
     private columnTriage: {
         columnId: string
         label: string
         queue: string[]
         index: number
+        initialTotal: number
+        completed: number
+        /** The last decision already fired its own confetti (done state). */
+        celebrated: boolean
+        busy: boolean
+        generation: number
     } | null = null
+    // Render signature of the mounted column-triage overlay (issue #170 v2):
+    // identical inputs (late metadata echoes, unrelated rebuilds) skip the
+    // remount so animations and focus are never torn down needlessly.
+    private columnTriageSignature: string | null = null
+    // Monotonic decision-token source shared across passes, so a stale
+    // completion from an exited pass can never match a new pass's token.
+    private columnTriageTokens = 0
     // Set by Next/Skip (and completion auto-advance) so the next render scrolls the
     // body back to the top — a new card should start at its title, not inherit the
     // scroll of the one you just left. Plain in-place writes leave it false so the
@@ -1460,7 +1487,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
                 onContextMenu: (card, event) => this.onCardContextMenu(card, event),
                 onToggleLane: (laneId) => this.toggleLane(laneId),
                 onToggleColumn: (columnId) => this.toggleColumn(columnId),
-                onTriageColumn: (columnId) => this.startColumnTriage(columnId),
+                onTriageColumn: (info) => this.startColumnTriage(info),
                 onRelationship: (card, role, event) => this.showRelatedMenu(card, role, event),
                 onMoveColumn: (card, direction) => this.moveCardColumn(card, direction),
                 onReorderCard: (card, direction) => this.reorderCard(card, direction),
@@ -2672,7 +2699,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         destLaneId: string,
         destColumnId: string,
         index: number
-    ): Promise<void> {
+    ): Promise<boolean> {
         const card = this.liveCard(cardRef)
         // The card's own note type is authoritative for every status write:
         // the value comes from the card's lane/type column set (callers), the
@@ -2699,7 +2726,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
                 })
                 await this.maybeAutoArchive(card, newStatus)
             })
-            return
+            return true
         }
 
         // Manual order is only written under the default (manual) sort; a
@@ -2778,6 +2805,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
                     await this.runStatusAutomations(card, previousStatus, newStatus)
                 }
             })
+            return true
         } catch (error) {
             // A failed write leaves disk behind the optimistic model, and no
             // echo will correct it — re-derive everything from the metadata
@@ -2787,6 +2815,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             log('Card move write failed; re-deriving the board state.', 'error', error)
             new Notice('Failed to save the card move.')
             void this.resolveAndRebuild()
+            return false
         }
     }
 
@@ -3276,27 +3305,44 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         this.startFocusTick()
     }
 
-    // ── Column triage (issue #170) ─────────────────────────────
+    // ── Column triage (issue #170, v2 state machine) ───────────
 
-    /** Start a one-card pass over a board column (issue #170). */
-    private startColumnTriage(columnId: string): void {
-        const column = this.columns.find((c) => c.id === columnId)
-        if (!column) return
-        const queue = [...this.cardsByKey.values()]
-            .filter((c) => c.statusValue !== null && c.statusValue === column.statusValue)
-            .map((c) => c.key)
-        if (queue.length === 0) {
-            new Notice(`Nothing to triage in ${column.label}.`)
+    /**
+     * Start a one-card pass over ONE rendered board column: the header
+     * button passes the exact lane + card keys it rendered, so per-type
+     * lanes can never mix unrelated definitions into the queue.
+     */
+    private startColumnTriage(info: {
+        columnId: string
+        laneId: string
+        label: string
+        cardKeys: string[]
+    }): void {
+        if (info.cardKeys.length === 0) {
+            new Notice(`Nothing to triage in ${info.label}.`)
             return
         }
-        this.columnTriage = { columnId, label: column.label, queue, index: 0 }
+        this.columnTriage = {
+            columnId: info.columnId,
+            label: info.label,
+            queue: [...info.cardKeys],
+            index: 0,
+            initialTotal: info.cardKeys.length,
+            completed: 0,
+            celebrated: false,
+            busy: false,
+            generation: ++this.columnTriageTokens
+        }
+        this.columnTriageSignature = null
         this.renderColumnTriageOverlay()
     }
 
     /** Leave column triage: drop the pass and its overlay. */
     private exitColumnTriage(): void {
+        if (this.columnTriage) this.columnTriage.generation = ++this.columnTriageTokens
         this.columnTriage = null
-        if (this.boardEl) removeColumnTriageView(this.boardEl)
+        this.columnTriageSignature = null
+        if (this.rootEl) removeColumnTriageView(this.rootEl)
     }
 
     /**
@@ -3318,41 +3364,141 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         }
     }
 
-    /** Move the pass's current card one status left/right (carousel) and advance. */
-    private async columnTriageMove(card: KanbanCard, direction: -1 | 1): Promise<void> {
-        const state = this.columnTriage
-        if (!state) return
-        const { previous, next } = this.columnTriageNeighbours(card)
-        const target = direction === -1 ? previous : next
-        if (!target) return
-        // The card leaves the source column — drop it from the queue; the
-        // cursor now points at the following card.
-        state.queue = state.queue.filter((k) => k !== card.key)
-        await this.setCardStatus(card, target.statusValue, target.id)
-        this.renderColumnTriageOverlay()
+    /**
+     * Whether moving to `target` puts the card in its type's DONE state:
+     * true only when the done definition watches the card's resolved STATUS
+     * property (a done state on another property cannot be inferred from a
+     * status move) and the target status is a done value.
+     */
+    private isDoneStatusFor(card: KanbanCard, target: ColumnDef): boolean {
+        const config = this.doneConfigFor(card)
+        if (!config) return false
+        const statusProperty = this.statusPropertyFor(card)
+        // Frontmatter property names compare case-insensitively everywhere
+        // else in the plugin — the done definition is no exception.
+        if (!statusProperty || statusProperty.toLowerCase() !== config.property.toLowerCase()) {
+            return false
+        }
+        return isDoneValue(target.statusValue, config.values)
     }
 
-    /** Keep the current card where it is and advance the pass. */
-    private columnTriageSkip(): void {
+    /**
+     * THE decision gate (v2 review F5): every input path — chip, rail, keep,
+     * key, swipe, drop — funnels through here. `busy` locks re-entry, the
+     * generation token invalidates stale completions (exit mid-flight), the
+     * stamp + fly-out play optimistically while the write runs, and the card
+     * leaves the queue only when the write settles without throwing.
+     */
+    private async columnTriageDecide(
+        card: KanbanCard,
+        decision:
+            | { kind: 'move'; target: ColumnDef; direction: 'left' | 'right' }
+            | { kind: 'keep' }
+    ): Promise<void> {
         const state = this.columnTriage
-        if (!state) return
-        state.index += 1
-        this.renderColumnTriageOverlay()
+        if (!state || state.busy || !this.rootEl) return
+        state.busy = true
+        const generation = ++this.columnTriageTokens
+        state.generation = generation
+        const host = this.rootEl
+        try {
+            if (decision.kind === 'keep') {
+                await animateColumnTriageDecision(host, {
+                    direction: 'keep',
+                    stampLabel: 'Kept',
+                    stampColor: null
+                })
+                if (this.columnTriage !== state || state.generation !== generation) return
+                state.index += 1
+            } else {
+                const animation = animateColumnTriageDecision(host, {
+                    direction: decision.direction,
+                    stampLabel: decision.target.label,
+                    stampColor: resolveColor(decision.target.color)
+                })
+                const ok = await (async (): Promise<boolean> => {
+                    try {
+                        // setCardStatus reports persistence failures as
+                        // `false` (it swallows the exception internally and
+                        // re-derives the board — v2 review F1).
+                        return await this.setCardStatus(
+                            card,
+                            decision.target.statusValue,
+                            decision.target.id
+                        )
+                    } catch {
+                        return false
+                    }
+                })()
+                await animation
+                if (this.columnTriage !== state || state.generation !== generation) return
+                if (ok) {
+                    state.queue = state.queue.filter((k) => k !== card.key)
+                    state.completed += 1
+                    if (this.isDoneStatusFor(card, decision.target)) {
+                        // Burst on the STABLE host, not the overlay — the
+                        // re-render right after this remounts the overlay and
+                        // would destroy the canvas mid-burst (v2 review F5).
+                        burstConfetti(host)
+                        state.celebrated = true
+                    } else {
+                        state.celebrated = false
+                    }
+                } else {
+                    new Notice('Move failed — the card stays in the pass.')
+                }
+            }
+        } finally {
+            if (this.columnTriage === state && state.generation === generation) {
+                state.busy = false
+                this.columnTriageSignature = null
+                this.renderColumnTriageOverlay()
+            }
+        }
     }
 
-    /** Mount (or re-mount) the column-triage overlay; called after render passes. */
+    /**
+     * Mount (or re-mount) the column-triage overlay in the STABLE view root
+     * (rootEl survives every board re-render). Gated by a render signature
+     * so board rebuilds and late metadata echoes with identical inputs are
+     * no-ops, and by `busy` so an in-flight decision animation is never torn
+     * down (v2 review F1/F2).
+     */
     private renderColumnTriageOverlay(): void {
-        if (!this.boardEl) return
+        const host = this.rootEl
+        if (!host) return
         const state = this.columnTriage
         if (!state) {
-            removeColumnTriageView(this.boardEl)
+            removeColumnTriageView(host)
             return
         }
-        // Cards can leave the result set mid-pass (filter change, deletion).
-        state.queue = state.queue.filter((k) => this.cardsByKey.has(k))
+        if (state.busy) return
+        // Cards can leave the result set mid-pass (filter change, deletion,
+        // an automation archiving the note) — prune WITHOUT skipping cards:
+        // removals before the cursor pull it back in step (v2 review F4).
+        const pruned = pruneTriageQueue(state.queue, state.index, (k) => this.cardsByKey.has(k))
+        state.queue = pruned.queue
+        state.index = pruned.index
         if (state.index >= state.queue.length) {
+            // Completion: celebrate (on the stable host, so nothing tears the
+            // canvas down) unless the final decision already burst its own
+            // done-state confetti — one celebration, not two (v2 review F5).
+            if (!state.celebrated) burstConfetti(host)
             new Notice(`Column triage complete — ${state.label}.`)
-            this.exitColumnTriage()
+            const generation = state.generation
+            const reduced = host.win.matchMedia('(prefers-reduced-motion: reduce)').matches
+            host.win.setTimeout(
+                () => {
+                    if (this.columnTriage === state && state.generation === generation) {
+                        this.exitColumnTriage()
+                    }
+                },
+                // Long enough for the confetti to finish; immediate when
+                // reduced motion skips it anyway (v2 review F8).
+                reduced ? 0 : 1900
+            )
+            // Freeze the pass while the celebration plays (blocks re-entry).
+            state.busy = true
             return
         }
         const key = state.queue[state.index]
@@ -3362,25 +3508,91 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             return
         }
         const { previous, next } = this.columnTriageNeighbours(card)
+        const chips = this.columnTriageChips(card)
+        const stackTitles = state.queue
+            .slice(state.index + 1, state.index + 3)
+            .map((k) => this.cardsByKey.get(k)?.display.title ?? '')
+        // EVERY rendered input participates, or a change to it would be
+        // gated away as a no-op (v2 review F6).
+        const signature = [
+            card.key,
+            String(state.index),
+            String(state.completed),
+            String(state.queue.length),
+            card.statusValue ?? '',
+            card.display.title,
+            card.display.fields.map((f) => `${f.label ?? ''}=${f.text}`).join('\u001f'),
+            chips
+                .map((c) => `${c.id}:${c.label}:${c.cssColor}:${String(c.current)}`)
+                .join('\u001f'),
+            stackTitles.join('\u001f')
+        ].join('\u001e')
+        if (
+            signature === this.columnTriageSignature &&
+            host.querySelector(':scope > .kap-coltriage') !== null
+        ) {
+            return
+        }
+        const currentLabel = chips.find((c) => c.current)?.label ?? card.statusValue ?? state.label
         renderColumnTriageView(
-            this.boardEl,
+            host,
             {
                 columnLabel: state.label,
                 title: card.display.title,
                 fields: card.display.fields,
+                chips,
                 previousLabel: previous?.label ?? null,
                 nextLabel: next?.label ?? null,
-                position: state.index + 1,
-                total: state.queue.length
+                keepLabel: `Keep in ${currentLabel}`,
+                stackTitles,
+                done: state.completed + state.index,
+                total: state.initialTotal
             },
             {
                 onExit: () => this.exitColumnTriage(),
                 onOpen: (newTab) => this.openCard(card, newTab),
-                onMove: (direction) => void this.columnTriageMove(card, direction),
-                onSkip: () => this.columnTriageSkip(),
+                onMove: (direction) => {
+                    const target = direction === -1 ? previous : next
+                    if (!target) return
+                    void this.columnTriageDecide(card, {
+                        kind: 'move',
+                        target,
+                        direction: direction === -1 ? 'left' : 'right'
+                    })
+                },
+                onChooseChip: (chipId) => {
+                    const columns = this.cardColumns(card)
+                    const target = columns.find((c) => c.id === chipId)
+                    if (!target) return
+                    const currentIndex = columns.findIndex(
+                        (c) => c.statusValue === card.statusValue
+                    )
+                    const targetIndex = columns.findIndex((c) => c.id === chipId)
+                    void this.columnTriageDecide(card, {
+                        kind: 'move',
+                        target,
+                        direction: targetIndex < currentIndex ? 'left' : 'right'
+                    })
+                },
+                onKeep: () => void this.columnTriageDecide(card, { kind: 'keep' }),
                 onMenu: (event) => this.showCardMenu(card, event)
             }
         )
+        // Sealed only after the render completed — an exception above must
+        // not freeze a partial DOM behind an already-recorded signature.
+        this.columnTriageSignature = signature
+    }
+
+    /** The card's own type's status columns as tray chips (v2 layout). */
+    private columnTriageChips(card: KanbanCard): ColumnTriageChip[] {
+        const columns = this.cardColumns(card).filter((c) => c.id !== UNMAPPED_COLUMN_ID)
+        return columns.map((column, index) => ({
+            id: column.id,
+            label: column.label,
+            cssColor: resolveColor(column.color),
+            current: column.statusValue === card.statusValue,
+            ordinal: index < 9 ? index + 1 : null
+        }))
     }
 
     /** 1s tick updating just the timer label while a session runs. */
@@ -3409,8 +3621,9 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         return {
             openCard: (card, newTab) => this.openCard(card, newTab),
             columnsFor: (card) => this.cardColumns(card),
-            setCardStatus: (card, statusValue, columnId) =>
-                this.setCardStatus(card, statusValue, columnId),
+            setCardStatus: async (card, statusValue, columnId) => {
+                await this.setCardStatus(card, statusValue, columnId)
+            },
             enumPropertiesFor: (card) => this.enumPropertiesFor(card),
             setCardProperty: (card, propertyName, value) =>
                 this.setCardPropertyFromMenu(card, propertyName, value),
@@ -3783,11 +3996,11 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         cardRef: KanbanCard,
         statusValue: string | null,
         columnId: string
-    ): Promise<void> {
+    ): Promise<boolean> {
         const card = this.liveCard(cardRef)
         const laneId = this.laneIdOf(card)
         const destCards = this.columnCards(laneId, columnId).filter((c) => c.key !== card.key)
-        await this.applyMove(card, statusValue, laneId, columnId, destCards.length)
+        return this.applyMove(card, statusValue, laneId, columnId, destCards.length)
     }
 
     // ── Pane-group DnD (drag between the scheduling panels' status groups) ──

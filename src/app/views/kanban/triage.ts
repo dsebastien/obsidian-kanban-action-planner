@@ -110,6 +110,28 @@ export function classifySwipe(dx: number, dy: number, threshold: number): SwipeD
     return dy > 0 ? 'down' : 'up'
 }
 
+/**
+ * Prune vanished cards from a triage queue WITHOUT skipping anyone (issue
+ * #170 v2, review F4): removals before the cursor pull the cursor back in
+ * step, so it keeps pointing at the same card — or, when that card itself
+ * vanished, at the one that followed it. Pure.
+ */
+export function pruneTriageQueue(
+    queue: ReadonlyArray<string>,
+    index: number,
+    exists: (key: string) => boolean
+): { queue: string[]; index: number } {
+    const kept: string[] = []
+    let removedBefore = 0
+    for (let i = 0; i < queue.length; i++) {
+        const key = queue[i]
+        if (key === undefined) continue
+        if (exists(key)) kept.push(key)
+        else if (i < index) removedBefore += 1
+    }
+    return { queue: kept, index: Math.max(0, index - removedBefore) }
+}
+
 /** A card's queue ranking: whether to include it, and its worst-first weight. */
 export interface TriageRank {
     include: boolean

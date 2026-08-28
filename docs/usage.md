@@ -453,18 +453,33 @@ interval. Review works on **any** Kanban view via the scope switch, with no per-
 ### Column triage (board mode)
 
 Triage also comes to the board itself (issue #170): every column header carries a small
-**triage** button that starts a **one-card pass over that column** — the cards of that
-specific status, in the column's current order, one at a time.
+**triage** button that starts a **Tinder-style one-card pass over that column** — the cards
+of that specific status, in the column's current order, one at a time, as a card **stack**
+(the next cards peek behind the current one) with a progress bar in the header.
 
 ![Column triage mid-swipe: the card follows the pointer toward the next status]({{ '/images/column-triage.png' | relative_url }})
 
-- **→** (or swipe the card right, or click the right target) moves the card to the **next**
-  status column; **←** moves it to the **previous** one. The statuses form a **carousel**:
-  from the last column, right wraps to the first, and from the first, left wraps to the
-  last. Moves use the card's own type's column vocabulary on mixed boards.
-- **↓** (or **Space**, or swipe down) keeps the card where it is and advances.
-- **Esc** exits back to the board; **O** opens the note; right-click shows the full card
-  menu. The pass ends by itself when the column has no cards left.
+Under the card sits a **stationary status tray**: every status of the card's own type as a
+color-dotted chip (the current one highlighted), plus **Keep in <status>**. Full-height
+**rails** hug the pane edges, labelled with the previous/next status (a carousel — the ends
+wrap, and the rail always names its destination).
+
+Every decision path triggers the same **stamp + fly-out animation** — the destination
+status slams onto the card as a tinted passport stamp, then the card flies off toward its
+new column:
+
+- **Click a chip** to move the card straight to that status (keys `1`–`9` do the same).
+- **Click a rail** (or **←** / **→**, or **swipe** the card left/right) for the carousel
+  move.
+- **Drag the card onto a chip, the Keep button, or a rail** — targets light up as the drag
+  passes over them, and releasing commits that exact status.
+- **Keep** (or **↓** / **Space**, or swipe down) leaves the card and advances.
+- **Esc** exits; **O** opens the note; right-click shows the full card menu.
+
+Moving a card into its type's **done state** fires a confetti burst, and finishing the
+whole pass celebrates too. Everything respects reduced-motion settings, failed writes put
+the card back into the pass, and all moves go through the standard status write path, so
+your automations fire exactly as if you had dragged the card on the board.
 
 ## Agenda mode
 

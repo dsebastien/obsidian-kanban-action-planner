@@ -51,6 +51,8 @@
            (hover/active/drop/expand), never for data refreshes (those stay
            instant, matching the flicker-free incremental board refresh). */
         --kap-transition: 150ms;
+        --kap-anim: 240ms;
+        --kap-anim-fast: 170ms;
         --kap-transition-slow: 240ms;
         --kap-ease: cubic-bezier(0.2, 0, 0, 1);
     }
@@ -3294,6 +3296,9 @@
     }
 
     /* ── Focus mode (issue #160): single-card spotlight overlay ── */
+    /* The host may be the rootEl ITSELF (column triage mounts there) or a
+       descendant (focus mode mounts on the board host) — cover both. */
+    .kap-root.kap-focus-open,
     .kap-root .kap-focus-open {
         position: relative;
     }
@@ -3408,7 +3413,11 @@
         color: var(--text-faint);
     }
 
-    /* ── Column triage (issue #170): one-card pass over a board column ── */
+    /* ── Column triage (issue #170, v2): Tinder-style column pass ──
+       Full-height rails at the pane edges, a card stack center-stage, and a
+       stationary status tray under it. Only the face transforms; every
+       animation duration routes through --kap-anim* so reduced motion
+       collapses it all. */
     .kap-root .kap-column-triage {
         @apply inline-flex items-center justify-center p-0.5 rounded border-0 cursor-pointer bg-transparent;
         color: var(--text-faint);
@@ -3419,54 +3428,202 @@
         background: var(--background-modifier-hover);
     }
 
+    .kap-root .kap-coltriage {
+        container-type: inline-size;
+    }
+
     .kap-root .kap-coltriage-body {
-        @apply flex flex-1 items-stretch justify-between gap-8 overflow-y-auto p-6;
+        @apply flex flex-1 items-stretch justify-between gap-4 overflow-hidden;
+        min-height: 0;
     }
 
-    .kap-root .kap-coltriage-card {
-        @apply max-w-xl flex-1 self-center rounded-lg border border-solid p-6;
-        position: relative;
-        border-color: var(--background-modifier-border);
-        background: var(--background-primary);
-        transition: transform 0.15s ease;
-        touch-action: none;
-        transform: translate(var(--kap-swipe-x, 0px), var(--kap-swipe-y, 0px))
-            rotate(var(--kap-swipe-rot, 0deg));
-    }
-
-    /* Tall, wide drop targets hugging the pane edges — the swipe
-       destinations read at a glance and are easy to hit. */
-    .kap-root .kap-coltriage-move {
-        @apply flex flex-col items-center justify-center gap-3 self-stretch rounded-xl border-2 border-dashed bg-transparent px-6 cursor-pointer text-[1.05em];
+    /* Full-height rails hugging the pane edges: subtle at rest, lifted
+       while a drag is in progress, accent-armed when targeted. */
+    .kap-root .kap-coltriage-rail {
+        @apply flex flex-col items-center justify-center gap-3 self-stretch rounded-none border-2 border-dashed bg-transparent px-4 cursor-pointer text-[1.05em];
         border-color: var(--background-modifier-border);
         color: var(--text-muted);
-        width: clamp(9rem, 20vw, 18rem);
-        min-height: 16rem;
+        width: clamp(7rem, 16vw, 16rem);
         flex: 0 0 auto;
+        transition:
+            background-color var(--kap-transition) var(--kap-ease),
+            border-color var(--kap-transition) var(--kap-ease),
+            color var(--kap-transition) var(--kap-ease);
     }
 
-    .kap-root .kap-coltriage-move:hover:not(:disabled),
-    .kap-root .kap-coltriage-move.kap-coltriage-armed:not(:disabled) {
-        background: color-mix(in srgb, var(--interactive-accent) 12%, transparent);
+    .kap-root .kap-coltriage-dragging .kap-coltriage-rail:not(:disabled) {
+        border-color: var(--text-muted);
+        background: var(--background-modifier-hover);
+    }
+
+    .kap-root .kap-coltriage-rail:hover:not(:disabled),
+    .kap-root .kap-coltriage-rail.kap-coltriage-armed:not(:disabled) {
+        background: color-mix(in srgb, var(--interactive-accent) 14%, transparent);
         border-color: var(--interactive-accent);
         color: var(--text-normal);
     }
 
-    .kap-root .kap-coltriage-skip.kap-coltriage-armed {
-        background: var(--background-modifier-hover);
+    .kap-root .kap-coltriage-rail.kap-coltriage-armed:not(:disabled) .kap-coltriage-rail-label {
+        scale: 1.08;
     }
 
-    .kap-root .kap-coltriage-move:disabled {
-        opacity: 0.4;
+    .kap-root .kap-coltriage-rail:disabled {
+        opacity: 0.35;
         cursor: default;
     }
 
-    .kap-root .kap-coltriage-move-label {
+    .kap-root .kap-coltriage-rail-label {
         @apply text-center;
+        transition: scale var(--kap-transition) var(--kap-ease);
     }
 
-    .kap-root .kap-coltriage-skip {
-        @apply mt-3 self-start;
+    /* Narrow panes: the rails would crowd out the card — the chips and Keep
+       remain the full decision surface (v2 review F10). */
+    @container (max-width: 640px) {
+        .kap-root .kap-coltriage-rail {
+            display: none;
+        }
+    }
+
+    /* The center column owns the vertical scroll: a tall card or a wrapped
+       chip tray must stay reachable in short panes (v2 review F8). */
+    .kap-root .kap-coltriage-center {
+        @apply flex min-w-0 flex-1 flex-col items-center gap-5 overflow-y-auto p-4;
+        justify-content: safe center;
+    }
+
+    /* The stack: the face on top, up to two peeking cards behind it. */
+    .kap-root .kap-coltriage-stack {
+        @apply relative w-full max-w-xl;
+    }
+
+    .kap-root .kap-coltriage-peek {
+        @apply absolute inset-x-0 top-0 h-full rounded-lg border border-solid p-6 overflow-hidden;
+        border-color: var(--background-modifier-border);
+        background: var(--background-secondary);
+        pointer-events: none;
+    }
+
+    .kap-root .kap-coltriage-peek-title {
+        @apply truncate font-semibold;
+        color: var(--text-faint);
+    }
+
+    .kap-root .kap-coltriage-peek-1 {
+        translate: 0 -10px;
+        scale: 0.96;
+        opacity: 0.7;
+    }
+
+    .kap-root .kap-coltriage-peek-2 {
+        translate: 0 -20px;
+        scale: 0.92;
+        opacity: 0.4;
+    }
+
+    /* The moving face: drag transform via custom props (transform), decision
+       fly-out via translate/rotate/scale keyframes — the two compose. */
+    .kap-root .kap-coltriage-face {
+        @apply relative rounded-lg border border-solid p-6;
+        border-color: var(--background-modifier-border);
+        background: var(--background-primary);
+        touch-action: none;
+        cursor: grab;
+        transition: transform var(--kap-anim-fast) var(--kap-ease);
+        transform: translate(var(--kap-swipe-x, 0px), var(--kap-swipe-y, 0px))
+            rotate(var(--kap-swipe-rot, 0deg));
+        animation: kap-coltriage-enter var(--kap-anim) var(--kap-ease);
+    }
+
+    .kap-root .kap-coltriage-face.kap-triage-card-dragging {
+        transition: none;
+        cursor: grabbing;
+        user-select: none;
+    }
+
+    /* The fly-out waits for the stamp slam (delay = the stamp's duration),
+       so the sequence reads stamp → depart, not both at once. */
+    .kap-root .kap-coltriage-out-left {
+        animation: kap-coltriage-fly-left var(--kap-anim) ease-in var(--kap-anim-fast) forwards;
+    }
+
+    .kap-root .kap-coltriage-out-right {
+        animation: kap-coltriage-fly-right var(--kap-anim) ease-in var(--kap-anim-fast) forwards;
+    }
+
+    .kap-root .kap-coltriage-out-keep {
+        animation: kap-coltriage-fly-keep var(--kap-anim) ease-in var(--kap-anim-fast) forwards;
+    }
+
+    /* The passport stamp: destination label slammed over the face. */
+    .kap-root .kap-coltriage-stamp {
+        @apply absolute rounded-lg border-4 border-solid px-4 py-1.5 text-[1.3em] font-black uppercase tracking-widest pointer-events-none;
+        left: 50%;
+        top: 38%;
+        translate: -50% -50%;
+        rotate: -12deg;
+        color: var(--kap-stamp-color, var(--text-muted));
+        border-color: currentColor;
+        background: color-mix(in srgb, var(--background-primary) 85%, transparent);
+        animation: kap-stamp-in var(--kap-anim-fast) var(--kap-ease) both;
+    }
+
+    /* The stationary action tray: status chips + Keep, never moves. */
+    .kap-root .kap-coltriage-tray {
+        @apply flex w-full max-w-xl flex-col items-center gap-3;
+    }
+
+    .kap-root .kap-coltriage-chips {
+        @apply flex flex-wrap items-center justify-center gap-2;
+    }
+
+    .kap-root .kap-coltriage-chip {
+        @apply inline-flex items-center gap-1.5 rounded-full border border-solid bg-transparent px-3 py-1.5 cursor-pointer;
+        border-color: var(--background-modifier-border);
+        color: var(--text-normal);
+        transition:
+            background-color var(--kap-transition) var(--kap-ease),
+            border-color var(--kap-transition) var(--kap-ease),
+            scale var(--kap-transition) var(--kap-ease);
+    }
+
+    .kap-root .kap-coltriage-chip:hover:not(:disabled),
+    .kap-root .kap-coltriage-chip.kap-coltriage-armed:not(:disabled) {
+        border-color: var(--interactive-accent);
+        background: color-mix(in srgb, var(--interactive-accent) 14%, transparent);
+        scale: 1.06;
+    }
+
+    .kap-root .kap-coltriage-chip-current {
+        border-color: var(--interactive-accent);
+        background: color-mix(in srgb, var(--interactive-accent) 22%, transparent);
+        cursor: default;
+        opacity: 1;
+    }
+
+    .kap-root .kap-coltriage-chip-dot {
+        @apply inline-block h-2.5 w-2.5 flex-none rounded-full;
+        background: var(--kap-chip-color, var(--text-faint));
+    }
+
+    .kap-root .kap-coltriage-chip-key {
+        @apply rounded px-1 text-[0.72em];
+        background: var(--background-modifier-hover);
+        color: var(--text-faint);
+    }
+
+    .kap-root .kap-coltriage-keep {
+        @apply self-center;
+    }
+
+    .kap-root .kap-coltriage-keep.kap-coltriage-armed,
+    .kap-root .kap-coltriage-tray.kap-coltriage-armed .kap-coltriage-keep {
+        background: color-mix(in srgb, var(--interactive-accent) 14%, transparent);
+    }
+
+    /* Progress fill driven by a custom prop (the triage bar reuses width). */
+    .kap-root .kap-coltriage .kap-triage-progress-fill {
+        width: var(--kap-progress, 0%);
     }
 
     /* Tracked-time chip (issue #119): display-only — same fixed unit slots
@@ -3623,6 +3780,57 @@
         pointer-events: none;
     }
 
+    /* ========================================
+       Column triage v2 keyframes (issue #170). kap- prefixed to avoid
+       collisions; every use routes its duration through --kap-anim*, which the
+       reduced-motion block zeroes.
+       ======================================== */
+    @keyframes kap-coltriage-enter {
+        from {
+            opacity: 0;
+            translate: 0 -8px;
+            scale: 0.97;
+        }
+    }
+
+    @keyframes kap-coltriage-fly-left {
+        to {
+            translate: -130% 6%;
+            rotate: -18deg;
+            opacity: 0;
+        }
+    }
+
+    @keyframes kap-coltriage-fly-right {
+        to {
+            translate: 130% 6%;
+            rotate: 18deg;
+            opacity: 0;
+        }
+    }
+
+    @keyframes kap-coltriage-fly-keep {
+        to {
+            translate: 0 28%;
+            scale: 0.9;
+            opacity: 0;
+        }
+    }
+
+    @keyframes kap-stamp-in {
+        0% {
+            opacity: 0;
+            scale: 1.9;
+        }
+        55% {
+            opacity: 1;
+            scale: 0.94;
+        }
+        100% {
+            scale: 1;
+        }
+    }
+
     /* Respect prefers-reduced-motion: every transition/animation duration in
        this layer is driven by the --kap-transition* variables, so zeroing them
        here disables all motion without per-rule overrides or !important. */
@@ -3630,6 +3838,8 @@
         .kap-root {
             --kap-transition: 0.01ms;
             --kap-transition-slow: 0.01ms;
+            --kap-anim: 0.01ms;
+            --kap-anim-fast: 0.01ms;
         }
     }
 }

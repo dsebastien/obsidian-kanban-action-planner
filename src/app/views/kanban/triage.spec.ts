@@ -4,6 +4,7 @@ import {
     bumpEnumValue,
     classifySwipe,
     isPropUnset,
+    pruneTriageQueue,
     reviewState,
     unsetCount
 } from './triage'
@@ -143,5 +144,39 @@ describe('classifySwipe (issue #122)', () => {
 
     it('a tie goes to the horizontal axis', () => {
         expect(classifySwipe(120, 120, 110)).toBe('right')
+    })
+})
+
+describe('pruneTriageQueue (issue #170 v2)', () => {
+    const exists = (kept: string[]) => (key: string) => kept.includes(key)
+
+    it('keeps the cursor on the same card when earlier cards vanish', () => {
+        const result = pruneTriageQueue(['a', 'b', 'c', 'd'], 2, exists(['b', 'c', 'd']))
+        expect(result.queue).toEqual(['b', 'c', 'd'])
+        expect(result.queue[result.index]).toBe('c')
+    })
+
+    it('points at the follower when the current card vanishes', () => {
+        const result = pruneTriageQueue(['a', 'b', 'c'], 1, exists(['a', 'c']))
+        expect(result.queue).toEqual(['a', 'c'])
+        expect(result.queue[result.index]).toBe('c')
+    })
+
+    it('handles everything vanishing (pass completes, never negative)', () => {
+        const result = pruneTriageQueue(['a', 'b'], 1, () => false)
+        expect(result.queue).toEqual([])
+        expect(result.index).toBe(0)
+    })
+
+    it('is a no-op when nothing vanished', () => {
+        const result = pruneTriageQueue(['a', 'b'], 1, exists(['a', 'b']))
+        expect(result.queue).toEqual(['a', 'b'])
+        expect(result.index).toBe(1)
+    })
+
+    it('removals after the cursor never move it', () => {
+        const result = pruneTriageQueue(['a', 'b', 'c'], 0, exists(['a', 'b']))
+        expect(result.index).toBe(0)
+        expect(result.queue[result.index]).toBe('a')
     })
 })
