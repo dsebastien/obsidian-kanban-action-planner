@@ -1015,6 +1015,27 @@ Track actual time against your estimates (issue #119), straight from the cards:
 - Tracked time renders with the same `d / h / m` grammar as estimates, sized by **Minutes
   per day**, so tracked vs estimated reads side by side.
 
+## Focus mode
+
+When it's time to actually do the work, spotlight a single card full-pane (issue #160):
+right-click any card — on the board, agenda, triage, timeline, or WBS — and pick **Enter
+focus mode** (or run the **Toggle focus mode** command, which spotlights the first card of
+the current view).
+
+The spotlight shows the note's title and status, the properties from your Bases view, its
+**subtasks** (children, checked off as they reach their done state), and its **related
+notes** (parent, blockers, siblings) — click any of them to open the note. A **timer**
+button starts or stops a time-tracking session for the card ([Time
+tracking](#time-tracking)): the elapsed time ticks live next to the estimate, and stopping
+writes the minutes to the duration property.
+
+- **Done** marks the card done per its note type's done definition — through the same
+  write path as the board, so automations fire — and offers the **next card** from the
+  same queue (the view's current filtered order).
+- **Next** (or **→**) advances without changing anything; **Esc** exits; **D** marks done;
+  **T** toggles the timer; **O** opens the note. Right-click anywhere for the full card
+  menu.
+
 ## Keyboard
 
 Cards are fully keyboard-operable. **Tab** to a card, then:

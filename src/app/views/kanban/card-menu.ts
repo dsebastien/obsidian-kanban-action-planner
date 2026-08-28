@@ -58,6 +58,8 @@ export interface CardMenuHost {
     /** Stop the active session, writing its elapsed minutes to the card. */
     stopTracking(card: KanbanCard): Promise<void>
     openRelated(note: RelatedNote, newTab: boolean): void
+    /** Focus mode (issue #160): spotlight this card full-pane. */
+    enterFocus(card: KanbanCard): void
     /** Zoom (issue #74): re-filter the board to the card's children. */
     focusOnChildren(card: KanbanCard): void
     /** Zoom (issue #74): re-filter the board to the card's whole subtree. */
@@ -106,6 +108,12 @@ export function buildCardMenu(
             .setTitle('Open in new tab')
             .setIcon('lucide-external-link')
             .onClick(() => host.openCard(card, true))
+    )
+    menu.addItem((item) =>
+        item
+            .setTitle('Enter focus mode')
+            .setIcon('scan-eye')
+            .onClick(() => host.enterFocus(card))
     )
     if (card.relationships.child.length > 0) {
         menu.addItem((item) =>

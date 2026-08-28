@@ -3208,6 +3208,121 @@
         border-color: var(--text-error);
     }
 
+    /* ── Focus mode (issue #160): single-card spotlight overlay ── */
+    .kap-root .kap-focus-open {
+        position: relative;
+    }
+
+    .kap-root .kap-focus {
+        @apply absolute inset-0 z-50 flex flex-col overflow-hidden outline-none;
+        background: var(--background-primary);
+    }
+
+    .kap-root .kap-focus-header {
+        @apply flex items-center gap-3 px-4 py-2 border-0 border-b border-solid;
+        border-color: var(--background-modifier-border);
+    }
+
+    .kap-root .kap-focus-count {
+        @apply text-[0.85em];
+        color: var(--text-muted);
+        font-variant-numeric: tabular-nums;
+    }
+
+    .kap-root .kap-focus-mode-label {
+        @apply mr-auto text-[0.8em] uppercase tracking-wide;
+        color: var(--text-faint);
+    }
+
+    .kap-root .kap-focus-body {
+        @apply flex flex-1 gap-4 overflow-y-auto p-6 justify-center;
+    }
+
+    .kap-root .kap-focus-card {
+        @apply flex flex-col gap-4 max-w-2xl flex-1;
+    }
+
+    .kap-root .kap-focus-title-row {
+        @apply flex items-center gap-3;
+    }
+
+    .kap-root .kap-focus-title {
+        @apply m-0 flex-1;
+    }
+
+    .kap-root .kap-focus-status {
+        @apply px-2 py-0.5 rounded text-[0.8em] whitespace-nowrap;
+        background: var(--background-modifier-hover);
+        color: var(--text-muted);
+    }
+
+    .kap-root .kap-focus-timer {
+        @apply flex items-center gap-3;
+    }
+
+    .kap-root .kap-focus-timer-btn {
+        @apply inline-flex items-center gap-1.5 px-3 py-1.5 rounded border-0 cursor-pointer;
+        background: var(--interactive-accent);
+        color: var(--text-on-accent);
+    }
+
+    .kap-root .kap-focus-timer-on {
+        background: var(--color-red, var(--text-error));
+    }
+
+    .kap-root .kap-focus-timer-icon {
+        @apply inline-flex;
+    }
+
+    .kap-root .kap-focus-timer-label {
+        @apply text-[0.9em];
+        color: var(--text-muted);
+        font-variant-numeric: tabular-nums;
+    }
+
+    .kap-root .kap-focus-section {
+        @apply flex flex-col gap-1;
+    }
+
+    .kap-root .kap-focus-section-title {
+        @apply text-[0.8em] uppercase tracking-wide;
+        color: var(--text-faint);
+    }
+
+    .kap-root .kap-focus-subtask,
+    .kap-root .kap-focus-related {
+        @apply flex items-center gap-2 px-2 py-1.5 rounded border-0 cursor-pointer bg-transparent text-left;
+        color: var(--text-normal);
+    }
+
+    .kap-root .kap-focus-subtask:hover,
+    .kap-root .kap-focus-related:hover {
+        background: var(--background-modifier-hover);
+    }
+
+    .kap-root .kap-focus-subtask-done {
+        color: var(--text-faint);
+        text-decoration: line-through;
+    }
+
+    .kap-root .kap-focus-subtask-icon {
+        @apply inline-flex shrink-0;
+        color: var(--text-muted);
+    }
+
+    .kap-root .kap-focus-related-role {
+        color: var(--text-muted);
+    }
+
+    .kap-root .kap-focus-actions {
+        @apply flex flex-col gap-2 sticky top-0 shrink-0;
+    }
+
+    .kap-root .kap-focus-hints {
+        @apply text-[0.75em] max-w-[10rem];
+        color: var(--text-faint);
+    }
+
     /* Tracked-time chip (issue #119): display-only — same fixed unit slots
        as the estimate chip so tracked and estimated align by unit. */
     .kap-root .kap-wbs-tracked {

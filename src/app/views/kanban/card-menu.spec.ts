@@ -60,6 +60,7 @@ function makeHost(overrides: Partial<CardMenuHost> = {}): CardMenuHost {
         cardDate: () => null,
         writeCardDate: () => Promise.resolve(),
         promptDate: () => {},
+        enterFocus: () => {},
         isTrackingCard: () => false,
         startTracking: () => Promise.resolve(),
         stopTracking: () => Promise.resolve(),
@@ -167,6 +168,7 @@ describe('buildCardMenu — extend hook (issue #80)', () => {
     const BASELINE_TITLES = [
         'Open note',
         'Open in new tab',
+        'Enter focus mode',
         'Send to top',
         'Send to bottom',
         'Clear status',

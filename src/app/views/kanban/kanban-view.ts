@@ -115,10 +115,15 @@ import {
 import { listEnumProperties } from '../../services/enum.service'
 import { buildCardSearchRecord, stringifyForSearch } from '../../services/card-search.service'
 import {
+    elapsedSessionMinutes,
+    formatTrackedMinutes,
     isTrackingPath,
+    readDurationMinutes,
     startTimeSession,
     stopTimeSession
 } from '../../services/time-tracking.service'
+import { removeFocusView, renderFocusView, updateFocusTimerLabel } from '../../ui/focus/focus-view'
+import type { FocusCardData, FocusRelatedGroup } from '../../ui/focus/focus-view'
 import { archiveNote, liveExpressionContext } from '../../services/archive.service'
 import {
     addDays,
@@ -346,6 +351,10 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
     // entering triage, and the cursor into it. Null = needs (re)building.
     private triageQueueKeys: string[] | null = null
     private triageCursor = 0
+    // Focus mode (issue #160): the spotlighted card's key (null = off) and
+    // the 1s timer-label tick (running only while the overlay is mounted).
+    private focusCardKey: string | null = null
+    private focusTimerId: number | null = null
     // Set by Next/Skip (and completion auto-advance) so the next render scrolls the
     // body back to the top — a new card should start at its title, not inherit the
     // scroll of the one you just left. Plain in-place writes leave it false so the
@@ -822,6 +831,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         this.canvasResizeObserver?.disconnect()
         this.canvasResizeObserver = null
         this.canvasScrollerEl = null
+        this.stopFocusTick()
         this.dnd?.destroy()
         this.dnd = null
         this.columnDnd?.destroy()
@@ -874,6 +884,19 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
     /** Toggle agenda mode (returns to board when already in agenda) — issue #39. */
     toggleAgenda(): void {
         this.setViewMode(this.agendaMode() ? 'board' : 'agenda')
+    }
+
+    /**
+     * Toggle focus mode (issue #160): exit the spotlight when it's open,
+     * else spotlight the first card of the current (filtered) result set.
+     */
+    toggleFocus(): void {
+        if (this.focusCardKey !== null) {
+            this.exitFocus()
+            return
+        }
+        const first = this.cardsByKey.values().next()
+        if (!first.done) this.enterFocus(first.value)
     }
 
     /** Put the cursor in the filter box. */
@@ -1242,6 +1265,14 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
      * the persistent filter input, so focus is never stolen mid-typing).
      */
     private applyFilterAndRender(): void {
+        this.applyFilterAndRenderInner()
+        // Focus mode (issue #160): the spotlight overlay sits ON TOP of
+        // whatever mode just rendered, so it must be re-mounted after every
+        // pass (mode renderers may have emptied the host).
+        this.renderFocusOverlay()
+    }
+
+    private applyFilterAndRenderInner(): void {
         if (!this.boardEl) return
 
         const active = !isEmptyQuery(this.parsedQuery)
@@ -3073,6 +3104,187 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         }
     }
 
+    // ── Focus mode (issue #160) ───────────────────────────────
+
+    /** Spotlight one card full-pane (issue #160). */
+    enterFocus(card: KanbanCard): void {
+        this.focusCardKey = card.key
+        this.renderFocusOverlay()
+    }
+
+    /** Leave focus mode: remove the overlay and stop the timer tick. */
+    exitFocus(): void {
+        this.focusCardKey = null
+        this.stopFocusTick()
+        if (this.boardEl) removeFocusView(this.boardEl)
+    }
+
+    /** Advance to the next card in the current filtered order (wraps around). */
+    private focusNext(): void {
+        if (this.focusCardKey === null) return
+        const keys = [...this.cardsByKey.keys()]
+        if (keys.length === 0) {
+            this.exitFocus()
+            return
+        }
+        const index = keys.indexOf(this.focusCardKey)
+        const next = keys[(index + 1) % keys.length]
+        if (next === undefined) {
+            this.exitFocus()
+            return
+        }
+        this.focusCardKey = next
+        this.renderFocusOverlay()
+    }
+
+    /**
+     * Mark the focused card done (its type's done definition) and advance.
+     * A done-state column writes through {@link setCardStatus} — the same
+     * path the board uses, so automations fire exactly once; a non-status
+     * done property is written directly (the property-condition automation
+     * diff picks it up like any other write path).
+     */
+    private async focusDone(cardRef: KanbanCard): Promise<void> {
+        const card = this.liveCard(cardRef)
+        const config = this.doneConfigFor(card)
+        if (!config) return
+        this.focusNext()
+        const doneColumn = this.cardColumns(card).find(
+            (col) => col.statusValue !== null && isDoneValue(col.statusValue, config.values)
+        )
+        if (doneColumn) {
+            await this.setCardStatus(card, doneColumn.statusValue, doneColumn.id)
+        } else {
+            await setProperty(this.app, card.file, config.property, config.values[0] ?? true)
+        }
+    }
+
+    /** Start/stop the time-tracking session for the focused card (issue #119). */
+    private async focusToggleTimer(card: KanbanCard): Promise<void> {
+        if (isTrackingPath(this.plugin, card.key)) await stopTimeSession(this.plugin)
+        else await startTimeSession(this.plugin, card.key)
+        this.renderFocusOverlay()
+    }
+
+    /** The focused card's tracked (live session included) + estimate labels. */
+    private focusTimerLabels(card: KanbanCard): {
+        trackedLabel: string | null
+        estimateLabel: string | null
+    } {
+        const perDay = this.plugin.settings.minutesPerDay
+        let minutes =
+            readDurationMinutes(
+                getFrontmatterValue(
+                    this.app,
+                    card.file,
+                    this.plugin.settings.defaultDurationProperty
+                )
+            ) ?? 0
+        const session = this.plugin.settings.activeTimeSession
+        if (session && session.path === card.key) {
+            minutes += elapsedSessionMinutes(session.startedAt, Date.now())
+        }
+        const config = this.estimateConfigFor(card)
+        const estimate = readEstimate(
+            getFrontmatterValue(this.app, card.file, config.property),
+            config.unit,
+            perDay
+        )
+        return {
+            trackedLabel: minutes > 0 ? formatTrackedMinutes(minutes, perDay) : null,
+            estimateLabel: estimate?.label ?? null
+        }
+    }
+
+    /** Build the focus overlay's render data for a card. */
+    private buildFocusData(card: KanbanCard): FocusCardData {
+        const keys = [...this.cardsByKey.keys()]
+        const index = keys.indexOf(card.key)
+        const doneOf = (key: string): boolean => {
+            const child = this.cardsByKey.get(key) ?? this.allCards.find((c) => c.key === key)
+            return child ? this.isCardDone(child) : false
+        }
+        const related: FocusRelatedGroup[] = [
+            { label: 'Blocked by', icon: 'ban', items: card.relationships.blocked_by },
+            { label: 'Parent', icon: 'corner-left-up', items: card.relationships.parent },
+            { label: 'Sibling', icon: 'arrow-left-right', items: card.relationships.sibling }
+        ]
+            .map((group) => ({
+                ...group,
+                items: group.items.map((note) => ({ key: note.key, label: note.label }))
+            }))
+            .filter((group) => group.items.length > 0)
+        const { trackedLabel, estimateLabel } = this.focusTimerLabels(card)
+        return {
+            title: card.display.title,
+            statusLabel: this.statusLabelFor(card),
+            fields: card.display.fields,
+            subtasks: card.relationships.child.map((note) => ({
+                key: note.key,
+                title: note.label,
+                done: doneOf(note.key)
+            })),
+            related,
+            tracking: isTrackingPath(this.plugin, card.key),
+            trackedLabel,
+            estimateLabel,
+            canMarkDone: this.doneConfigFor(card) !== null && !this.isCardDone(card),
+            position: index >= 0 ? index + 1 : 1,
+            total: Math.max(keys.length, 1)
+        }
+    }
+
+    /** Mount (or re-mount) the focus overlay; called after every render pass. */
+    private renderFocusOverlay(): void {
+        if (!this.boardEl) return
+        if (this.focusCardKey === null) {
+            removeFocusView(this.boardEl)
+            this.stopFocusTick()
+            return
+        }
+        const card =
+            this.cardsByKey.get(this.focusCardKey) ??
+            this.allCards.find((c) => c.key === this.focusCardKey)
+        if (!card) {
+            this.exitFocus()
+            return
+        }
+        renderFocusView(this.boardEl, this.buildFocusData(card), {
+            onExit: () => this.exitFocus(),
+            onOpen: (newTab) => this.openCard(card, newTab),
+            onNext: () => this.focusNext(),
+            onDone: () => void this.focusDone(card),
+            onToggleTimer: () => void this.focusToggleTimer(card),
+            onOpenNote: (key, newTab) => {
+                const file = this.app.vault.getFileByPath(key)
+                if (file) void this.app.workspace.getLeaf(newTab ? 'tab' : false).openFile(file)
+            },
+            onMenu: (event) => this.showCardMenu(card, event)
+        })
+        this.startFocusTick()
+    }
+
+    /** 1s tick updating just the timer label while a session runs. */
+    private startFocusTick(): void {
+        if (this.focusTimerId !== null) return
+        this.focusTimerId = window.setInterval(() => {
+            if (!this.boardEl || this.focusCardKey === null) return
+            const card =
+                this.cardsByKey.get(this.focusCardKey) ??
+                this.allCards.find((c) => c.key === this.focusCardKey)
+            if (!card) return
+            const { trackedLabel, estimateLabel } = this.focusTimerLabels(card)
+            updateFocusTimerLabel(this.boardEl, trackedLabel, estimateLabel)
+        }, 1000)
+    }
+
+    private stopFocusTick(): void {
+        if (this.focusTimerId !== null) {
+            window.clearInterval(this.focusTimerId)
+            this.focusTimerId = null
+        }
+    }
+
     /** Closures over the card actions the {@link buildCardMenu} builder triggers. */
     private get cardMenuHost(): CardMenuHost {
         return {
@@ -3092,6 +3304,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             cardDate: (card, dimension) => this.cardDate(card, dimension),
             writeCardDate: (card, dimension, iso) => this.writeCardDate(card, dimension, iso),
             promptDate: (card, dimension, current) => this.promptDate(card, dimension, current),
+            enterFocus: (card) => this.enterFocus(card),
             // Time tracking (issue #119): one global session in the settings.
             isTrackingCard: (card) => isTrackingPath(this.plugin, card.key),
             startTracking: (card) => startTimeSession(this.plugin, card.key),

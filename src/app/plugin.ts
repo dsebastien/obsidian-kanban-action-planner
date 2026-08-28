@@ -113,6 +113,11 @@ export class KanbanActionPlannerPlugin extends Plugin {
             checkCallback: onActiveView((view) => view.toggleAgenda())
         })
         this.addCommand({
+            id: 'toggle-focus-mode',
+            name: 'Toggle focus mode',
+            checkCallback: onActiveView((view) => view.toggleFocus())
+        })
+        this.addCommand({
             id: 'configure-triage',
             name: 'Configure triage',
             checkCallback: onActiveView((view) => view.openTriageConfig())
