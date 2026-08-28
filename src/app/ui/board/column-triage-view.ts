@@ -153,7 +153,8 @@ export function spawnColumnTriageDecisionGhost(
  * Render (or fully re-render) the column-triage overlay inside `host` (the
  * view's STABLE root element — it survives board re-renders, so only the
  * host view's signature gate decides when this runs). Keyboard: `1..9` jump
- * to a chip, ← / → move (carousel), ↓ / Space keep, Esc exits, O opens.
+ * to a chip, ← / → move (carousel), ↓ / Space keep, O opens. Esc exits via
+ * the host view's keymap scope (focus-independent), not a DOM listener.
  */
 export function renderColumnTriageView(
     host: HTMLElement,
@@ -348,11 +349,9 @@ function handleKey(
         target.closest('button, a, input, textarea, [contenteditable="true"]') !== null
     // Space/Enter must keep activating the focused control, not double-fire.
     if (onControl && (e.key === ' ' || e.key === 'Enter')) return
-    if (e.key === 'Escape') {
-        e.preventDefault()
-        callbacks.onExit()
-        return
-    }
+    // Esc is NOT handled here: the host view pushes a keymap scope for it,
+    // so exiting works even after DOM focus leaves the overlay root (and a
+    // menu opened above the pass gets to close itself first).
     if (e.key === 'ArrowRight') {
         e.preventDefault()
         if (data.nextLabel !== null) callbacks.onMove(1)

@@ -1,4 +1,4 @@
-import { BasesView, debounce, getAllTags, Menu, Notice, TFile } from 'obsidian'
+import { BasesView, debounce, getAllTags, Menu, Notice, Scope, TFile } from 'obsidian'
 import { offsetTopWithin } from '../../utils/offset-top'
 import type {
     BasesEntry,
@@ -424,6 +424,11 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
     // Monotonic decision-token source shared across passes, so a stale
     // completion from an exited pass can never match a new pass's token.
     private columnTriageTokens = 0
+    // Keymap scope pushed while a column-triage pass is active: Esc must
+    // exit the pass regardless of where DOM focus wandered (menus, notices,
+    // and body clicks all steal it from the overlay root). A menu or modal
+    // opened above the pass pushes its own scope, so Esc closes that first.
+    private columnTriageScope: Scope | null = null
     // Set by Next/Skip (and completion auto-advance) so the next render scrolls the
     // body back to the top — a new card should start at its title, not inherit the
     // scroll of the one you just left. Plain in-place writes leave it false so the
@@ -892,6 +897,8 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
     }
 
     override onunload(): void {
+        // Pops the pushed Esc keymap scope (a leaked scope outlives the view).
+        this.exitColumnTriage()
         this.plugin.untrackKanbanView(this)
         this.resizeObserver?.disconnect()
         this.resizeObserver = null
@@ -3370,14 +3377,28 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             history: []
         }
         this.columnTriageSignature = null
+        if (!this.columnTriageScope) {
+            // Inherit the app scope so global hotkeys keep working mid-pass.
+            const scope = new Scope(this.app.scope)
+            scope.register([], 'Escape', () => {
+                this.exitColumnTriage()
+                return false
+            })
+            this.app.keymap.pushScope(scope)
+            this.columnTriageScope = scope
+        }
         this.renderColumnTriageOverlay()
     }
 
-    /** Leave column triage: drop the pass and its overlay. */
+    /** Leave column triage: drop the pass, its overlay, and its Esc scope. */
     private exitColumnTriage(): void {
         if (this.columnTriage) this.columnTriage.generation = ++this.columnTriageTokens
         this.columnTriage = null
         this.columnTriageSignature = null
+        if (this.columnTriageScope) {
+            this.app.keymap.popScope(this.columnTriageScope)
+            this.columnTriageScope = null
+        }
         if (this.rootEl) removeColumnTriageView(this.rootEl)
     }
 
