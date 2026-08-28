@@ -474,12 +474,22 @@ new column:
 - **Drag the card onto a chip, the Keep button, or a rail** — targets light up as the drag
   passes over them, and releasing commits that exact status.
 - **Keep** (or **↓** / **Space**, or swipe down) leaves the card and advances.
+- **↑** steps back to the card you just decided, **cancelling that decision** — a move is
+  written back to the status the card had before, a keep simply rewinds. Works all the way
+  back through the pass, including on the very last decision while the completion
+  celebration plays.
 - **Esc** exits; **O** opens the note; right-click shows the full card menu.
 
+Decisions are **optimistic**: the next card is on screen the instant you decide, and the
+status write settles in the background — a failed write puts the card back into the pass.
+The pass also stays fast on big columns: the board behind the overlay is left alone until
+you exit, so a decision takes a couple of milliseconds where a 200-card column used to
+freeze for up to a second (1.19.2).
+
 Moving a card into its type's **done state** fires a confetti burst, and finishing the
-whole pass celebrates too. Everything respects reduced-motion settings, failed writes put
-the card back into the pass, and all moves go through the standard status write path, so
-your automations fire exactly as if you had dragged the card on the board.
+whole pass celebrates too. Everything respects reduced-motion settings, and all moves go
+through the standard status write path, so your automations fire exactly as if you had
+dragged the card on the board.
 
 ## Agenda mode
 
@@ -932,7 +942,7 @@ collapsible tree — goal → projects → tasks — with estimates, progress ba
 up the hierarchy. Switch to it with the **WBS** button in the mode switch (or the **Toggle WBS
 mode** command).
 
-![The WBS tree with rolled-up estimates and progress]({{ '/images/wbs.png' | relative_url }})
+![The WBS tree with rolled-up estimates, progress, and tracked time]({{ '/images/wbs.png' | relative_url }})
 
 **What's in the tree: every note in this view's result set.** Notes link into trees through
 their parent/child relationships; a note with no relationships still shows as a standalone

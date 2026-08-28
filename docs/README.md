@@ -50,6 +50,12 @@ every change written straight back into your notes.
 
 ![Triage mode]({{ '/images/triage.png' | relative_url }})
 
+- **Column triage.** Every column header carries a triage button that starts a one-card pass
+  over that column: swipe or drag the card, tap a status chip, or keep it and move on. ↑ steps
+  back to undo the last decision, and every decision lands instantly, even on huge columns.
+
+![Column triage]({{ '/images/column-triage.png' | relative_url }})
+
 - **Calendar mode.** Switch a board to a calendar that plots scheduled dates and deadlines
   together. Drag a card onto a day to schedule it — or right-click any card and type a date in
   words (`tomorrow`, `fri`, `next mon`, `in 3 days`) with a live preview of the day that will
@@ -70,6 +76,20 @@ every change written straight back into your notes.
 ![Timeline mode]({{ '/images/timeline.png' | relative_url }})
 
 ![WBS mode]({{ '/images/wbs.png' | relative_url }})
+
+- **Agenda mode.** A flat "what's next" list: Overdue, Today, and Upcoming, with an
+  availability switch that hides deferred, blocked, and done cards until you want them.
+
+![Agenda mode]({{ '/images/agenda.png' | relative_url }})
+
+- **Focus mode.** Spotlight a single card full-pane — its properties, subtasks, and related
+  notes — with a start/stop timer feeding tracked time into the note, and a Done button that
+  goes through the standard write path so your automations fire.
+
+![Focus mode]({{ '/images/focus.png' | relative_url }})
+
+- **Time tracking.** Start or stop a session from any card menu; elapsed minutes accumulate
+  into a duration property, and the WBS rolls tracked time up the tree next to the estimates.
 
 - **Archiving.** Move a finished note to a placeholder-driven archive folder, manually or
   automatically when it reaches a chosen status.
