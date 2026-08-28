@@ -75,6 +75,41 @@ export function unsetCount(gates: TriageGateInput[], tokens: string[]): number {
     return count
 }
 
+/**
+ * Move within an enum's allowed values (issue #122 keyboard/swipe priority
+ * bump): `delta` −1 steps toward the list's start, +1 toward its end (the
+ * order the triage buttons render in). An unset current picks the first
+ * value; at either edge the value clamps (returns the same value). Null when
+ * there is nothing to select (empty list).
+ */
+export function bumpEnumValue(
+    values: ReadonlyArray<string>,
+    current: string | null,
+    delta: -1 | 1
+): string | null {
+    if (values.length === 0) return null
+    if (current === null) return values[0] ?? null
+    const index = values.indexOf(current)
+    if (index < 0) return values[0] ?? null
+    const next = Math.max(0, Math.min(values.length - 1, index + delta))
+    return values[next] ?? null
+}
+
+/** A swipe gesture's direction, or null below the threshold (issue #122). */
+export type SwipeDirection = 'left' | 'right' | 'up' | 'down'
+
+/**
+ * Classify a drag release as a swipe (issue #122, Tinder-style triage):
+ * the dominant axis wins; below `threshold` px it is not a swipe (null).
+ */
+export function classifySwipe(dx: number, dy: number, threshold: number): SwipeDirection | null {
+    const ax = Math.abs(dx)
+    const ay = Math.abs(dy)
+    if (Math.max(ax, ay) < threshold) return null
+    if (ax >= ay) return dx > 0 ? 'right' : 'left'
+    return dy > 0 ? 'down' : 'up'
+}
+
 /** A card's queue ranking: whether to include it, and its worst-first weight. */
 export interface TriageRank {
     include: boolean

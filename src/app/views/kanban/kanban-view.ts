@@ -180,7 +180,7 @@ import type {
     TriageEditableProp,
     TriagePaneModel
 } from '../../ui/triage/triage-view'
-import { buildTriageQueue, isPropUnset, reviewState, unsetCount } from './triage'
+import { buildTriageQueue, bumpEnumValue, isPropUnset, reviewState, unsetCount } from './triage'
 import type { TriageRank } from './triage'
 import { TriageConfigModal } from '../../ui/triage/triage-config-modal'
 import type { TriageConfigData } from '../../ui/triage/triage-config-modal'
@@ -4033,10 +4033,45 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
                         !(this.triagePaneCollapsedGroups.get(key) ?? false)
                     )
                     this.renderTriage()
+                },
+                // Quick actions (issue #122): keyboard + swipe triage.
+                onQuickStatus: (index) => void this.triageQuickStatus(current, index),
+                onBumpProperty: (delta) => void this.triageBumpProperty(current, delta),
+                onSendEdge: (edge) => {
+                    if (current && this.cardSortMode() === 'order') {
+                        this.sendCardToEdge(current, edge)
+                    }
                 }
             },
             { scrollToTop, completedAll }
         )
+    }
+
+    /** Quick-set the triage card's status to its own type's nth column (issue #122). */
+    private async triageQuickStatus(card: KanbanCard | undefined, index: number): Promise<void> {
+        if (!card) return
+        const column = this.cardColumns(card)[index - 1]
+        if (!column) return
+        await this.setCardStatus(card, column.statusValue, column.id)
+    }
+
+    /**
+     * Bump the triage card's priority-like enum one step (issue #122): the
+     * first configured enum whose name contains "priority", else "urgency",
+     * else the first enum. −1 steps toward the list's start (the order the
+     * triage buttons render in), +1 toward its end.
+     */
+    private async triageBumpProperty(card: KanbanCard | undefined, delta: -1 | 1): Promise<void> {
+        if (!card) return
+        const props = this.enumPropertiesFor(card)
+        const prop =
+            props.find((p) => p.name.toLowerCase().includes('priority')) ??
+            props.find((p) => p.name.toLowerCase().includes('urgency')) ??
+            props[0]
+        if (!prop) return
+        const next = bumpEnumValue(prop.values, prop.current, delta)
+        if (next === null || next === prop.current) return
+        await this.triageSetProperty(card, prop.name, next)
     }
 
     /** Whether the triage queue pane is collapsed (persisted per view). */

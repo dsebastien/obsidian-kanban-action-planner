@@ -347,6 +347,16 @@ triage mode** command).
 
 ![Triage mode, clarifying one card at a time]({{ '/images/triage.png' | relative_url }})
 
+**Keyboard and swipe triage.** Triage is built for fast passes (issue #122):
+
+- **→** next (or **Reviewed** in the review scope) · **←** skip · **O** open the note.
+- **↑ / ↓** bump the card's priority-like enum one step (the first configured enum named
+  _priority_, else _urgency_, else the first one) — up moves toward the list's start.
+- **⇧↑ / ⇧↓** send the card to the top / bottom of its column (manual card sort only).
+- **1–9** set the status to the card's own type's nth column.
+- Or **drag the card** Tinder-style: right = next, left = skip, up/down = priority bump;
+  release below the threshold and it snaps back.
+
 The card scrolls on its own when it's tall (or the UI is zoomed), and the scope tabs and the
 **Skip** / **Next** actions stay pinned so they're always reachable.
 

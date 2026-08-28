@@ -1,6 +1,10 @@
 import { setIcon } from 'obsidian'
+import { classifySwipe } from '../../views/kanban/triage'
 import type { TriageScope } from '../../views/kanban/triage'
 import { cssEscapeAttr } from '../../utils/css-escape'
+
+/** Drag distance (px) that turns a card drag into a swipe (issue #122). */
+const SWIPE_THRESHOLD = 110
 
 /** One read-only context field shown above the editable controls. */
 export interface TriageContextField {
@@ -88,6 +92,13 @@ export interface TriageCallbacks {
     onTogglePane(): void
     /** Toggle one pane group's collapse (key: `typeId` or `typeId::status`). */
     onTogglePaneGroup(key: string): void
+    // Quick actions (issue #122): keyboard + swipe triage.
+    /** Set the card's status to its own type's nth column (1-based). */
+    onQuickStatus(index: number): void
+    /** Bump the priority-like enum one step (−1 = toward the list start). */
+    onBumpProperty(delta: -1 | 1): void
+    /** Send the card to the top/bottom of its column (manual order). */
+    onSendEdge(edge: 'top' | 'bottom'): void
 }
 
 /** Render-time options that don't belong to the card data itself. */
@@ -148,7 +159,11 @@ export function renderTriageView(
     // a scrollable body, so nothing gets clipped however tall the card grows or how
     // far the UI is zoomed (#65). The Skip/Next actions live in a sticky side
     // column (see renderActions), not a full-width footer.
-    const root = container.createDiv({ cls: 'kap-triage' })
+    const root = container.createDiv({ cls: 'kap-triage', attr: { tabindex: '-1' } })
+    // Keyboard triage (issue #122): arrows advance/skip and bump priority,
+    // digits quick-set the status, O opens the note. Typing surfaces (the
+    // toolbar filter box) are left alone.
+    root.addEventListener('keydown', (e) => handleTriageKey(e, data, callbacks))
     renderHeader(root, data, activeScope, callbacks)
 
     // A flex row below the header: the queue navigation pane (left) + the card
@@ -169,6 +184,9 @@ export function renderTriageView(
     // put while you scroll a tall card (#65). Wraps below on narrow widths.
     const layout = body.createDiv({ cls: 'kap-triage-layout' })
     const card = layout.createDiv({ cls: 'kap-triage-card' })
+    // Tinder-style card drag (issue #122): right = next, left = skip,
+    // up/down = priority bump. Below the threshold the card snaps back.
+    attachCardSwipe(card, data, callbacks)
 
     const titleRow = card.createDiv({ cls: 'kap-triage-title-row' })
     titleRow.createEl('h2', { cls: 'kap-triage-title', text: data.title })
@@ -204,6 +222,127 @@ export function renderTriageView(
     // content (an empty body has no scroll range, so it would clamp to 0).
     if (prevScroll > 0) body.scrollTop = prevScroll
     restoreFocus()
+    // No prior focus to restore: focus the triage root so the keyboard
+    // shortcuts work immediately — but never steal from a typing surface
+    // (the toolbar filter box re-renders triage on every keystroke).
+    if (!focusKey) {
+        const active2 = container.ownerDocument.activeElement
+        const typing =
+            active2 instanceof HTMLElement &&
+            (active2.tagName === 'INPUT' ||
+                active2.tagName === 'TEXTAREA' ||
+                active2.isContentEditable)
+        if (!typing) root.focus({ preventScroll: true })
+    }
+}
+
+/** Keyboard triage (issue #122); ignores events from typing surfaces. */
+function handleTriageKey(
+    e: KeyboardEvent,
+    data: TriageCardData | null,
+    callbacks: TriageCallbacks
+): void {
+    const target = e.target
+    if (
+        target instanceof HTMLElement &&
+        (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)
+    ) {
+        return
+    }
+    if (!data) return
+    if (e.key === 'ArrowRight' && !e.shiftKey) {
+        e.preventDefault()
+        if (data.scope === 'review') callbacks.onMarkReviewed()
+        else callbacks.onNext()
+        return
+    }
+    if (e.key === 'ArrowLeft' && !e.shiftKey) {
+        e.preventDefault()
+        callbacks.onSkip()
+        return
+    }
+    if (e.key === 'ArrowUp') {
+        e.preventDefault()
+        if (e.shiftKey) callbacks.onSendEdge('top')
+        else callbacks.onBumpProperty(-1)
+        return
+    }
+    if (e.key === 'ArrowDown') {
+        e.preventDefault()
+        if (e.shiftKey) callbacks.onSendEdge('bottom')
+        else callbacks.onBumpProperty(1)
+        return
+    }
+    if (e.key === 'o' || e.key === 'O') {
+        callbacks.onOpen()
+        return
+    }
+    if (/^[1-9]$/.test(e.key)) {
+        callbacks.onQuickStatus(Number(e.key))
+    }
+}
+
+/**
+ * Tinder-style swipe on the triage card (issue #122): drag right = next
+ * (reviewed in review scope), left = skip, up/down = priority bump. The card
+ * follows the pointer (dampened vertically, slight rotation); releasing below
+ * the threshold snaps it back. Drags starting on a button are left alone so
+ * clicks keep working.
+ */
+function attachCardSwipe(
+    card: HTMLElement,
+    data: TriageCardData,
+    callbacks: TriageCallbacks
+): void {
+    let startX = 0
+    let startY = 0
+    let pointerId = -1
+    let dragging = false
+    const reset = (): void => {
+        dragging = false
+        card.removeClass('kap-triage-card-dragging')
+        card.setCssProps({
+            '--kap-swipe-x': '0px',
+            '--kap-swipe-y': '0px',
+            '--kap-swipe-rot': '0deg'
+        })
+    }
+    card.addEventListener('pointerdown', (e) => {
+        if (e.button !== 0) return
+        if (e.target instanceof HTMLElement && e.target.closest('button, a, input')) return
+        dragging = true
+        pointerId = e.pointerId
+        startX = e.clientX
+        startY = e.clientY
+        card.setPointerCapture(e.pointerId)
+        card.addClass('kap-triage-card-dragging')
+    })
+    card.addEventListener('pointermove', (e) => {
+        if (!dragging || e.pointerId !== pointerId) return
+        const dx = e.clientX - startX
+        const dy = e.clientY - startY
+        card.setCssProps({
+            '--kap-swipe-x': `${String(dx)}px`,
+            '--kap-swipe-y': `${String(dy * 0.4)}px`,
+            '--kap-swipe-rot': `${String(dx * 0.04)}deg`
+        })
+    })
+    card.addEventListener('pointerup', (e) => {
+        if (!dragging || e.pointerId !== pointerId) return
+        const dx = e.clientX - startX
+        const dy = e.clientY - startY
+        reset()
+        const direction = classifySwipe(dx, dy, SWIPE_THRESHOLD)
+        if (direction === 'right') {
+            if (data.scope === 'review') callbacks.onMarkReviewed()
+            else callbacks.onNext()
+        } else if (direction === 'left') callbacks.onSkip()
+        else if (direction === 'up') callbacks.onBumpProperty(-1)
+        else if (direction === 'down') callbacks.onBumpProperty(1)
+    })
+    card.addEventListener('pointercancel', (e) => {
+        if (e.pointerId === pointerId) reset()
+    })
 }
 
 /**
@@ -461,6 +600,11 @@ function renderActions(
         'Skip',
         'action:skip'
     ).addEventListener('click', () => callbacks.onSkip())
+    // Shortcut hints (issue #122): keyboard + swipe triage discoverability.
+    actions.createDiv({
+        cls: 'kap-triage-hints',
+        text: '→ next · ← skip · ↑↓ priority · ⇧↑/⇧↓ top/bottom · 1-9 status · O open · or drag the card'
+    })
 }
 
 function addScopeButton(

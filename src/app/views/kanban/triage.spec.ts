@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'bun:test'
-import { buildTriageQueue, isPropUnset, reviewState, unsetCount } from './triage'
+import {
+    buildTriageQueue,
+    bumpEnumValue,
+    classifySwipe,
+    isPropUnset,
+    reviewState,
+    unsetCount
+} from './triage'
 
 describe('isPropUnset (issue #53)', () => {
     const tokens = ['TBD', 'No Target']
@@ -95,5 +102,46 @@ describe('buildTriageQueue (issues #53, #57)', () => {
         const flat = cards.map((c) => ({ ...c, weight: 0, include: true }))
         const queue = buildTriageQueue(flat, rankOf, viewCompare)
         expect(queue.map((c) => c.id)).toEqual(['b', 'c', 'd', 'a'])
+    })
+})
+
+describe('bumpEnumValue (issue #122)', () => {
+    const values = ['10 - Top', '20 - High', '30 - Medium']
+
+    it('steps toward the start with −1 and the end with +1', () => {
+        expect(bumpEnumValue(values, '20 - High', -1)).toBe('10 - Top')
+        expect(bumpEnumValue(values, '20 - High', 1)).toBe('30 - Medium')
+    })
+
+    it('clamps at the edges (returns the same value)', () => {
+        expect(bumpEnumValue(values, '10 - Top', -1)).toBe('10 - Top')
+        expect(bumpEnumValue(values, '30 - Medium', 1)).toBe('30 - Medium')
+    })
+
+    it('an unset or unknown current picks the first value', () => {
+        expect(bumpEnumValue(values, null, 1)).toBe('10 - Top')
+        expect(bumpEnumValue(values, 'stale', -1)).toBe('10 - Top')
+    })
+
+    it('null when there is nothing to select', () => {
+        expect(bumpEnumValue([], null, 1)).toBeNull()
+    })
+})
+
+describe('classifySwipe (issue #122)', () => {
+    it('classifies by the dominant axis past the threshold', () => {
+        expect(classifySwipe(150, 20, 110)).toBe('right')
+        expect(classifySwipe(-150, 20, 110)).toBe('left')
+        expect(classifySwipe(30, -140, 110)).toBe('up')
+        expect(classifySwipe(30, 140, 110)).toBe('down')
+    })
+
+    it('null below the threshold', () => {
+        expect(classifySwipe(50, 40, 110)).toBeNull()
+        expect(classifySwipe(0, 0, 110)).toBeNull()
+    })
+
+    it('a tie goes to the horizontal axis', () => {
+        expect(classifySwipe(120, 120, 110)).toBe('right')
     })
 })

@@ -3208,6 +3208,26 @@
         border-color: var(--text-error);
     }
 
+    /* Swipe triage (issue #122): the card follows the pointer while
+       dragging and snaps back below the threshold. */
+    .kap-root .kap-triage-card {
+        transition: transform 0.15s ease;
+        touch-action: none;
+        transform: translate(var(--kap-swipe-x, 0px), var(--kap-swipe-y, 0px))
+            rotate(var(--kap-swipe-rot, 0deg));
+    }
+
+    .kap-root .kap-triage-card-dragging {
+        transition: none;
+        cursor: grabbing;
+        user-select: none;
+    }
+
+    .kap-root .kap-triage-hints {
+        @apply text-[0.75em] max-w-[11rem] mt-1;
+        color: var(--text-faint);
+    }
+
     /* ── Focus mode (issue #160): single-card spotlight overlay ── */
     .kap-root .kap-focus-open {
         position: relative;
