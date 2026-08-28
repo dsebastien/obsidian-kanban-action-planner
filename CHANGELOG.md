@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.19.0](https://github.com/dsebastien/obsidian-kanban-action-planner/compare/1.18.1...1.19.0) (2026-08-28)
+
+### Features
+
+* optimistic column-triage decisions with instant advance and arrow-up step-back ([cfd5d4a](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/cfd5d4ac9798671d3f969c9889262723971dbd54))
+
 ## [1.18.1](https://github.com/dsebastien/obsidian-kanban-action-planner/compare/1.18.0...1.18.1) (2026-08-28)
 
 ### Bug Fixes
@@ -461,6 +467,7 @@ All notable changes to this project will be documented in this file.
 
 * **plugin:** match Starter Kit's {{quarter}} placeholder format (Q2, not 2) ([4fde618](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/4fde6185c5956e3f6fd2ca3a9b03e70cf5e16840))
 * **plugin:** persist discovered statuses so Show empty columns works ([cf91b81](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/cf91b81a1b0786e35c73f4885882e2dc33564c62))
+
 
 
 

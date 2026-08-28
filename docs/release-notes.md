@@ -1,5 +1,11 @@
 # Release Notes
 
+## 1.19.0 (2026-08-28)
+
+### Features
+
+- optimistic column-triage decisions with instant advance and arrow-up step-back
+
 ## 1.18.1 (2026-08-28)
 
 ### Bug Fixes
