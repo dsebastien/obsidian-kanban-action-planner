@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.19.3](https://github.com/dsebastien/obsidian-kanban-action-planner/compare/1.19.2...1.19.3) (2026-08-28)
+
+### Bug Fixes
+
+* **plugin:** match the board drag ghost to the card's rendered display mode ([b11abbb](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/b11abbbc61ba03e7d340d91bf7dbb1aa19f6e878)), closes [#171](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/171)
+
 ## [1.19.2](https://github.com/dsebastien/obsidian-kanban-action-planner/compare/1.19.1...1.19.2) (2026-08-28)
 
 ### Performance Improvements
@@ -480,6 +486,7 @@ All notable changes to this project will be documented in this file.
 
 * **plugin:** match Starter Kit's {{quarter}} placeholder format (Q2, not 2) ([4fde618](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/4fde6185c5956e3f6fd2ca3a9b03e70cf5e16840))
 * **plugin:** persist discovered statuses so Show empty columns works ([cf91b81](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/cf91b81a1b0786e35c73f4885882e2dc33564c62))
+
 
 
 

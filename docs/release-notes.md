@@ -1,5 +1,11 @@
 # Release Notes
 
+## 1.19.3 (2026-08-28)
+
+### Bug Fixes
+
+- **plugin:** match the board drag ghost to the card's rendered display mode
+
 ## 1.19.2 (2026-08-28)
 
 ### Performance Improvements
