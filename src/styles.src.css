@@ -291,13 +291,27 @@
         height: 0.85rem;
     }
 
+    /* The input must fit INSIDE the 28px box: Obsidian's global input
+       height/min-height makes it taller than the container, so it overlapped
+       (and hid most of) the container's focus-accent border. */
     .kap-root .kap-filter-input {
-        @apply flex-1 min-w-0 border-0 bg-transparent p-0 text-[0.9em];
+        @apply flex-1 min-w-0 h-full max-h-full border-0 bg-transparent p-0 text-[0.9em];
+        min-height: 0;
         color: var(--text-normal);
         box-shadow: none;
     }
 
     .kap-root .kap-filter-input:focus {
+        outline: none;
+        box-shadow: none;
+    }
+
+    /* The container carries the focus ring (focus-within); the inner
+       buttons must not paint Obsidian's own focus shadow on top of it. */
+    .kap-root .kap-filter-clear:focus,
+    .kap-root .kap-filter-clear:focus-visible,
+    .kap-root .kap-filter-help:focus,
+    .kap-root .kap-filter-help:focus-visible {
         outline: none;
         box-shadow: none;
     }
@@ -3223,6 +3237,57 @@
         user-select: none;
     }
 
+    /* Swipe outcome badges (issue #122): revealed by drag direction so the
+       release action is always visible before letting go. */
+    .kap-root .kap-triage-card {
+        position: relative;
+    }
+
+    .kap-root .kap-swipe-badge {
+        @apply absolute rounded-lg border-2 border-solid px-3 py-1 font-bold uppercase tracking-wide opacity-0 pointer-events-none z-10;
+        background: var(--background-primary);
+        transition: opacity 0.1s ease;
+    }
+
+    .kap-root .kap-swipe-badge-right {
+        top: 0.9rem;
+        left: 0.9rem;
+        color: var(--color-green, var(--text-success, var(--interactive-accent)));
+        border-color: currentColor;
+        rotate: -6deg;
+    }
+
+    .kap-root .kap-swipe-badge-left {
+        top: 0.9rem;
+        right: 0.9rem;
+        color: var(--color-red, var(--text-error));
+        border-color: currentColor;
+        rotate: 6deg;
+    }
+
+    .kap-root .kap-swipe-badge-up,
+    .kap-root .kap-swipe-badge-down {
+        left: 50%;
+        translate: -50% 0;
+        color: var(--interactive-accent);
+        border-color: currentColor;
+    }
+
+    .kap-root .kap-swipe-badge-up {
+        top: 0.9rem;
+    }
+
+    .kap-root .kap-swipe-badge-down {
+        bottom: 0.9rem;
+    }
+
+    .kap-root .kap-swipe-right .kap-swipe-badge-right,
+    .kap-root .kap-swipe-left .kap-swipe-badge-left,
+    .kap-root .kap-swipe-up .kap-swipe-badge-up,
+    .kap-root .kap-swipe-down .kap-swipe-badge-down {
+        opacity: 1;
+    }
+
     .kap-root .kap-triage-hints {
         @apply text-[0.75em] max-w-[11rem] mt-1;
         color: var(--text-faint);
@@ -3355,11 +3420,12 @@
     }
 
     .kap-root .kap-coltriage-body {
-        @apply flex flex-1 items-center justify-center gap-6 overflow-y-auto p-6;
+        @apply flex flex-1 items-stretch justify-between gap-8 overflow-y-auto p-6;
     }
 
     .kap-root .kap-coltriage-card {
-        @apply max-w-xl flex-initial rounded-lg border border-solid p-6;
+        @apply max-w-xl flex-1 self-center rounded-lg border border-solid p-6;
+        position: relative;
         border-color: var(--background-modifier-border);
         background: var(--background-primary);
         transition: transform 0.15s ease;
@@ -3368,16 +3434,26 @@
             rotate(var(--kap-swipe-rot, 0deg));
     }
 
+    /* Tall, wide drop targets hugging the pane edges — the swipe
+       destinations read at a glance and are easy to hit. */
     .kap-root .kap-coltriage-move {
-        @apply flex flex-col items-center gap-2 rounded-lg border border-dashed bg-transparent px-4 py-8 cursor-pointer;
+        @apply flex flex-col items-center justify-center gap-3 self-stretch rounded-xl border-2 border-dashed bg-transparent px-6 cursor-pointer text-[1.05em];
         border-color: var(--background-modifier-border);
         color: var(--text-muted);
-        max-width: 10rem;
+        width: clamp(9rem, 20vw, 18rem);
+        min-height: 16rem;
+        flex: 0 0 auto;
     }
 
-    .kap-root .kap-coltriage-move:hover:not(:disabled) {
-        background: var(--background-modifier-hover);
+    .kap-root .kap-coltriage-move:hover:not(:disabled),
+    .kap-root .kap-coltriage-move.kap-coltriage-armed:not(:disabled) {
+        background: color-mix(in srgb, var(--interactive-accent) 12%, transparent);
+        border-color: var(--interactive-accent);
         color: var(--text-normal);
+    }
+
+    .kap-root .kap-coltriage-skip.kap-coltriage-armed {
+        background: var(--background-modifier-hover);
     }
 
     .kap-root .kap-coltriage-move:disabled {

@@ -241,6 +241,10 @@ Click the **?** for an in-app cheat-sheet.
 
 ![Filter as you type]({{ '/images/filter.png' | relative_url }})
 
+The **?** cheat-sheet, always one click away:
+
+![The filter syntax cheat-sheet]({{ '/images/filter-help.png' | relative_url }})
+
 **Basics**
 
 - **Words = AND.** `book project` matches cards containing both.
@@ -354,8 +358,10 @@ triage mode** command).
   _priority_, else _urgency_, else the first one) — up moves toward the list's start.
 - **⇧↑ / ⇧↓** send the card to the top / bottom of its column (manual card sort only).
 - **1–9** set the status to the card's own type's nth column.
-- Or **drag the card** Tinder-style: right = next, left = skip, up/down = priority bump;
-  release below the threshold and it snaps back.
+- Or **drag the card** Tinder-style: right = next, left = skip, up/down = priority bump.
+  While you drag, a **badge fades in showing exactly what releasing will do** (Next / Skip /
+  Priority ↑ / Priority ↓); release below the threshold and the card snaps back, doing
+  nothing.
 
 The card scrolls on its own when it's tall (or the UI is zoomed), and the scope tabs and the
 **Skip** / **Next** actions stay pinned so they're always reachable.
@@ -449,6 +455,8 @@ interval. Review works on **any** Kanban view via the scope switch, with no per-
 Triage also comes to the board itself (issue #170): every column header carries a small
 **triage** button that starts a **one-card pass over that column** — the cards of that
 specific status, in the column's current order, one at a time.
+
+![Column triage mid-swipe: the card follows the pointer toward the next status]({{ '/images/column-triage.png' | relative_url }})
 
 - **→** (or swipe the card right, or click the right target) moves the card to the **next**
   status column; **←** moves it to the **previous** one. The statuses form a **carousel**:
@@ -1045,6 +1053,8 @@ When it's time to actually do the work, spotlight a single card full-pane (issue
 right-click any card — on the board, agenda, triage, timeline, or WBS — and pick **Enter
 focus mode** (or run the **Toggle focus mode** command, which spotlights the first card of
 the current view).
+
+![Focus mode: one card, its context, and a running timer]({{ '/images/focus.png' | relative_url }})
 
 The spotlight shows the note's title and status, the properties from your Bases view, its
 **subtasks** (children, checked off as they reach their done state), and its **related

@@ -101,10 +101,9 @@ export function renderColumnTriageView(
     const body = root.createDiv({ cls: 'kap-coltriage-body' })
 
     // Left move target.
-    renderMoveButton(body, -1, data.previousLabel, 'arrow-left', callbacks)
+    const leftBtn = renderMoveButton(body, -1, data.previousLabel, 'arrow-left', callbacks)
 
     const card = body.createDiv({ cls: 'kap-focus-card kap-coltriage-card' })
-    attachSwipe(card, data, callbacks)
     const titleRow = card.createDiv({ cls: 'kap-focus-title-row' })
     titleRow.createEl('h2', { cls: 'kap-focus-title', text: data.title })
     const open = titleRow.createEl('button', {
@@ -137,7 +136,8 @@ export function renderColumnTriageView(
     })
 
     // Right move target.
-    renderMoveButton(body, 1, data.nextLabel, 'arrow-right', callbacks)
+    const rightBtn = renderMoveButton(body, 1, data.nextLabel, 'arrow-right', callbacks)
+    attachSwipe(card, data, callbacks, { left: leftBtn, right: rightBtn, keep: skip })
 
     root.focus({ preventScroll: true })
 }
@@ -149,7 +149,7 @@ function renderMoveButton(
     label: string | null,
     icon: string,
     callbacks: ColumnTriageCallbacks
-): void {
+): HTMLElement {
     const btn = parent.createEl('button', {
         cls: 'kap-coltriage-move',
         attr: {
@@ -164,21 +164,30 @@ function renderMoveButton(
     btn.createSpan({ cls: 'kap-coltriage-move-label', text: label ?? '–' })
     if (direction === -1) setIcon(btn.createSpan({ cls: 'kap-triage-action-icon' }), icon)
     btn.addEventListener('click', () => callbacks.onMove(direction))
+    return btn
 }
 
 /** Tinder-style drag on the column-triage card (the #122 gesture). */
 function attachSwipe(
     card: HTMLElement,
     data: ColumnTriageData,
-    callbacks: ColumnTriageCallbacks
+    callbacks: ColumnTriageCallbacks,
+    /** The drop targets, ARMED (highlighted) while a drag points at them. */
+    targets: { left: HTMLElement; right: HTMLElement; keep: HTMLElement }
 ): void {
     let startX = 0
     let startY = 0
     let pointerId = -1
     let dragging = false
+    const arm = (direction: 'left' | 'right' | 'down' | null): void => {
+        targets.left.toggleClass('kap-coltriage-armed', direction === 'left')
+        targets.right.toggleClass('kap-coltriage-armed', direction === 'right')
+        targets.keep.toggleClass('kap-coltriage-armed', direction === 'down')
+    }
     const reset = (): void => {
         dragging = false
         card.removeClass('kap-triage-card-dragging')
+        arm(null)
         card.setCssProps({
             '--kap-swipe-x': '0px',
             '--kap-swipe-y': '0px',
@@ -204,6 +213,16 @@ function attachSwipe(
             '--kap-swipe-y': `${String(dy * 0.4)}px`,
             '--kap-swipe-rot': `${String(dx * 0.04)}deg`
         })
+        const preview = classifySwipe(dx, dy, 40)
+        arm(
+            preview === 'left' && data.previousLabel !== null
+                ? 'left'
+                : preview === 'right' && data.nextLabel !== null
+                  ? 'right'
+                  : preview === 'down'
+                    ? 'down'
+                    : null
+        )
     })
     card.addEventListener('pointerup', (e) => {
         if (!dragging || e.pointerId !== pointerId) return

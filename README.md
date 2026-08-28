@@ -42,9 +42,17 @@ Or see what's on your plate right now with the Agenda: a flat, prioritized list 
 
 ![Agenda mode](docs/images/agenda.png)
 
+When it's time to actually do the work, spotlight one card full-pane in Focus mode, with a timer feeding tracked time into your notes:
+
+![Focus mode](docs/images/focus.png)
+
 Filter as you type with a compact query language:
 
 ![Filter as you type](docs/images/filter.png)
+
+The **?** cheat-sheet keeps the whole query language one click away:
+
+![Filter syntax cheat-sheet](docs/images/filter-help.png)
 
 Slice any view by GTD contexts (`@work`, `@home`, …) from the toolbar **@** switcher:
 
@@ -62,9 +70,17 @@ When a backlog gets overwhelming, work through it one card at a time in Triage m
 
 ![Triage mode](docs/images/triage.png)
 
+Or triage a single board column Tinder-style — swipe each card to the previous or next status (carousel), or keep it and move on:
+
+![Column triage](docs/images/column-triage.png)
+
 Embed the same view in any note, several times in different modes — here a board and its calendar, both pinned to one project via `![[Tasks.base#Kanban|mode=board filter=parent:"Obsidian Starter Kit (Project)"]]` and `|mode=calendar …`:
 
 ![Embedded views in different modes](docs/images/embed-modes.png)
+
+The full card menu: scheduling, time tracking, focus mode, statuses, enums, contexts, relationships, and archiving in one place:
+
+![Card context menu](docs/images/card-menu.png)
 
 Let the board do the bookkeeping with per-note-type automation rules — enter a done state and the progress, dates, tags, or even the note's folder update themselves:
 

@@ -1,10 +1,19 @@
 import { setIcon } from 'obsidian'
 import { classifySwipe } from '../../views/kanban/triage'
-import type { TriageScope } from '../../views/kanban/triage'
+import type { SwipeDirection, TriageScope } from '../../views/kanban/triage'
 import { cssEscapeAttr } from '../../utils/css-escape'
 
 /** Drag distance (px) that turns a card drag into a swipe (issue #122). */
 const SWIPE_THRESHOLD = 110
+/** Drag distance (px) past which the outcome badge previews (issue #122). */
+const SWIPE_PREVIEW_THRESHOLD = 40
+/** The four direction classes toggled on the card while dragging. */
+const SWIPE_PREVIEW_CLASSES = [
+    'kap-swipe-right',
+    'kap-swipe-left',
+    'kap-swipe-up',
+    'kap-swipe-down'
+] as const
 
 /** One read-only context field shown above the editable controls. */
 export interface TriageContextField {
@@ -294,13 +303,27 @@ function attachCardSwipe(
     data: TriageCardData,
     callbacks: TriageCallbacks
 ): void {
+    // Outcome badges (what releasing HERE will do), revealed by direction
+    // while dragging so a swipe is never a mystery.
+    card.createDiv({
+        cls: 'kap-swipe-badge kap-swipe-badge-right',
+        text: data.scope === 'review' ? 'Reviewed' : 'Next'
+    })
+    card.createDiv({ cls: 'kap-swipe-badge kap-swipe-badge-left', text: 'Skip' })
+    card.createDiv({ cls: 'kap-swipe-badge kap-swipe-badge-up', text: 'Priority ↑' })
+    card.createDiv({ cls: 'kap-swipe-badge kap-swipe-badge-down', text: 'Priority ↓' })
     let startX = 0
     let startY = 0
     let pointerId = -1
     let dragging = false
+    const previewDirection = (direction: SwipeDirection | null): void => {
+        for (const cls of SWIPE_PREVIEW_CLASSES) card.removeClass(cls)
+        if (direction) card.addClass(`kap-swipe-${direction}`)
+    }
     const reset = (): void => {
         dragging = false
         card.removeClass('kap-triage-card-dragging')
+        previewDirection(null)
         card.setCssProps({
             '--kap-swipe-x': '0px',
             '--kap-swipe-y': '0px',
@@ -326,6 +349,7 @@ function attachCardSwipe(
             '--kap-swipe-y': `${String(dy * 0.4)}px`,
             '--kap-swipe-rot': `${String(dx * 0.04)}deg`
         })
+        previewDirection(classifySwipe(dx, dy, SWIPE_PREVIEW_THRESHOLD))
     })
     card.addEventListener('pointerup', (e) => {
         if (!dragging || e.pointerId !== pointerId) return
