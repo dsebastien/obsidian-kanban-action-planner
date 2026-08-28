@@ -3930,12 +3930,59 @@
     @apply pr-3;
 }
 
-/* Column triage rails (issue #170 v2): UNLAYERED on purpose. Obsidian's own
-   unlayered `button { height: var(--input-height); … }` beats every rule
-   inside our @layer regardless of specificity, which pinned the full-height
-   rails to a 30px strip at the top of the pane. Height must be released
-   here, outside the layer, where specificity (0,2,0 vs 0,0,1) decides. */
+/* Column triage rails + drop-zone states (issue #170 v2): UNLAYERED on
+   purpose. Obsidian's own unlayered `button { height; background-color;
+   border; box-shadow; … }` rules beat every rule inside our @layer
+   regardless of specificity — they pinned the rails to a 30px strip AND
+   made the armed/hover drop-zone feedback invisible (idle and armed
+   computed to the same button background). Everything visual about the
+   rails therefore lives here, outside the layer, where specificity
+   (0,2,0 vs 0,0,1) decides. */
 .kap-root .kap-coltriage-rail {
     height: auto;
     align-self: stretch;
+    background-color: transparent;
+    border: 2px dashed var(--background-modifier-border);
+    border-radius: 0;
+    box-shadow: none;
+    color: var(--text-muted);
+    transition:
+        background-color var(--kap-transition) var(--kap-ease),
+        border-color var(--kap-transition) var(--kap-ease),
+        color var(--kap-transition) var(--kap-ease);
+}
+
+/* The moment a drag starts, BOTH rails lift into view as drop zones. */
+.kap-root .kap-coltriage-dragging .kap-coltriage-rail:not(:disabled) {
+    background-color: var(--background-modifier-hover);
+    border-color: var(--text-muted);
+    color: var(--text-normal);
+}
+
+/* Hovered, or armed (the drag points at / hovers over this zone):
+   accent-filled, solid border, inset ring — an unmistakable "drop here". */
+.kap-root .kap-coltriage-rail:hover:not(:disabled),
+.kap-root .kap-coltriage-rail.kap-coltriage-armed:not(:disabled) {
+    background-color: color-mix(in srgb, var(--interactive-accent) 22%, transparent);
+    border-color: var(--interactive-accent);
+    border-style: solid;
+    color: var(--text-normal);
+}
+
+.kap-root .kap-coltriage-rail.kap-coltriage-armed:not(:disabled) {
+    box-shadow: inset 0 0 0 2px var(--interactive-accent);
+}
+
+/* The tray targets (status chips + Keep) are buttons too — same unlayered
+   treatment for their armed drop-zone state. */
+.kap-root .kap-coltriage-chip.kap-coltriage-armed:not(:disabled) {
+    background-color: color-mix(in srgb, var(--interactive-accent) 22%, transparent);
+    border-color: var(--interactive-accent);
+    box-shadow: inset 0 0 0 1px var(--interactive-accent);
+}
+
+.kap-root .kap-coltriage-keep.kap-coltriage-armed,
+.kap-root .kap-coltriage-tray.kap-coltriage-armed .kap-coltriage-keep {
+    background-color: color-mix(in srgb, var(--interactive-accent) 22%, transparent);
+    box-shadow: inset 0 0 0 1px var(--interactive-accent);
 }
