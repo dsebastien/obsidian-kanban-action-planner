@@ -3493,6 +3493,12 @@
 
     /* The center column owns the vertical scroll: a tall card or a wrapped
        chip tray must stay reachable in short panes (v2 review F8). */
+    /* The focus-mode hints cap (10rem, for its slim action column) is far
+       too narrow inside the card face — let the hint line breathe. */
+    .kap-root .kap-coltriage .kap-focus-hints {
+        max-width: none;
+    }
+
     .kap-root .kap-coltriage-center {
         @apply flex min-w-0 flex-1 flex-col items-center gap-5 overflow-y-auto p-4;
         justify-content: safe center;
@@ -3922,4 +3928,14 @@
     .kanban-action-planner-whats-new-links
     .setting-item-description {
     @apply pr-3;
+}
+
+/* Column triage rails (issue #170 v2): UNLAYERED on purpose. Obsidian's own
+   unlayered `button { height: var(--input-height); … }` beats every rule
+   inside our @layer regardless of specificity, which pinned the full-height
+   rails to a 30px strip at the top of the pane. Height must be released
+   here, outside the layer, where specificity (0,2,0 vs 0,0,1) decides. */
+.kap-root .kap-coltriage-rail {
+    height: auto;
+    align-self: stretch;
 }
