@@ -124,6 +124,7 @@ import {
 } from '../../services/time-tracking.service'
 import { removeFocusView, renderFocusView, updateFocusTimerLabel } from '../../ui/focus/focus-view'
 import type { FocusCardData, FocusRelatedGroup } from '../../ui/focus/focus-view'
+import { removeColumnTriageView, renderColumnTriageView } from '../../ui/board/column-triage-view'
 import { archiveNote, liveExpressionContext } from '../../services/archive.service'
 import {
     addDays,
@@ -355,6 +356,14 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
     // the 1s timer-label tick (running only while the overlay is mounted).
     private focusCardKey: string | null = null
     private focusTimerId: number | null = null
+    // Column triage (issue #170): the source column's pass — remaining card
+    // keys and the cursor into them. Null = off.
+    private columnTriage: {
+        columnId: string
+        label: string
+        queue: string[]
+        index: number
+    } | null = null
     // Set by Next/Skip (and completion auto-advance) so the next render scrolls the
     // body back to the top — a new card should start at its title, not inherit the
     // scroll of the one you just left. Plain in-place writes leave it false so the
@@ -1270,6 +1279,8 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         // whatever mode just rendered, so it must be re-mounted after every
         // pass (mode renderers may have emptied the host).
         this.renderFocusOverlay()
+        // Column triage (issue #170): same overlay treatment.
+        this.renderColumnTriageOverlay()
     }
 
     private applyFilterAndRenderInner(): void {
@@ -1449,6 +1460,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
                 onContextMenu: (card, event) => this.onCardContextMenu(card, event),
                 onToggleLane: (laneId) => this.toggleLane(laneId),
                 onToggleColumn: (columnId) => this.toggleColumn(columnId),
+                onTriageColumn: (columnId) => this.startColumnTriage(columnId),
                 onRelationship: (card, role, event) => this.showRelatedMenu(card, role, event),
                 onMoveColumn: (card, direction) => this.moveCardColumn(card, direction),
                 onReorderCard: (card, direction) => this.reorderCard(card, direction),
@@ -3262,6 +3274,113 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             onMenu: (event) => this.showCardMenu(card, event)
         })
         this.startFocusTick()
+    }
+
+    // ── Column triage (issue #170) ─────────────────────────────
+
+    /** Start a one-card pass over a board column (issue #170). */
+    private startColumnTriage(columnId: string): void {
+        const column = this.columns.find((c) => c.id === columnId)
+        if (!column) return
+        const queue = [...this.cardsByKey.values()]
+            .filter((c) => c.statusValue !== null && c.statusValue === column.statusValue)
+            .map((c) => c.key)
+        if (queue.length === 0) {
+            new Notice(`Nothing to triage in ${column.label}.`)
+            return
+        }
+        this.columnTriage = { columnId, label: column.label, queue, index: 0 }
+        this.renderColumnTriageOverlay()
+    }
+
+    /** Leave column triage: drop the pass and its overlay. */
+    private exitColumnTriage(): void {
+        this.columnTriage = null
+        if (this.boardEl) removeColumnTriageView(this.boardEl)
+    }
+
+    /**
+     * The carousel neighbours for a card: its OWN type's column vocabulary
+     * (mixed boards), wrapped at both ends. Null when the card has fewer
+     * than two real columns to move between.
+     */
+    private columnTriageNeighbours(card: KanbanCard): {
+        previous: ColumnDef | null
+        next: ColumnDef | null
+    } {
+        const columns = this.cardColumns(card).filter((c) => c.id !== UNMAPPED_COLUMN_ID)
+        if (columns.length < 2) return { previous: null, next: null }
+        const index = columns.findIndex((c) => c.statusValue === card.statusValue)
+        const at = index < 0 ? 0 : index
+        return {
+            previous: columns[(at - 1 + columns.length) % columns.length] ?? null,
+            next: columns[(at + 1) % columns.length] ?? null
+        }
+    }
+
+    /** Move the pass's current card one status left/right (carousel) and advance. */
+    private async columnTriageMove(card: KanbanCard, direction: -1 | 1): Promise<void> {
+        const state = this.columnTriage
+        if (!state) return
+        const { previous, next } = this.columnTriageNeighbours(card)
+        const target = direction === -1 ? previous : next
+        if (!target) return
+        // The card leaves the source column — drop it from the queue; the
+        // cursor now points at the following card.
+        state.queue = state.queue.filter((k) => k !== card.key)
+        await this.setCardStatus(card, target.statusValue, target.id)
+        this.renderColumnTriageOverlay()
+    }
+
+    /** Keep the current card where it is and advance the pass. */
+    private columnTriageSkip(): void {
+        const state = this.columnTriage
+        if (!state) return
+        state.index += 1
+        this.renderColumnTriageOverlay()
+    }
+
+    /** Mount (or re-mount) the column-triage overlay; called after render passes. */
+    private renderColumnTriageOverlay(): void {
+        if (!this.boardEl) return
+        const state = this.columnTriage
+        if (!state) {
+            removeColumnTriageView(this.boardEl)
+            return
+        }
+        // Cards can leave the result set mid-pass (filter change, deletion).
+        state.queue = state.queue.filter((k) => this.cardsByKey.has(k))
+        if (state.index >= state.queue.length) {
+            new Notice(`Column triage complete — ${state.label}.`)
+            this.exitColumnTriage()
+            return
+        }
+        const key = state.queue[state.index]
+        const card = key ? this.cardsByKey.get(key) : undefined
+        if (!card) {
+            this.exitColumnTriage()
+            return
+        }
+        const { previous, next } = this.columnTriageNeighbours(card)
+        renderColumnTriageView(
+            this.boardEl,
+            {
+                columnLabel: state.label,
+                title: card.display.title,
+                fields: card.display.fields,
+                previousLabel: previous?.label ?? null,
+                nextLabel: next?.label ?? null,
+                position: state.index + 1,
+                total: state.queue.length
+            },
+            {
+                onExit: () => this.exitColumnTriage(),
+                onOpen: (newTab) => this.openCard(card, newTab),
+                onMove: (direction) => void this.columnTriageMove(card, direction),
+                onSkip: () => this.columnTriageSkip(),
+                onMenu: (event) => this.showCardMenu(card, event)
+            }
+        )
     }
 
     /** 1s tick updating just the timer label while a session runs. */

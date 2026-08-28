@@ -3343,6 +3343,56 @@
         color: var(--text-faint);
     }
 
+    /* ── Column triage (issue #170): one-card pass over a board column ── */
+    .kap-root .kap-column-triage {
+        @apply inline-flex items-center justify-center p-0.5 rounded border-0 cursor-pointer bg-transparent;
+        color: var(--text-faint);
+    }
+
+    .kap-root .kap-column-triage:hover {
+        color: var(--text-normal);
+        background: var(--background-modifier-hover);
+    }
+
+    .kap-root .kap-coltriage-body {
+        @apply flex flex-1 items-center justify-center gap-6 overflow-y-auto p-6;
+    }
+
+    .kap-root .kap-coltriage-card {
+        @apply max-w-xl flex-initial rounded-lg border border-solid p-6;
+        border-color: var(--background-modifier-border);
+        background: var(--background-primary);
+        transition: transform 0.15s ease;
+        touch-action: none;
+        transform: translate(var(--kap-swipe-x, 0px), var(--kap-swipe-y, 0px))
+            rotate(var(--kap-swipe-rot, 0deg));
+    }
+
+    .kap-root .kap-coltriage-move {
+        @apply flex flex-col items-center gap-2 rounded-lg border border-dashed bg-transparent px-4 py-8 cursor-pointer;
+        border-color: var(--background-modifier-border);
+        color: var(--text-muted);
+        max-width: 10rem;
+    }
+
+    .kap-root .kap-coltriage-move:hover:not(:disabled) {
+        background: var(--background-modifier-hover);
+        color: var(--text-normal);
+    }
+
+    .kap-root .kap-coltriage-move:disabled {
+        opacity: 0.4;
+        cursor: default;
+    }
+
+    .kap-root .kap-coltriage-move-label {
+        @apply text-center;
+    }
+
+    .kap-root .kap-coltriage-skip {
+        @apply mt-3 self-start;
+    }
+
     /* Tracked-time chip (issue #119): display-only — same fixed unit slots
        as the estimate chip so tracked and estimated align by unit. */
     .kap-root .kap-wbs-tracked {

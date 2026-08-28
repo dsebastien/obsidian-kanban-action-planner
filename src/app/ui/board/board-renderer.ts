@@ -32,6 +32,11 @@ export interface BoardRenderCallbacks {
      */
     onAddCard?: (laneId: string, columnId: string) => void
     /**
+     * Column triage (issue #170): start a one-card pass over this column.
+     * Absent = the header affordance is not rendered.
+     */
+    onTriageColumn?: (columnId: string) => void
+    /**
      * Column aggregate label (issue #23), e.g. `Σ 13`, drawn next to the card
      * count. The view owns reading the property and the math; `null` (or an
      * absent callback) means no aggregate badge for that column.
@@ -202,6 +207,23 @@ function renderColumns(
             callbacks.onToggleColumn?.(column.id)
         })
         header.createSpan({ cls: 'kap-column-title', text: column.label })
+        // Column triage (issue #170): a one-card pass over this column. The
+        // synthetic Unmapped column has no status to carousel from.
+        const onTriageColumn = callbacks.onTriageColumn
+        if (onTriageColumn && column.id !== UNMAPPED_COLUMN_ID) {
+            const triageBtn = header.createEl('button', {
+                cls: 'kap-column-triage',
+                attr: {
+                    'aria-label': `Triage the ${column.label} column`,
+                    'title': `Triage this column (one card at a time)`
+                }
+            })
+            setIcon(triageBtn, 'gallery-horizontal-end')
+            triageBtn.addEventListener('click', (e) => {
+                e.stopPropagation()
+                onTriageColumn(column.id)
+            })
+        }
         const countEl = header.createSpan({ cls: 'kap-column-count' })
         setColumnCount(colEl, countEl, cards.length, column.wipLimit)
         syncColumnAggregate(colEl, column.id, laneId, callbacks)

@@ -64,8 +64,11 @@ export const FOCUS_TIMER_LABEL_CLASS = 'kap-focus-timer-label'
 
 /** Remove the focus overlay from `host` (exit / card gone). */
 export function removeFocusView(host: HTMLElement): void {
-    host.querySelector(':scope > .kap-focus')?.remove()
-    host.removeClass('kap-focus-open')
+    // The column-triage overlay (issue #170) shares the .kap-focus shell —
+    // remove only OUR overlay, and drop the host class only when no overlay
+    // remains.
+    host.querySelector(':scope > .kap-focus:not(.kap-coltriage)')?.remove()
+    if (!host.querySelector(':scope > .kap-coltriage')) host.removeClass('kap-focus-open')
 }
 
 /**
@@ -77,7 +80,7 @@ export function renderFocusView(
     data: FocusCardData,
     callbacks: FocusCallbacks
 ): void {
-    host.querySelector(':scope > .kap-focus')?.remove()
+    host.querySelector(':scope > .kap-focus:not(.kap-coltriage)')?.remove()
     host.addClass('kap-focus-open')
     const root = host.createDiv({ cls: 'kap-focus', attr: { tabindex: '-1' } })
 

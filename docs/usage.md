@@ -444,6 +444,20 @@ under **Review (triage)**. They default to `last_reviewed`, `review_interval`, a
 A **Default review interval (days)** (default **30**) is used for notes that don't set their own
 interval. Review works on **any** Kanban view via the scope switch, with no per-view setup needed.
 
+### Column triage (board mode)
+
+Triage also comes to the board itself (issue #170): every column header carries a small
+**triage** button that starts a **one-card pass over that column** — the cards of that
+specific status, in the column's current order, one at a time.
+
+- **→** (or swipe the card right, or click the right target) moves the card to the **next**
+  status column; **←** moves it to the **previous** one. The statuses form a **carousel**:
+  from the last column, right wraps to the first, and from the first, left wraps to the
+  last. Moves use the card's own type's column vocabulary on mixed boards.
+- **↓** (or **Space**, or swipe down) keeps the card where it is and advances.
+- **Esc** exits back to the board; **O** opens the note; right-click shows the full card
+  menu. The pass ends by itself when the column has no cards left.
+
 ## Agenda mode
 
 Where the board answers "what state is everything in", **Agenda** answers "what's on my plate
