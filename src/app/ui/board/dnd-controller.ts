@@ -119,15 +119,26 @@ export class BoardDnd {
             // capture is best-effort
         }
 
-        const ghost = this.sourceCardEl.cloneNode(true) as HTMLElement
-        ghost.addClass('kap-card-ghost')
-        ghost.style.width = `${String(this.sourceCardEl.offsetWidth)}px`
+        // Body-parenting the ghost (to escape the pane's stacking contexts)
+        // drops the card's cascade context: ancestor-scoped rules — notably
+        // compact title-only mode — no longer match a bare clone, so the
+        // ghost rendered the full card content overflowing the compact
+        // height (issue #171). A host div restores that context around the
+        // clone; `.kap-card-ghost` (positioning, opacity, shadow) sits on
+        // the host, the clone keeps its plain `.kap-card` look.
+        const ghost = this.containerEl.doc.body.createDiv({ cls: 'kap-card-ghost' })
+        if (this.containerEl.hasClass('kap-compact')) ghost.addClass('kap-compact')
+        const clone = this.sourceCardEl.cloneNode(true) as HTMLElement
+        // Cloned AFTER the source got its dragging style — strip it, or the
+        // host's 0.9 opacity would multiply with the source's 0.4.
+        clone.removeClass('kap-card-dragging')
+        clone.style.width = `${String(this.sourceCardEl.offsetWidth)}px`
         // The board's --kap-card-height var doesn't reach the body-parented
         // ghost, so copy the equalized height too — otherwise the ghost falls
         // back to the min-height floor and visibly shrinks at drag start
         // (issue #105, finding 5.8).
-        ghost.style.height = `${String(this.sourceCardEl.offsetHeight)}px`
-        this.containerEl.doc.body.appendChild(ghost)
+        clone.style.height = `${String(this.sourceCardEl.offsetHeight)}px`
+        ghost.appendChild(clone)
         this.ghostEl = ghost
 
         this.placeholderEl = createDiv({ cls: 'kap-card-placeholder' })
