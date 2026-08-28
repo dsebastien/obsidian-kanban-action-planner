@@ -1,5 +1,12 @@
 # Release Notes
 
+## 1.19.2 (2026-08-28)
+
+### Performance Improvements
+
+- **plugin:** gate card-height equalization and patch the triage overlay in place
+- **plugin:** skip the hidden board render during column-triage decisions
+
 ## 1.19.1 (2026-08-28)
 
 ### Bug Fixes
