@@ -3432,6 +3432,12 @@
         container-type: inline-size;
     }
 
+    /* Confetti bursts hosted on the root must paint ABOVE the overlay
+       (both defaulted to the same z-index, and the overlay mounts later). */
+    .kap-root > .kap-confetti {
+        z-index: 60;
+    }
+
     .kap-root .kap-coltriage-body {
         @apply flex flex-1 items-stretch justify-between gap-4 overflow-hidden;
         min-height: 0;

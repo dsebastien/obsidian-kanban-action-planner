@@ -379,8 +379,16 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         index: number
         initialTotal: number
         completed: number
+        /** Cards explicitly kept — with `completed`, drives the progress. */
+        kept: number
         /** The last decision already fired its own confetti (done state). */
         celebrated: boolean
+        /**
+         * A card whose status write FAILED: the optimistic model may have
+         * filtered it out momentarily, so pruning must not drop it before
+         * the failure rebuild restores it.
+         */
+        pinnedKey: string | null
         busy: boolean
         generation: number
     } | null = null
@@ -3329,7 +3337,9 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             index: 0,
             initialTotal: info.cardKeys.length,
             completed: 0,
+            kept: 0,
             celebrated: false,
+            pinnedKey: null,
             busy: false,
             generation: ++this.columnTriageTokens
         }
@@ -3410,7 +3420,13 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
                 })
                 if (this.columnTriage !== state || state.generation !== generation) return
                 state.index += 1
+                state.kept += 1
+                state.celebrated = false
             } else {
+                // Resolved BEFORE the write: a status-triggered auto-archive
+                // moves the file and can drop the per-type mapping this check
+                // needs (v2 final review).
+                const celebrate = this.isDoneStatusFor(card, decision.target)
                 const animation = animateColumnTriageDecision(host, {
                     direction: decision.direction,
                     stampLabel: decision.target.label,
@@ -3435,7 +3451,8 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
                 if (ok) {
                     state.queue = state.queue.filter((k) => k !== card.key)
                     state.completed += 1
-                    if (this.isDoneStatusFor(card, decision.target)) {
+                    state.pinnedKey = null
+                    if (celebrate) {
                         // Burst on the STABLE host, not the overlay — the
                         // re-render right after this remounts the overlay and
                         // would destroy the canvas mid-burst (v2 review F5).
@@ -3445,7 +3462,10 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
                         state.celebrated = false
                     }
                 } else {
-                    new Notice('Move failed — the card stays in the pass.')
+                    // applyMove already notified and kicked off the failure
+                    // rebuild; the pin keeps the card in the pass while the
+                    // optimistic (wrong) status briefly filters it out.
+                    state.pinnedKey = card.key
                 }
             }
         } finally {
@@ -3475,8 +3495,16 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         if (state.busy) return
         // Cards can leave the result set mid-pass (filter change, deletion,
         // an automation archiving the note) — prune WITHOUT skipping cards:
-        // removals before the cursor pull it back in step (v2 review F4).
-        const pruned = pruneTriageQueue(state.queue, state.index, (k) => this.cardsByKey.has(k))
+        // removals before the cursor pull it back in step (v2 review F4). A
+        // pinned card (failed write mid-rollback) is never pruned.
+        if (state.pinnedKey !== null && this.cardsByKey.has(state.pinnedKey)) {
+            state.pinnedKey = null
+        }
+        const pruned = pruneTriageQueue(
+            state.queue,
+            state.index,
+            (k) => this.cardsByKey.has(k) || k === state.pinnedKey
+        )
         state.queue = pruned.queue
         state.index = pruned.index
         if (state.index >= state.queue.length) {
@@ -3504,6 +3532,9 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         const key = state.queue[state.index]
         const card = key ? this.cardsByKey.get(key) : undefined
         if (!card) {
+            // The pinned card is mid-restore (failure rebuild in flight):
+            // wait for the next render pass instead of abandoning the pass.
+            if (key !== undefined && key === state.pinnedKey) return
             this.exitColumnTriage()
             return
         }
@@ -3518,6 +3549,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             card.key,
             String(state.index),
             String(state.completed),
+            String(state.kept),
             String(state.queue.length),
             card.statusValue ?? '',
             card.display.title,
@@ -3545,7 +3577,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
                 nextLabel: next?.label ?? null,
                 keepLabel: `Keep in ${currentLabel}`,
                 stackTitles,
-                done: state.completed + state.index,
+                done: state.completed + state.kept,
                 total: state.initialTotal
             },
             {

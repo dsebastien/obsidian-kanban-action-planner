@@ -324,7 +324,7 @@ function handleKey(
     data: ColumnTriageData,
     callbacks: ColumnTriageCallbacks
 ): void {
-    if (e.repeat || e.ctrlKey || e.metaKey || e.altKey) return
+    if (e.repeat || e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return
     const target = asElement(e.target)
     const onControl =
         target !== null &&

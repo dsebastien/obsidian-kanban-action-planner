@@ -1,6 +1,6 @@
 # Column triage UX v2 — design (issue #170 follow-up)
 
-Status: DRAFT for adversarial review.
+Status: IMPLEMENTED (v2.1 + final-review fixes). Kept as the design record.
 Owner ask: "much better UI/UX. Like Wim Cools' video: the different statuses listed at the
 bottom of the card at the center. Animations too — a confetti or stamp effect when a choice
 is made (clicking another status, selecting Keep, clicking the left/right targets if they
