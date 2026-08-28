@@ -125,9 +125,9 @@ import {
 import { removeFocusView, renderFocusView, updateFocusTimerLabel } from '../../ui/focus/focus-view'
 import type { FocusCardData, FocusRelatedGroup } from '../../ui/focus/focus-view'
 import {
-    animateColumnTriageDecision,
     removeColumnTriageView,
-    renderColumnTriageView
+    renderColumnTriageView,
+    spawnColumnTriageDecisionGhost
 } from '../../ui/board/column-triage-view'
 import type { ColumnTriageChip } from '../../ui/board/column-triage-view'
 import { archiveNote, liveExpressionContext } from '../../services/archive.service'
@@ -295,6 +295,53 @@ interface TriageValueOverride {
     value: string | null
 }
 
+/** One reversible column-triage decision, newest last (↑ pops). */
+type ColumnTriageHistoryEntry =
+    | { kind: 'keep' }
+    | {
+          kind: 'move'
+          cardKey: string
+          /** The card's status before the decision — what ↑ restores. */
+          previousStatus: string | null
+          /** The column that status mapped to (the restore write's target). */
+          previousColumnId: string
+      }
+
+/**
+ * Column triage pass state (issue #170, v2 state machine): the exact rendered
+ * card keys snapshotted at start, the cursor, progress totals, the decision
+ * history (↑ steps back), the completion freeze, and a generation token
+ * invalidating stale async completions.
+ */
+interface ColumnTriagePass {
+    columnId: string
+    label: string
+    queue: string[]
+    index: number
+    initialTotal: number
+    completed: number
+    /** Cards explicitly kept — with `completed`, drives the progress. */
+    kept: number
+    /** The last decision already fired its own confetti (done state). */
+    celebrated: boolean
+    /**
+     * A card whose status write FAILED: the optimistic model may have
+     * filtered it out momentarily, so pruning must not drop it before
+     * the failure rebuild restores it.
+     */
+    pinnedKey: string | null
+    /**
+     * The completion-celebration freeze: decisions and overlay re-renders
+     * are blocked while the final confetti plays and the pass auto-exits.
+     * Decisions themselves are synchronous (optimistic advance), so this is
+     * the only remaining lock. Step-back (↑) thaws it.
+     */
+    busy: boolean
+    generation: number
+    /** Decisions made this pass, newest last — the ↑ (step back) stack. */
+    history: ColumnTriageHistoryEntry[]
+}
+
 /**
  * The Kanban Bases view.
  *
@@ -368,30 +415,8 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
     // the 1s timer-label tick (running only while the overlay is mounted).
     private focusCardKey: string | null = null
     private focusTimerId: number | null = null
-    // Column triage (issue #170, v2): the pass's state machine — the exact
-    // rendered card keys snapshotted at start, the cursor, progress totals,
-    // the `busy` input lock, and a generation token invalidating stale
-    // async completions. Null = off.
-    private columnTriage: {
-        columnId: string
-        label: string
-        queue: string[]
-        index: number
-        initialTotal: number
-        completed: number
-        /** Cards explicitly kept — with `completed`, drives the progress. */
-        kept: number
-        /** The last decision already fired its own confetti (done state). */
-        celebrated: boolean
-        /**
-         * A card whose status write FAILED: the optimistic model may have
-         * filtered it out momentarily, so pruning must not drop it before
-         * the failure rebuild restores it.
-         */
-        pinnedKey: string | null
-        busy: boolean
-        generation: number
-    } | null = null
+    // Column triage (issue #170, v2): the pass's state machine. Null = off.
+    private columnTriage: ColumnTriagePass | null = null
     // Render signature of the mounted column-triage overlay (issue #170 v2):
     // identical inputs (late metadata echoes, unrelated rebuilds) skip the
     // remount so animations and focus are never torn down needlessly.
@@ -3341,7 +3366,8 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             celebrated: false,
             pinnedKey: null,
             busy: false,
-            generation: ++this.columnTriageTokens
+            generation: ++this.columnTriageTokens,
+            history: []
         }
         this.columnTriageSignature = null
         this.renderColumnTriageOverlay()
@@ -3394,95 +3420,209 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
 
     /**
      * THE decision gate (v2 review F5): every input path — chip, rail, keep,
-     * key, swipe, drop — funnels through here. `busy` locks re-entry, the
-     * generation token invalidates stale completions (exit mid-flight), the
-     * stamp + fly-out play optimistically while the write runs, and the card
-     * leaves the queue only when the write settles without throwing.
+     * key, swipe, drop — funnels through here. Fully OPTIMISTIC (issue #64
+     * semantics applied to the pass): the queue advances and the next card
+     * renders synchronously, the stamp + fly-out play on a detached ghost of
+     * the decided face, and the status write runs in the background — its
+     * Bases echo re-derives the exact state already on screen, so the
+     * signature gate absorbs it as a no-op. A write failure reconciles the
+     * pass after the fact ({@link reconcileColumnTriageFailedMove}). No
+     * `busy` lock: decisions mutate state before any await, so rapid inputs
+     * each act on the card they were issued against.
      */
-    private async columnTriageDecide(
+    private columnTriageDecide(
         card: KanbanCard,
         decision:
             | { kind: 'move'; target: ColumnDef; direction: 'left' | 'right' }
             | { kind: 'keep' }
-    ): Promise<void> {
+    ): void {
         const state = this.columnTriage
         if (!state || state.busy || !this.rootEl) return
-        state.busy = true
-        const generation = ++this.columnTriageTokens
-        state.generation = generation
         const host = this.rootEl
-        try {
-            if (decision.kind === 'keep') {
-                await animateColumnTriageDecision(host, {
-                    direction: 'keep',
-                    stampLabel: 'Kept',
-                    stampColor: null
-                })
-                if (this.columnTriage !== state || state.generation !== generation) return
-                state.index += 1
-                state.kept += 1
-                state.celebrated = false
+        if (decision.kind === 'keep') {
+            spawnColumnTriageDecisionGhost(host, {
+                direction: 'keep',
+                stampLabel: 'Kept',
+                stampColor: null
+            })
+            state.index += 1
+            state.kept += 1
+            state.celebrated = false
+            state.history.push({ kind: 'keep' })
+            this.columnTriageSignature = null
+        } else {
+            // Resolved BEFORE the write: a status-triggered auto-archive
+            // moves the file and can drop the per-type mapping this check
+            // needs (v2 final review).
+            const celebrate = this.isDoneStatusFor(card, decision.target)
+            spawnColumnTriageDecisionGhost(host, {
+                direction: decision.direction,
+                stampLabel: decision.target.label,
+                stampColor: resolveColor(decision.target.color)
+            })
+            // Captured BEFORE the optimistic mutation: what ↑ must restore.
+            state.history.push({
+                kind: 'move',
+                cardKey: card.key,
+                previousStatus: card.statusValue,
+                previousColumnId:
+                    this.cardColumns(card).find((c) => c.statusValue === card.statusValue)?.id ??
+                    state.columnId
+            })
+            // Optimistic bookkeeping: the card leaves the pass NOW; the
+            // background write's failure path puts it back.
+            state.queue = state.queue.filter((k) => k !== card.key)
+            state.completed += 1
+            state.pinnedKey = null
+            if (celebrate) {
+                // Burst on the STABLE host, not the overlay — the re-render
+                // right after this remounts the overlay and would destroy
+                // the canvas mid-burst (v2 review F5).
+                burstConfetti(host)
+                state.celebrated = true
             } else {
-                // Resolved BEFORE the write: a status-triggered auto-archive
-                // moves the file and can drop the per-type mapping this check
-                // needs (v2 final review).
-                const celebrate = this.isDoneStatusFor(card, decision.target)
-                const animation = animateColumnTriageDecision(host, {
-                    direction: decision.direction,
-                    stampLabel: decision.target.label,
-                    stampColor: resolveColor(decision.target.color)
-                })
-                const ok = await (async (): Promise<boolean> => {
+                state.celebrated = false
+            }
+            // Cleared BEFORE the write kick: applyMove renders synchronously
+            // (board + overlay) before its first await, and that pass must
+            // see the advanced state as new — the trailing render below is
+            // then absorbed by the gate instead of remounting a second time.
+            this.columnTriageSignature = null
+            void (async (): Promise<boolean> => {
+                try {
+                    // setCardStatus reports persistence failures as `false`
+                    // (it swallows the exception internally and re-derives
+                    // the board — v2 review F1).
+                    return await this.setCardStatus(
+                        card,
+                        decision.target.statusValue,
+                        decision.target.id
+                    )
+                } catch {
+                    return false
+                }
+            })().then((ok) => {
+                if (!ok) this.reconcileColumnTriageFailedMove(state, card.key)
+            })
+        }
+        // Absorbed by the gate when the write kick already rendered the
+        // advanced state; does the work itself on the keep path.
+        this.renderColumnTriageOverlay()
+    }
+
+    /**
+     * A background status write failed AFTER the pass optimistically advanced
+     * past the card: put it back at the cursor, roll the progress back, and
+     * pin it so queue pruning cannot drop it while the failure rebuild
+     * restores the on-disk state (applyMove already notified the user and
+     * kicked that rebuild off). A pass frozen in its completion celebration
+     * is thawed — the generation bump cancels the scheduled auto-exit.
+     */
+    private reconcileColumnTriageFailedMove(state: ColumnTriagePass, cardKey: string): void {
+        if (this.columnTriage !== state) return
+        if (!state.queue.includes(cardKey)) {
+            state.queue.splice(Math.min(state.index, state.queue.length), 0, cardKey)
+            state.completed = Math.max(0, state.completed - 1)
+        }
+        // The decision never landed — it must not be steppable-back either.
+        for (let i = state.history.length - 1; i >= 0; i--) {
+            const entry = state.history[i]
+            if (entry && entry.kind === 'move' && entry.cardKey === cardKey) {
+                state.history.splice(i, 1)
+                break
+            }
+        }
+        state.pinnedKey = cardKey
+        state.celebrated = false
+        if (state.busy) {
+            // Only the completion freeze holds `busy`; no decision can be in
+            // flight behind it, so bumping the generation is safe here.
+            state.busy = false
+            state.generation = ++this.columnTriageTokens
+        }
+        this.columnTriageSignature = null
+        this.renderColumnTriageOverlay()
+    }
+
+    /**
+     * ↑ — step back to the previously decided card, CANCELLING that decision
+     * (issue #170 follow-up): a keep rewinds the cursor; a move reinserts the
+     * card at the cursor and writes its pre-decision status back under the
+     * same optimistic contract as the decision itself — the restored card
+     * renders immediately, the write settles in the background, and a failure
+     * reconciles after the fact. A pass frozen in its completion celebration
+     * is thawed (the generation bump cancels the scheduled auto-exit), so the
+     * final decision stays reversible until the pass actually exits.
+     */
+    private columnTriageStepBack(): void {
+        const state = this.columnTriage
+        if (!state || !this.rootEl) return
+        const entry = state.history.pop()
+        if (!entry) return
+        if (state.busy) {
+            state.busy = false
+            state.generation = ++this.columnTriageTokens
+        }
+        if (entry.kind === 'keep') {
+            state.index = Math.max(0, state.index - 1)
+            state.kept = Math.max(0, state.kept - 1)
+            state.celebrated = false
+            this.columnTriageSignature = null
+        } else {
+            const card = this.cardsByKey.get(entry.cardKey)
+            if (!card) {
+                // The moved card left the board entirely (auto-archived,
+                // deleted) — there is nothing to restore or re-decide.
+                new Notice('Cannot step back — the card left the board.')
+                this.columnTriageSignature = null
+            } else {
+                if (!state.queue.includes(entry.cardKey)) {
+                    state.queue.splice(Math.min(state.index, state.queue.length), 0, entry.cardKey)
+                    state.completed = Math.max(0, state.completed - 1)
+                }
+                state.celebrated = false
+                this.columnTriageSignature = null
+                void (async (): Promise<boolean> => {
                     try {
-                        // setCardStatus reports persistence failures as
-                        // `false` (it swallows the exception internally and
-                        // re-derives the board — v2 review F1).
                         return await this.setCardStatus(
                             card,
-                            decision.target.statusValue,
-                            decision.target.id
+                            entry.previousStatus,
+                            entry.previousColumnId
                         )
                     } catch {
                         return false
                     }
-                })()
-                await animation
-                if (this.columnTriage !== state || state.generation !== generation) return
-                if (ok) {
-                    state.queue = state.queue.filter((k) => k !== card.key)
-                    state.completed += 1
-                    state.pinnedKey = null
-                    if (celebrate) {
-                        // Burst on the STABLE host, not the overlay — the
-                        // re-render right after this remounts the overlay and
-                        // would destroy the canvas mid-burst (v2 review F5).
-                        burstConfetti(host)
-                        state.celebrated = true
-                    } else {
-                        state.celebrated = false
-                    }
-                } else {
-                    // applyMove already notified and kicked off the failure
-                    // rebuild; the pin keeps the card in the pass while the
-                    // optimistic (wrong) status briefly filters it out.
-                    state.pinnedKey = card.key
-                }
-            }
-        } finally {
-            if (this.columnTriage === state && state.generation === generation) {
-                state.busy = false
-                this.columnTriageSignature = null
-                this.renderColumnTriageOverlay()
+                })().then((ok) => {
+                    if (!ok) this.reconcileColumnTriageFailedStepBack(state, entry.cardKey)
+                })
             }
         }
+        this.renderColumnTriageOverlay()
+    }
+
+    /**
+     * The step-back's restore write failed: the card is still in its moved-to
+     * column on disk, so it leaves the pass again and counts as completed
+     * again (applyMove already notified and re-derived the board).
+     */
+    private reconcileColumnTriageFailedStepBack(state: ColumnTriagePass, cardKey: string): void {
+        if (this.columnTriage !== state) return
+        if (state.queue.includes(cardKey)) {
+            state.queue = state.queue.filter((k) => k !== cardKey)
+            state.completed += 1
+        }
+        state.celebrated = false
+        this.columnTriageSignature = null
+        this.renderColumnTriageOverlay()
     }
 
     /**
      * Mount (or re-mount) the column-triage overlay in the STABLE view root
      * (rootEl survives every board re-render). Gated by a render signature
      * so board rebuilds and late metadata echoes with identical inputs are
-     * no-ops, and by `busy` so an in-flight decision animation is never torn
-     * down (v2 review F1/F2).
+     * no-ops (v2 review F1/F2), and by `busy` so the completion celebration
+     * is never torn down. Decision animations play on a detached ghost, so
+     * remounts can't interrupt them.
      */
     private renderColumnTriageOverlay(): void {
         const host = this.rootEl
@@ -3586,7 +3726,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
                 onMove: (direction) => {
                     const target = direction === -1 ? previous : next
                     if (!target) return
-                    void this.columnTriageDecide(card, {
+                    this.columnTriageDecide(card, {
                         kind: 'move',
                         target,
                         direction: direction === -1 ? 'left' : 'right'
@@ -3600,13 +3740,18 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
                         (c) => c.statusValue === card.statusValue
                     )
                     const targetIndex = columns.findIndex((c) => c.id === chipId)
-                    void this.columnTriageDecide(card, {
+                    this.columnTriageDecide(card, {
                         kind: 'move',
                         target,
                         direction: targetIndex < currentIndex ? 'left' : 'right'
                     })
                 },
-                onKeep: () => void this.columnTriageDecide(card, { kind: 'keep' }),
+                onKeep: () => {
+                    this.columnTriageDecide(card, { kind: 'keep' })
+                },
+                onStepBack: () => {
+                    this.columnTriageStepBack()
+                },
                 onMenu: (event) => this.showCardMenu(card, event)
             }
         )

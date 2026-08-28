@@ -3553,6 +3553,18 @@
         user-select: none;
     }
 
+    /* The decision ghost: a clone of the just-decided face, absolutely
+       positioned on the stable root (above the overlay, below confetti) so
+       the fly-out keeps playing while the overlay already shows the next
+       card (optimistic advance). Inert by construction. */
+    .kap-root > .kap-coltriage-ghost {
+        position: absolute;
+        margin: 0;
+        z-index: 55;
+        pointer-events: none;
+        transition: none;
+    }
+
     /* The fly-out waits for the stamp slam (delay = the stamp's duration),
        so the sequence reads stamp → depart, not both at once. */
     .kap-root .kap-coltriage-out-left {

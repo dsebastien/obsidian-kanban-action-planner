@@ -76,6 +76,8 @@ export interface ColumnTriageCallbacks {
     onChooseChip(chipId: string): void
     /** Keep the card where it is and advance. */
     onKeep(): void
+    /** Step back to the previously decided card, cancelling that decision. */
+    onStepBack(): void
     /** Open the full card menu (right-click). */
     onMenu(event: MouseEvent): void
 }
@@ -88,48 +90,63 @@ export interface ColumnTriageDecisionAnimation {
     stampColor: string | null
 }
 
-/** Remove the column-triage overlay from `host`. */
+/** Remove the column-triage overlay (and any in-flight decision ghost) from `host`. */
 export function removeColumnTriageView(host: HTMLElement): void {
     host.querySelector(':scope > .kap-coltriage')?.remove()
+    for (const ghost of Array.from(host.querySelectorAll(':scope > .kap-coltriage-ghost'))) {
+        ghost.remove()
+    }
     // The focus overlay (issue #160) shares the host class — keep it while
     // a focus overlay is still mounted.
     if (!host.querySelector(':scope > .kap-focus')) host.removeClass('kap-focus-open')
 }
 
 /**
- * Play the decision animation on the CURRENT overlay DOM: a passport-stamp
- * slam (destination label, tinted with the destination color) followed by
- * the face flying out in the decision direction. Resolves on the named
- * fly-out `animationend` (or an owning-window timeout — idempotent), and
- * immediately under reduced motion or when no face is mounted.
+ * Play the decision animation on a detached GHOST so the pass can advance
+ * optimistically: the current face is cloned at its exact on-screen position,
+ * appended to the stable host OUTSIDE the overlay root (the immediate
+ * re-render with the next card cannot tear it down), and plays the
+ * passport-stamp slam plus fly-out while the real overlay already shows the
+ * next card. Cloning copies classes but not listeners, and the ghost CSS
+ * disables pointer events, so the clone is inert. It removes itself on the
+ * named fly-out `animationend` (or an owning-window timeout — idempotent).
+ * No-op under reduced motion or when no face is mounted.
  */
-export function animateColumnTriageDecision(
+export function spawnColumnTriageDecisionGhost(
     host: HTMLElement,
     animation: ColumnTriageDecisionAnimation
-): Promise<void> {
-    const face = host.querySelector<HTMLElement>('.kap-coltriage-face')
-    if (!face) return Promise.resolve()
+): void {
+    // Scoped to the overlay root: a still-flying ghost of a previous decision
+    // also carries the face class and must never be re-cloned.
+    const face = host.querySelector<HTMLElement>(':scope > .kap-coltriage .kap-coltriage-face')
+    if (!face) return
     const win = face.win
-    if (win.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-        return Promise.resolve()
-    }
-    const stamp = face.createDiv({ cls: 'kap-coltriage-stamp', text: animation.stampLabel })
+    if (win.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    const faceRect = face.getBoundingClientRect()
+    const hostRect = host.getBoundingClientRect()
+    const ghost = face.cloneNode(true) as HTMLElement
+    ghost.addClass('kap-coltriage-ghost')
+    ghost.setCssProps({
+        left: `${String(faceRect.left - hostRect.left)}px`,
+        top: `${String(faceRect.top - hostRect.top)}px`,
+        width: `${String(faceRect.width)}px`
+    })
+    const stamp = ghost.createDiv({ cls: 'kap-coltriage-stamp', text: animation.stampLabel })
     if (animation.stampColor) stamp.setCssProps({ '--kap-stamp-color': animation.stampColor })
     const flyClass = `kap-coltriage-out-${animation.direction}`
     const flyName = `kap-coltriage-fly-${animation.direction}`
-    face.addClass(flyClass)
-    return new Promise((resolve) => {
-        let settled = false
-        const finish = (): void => {
-            if (settled) return
-            settled = true
-            resolve()
-        }
-        face.addEventListener('animationend', (e) => {
-            if (e.target === face && e.animationName === flyName) finish()
-        })
-        win.setTimeout(finish, ANIMATION_TIMEOUT_MS)
+    ghost.addClass(flyClass)
+    host.appendChild(ghost)
+    let removed = false
+    const remove = (): void => {
+        if (removed) return
+        removed = true
+        ghost.remove()
+    }
+    ghost.addEventListener('animationend', (e) => {
+        if (e.target === ghost && e.animationName === flyName) remove()
     })
+    win.setTimeout(remove, ANIMATION_TIMEOUT_MS)
 }
 
 /**
@@ -234,7 +251,7 @@ function renderFace(
     }
     face.createDiv({
         cls: 'kap-focus-hints',
-        text: '1-9 status · ← / → move · ↓ keep · Esc exit · O open · or drag the card'
+        text: '1-9 status · ← / → move · ↓ keep · ↑ back · Esc exit · O open · or drag the card'
     })
 }
 
@@ -349,6 +366,11 @@ function handleKey(
     if (e.key === 'ArrowDown' || e.key === ' ') {
         e.preventDefault()
         callbacks.onKeep()
+        return
+    }
+    if (e.key === 'ArrowUp') {
+        e.preventDefault()
+        callbacks.onStepBack()
         return
     }
     if (e.key === 'o' || e.key === 'O') {
