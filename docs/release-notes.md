@@ -1,5 +1,11 @@
 # Release Notes
 
+## 1.18.1 (2026-08-28)
+
+### Bug Fixes
+
+- column-triage drop-zone feedback invisible under Obsidian's unlayered button styles
+
 ## 1.18.0 (2026-08-28)
 
 ### Features
