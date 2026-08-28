@@ -141,3 +141,12 @@ findings accepted; resolutions:
 13. **Comprehension** (reviewer suggestion): the stamp is tinted with the destination
     column's color, chip moves fly left/right by relative column position, and Keep is
     labelled "Keep in <status>".
+
+## Performance follow-up (2026-08-28)
+
+Measured (live vault, 200-card column): each move decision froze the main thread
+210–880ms — 4 forced full-board reflows (ghost `getBoundingClientRect`, equalize ×2,
+overlay `focus()`), all behind the opaque overlay. Fix: `applyFilterAndRenderInner`
+skips the board DOM pass while `columnTriage` is active (model still refreshed — the
+overlay reads it); `exitColumnTriage` clears `lastRenderSignature` and renders the
+catch-up pass (skipped on unload). After: moves 50–98ms, same as keeps.

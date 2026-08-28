@@ -898,7 +898,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
 
     override onunload(): void {
         // Pops the pushed Esc keymap scope (a leaked scope outlives the view).
-        this.exitColumnTriage()
+        this.exitColumnTriage(false)
         this.plugin.untrackKanbanView(this)
         this.resizeObserver?.disconnect()
         this.resizeObserver = null
@@ -1490,6 +1490,17 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         // editing an aggregated property re-renders even though nothing in the
         // card signatures changed (issue #23).
         this.aggregateLabels = this.computeColumnAggregates(board)
+        // Column triage covers the board with an OPAQUE full-pane overlay, so
+        // the DOM pass below — patchBoard and its forced full-board reflows
+        // (equalize, anchors, refocus) — would be invisible work on every
+        // decision (measured 200–880ms per move on a 200-card column). The
+        // model above stays fresh (the overlay renders from it); the DOM pass
+        // is deferred to exitColumnTriage, which clears the signature so the
+        // catch-up render can never be gated away.
+        if (this.columnTriage) {
+            this.lastRenderSignature = null
+            return
+        }
         // The board MODEL above is always refreshed (handlers resolve cards
         // through it and cardsByKey), but when nothing the render would draw
         // changed, the DOM pass and its side effects are skipped.
@@ -3390,8 +3401,14 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         this.renderColumnTriageOverlay()
     }
 
-    /** Leave column triage: drop the pass, its overlay, and its Esc scope. */
-    private exitColumnTriage(): void {
+    /**
+     * Leave column triage: drop the pass, its overlay, and its Esc scope, then
+     * catch the board DOM up — every board DOM pass was skipped while the
+     * opaque overlay covered it (see the gate in applyFilterAndRenderInner).
+     * `renderBoard=false` only on unload, where a render would be dead work.
+     */
+    private exitColumnTriage(renderBoard = true): void {
+        const wasActive = this.columnTriage !== null
         if (this.columnTriage) this.columnTriage.generation = ++this.columnTriageTokens
         this.columnTriage = null
         this.columnTriageSignature = null
@@ -3400,6 +3417,10 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             this.columnTriageScope = null
         }
         if (this.rootEl) removeColumnTriageView(this.rootEl)
+        if (wasActive && renderBoard) {
+            this.lastRenderSignature = null
+            this.applyFilterAndRender()
+        }
     }
 
     /**
