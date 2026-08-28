@@ -92,8 +92,11 @@ When a new business rule is mentioned:
    (`applyChipStyle`) and the stylesheet does the rest. Set in the plugin settings tab; **not** a
    per-view option.
    8a. **Uniform card size.** All cards are the same height board-wide, sized to the
-   content-tallest card's natural height (recomputed on every rebuild and on container
-   resize; published as the `--kap-card-height` CSS var, applied as `min-height`). No card
+   content-tallest card's natural height (recomputed on container resize and whenever a
+   height input changes — visible card content, visible column structure, collapse state,
+   compact flag — via `boardHeightsSignature`; a pure move/reorder skips the re-measure,
+   its two full-board style invalidations being the DOM pass's dominant cost — approved
+   2026-08-28. Published as the `--kap-card-height` CSS var, applied as `min-height`). No card
    content is ever clipped — cards keep their natural height (`flex: none` so the
    height-constrained column scrolls instead of shrinking cards); sparser cards get matching
    whitespace.

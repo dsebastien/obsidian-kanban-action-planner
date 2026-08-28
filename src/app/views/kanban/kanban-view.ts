@@ -169,7 +169,8 @@ import {
     boardRenderSignature,
     cardSignature,
     composeCardsSignature,
-    renderPassSignature
+    renderPassSignature,
+    structureSignature
 } from '../../ui/board/signatures'
 import { applyUniformCardHeight } from '../../ui/board/card-equalize'
 import { BoardDnd } from '../../ui/board/dnd-controller'
@@ -564,6 +565,11 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
      * 5.5). -1 = never equalized.
      */
     private lastEqualizeWidth = -1
+    // Height-input signature of the last equalize pass (see
+    // boardHeightsSignature): the DOM pass skips the clear→measure→set cycle —
+    // two full-board style/layout invalidations — when nothing that can change
+    // a card's natural height changed (e.g. a pure move/reorder).
+    private lastHeightsSignature: string | null = null
 
     constructor(
         controller: QueryController,
@@ -1391,6 +1397,12 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         // once (e.g. a view whose .base opens straight into WBS).
         this.columns = columnsFromValues(this.resolveColumnValues(), this.noteType, true)
 
+        // Any non-board pass blinds the equalize gate: while the board DOM is
+        // unmounted, widths/styles can change without a board measurement
+        // (resize, chip-style settings), so the next board pass must always
+        // re-measure (adversarial review 2026-08-28, finding 2).
+        if (this.viewMode() !== 'board') this.lastHeightsSignature = null
+
         if (this.triageMode()) {
             // Triage keeps its own no-op guard inside renderTriage
             // (lastTriageSignature, computed from the actual triage data —
@@ -1562,10 +1574,18 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         if (anchors) this.restoreColumnAnchors(anchors)
         this.selection?.refresh()
 
-        // All cards share one height (the tallest card's), recomputed here since
-        // the card set / content just changed. Synchronous (before paint) so
-        // cards never flash at uneven heights.
-        this.equalizeCardHeights()
+        // All cards share one height (the tallest card's). Synchronous (before
+        // paint) so cards never flash at uneven heights — but ONLY when a
+        // height input actually changed: the clear→measure→set cycle costs two
+        // full-board style/layout invalidations, which dominate the DOM pass
+        // on stylesheet-heavy vaults, and a pure move/reorder cannot change
+        // any card's natural height (rule 8a, recompute trigger narrowed
+        // 2026-08-28 with owner approval).
+        const heightsSignature = this.boardHeightsSignature()
+        if (heightsSignature !== this.lastHeightsSignature) {
+            this.lastHeightsSignature = heightsSignature
+            this.equalizeCardHeights()
+        }
         // AFTER equalize (issue #105, finding N2): the refocus reveal-scroll
         // must be computed against the final layout — before it, equalize
         // invalidates the scroll and the focus scroll can override the
@@ -1871,8 +1891,55 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
      * Make every card the same size board-wide by sizing them to the tallest
      * card's natural height. Board mode only — the calendar has no cards.
      */
+    /**
+     * Signature of every input that can change a card's NATURAL height:
+     * each visible card's content signature (accent excluded — color never
+     * affects height; SORTED, so moves/reorders that only reposition cards
+     * compare equal), the visible lane/column structure (columns flex-grow,
+     * so the visible column set drives card width), the collapse state
+     * (collapsed cards measure 0 and drop out of the shared max), and the
+     * compact flag. Container width changes are handled separately by the
+     * resize path ({@link onResize} re-equalizes on a width change), and the
+     * chrome settings path calls {@link equalizeCardHeights} directly.
+     */
+    private boardHeightsSignature(): string {
+        const board = this.board
+        if (!board) return ''
+        const contents: string[] = []
+        for (const lane of board.lanes) {
+            if (this.collapsedLanes.has(lane.lane.id)) continue
+            // Card width is PER LANE (columns flex within their own lane
+            // row), so a cross-lane move between lanes with different column
+            // shapes re-wraps the card. Key each entry by the lane's
+            // width-determining shape: rendered column count + how many of
+            // them are collapsed (adversarial review 2026-08-28, finding 1).
+            const collapsedInLane = lane.columns.filter((c) =>
+                this.collapsedColumns.has(c.column.id)
+            ).length
+            const laneShape = `${String(lane.columns.length)}.${String(collapsedInLane)}`
+            for (const { column, cards } of lane.columns) {
+                if (this.collapsedColumns.has(column.id)) continue
+                for (const card of cards) {
+                    contents.push(`${laneShape}|${cardSignature(card, '')}`)
+                }
+            }
+        }
+        contents.sort()
+        return [
+            this.compactMode() && this.viewMode() === 'board' ? 'c' : '',
+            structureSignature(board),
+            [...this.collapsedLanes].sort().join(','),
+            [...this.collapsedColumns].sort().join(','),
+            contents.join('\u001e')
+        ].join('\u001f')
+    }
+
     private equalizeCardHeights(): void {
-        if (!this.boardEl || this.calendarMode() || this.wbsMode()) return
+        // Board mode only: no other mode mounts `.kap-card` elements, so a
+        // non-board call would measure nothing while still recording
+        // lastEqualizeWidth — blinding the resize re-measure that must fire
+        // when the board comes back (adversarial review 2026-08-28).
+        if (!this.boardEl || this.viewMode() !== 'board') return
         // Remember the width this pass measured at, so width-unchanged resize
         // ticks can skip the clear→measure→set cycle (issue #105, finding 5.5).
         this.lastEqualizeWidth = this.boardEl.offsetWidth
@@ -3752,6 +3819,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             host,
             {
                 columnLabel: state.label,
+                cardKey: card.key,
                 title: card.display.title,
                 fields: card.display.fields,
                 chips,

@@ -49,6 +49,9 @@ export interface ColumnTriageChip {
 export interface ColumnTriageData {
     /** The column being triaged (the pass's source). */
     columnLabel: string
+    /** The rendered card's identity — an in-place patch that changes it
+     * cancels any in-flight drag (the pointer was captured on another card). */
+    cardKey: string
     title: string
     /** Read-only property fields, straight from the card display. */
     fields: CardFieldView[]
@@ -122,14 +125,29 @@ export function spawnColumnTriageDecisionGhost(
     if (!face) return
     const win = face.win
     if (win.matchMedia('(prefers-reduced-motion: reduce)').matches) return
-    const faceRect = face.getBoundingClientRect()
-    const hostRect = host.getBoundingClientRect()
+    // The post-layout cache avoids forcing a synchronous whole-pane style
+    // recalc here: background passes (write echoes) can leave the layout
+    // dirty at decision time, and a live rect read then costs ~50ms on
+    // stylesheet-heavy vaults. Fallback to live rects when no frame has
+    // cached the position yet (a decision within the very first frame).
+    const cached = FACE_RECTS.get(face)
+    const position =
+        cached ??
+        ((): { left: number; top: number; width: number } => {
+            const faceRect = face.getBoundingClientRect()
+            const hostRect = host.getBoundingClientRect()
+            return {
+                left: faceRect.left - hostRect.left,
+                top: faceRect.top - hostRect.top,
+                width: faceRect.width
+            }
+        })()
     const ghost = face.cloneNode(true) as HTMLElement
     ghost.addClass('kap-coltriage-ghost')
     ghost.setCssProps({
-        left: `${String(faceRect.left - hostRect.left)}px`,
-        top: `${String(faceRect.top - hostRect.top)}px`,
-        width: `${String(faceRect.width)}px`
+        left: `${String(position.left)}px`,
+        top: `${String(position.top)}px`,
+        width: `${String(position.width)}px`
     })
     const stamp = ghost.createDiv({ cls: 'kap-coltriage-stamp', text: animation.stampLabel })
     if (animation.stampColor) stamp.setCssProps({ '--kap-stamp-color': animation.stampColor })
@@ -149,123 +167,196 @@ export function spawnColumnTriageDecisionGhost(
     win.setTimeout(remove, ANIMATION_TIMEOUT_MS)
 }
 
+/** The mutable render inputs every listener reads through (in-place patch). */
+interface ColumnTriageRef {
+    data: ColumnTriageData
+    callbacks: ColumnTriageCallbacks
+}
+
 /**
- * Render (or fully re-render) the column-triage overlay inside `host` (the
- * view's STABLE root element — it survives board re-renders, so only the
- * host view's signature gate decides when this runs). Keyboard: `1..9` jump
- * to a chip, ← / → move (carousel), ↓ / Space keep, O opens. Esc exits via
- * the host view's keymap scope (focus-independent), not a DOM listener.
+ * Host-relative face position, measured post-layout (rAF) after every
+ * render/patch, so {@link spawnColumnTriageDecisionGhost} never forces a
+ * synchronous reflow at decision time. Refreshed per decision; a pane resize
+ * mid-pass can leave it one frame stale, which only offsets the ghost's
+ * start position (cosmetic). GC'd with the face element.
+ */
+const FACE_RECTS = new WeakMap<HTMLElement, { left: number; top: number; width: number }>()
+
+/**
+ * In-place updaters for mounted overlays, keyed by overlay root. A re-render
+ * with a mounted overlay patches its data-driven DOM instead of remounting:
+ * on stylesheet-heavy vaults a full remount costs a whole-subtree style
+ * recalc per decision (~50–100ms measured), while the patch touches a
+ * handful of small elements. GC'd with the root element.
+ */
+const UPDATERS = new WeakMap<
+    HTMLElement,
+    (data: ColumnTriageData, callbacks: ColumnTriageCallbacks) => void
+>()
+
+/**
+ * Render the column-triage overlay inside `host` (the view's STABLE root
+ * element — it survives board re-renders, so only the host view's signature
+ * gate decides when this runs). A mounted overlay is patched IN PLACE (see
+ * {@link UPDATERS}); the full skeleton is built once per pass. Keyboard:
+ * `1..9` jump to a chip, ← / → move (carousel), ↓ / Space keep, O opens.
+ * Esc exits via the host view's keymap scope (focus-independent), not a DOM
+ * listener.
  */
 export function renderColumnTriageView(
     host: HTMLElement,
     data: ColumnTriageData,
     callbacks: ColumnTriageCallbacks
 ): void {
-    host.querySelector(':scope > .kap-coltriage')?.remove()
+    const mounted = host.querySelector<HTMLElement>(':scope > .kap-coltriage')
+    if (mounted) {
+        const update = UPDATERS.get(mounted)
+        if (update) {
+            update(data, callbacks)
+            return
+        }
+        mounted.remove()
+    }
     host.addClass('kap-focus-open')
+    const ref: ColumnTriageRef = { data, callbacks }
     const root = host.createDiv({ cls: 'kap-focus kap-coltriage', attr: { tabindex: '-1' } })
 
-    root.addEventListener('keydown', (e) => handleKey(e, data, callbacks))
+    root.addEventListener('keydown', (e) => handleKey(e, ref.data, ref.callbacks))
     root.addEventListener('contextmenu', (e) => {
         e.preventDefault()
-        callbacks.onMenu(e)
+        ref.callbacks.onMenu(e)
     })
 
-    renderHeader(root, data, callbacks)
-
-    const body = root.createDiv({ cls: 'kap-coltriage-body' })
-    const leftRail = renderRail(body, -1, data.previousLabel, callbacks)
-
-    // Center: the card stack (face + up to two peeking cards) above the
-    // STATIONARY action tray (chips + Keep) — only the face ever moves.
-    const center = body.createDiv({ cls: 'kap-coltriage-center' })
-    const stack = center.createDiv({ cls: 'kap-coltriage-stack' })
-    for (let i = data.stackTitles.length - 1; i >= 0; i--) {
-        const peek = stack.createDiv({
-            cls: `kap-coltriage-peek kap-coltriage-peek-${String(i + 1)}`
-        })
-        peek.createDiv({ cls: 'kap-coltriage-peek-title', text: data.stackTitles[i] ?? '' })
-    }
-    const face = stack.createDiv({ cls: 'kap-focus-card kap-coltriage-face' })
-    renderFace(face, data, callbacks)
-    const tray = renderTray(center, data, callbacks)
-
-    const rightRail = renderRail(body, 1, data.nextLabel, callbacks)
-
-    attachDrag(root, face, data, callbacks, { left: leftRail, right: rightRail, tray })
-
-    root.focus({ preventScroll: true })
-}
-
-/** Header: source column, decisions-done counter, progress bar, exit. */
-function renderHeader(
-    root: HTMLElement,
-    data: ColumnTriageData,
-    callbacks: ColumnTriageCallbacks
-): void {
+    // ── Static skeleton (built once per pass) ─────────────────
     const header = root.createDiv({ cls: 'kap-focus-header' })
-    header.createSpan({
-        cls: 'kap-focus-count',
-        text: `${String(Math.min(data.done + 1, data.total))} / ${String(data.total)}`
-    })
-    header.createSpan({
-        cls: 'kap-focus-mode-label',
-        text: `Column triage — ${data.columnLabel}`
-    })
+    const countEl = header.createSpan({ cls: 'kap-focus-count' })
+    const modeEl = header.createSpan({ cls: 'kap-focus-mode-label' })
     const exit = header.createEl('button', {
         cls: 'kap-triage-icon-btn',
         attr: { 'aria-label': 'Exit column triage (Esc)', 'title': 'Exit column triage (Esc)' }
     })
     setIcon(exit, 'x')
-    exit.addEventListener('click', () => callbacks.onExit())
-    const pct = data.total > 0 ? Math.round((data.done / data.total) * 100) : 0
+    exit.addEventListener('click', () => ref.callbacks.onExit())
     const bar = root.createDiv({ cls: 'kap-triage-progress' })
-    bar.createDiv({ cls: 'kap-triage-progress-fill' }).setCssProps({
-        '--kap-progress': `${String(pct)}%`
-    })
-}
+    const fill = bar.createDiv({ cls: 'kap-triage-progress-fill' })
 
-/** The moving card face: title, open button, read-only fields, hints. */
-function renderFace(
-    face: HTMLElement,
-    data: ColumnTriageData,
-    callbacks: ColumnTriageCallbacks
-): void {
+    const body = root.createDiv({ cls: 'kap-coltriage-body' })
+    const leftRail = buildRail(body, -1, ref)
+
+    // Center: the card stack (face + up to two peeking cards) above the
+    // STATIONARY action tray (chips + Keep) — only the face ever moves.
+    const center = body.createDiv({ cls: 'kap-coltriage-center' })
+    const stack = center.createDiv({ cls: 'kap-coltriage-stack' })
+    const face = stack.createDiv({ cls: 'kap-focus-card kap-coltriage-face' })
     const titleRow = face.createDiv({ cls: 'kap-focus-title-row' })
-    titleRow.createEl('h2', { cls: 'kap-focus-title', text: data.title })
+    const titleEl = titleRow.createEl('h2', { cls: 'kap-focus-title' })
     const open = titleRow.createEl('button', {
         cls: 'kap-triage-open',
         attr: { 'aria-label': 'Open note (O)', 'title': 'Open note (O)' }
     })
     setIcon(open.createSpan({ cls: 'kap-triage-open-icon' }), 'square-arrow-out-up-right')
     open.createSpan({ text: 'Open' })
-    open.addEventListener('click', (e) => callbacks.onOpen(e.ctrlKey || e.metaKey))
-    if (data.fields.length > 0) {
-        const ctx = face.createDiv({ cls: 'kap-triage-context' })
-        for (const field of data.fields) {
-            const chip = ctx.createDiv({ cls: 'kap-triage-context-field' })
+    open.addEventListener('click', (e) => ref.callbacks.onOpen(e.ctrlKey || e.metaKey))
+    const fieldsEl = face.createDiv({ cls: 'kap-triage-context' })
+    face.createDiv({
+        cls: 'kap-focus-hints',
+        text: '1-9 status · ← / → move · ↓ keep · ↑ back · Esc exit · O open · or drag the card'
+    })
+
+    const tray = center.createDiv({ cls: 'kap-coltriage-tray' })
+    const chipsEl = tray.createDiv({ cls: 'kap-coltriage-chips', attr: { role: 'group' } })
+    const keep = tray.createEl('button', {
+        cls: 'kap-triage-skip kap-coltriage-keep',
+        attr: {
+            'type': 'button',
+            'title': 'Keep here and advance (↓ or Space)',
+            'aria-keyshortcuts': 'ArrowDown Space',
+            'data-coltriage-drop': 'keep'
+        }
+    })
+    setIcon(keep.createSpan({ cls: 'kap-triage-action-icon' }), 'chevrons-down')
+    const keepLabelEl = keep.createSpan()
+    keep.addEventListener('click', () => ref.callbacks.onKeep())
+
+    const rightRail = buildRail(body, 1, ref)
+
+    // ── Data-driven pass (initial render + every in-place patch) ──
+    const apply = (): void => {
+        const d = ref.data
+        countEl.setText(`${String(Math.min(d.done + 1, d.total))} / ${String(d.total)}`)
+        modeEl.setText(`Column triage — ${d.columnLabel}`)
+        const pct = d.total > 0 ? Math.round((d.done / d.total) * 100) : 0
+        fill.setCssProps({ '--kap-progress': `${String(pct)}%` })
+
+        // Peeks sit BEHIND the face in DOM order — rebuild them before it.
+        for (const peek of Array.from(stack.querySelectorAll(':scope > .kap-coltriage-peek'))) {
+            peek.remove()
+        }
+        for (let i = d.stackTitles.length - 1; i >= 0; i--) {
+            const peek = stack.createDiv({
+                cls: `kap-coltriage-peek kap-coltriage-peek-${String(i + 1)}`
+            })
+            peek.createDiv({ cls: 'kap-coltriage-peek-title', text: d.stackTitles[i] ?? '' })
+            stack.insertBefore(peek, face)
+        }
+
+        titleEl.setText(d.title)
+        fieldsEl.empty()
+        fieldsEl.toggleClass('kap-hidden', d.fields.length === 0)
+        for (const field of d.fields) {
+            const chip = fieldsEl.createDiv({ cls: 'kap-triage-context-field' })
             if (field.label) {
                 chip.createSpan({ cls: 'kap-triage-context-label', text: `${field.label}: ` })
             }
             chip.createSpan({ cls: 'kap-triage-context-value', text: field.text })
         }
+
+        renderChips(chipsEl, d, ref)
+        keepLabelEl.setText(d.keepLabel)
+        applyRail(leftRail, -1, d.previousLabel)
+        applyRail(rightRail, 1, d.nextLabel)
     }
-    face.createDiv({
-        cls: 'kap-focus-hints',
-        text: '1-9 status · ← / → move · ↓ keep · ↑ back · Esc exit · O open · or drag the card'
+
+    // Cache the face position once layout has settled (see FACE_RECTS).
+    const cacheFaceRect = (): void => {
+        face.win.requestAnimationFrame(() => {
+            if (!face.isConnected) return
+            const faceRect = face.getBoundingClientRect()
+            const hostRect = host.getBoundingClientRect()
+            FACE_RECTS.set(face, {
+                left: faceRect.left - hostRect.left,
+                top: faceRect.top - hostRect.top,
+                width: faceRect.width
+            })
+        })
+    }
+
+    apply()
+    const cancelDrag = attachDrag(root, face, ref, { left: leftRail, right: rightRail, tray })
+    UPDATERS.set(root, (nextData, nextCallbacks) => {
+        // A patch that swaps the CARD must kill any captured drag first, or
+        // releasing the original pointer would act on the NEW card (the old
+        // remount discarded the face and its capture — adversarial review
+        // 2026-08-28, finding 3). Same-card patches keep the drag alive.
+        if (nextData.cardKey !== ref.data.cardKey) cancelDrag()
+        ref.data = nextData
+        ref.callbacks = nextCallbacks
+        apply()
+        // Behavior parity with the old remount: each decision re-centers
+        // keyboard focus on the overlay root.
+        root.focus({ preventScroll: true })
+        cacheFaceRect()
     })
+
+    root.focus({ preventScroll: true })
+    cacheFaceRect()
 }
 
-/** The stationary action tray: one chip per status + Keep. */
-function renderTray(
-    center: HTMLElement,
-    data: ColumnTriageData,
-    callbacks: ColumnTriageCallbacks
-): HTMLElement {
-    const tray = center.createDiv({ cls: 'kap-coltriage-tray' })
-    const chips = tray.createDiv({ cls: 'kap-coltriage-chips', attr: { role: 'group' } })
+/** (Re)build the status chips row: one chip per status of the card's type. */
+function renderChips(chipsEl: HTMLElement, data: ColumnTriageData, ref: ColumnTriageRef): void {
+    chipsEl.empty()
     for (const chip of data.chips) {
-        const btn = chips.createEl('button', {
+        const btn = chipsEl.createEl('button', {
             cls: chip.current
                 ? 'kap-coltriage-chip kap-coltriage-chip-current'
                 : 'kap-coltriage-chip',
@@ -287,30 +378,12 @@ function renderTray(
             btn.createSpan({ cls: 'kap-coltriage-chip-key', text: String(chip.ordinal) })
         }
         if (chip.current) btn.disabled = true
-        else btn.addEventListener('click', () => callbacks.onChooseChip(chip.id))
+        else btn.addEventListener('click', () => ref.callbacks.onChooseChip(chip.id))
     }
-    const keep = tray.createEl('button', {
-        cls: 'kap-triage-skip kap-coltriage-keep',
-        attr: {
-            'type': 'button',
-            'title': 'Keep here and advance (↓ or Space)',
-            'aria-keyshortcuts': 'ArrowDown Space',
-            'data-coltriage-drop': 'keep'
-        }
-    })
-    setIcon(keep.createSpan({ cls: 'kap-triage-action-icon' }), 'chevrons-down')
-    keep.createSpan({ text: data.keepLabel })
-    keep.addEventListener('click', () => callbacks.onKeep())
-    return tray
 }
 
-/** One full-height side rail, labelled with its carousel destination. */
-function renderRail(
-    body: HTMLElement,
-    direction: -1 | 1,
-    label: string | null,
-    callbacks: ColumnTriageCallbacks
-): HTMLElement {
+/** Build one full-height side rail's static skeleton (labelled by applyRail). */
+function buildRail(body: HTMLElement, direction: -1 | 1, ref: ColumnTriageRef): HTMLElement {
     const rail = body.createEl('button', {
         cls:
             direction === -1
@@ -318,22 +391,34 @@ function renderRail(
                 : 'kap-coltriage-rail kap-coltriage-rail-right',
         attr: {
             'type': 'button',
-            'title':
-                label === null
-                    ? 'No other status column'
-                    : `Move to ${label} (${direction === -1 ? '←' : '→'})`,
-            'aria-keyshortcuts': direction === -1 ? 'ArrowLeft' : 'ArrowRight',
-            ...(label === null ? {} : { 'data-coltriage-drop': `move:${String(direction)}` })
+            'aria-keyshortcuts': direction === -1 ? 'ArrowLeft' : 'ArrowRight'
         }
     })
-    if (label === null) rail.disabled = true
     setIcon(
         rail.createSpan({ cls: 'kap-triage-action-icon' }),
         direction === -1 ? 'arrow-left' : 'arrow-right'
     )
-    rail.createSpan({ cls: 'kap-coltriage-rail-label', text: label ?? '–' })
-    rail.addEventListener('click', () => callbacks.onMove(direction))
+    rail.createSpan({ cls: 'kap-coltriage-rail-label' })
+    rail.addEventListener('click', () => ref.callbacks.onMove(direction))
     return rail
+}
+
+/** Stamp a rail's carousel destination (or disable it when there is none). */
+function applyRail(rail: HTMLElement, direction: -1 | 1, label: string | null): void {
+    rail.setAttribute(
+        'title',
+        label === null
+            ? 'No other status column'
+            : `Move to ${label} (${direction === -1 ? '←' : '→'})`
+    )
+    if (label === null) {
+        rail.setAttribute('disabled', '')
+        rail.removeAttribute('data-coltriage-drop')
+    } else {
+        rail.removeAttribute('disabled')
+        rail.setAttribute('data-coltriage-drop', `move:${String(direction)}`)
+    }
+    rail.querySelector(':scope > .kap-coltriage-rail-label')?.setText(label ?? '–')
 }
 
 /** Keyboard triage; leaves focused controls and typing surfaces alone. */
@@ -393,10 +478,9 @@ function handleKey(
 function attachDrag(
     root: HTMLElement,
     face: HTMLElement,
-    data: ColumnTriageData,
-    callbacks: ColumnTriageCallbacks,
+    ref: ColumnTriageRef,
     zones: { left: HTMLElement; right: HTMLElement; tray: HTMLElement }
-): void {
+): () => void {
     let startX = 0
     let startY = 0
     let pointerId = -1
@@ -436,10 +520,10 @@ function attachDrag(
     }
     const dispatch = (target: HTMLElement): void => {
         const drop = target.dataset['coltriageDrop'] ?? ''
-        if (drop === 'keep') callbacks.onKeep()
-        else if (drop === 'move:-1') callbacks.onMove(-1)
-        else if (drop === 'move:1') callbacks.onMove(1)
-        else if (drop.startsWith('chip:')) callbacks.onChooseChip(drop.slice('chip:'.length))
+        if (drop === 'keep') ref.callbacks.onKeep()
+        else if (drop === 'move:-1') ref.callbacks.onMove(-1)
+        else if (drop === 'move:1') ref.callbacks.onMove(1)
+        else if (drop.startsWith('chip:')) ref.callbacks.onChooseChip(drop.slice('chip:'.length))
     }
 
     face.addEventListener('pointerdown', (e) => {
@@ -475,8 +559,8 @@ function attachDrag(
             return
         }
         const preview = classifySwipe(dx, dy, SWIPE_THRESHOLD)
-        if (preview === 'left' && data.previousLabel !== null) armTarget(zones.left)
-        else if (preview === 'right' && data.nextLabel !== null) armTarget(zones.right)
+        if (preview === 'left' && ref.data.previousLabel !== null) armTarget(zones.left)
+        else if (preview === 'right' && ref.data.nextLabel !== null) armTarget(zones.right)
         else if (preview === 'down') armTarget(zones.tray)
         else armTarget(null)
     })
@@ -494,9 +578,9 @@ function attachDrag(
             return
         }
         const direction = classifySwipe(dx, dy, SWIPE_THRESHOLD)
-        if (direction === 'right' && data.nextLabel !== null) callbacks.onMove(1)
-        else if (direction === 'left' && data.previousLabel !== null) callbacks.onMove(-1)
-        else if (direction === 'down') callbacks.onKeep()
+        if (direction === 'right' && ref.data.nextLabel !== null) ref.callbacks.onMove(1)
+        else if (direction === 'left' && ref.data.previousLabel !== null) ref.callbacks.onMove(-1)
+        else if (direction === 'down') ref.callbacks.onKeep()
     })
     face.addEventListener('pointercancel', (e) => {
         if (e.pointerId === pointerId) reset()
@@ -504,4 +588,10 @@ function attachDrag(
     face.addEventListener('lostpointercapture', (e) => {
         if (e.pointerId === pointerId && tracking) reset()
     })
+    // Cancel hook for the in-place updater: after this, the released pointer
+    // is ignored (tracking is false), so a drag started on the previous card
+    // can never dispatch against the newly rendered one.
+    return () => {
+        reset()
+    }
 }

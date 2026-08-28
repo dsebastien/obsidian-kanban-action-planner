@@ -1,7 +1,23 @@
 # Board performance
 
-Status: INVESTIGATED (2026-08-28). Column-triage fix SHIPPED (655a5ea). Items below are
-proposed, not implemented.
+Status: IMPLEMENTED (2026-08-28). Column-triage board-pass gate shipped in 655a5ea; fixes
+1–3 below shipped the same day (equalize gate, in-place triage overlay patch, ghost rect
+cache). Measured after: plain-board move ≈ 10ms sync (was ~160ms); triage keep/move ≈
+1–2ms steady state (was 50–80ms / 210–880ms at baseline); transient ~40–100ms spikes
+remain only when a background echo pass dirtied layout right before a decision (bounded
+by one environment recalc; the rAF rect cache is throttled in unfocused windows, so
+automation sees it more than users do). Rule 8a's recompute trigger narrowed with owner
+approval (see Business Rules).
+
+Adversarial review (Codex gpt-5.6-sol, xhigh) confirmed 3 majors, all fixed:
+
+1. cross-lane moves can change card width (per-lane column shapes) → each height-signature
+   entry is prefixed with its lane's column-count.collapsed-count shape;
+2. non-board passes blinded the gate (resize/chip-style while board unmounted, stale
+   height on return) → `lastHeightsSignature` nulled on every non-board pass and
+   `equalizeCardHeights` guards to board mode only;
+3. an in-place patch could retarget a captured drag to the next card → `ColumnTriageData`
+   carries `cardKey` and the updater cancels the drag when it changes.
 
 ## Measurements (live vault, 200-card single-column fixture, v1.19.1+655a5ea)
 
@@ -28,7 +44,7 @@ raw probes for style recalc/reflow.
   subtree invalidations). Echo rebuild after a write ≈ 50–90ms task (derive + gated
   no-op render).
 
-## Proposed fixes (ranked)
+## Fixes (ranked; all three shipped)
 
 1. **Gate `equalizeCardHeights` on a height signature.** A pure move/reorder cannot change
    any card's natural height. Skip equalize when unchanged: sorted multiset of
@@ -36,9 +52,9 @@ raw probes for style recalc/reflow.
    non-collapsed columns/lanes + `structureSignature` (columns are `flex: 1 0 17rem`, so
    the visible column set changes card width) + collapse state + compact flag. Direct
    equalize calls (resize at width change, chrome settings) stay unconditional.
-   Effect: move interaction ~160ms → ~27ms. ⚠️ Touches Business Rule 8a ("recomputed on
+   Effect: move interaction ~160ms → ~27ms. Touches Business Rule 8a ("recomputed on
    every rebuild") — the uniform-height invariant is preserved, only the recompute trigger
-   narrows; needs owner sign-off. Residual risk: an external CSS change (theme/font
+   narrows; owner approved 2026-08-28. Residual risk: an external CSS change (theme/font
    toggle) that alters natural heights without a resize keeps the stale uniform height
    until the next content change.
 2. **Patch the column-triage overlay in place** instead of full remount per decision
