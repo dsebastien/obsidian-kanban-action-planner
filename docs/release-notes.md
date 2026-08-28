@@ -1,5 +1,11 @@
 # Release Notes
 
+## 1.19.1 (2026-08-28)
+
+### Bug Fixes
+
+- **plugin:** make Esc reliably exit column triage via a keymap scope
+
 ## 1.19.0 (2026-08-28)
 
 ### Features
