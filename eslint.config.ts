@@ -137,6 +137,7 @@ export default defineConfig([
                     // everything this codebase relies on is listed.
                     acronyms: [
                         'WBS',
+                        'GTD',
                         'WIP',
                         'TBD',
                         'API',
@@ -165,7 +166,6 @@ export default defineConfig([
                         // example capitalised; these are literal example values
                         '^Frontmatter property name \\(e\\.g\\. priority, urgency, effort\\)\\.$',
                         '^Values that count as unset \\(e\\.g\\. TBD, No Target\\), beyond empty/invalid\\.$',
-                        '^e\\.g\\. TBD$',
                         // Literal tags, lowercase by definition
                         '^#task, #action$',
                         // Multi-line placeholders showing sample status and
@@ -187,7 +187,12 @@ export default defineConfig([
                         // Same "e.g." parse on these two placeholders
                         '^Property \\(e\\.g\\. progress\\)$',
                         '^Tag \\(e\\.g\\. done\\)$',
-                        // Fleet-wide template copy, kept byte-identical
+                        // Fleet-wide template copy, kept byte-identical across
+                        // every plugin. The catalog reviewer's own ruleset WILL
+                        // report this line (it reads the phrase as ordinary
+                        // prose); changing it here alone would break that
+                        // invariant, so the wording is decided once in
+                        // obsidian-plugin-template and ported.
                         '^Obsidian, Personal Knowledge Management and note-taking, straight to your inbox and feed\\.$'
                     ]
                 }

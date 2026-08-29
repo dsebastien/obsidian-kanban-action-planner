@@ -67,3 +67,31 @@ describe('EXTERNAL_MODULES', () => {
         expect(EXTERNAL_MODULES.length).toBe(13)
     })
 })
+
+describe('readChangelogDefine', () => {
+    test('inlines CHANGELOG.md as a JSON string literal', async () => {
+        const { readChangelogDefine } = await import('./build')
+        const define = await readChangelogDefine()
+        const changelog = await Bun.file('CHANGELOG.md').text()
+        // The value is substituted verbatim into source, so it must be a JSON
+        // string literal that parses back to the exact file content. This is
+        // the catalog-build fix: the reviewer's older Bun cannot parse the
+        // markdown import attribute this replaced.
+        expect(JSON.parse(define['__PLUGIN_CHANGELOG__'] ?? '')).toBe(changelog)
+    })
+
+    test('falls back to an empty string when CHANGELOG.md is missing', async () => {
+        const { readChangelogDefine } = await import('./build')
+        const previousCwd = process.cwd()
+        const dir = `${previousCwd}/dist/.changelog-define-test`
+        await Bun.$`mkdir -p ${dir}`.quiet()
+        try {
+            process.chdir(dir)
+            const define = await readChangelogDefine()
+            expect(define['__PLUGIN_CHANGELOG__']).toBe('""')
+        } finally {
+            process.chdir(previousCwd)
+            await Bun.$`rm -rf ${dir}`.quiet()
+        }
+    })
+})

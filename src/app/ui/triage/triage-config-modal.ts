@@ -158,7 +158,7 @@ export class TriageConfigModal extends Modal {
         let draft = ''
         const adder = new Setting(this.body).setName('Add value')
         adder.addText((input) => {
-            input.setPlaceholder('e.g. TBD').onChange((v) => {
+            input.setPlaceholder('E.g. TBD').onChange((v) => {
                 draft = v
             })
             input.inputEl.addEventListener('keydown', (e) => {

@@ -94,3 +94,12 @@ All configuration surfaces are implemented and harmonized (M7): the global setti
 (defaults), the grouped Bases "Configure view" per-view options, and the gear "Configure board"
 shared note-type modal. Starter Kit mirroring, colors, cards, swimlanes, relationships, archiving,
 and calendar are all wired and persist through these surfaces.
+
+## Build and release coupling (catalog reviewer)
+
+Two constraints exist because the Obsidian community catalog reviewer builds the **git archive** with its own toolchain, not your working tree:
+
+- **`CHANGELOG.md` reaches the bundle through a bundler define, not an import.** `scripts/build.ts` reads the file and passes `__PLUGIN_CHANGELOG__` to `Bun.build`'s `define`; `src/app/whats-new.ts` declares that constant and guards it with `typeof` for the test and dev runtimes. The previous `import changelog from '../../CHANGELOG.md' with { type: 'text' }` fails outright on the older Bun the reviewer builds with. For the same reason `.gitattributes` must NOT export-ignore `CHANGELOG.md` or `eslint.config.ts`, and production sourcemaps use the string form `'none'` rather than `false`. `scripts/build.spec.ts` covers the define, including the missing-file fallback.
+- **Releases dispatch at the pushed branch.** `scripts/release.sh` passes `--ref "$CURRENT_BRANCH"` to `gh workflow run`; without it a release cut from a non-default branch ships the default branch's code. `scripts/version-bump.ts` records a new `versions.json` boundary whenever the floor CHANGED since the latest release, rather than testing whether the value appears anywhere in the file — a floor that regresses and later returns would otherwise skip its boundary and offer the release to Obsidian versions that lack the APIs.
+
+A later sync from `obsidian-plugin-template` must preserve all of the above.
