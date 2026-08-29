@@ -1,5 +1,11 @@
 # Release Notes
 
+## 1.19.4 (2026-08-29)
+
+### Bug Fixes
+
+- **build:** align with the catalog reviewer's archive, ruleset and audit
+
 ## 1.19.3 (2026-08-28)
 
 ### Bug Fixes

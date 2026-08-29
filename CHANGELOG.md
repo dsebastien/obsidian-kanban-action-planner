@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.19.4](https://github.com/dsebastien/obsidian-kanban-action-planner/compare/1.19.3...1.19.4) (2026-08-29)
+
+### Bug Fixes
+
+* **build:** align with the catalog reviewer's archive, ruleset and audit ([1437164](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/1437164a4196f294a5545abf76fd17da02ab27da))
+
 ## [1.19.3](https://github.com/dsebastien/obsidian-kanban-action-planner/compare/1.19.2...1.19.3) (2026-08-28)
 
 ### Bug Fixes
@@ -486,6 +492,7 @@ All notable changes to this project will be documented in this file.
 
 * **plugin:** match Starter Kit's {{quarter}} placeholder format (Q2, not 2) ([4fde618](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/4fde6185c5956e3f6fd2ca3a9b03e70cf5e16840))
 * **plugin:** persist discovered statuses so Show empty columns works ([cf91b81](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/cf91b81a1b0786e35c73f4885882e2dc33564c62))
+
 
 
 
