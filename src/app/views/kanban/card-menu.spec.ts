@@ -28,7 +28,6 @@ function makeCard(): KanbanCard {
         key: 'Tasks/task.md',
         statusValue: 'todo',
         order: 1000,
-        // eslint-disable-next-line obsidianmd/no-tfile-tfolder-cast -- test fake: only .path is read
         file: { path: 'Tasks/task.md' } as unknown as TFile,
         title: 'Task',
         display: {

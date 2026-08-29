@@ -55,7 +55,6 @@ describe('resolveCardTitle (issue #4)', () => {
 })
 
 describe('buildCardDisplay title property (issue #4)', () => {
-    // eslint-disable-next-line obsidianmd/no-tfile-tfolder-cast -- test fake: only .basename is read
     const file = { basename: '2026-07-07-technical-meeting' } as unknown as TFile
     const config = {
         getOrder: (): BasesPropertyId[] => ['file.name', 'note.title', 'note.status'],
@@ -83,7 +82,6 @@ describe('buildCardDisplay title property (issue #4)', () => {
 })
 
 describe('buildCardDisplay write overrides (issue #105, finding 4.3)', () => {
-    // eslint-disable-next-line obsidianmd/no-tfile-tfolder-cast -- test fake: only .basename is read
     const file = { basename: 'the-note' } as unknown as TFile
     const config = {
         getOrder: (): BasesPropertyId[] => ['note.Priority', 'note.status'],
@@ -141,7 +139,6 @@ describe('buildCardDisplay write overrides (issue #105, finding 4.3)', () => {
 })
 
 describe('buildCardDisplay countdown source (issue #68)', () => {
-    // eslint-disable-next-line obsidianmd/no-tfile-tfolder-cast -- test fake: only .basename is read
     const file = { basename: 'the-note' } as unknown as TFile
     const config = {
         getOrder: (): BasesPropertyId[] => [],

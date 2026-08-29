@@ -42,7 +42,6 @@ describe('setProperties', () => {
         } as unknown as App
         return { app, calls: () => calls }
     }
-    // eslint-disable-next-line obsidianmd/no-tfile-tfolder-cast -- test fake; the stubbed processFrontMatter never touches the file
     const file = { path: 'Notes/Card.md' } as unknown as TFile
 
     it('writes every entry in ONE processFrontMatter transaction', async () => {

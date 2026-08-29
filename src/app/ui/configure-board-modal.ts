@@ -384,11 +384,11 @@ export class ConfigureBoardModal extends Modal {
         const container = block.createDiv({ cls: 'kap-automation-nested' })
         const needsValue = trigger.operator !== 'set' && trigger.operator !== 'unset'
         const row = new Setting(container).setDesc(
-            'Fires when the condition BECOMES true (numbers compare numerically; any edit source counts while a board shows the note).'
+            'Fires when the condition becomes true (numbers compare numerically; any edit source counts while a board shows the note).'
         )
         row.addText((input) =>
             input
-                .setPlaceholder('property (e.g. progress)')
+                .setPlaceholder('Property (e.g. progress)')
                 .setValue(trigger.property)
                 // Persist without re-rendering so typing keeps focus; merge
                 // into the freshest stored trigger to avoid stale clobbers.
@@ -404,8 +404,8 @@ export class ConfigureBoardModal extends Modal {
             dd.addOption('gte', '≥')
             dd.addOption('lt', '<')
             dd.addOption('lte', '≤')
-            dd.addOption('set', 'is set')
-            dd.addOption('unset', 'is unset')
+            dd.addOption('set', 'Is set')
+            dd.addOption('unset', 'Is unset')
             dd.setValue(trigger.operator)
             dd.onChange((operator) => {
                 void this.patchCondition(index, { operator: operator as PropertyOperator }, true)
@@ -414,7 +414,7 @@ export class ConfigureBoardModal extends Modal {
         if (needsValue) {
             row.addText((input) =>
                 input
-                    .setPlaceholder('value (e.g. 100)')
+                    .setPlaceholder('Value (e.g. 100)')
                     .setValue(trigger.value)
                     .onChange((value) => void this.patchCondition(index, { value }, false))
             )
@@ -475,7 +475,7 @@ export class ConfigureBoardModal extends Modal {
             case 'set-property':
                 row.addText((input) =>
                     input
-                        .setPlaceholder('property')
+                        .setPlaceholder('Property')
                         .setValue(action.property)
                         .onChange(
                             (property) =>
@@ -496,7 +496,7 @@ export class ConfigureBoardModal extends Modal {
             case 'remove-property':
                 row.addText((input) =>
                     input
-                        .setPlaceholder('property')
+                        .setPlaceholder('Property')
                         .setValue(action.property)
                         .onChange(
                             (property) =>
@@ -510,7 +510,7 @@ export class ConfigureBoardModal extends Modal {
             case 'remove-tag':
                 row.addText((input) =>
                     input
-                        .setPlaceholder('tag (e.g. done)')
+                        .setPlaceholder('Tag (e.g. done)')
                         .setValue(action.tag)
                         .onChange(
                             (tag) =>
@@ -806,7 +806,7 @@ export class ConfigureBoardModal extends Modal {
         new Setting(this.body).setName('Recognition rules').setHeading()
         this.body.createEl('p', {
             cls: 'kap-modal-subtitle',
-            text: 'A note is this type when ANY rule matches — by tag (incl. nested), folder (and subfolders), or a regular expression on the note path.'
+            text: 'A note is this type when any rule matches — by tag (incl. nested), folder (and subfolders), or a regular expression on the note path.'
         })
 
         const mappings = noteType.typeRecognition.mappings
@@ -978,7 +978,7 @@ export class ConfigureBoardModal extends Modal {
             .setName('Add enum property')
             .setDesc('Frontmatter property name (e.g. priority, urgency, effort).')
             .addText((input) => {
-                input.setPlaceholder('property name').onChange((v) => {
+                input.setPlaceholder('Property name').onChange((v) => {
                     draft = v
                 })
             })

@@ -19,7 +19,6 @@ function related(label: string, key: string): RelatedNote {
 
 function card(overrides: Partial<KanbanCard> = {}): KanbanCard {
     return {
-        // eslint-disable-next-line obsidianmd/no-tfile-tfolder-cast -- test fake: only .path is read
         file: { path: 'Notes/Card.md' } as unknown as TFile,
         key: 'Notes/Card.md',
         title: 'Card',
