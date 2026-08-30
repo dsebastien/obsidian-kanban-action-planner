@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.20.0](https://github.com/dsebastien/obsidian-kanban-action-planner/compare/1.19.4...1.20.0) (2026-08-30)
+
+### Features
+
+* **build:** fail the build on a lockfile the catalog review cannot parse ([80872c2](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/80872c2f41aba68828b0f233158b61d1c350cfce))
+* **build:** make the rule floor check that it is still wired in ([ee9e6cc](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/ee9e6cc82237fa68b9d531387480e56694fbe24e))
+* **build:** refuse commits that loosen the rules instead of fixing the finding ([89e2804](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/89e2804ec74af4fa7744810e31582e9c5fcb9750))
+* **plugin:** add the {{isoyear}} expression token ([784b281](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/784b2819288c71755230c9fb40ae6fc75e0a2565))
+
 ## [1.19.4](https://github.com/dsebastien/obsidian-kanban-action-planner/compare/1.19.3...1.19.4) (2026-08-29)
 
 ### Bug Fixes
@@ -492,6 +501,7 @@ All notable changes to this project will be documented in this file.
 
 * **plugin:** match Starter Kit's {{quarter}} placeholder format (Q2, not 2) ([4fde618](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/4fde6185c5956e3f6fd2ca3a9b03e70cf5e16840))
 * **plugin:** persist discovered statuses so Show empty columns works ([cf91b81](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/cf91b81a1b0786e35c73f4885882e2dc33564c62))
+
 
 
 
