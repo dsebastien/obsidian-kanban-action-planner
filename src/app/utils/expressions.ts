@@ -13,8 +13,8 @@
  *   {{datetime}} → YYYY-MM-DD-HHmmss (FS-safe)    e.g. 2026-06-26-143015
  *   {{uuid}}     → a fresh unique id              (from the context)
  *
- * The `year`/`month`/`week`/`quarter`/`date` token semantics match the Obsidian
- * Starter Kit's `evaluateExpression` (its evaluator is internal and not exposed
+ * The `year`/`isoyear`/`month`/`week`/`quarter`/`date` token semantics match the
+ * Obsidian Starter Kit's `evaluateExpression` (its evaluator is internal and not exposed
  * on its public API, so we resolve locally but keep the same output so a folder
  * template behaves identically across both plugins). `day`/`datetime`/`uuid` are
  * extensions the Starter Kit doesn't define.
@@ -45,6 +45,13 @@ function resolveToken(name: string, ctx: ExpressionContext): string | null {
     switch (name) {
         case 'year':
             return String(d.getFullYear())
+        case 'isoyear':
+            // The year the ISO week belongs to, which is not always the calendar
+            // year: 2024-12-30 is week 01 of 2025. A folder template pairing
+            // {{year}} with {{week}} therefore splits a single week across two
+            // folders every New Year, which is why {{isoyear}} exists. Matches
+            // the Starter Kit (1.8.0).
+            return String(isoWeekYear(d))
         case 'month':
             return pad2(d.getMonth() + 1)
         case 'day':
@@ -73,6 +80,13 @@ function pad2(n: number): string {
 }
 
 /** ISO-8601 week number (weeks start Monday; week 1 contains the first Thursday). */
+/** The ISO week-numbering year: the year that `isoWeek(date)` counts within. */
+export function isoWeekYear(date: Date): number {
+    const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()))
+    d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7)) // the week's Thursday
+    return d.getUTCFullYear()
+}
+
 export function isoWeek(date: Date): number {
     // Work in UTC off the local Y/M/D to avoid DST edge cases in the arithmetic.
     const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()))

@@ -57,3 +57,27 @@ describe('isoWeek', () => {
         expect(isoWeek(new Date(2025, 11, 29))).toBe(1) // belongs to ISO 2026 week 1
     })
 })
+
+describe('{{isoyear}}', () => {
+    const ctx = (now: Date) => ({ now, uuid: () => 'x' })
+
+    test('matches the calendar year in mid-year', () => {
+        expect(resolvePlaceholders('{{isoyear}}/{{week}}', ctx(new Date(2026, 7, 30)))).toBe(
+            '2026/35'
+        )
+    })
+
+    test('rolls forward in late December, keeping the week together', () => {
+        // 2024-12-30 is the Monday of ISO week 01 of 2025. {{year}} would strand
+        // it in the previous January's week folder.
+        const c = ctx(new Date(2024, 11, 30))
+        expect(resolvePlaceholders('{{isoyear}}/{{week}}', c)).toBe('2025/01')
+        expect(resolvePlaceholders('{{year}}/{{week}}', c)).toBe('2024/01')
+    })
+
+    test('rolls back in early January', () => {
+        expect(resolvePlaceholders('{{isoyear}}/{{week}}', ctx(new Date(2022, 0, 1)))).toBe(
+            '2021/52'
+        )
+    })
+})
