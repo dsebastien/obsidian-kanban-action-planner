@@ -43,6 +43,28 @@ const STORAGE_KEY_SUFFIX = ':whats-new-last-seen-version'
  * updated at once each open their own tab. Tabs are detached when the plugin
  * unloads.
  */
+/**
+ * Drop a view type left behind by an earlier plugin instance (see below).
+ * Obsidian's view registry is undocumented, so its shape is checked at
+ * runtime rather than assumed; anything unexpected makes this a no-op and
+ * `registerView` reports the real failure.
+ */
+function unregisterStaleView(plugin: Plugin, viewType: string): void {
+    const app: unknown = plugin.app
+    if (typeof app !== 'object' || app === null || !('viewRegistry' in app)) return
+    const registry: unknown = app.viewRegistry
+    if (typeof registry !== 'object' || registry === null) return
+    if (!('viewByType' in registry) || !('unregisterView' in registry)) return
+    const { viewByType, unregisterView } = registry
+    if (typeof viewByType !== 'object' || viewByType === null || !(viewType in viewByType)) return
+    if (typeof unregisterView !== 'function') return
+    try {
+        unregisterView.call(registry, viewType)
+    } catch {
+        // Best effort: registerView reports the real failure.
+    }
+}
+
 export function registerWhatsNewView(plugin: Plugin): void {
     // Captured before the plugin's own settings handling may persist defaults.
     const preexistingData = plugin.loadData().catch((): null => null)
@@ -58,6 +80,12 @@ export function registerWhatsNewView(plugin: Plugin): void {
         notesMarkdown: extractReleaseNotes(changelog, plugin.manifest.version, sinceVersion)
     })
 
+    // A previous instance's registration can survive a plugin reload
+    // (observed live on 1.13: the view type was still registered after
+    // `disablePlugin`), and `registerView` THROWS on an existing type — which
+    // used to abort the whole `onload` before the Bases view was registered,
+    // leaving the board missing until an app restart. Clear a stale one first.
+    unregisterStaleView(plugin, viewType)
     plugin.registerView(viewType, createWhatsNewViewCreator(viewType, buildEntry))
     plugin.register(() => {
         unloaded = true
