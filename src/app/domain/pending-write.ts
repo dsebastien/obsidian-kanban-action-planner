@@ -34,11 +34,21 @@ export interface ResolvedWrite {
 /**
  * Reconcile a cached property value with a write that may still be in flight.
  *
- * The written value is only preferred while the cache still holds the exact
- * value the write superseded. Any other cached value means the cache has moved
- * on — to our write, or to a change made elsewhere, which must not be masked —
- * and the deadline bounds the wait when no re-parse ever arrives (a write that
- * silently failed must not pin the board to a value that is not on disk).
+ * The written value is preferred while the cache still holds the exact value
+ * the write superseded — or holds NOTHING. Around every write to the note
+ * (the status itself, then the manual-order write and any automation on the
+ * same file), Obsidian briefly drops the file's cache entry and can let the
+ * pre-write value linger (measured live on a 1200-card board: `getFileCache()`
+ * null for ~40ms, the old value lingering for 300ms+). A missing value is not
+ * evidence that the cache moved on, so it keeps the mask; and agreement does
+ * NOT settle the write, because the follow-up writes reopen those windows —
+ * a rebuild landing in one rendered the card status-less (or, with the old
+ * value lingering, back in its source column) until the next echo. The mask
+ * therefore lives until its deadline. Only a DIFFERENT, present cached value
+ * settles it early: the cache moved on to a change made elsewhere, which
+ * must not be masked. The deadline bounds the wait when no re-parse ever
+ * arrives (a write that silently failed must not pin the board to a value
+ * that is not on disk).
  */
 export function resolvePendingWrite(
     pending: PendingWrite | undefined,
@@ -46,7 +56,9 @@ export function resolvePendingWrite(
     now: number
 ): ResolvedWrite {
     if (!pending) return { value: cached, settled: true }
-    if (cached !== pending.previous) return { value: cached, settled: true }
     if (now >= pending.until) return { value: cached, settled: true }
-    return { value: pending.value, settled: false }
+    if (cached === null || cached === pending.previous || cached === pending.value) {
+        return { value: pending.value, settled: false }
+    }
+    return { value: cached, settled: true }
 }

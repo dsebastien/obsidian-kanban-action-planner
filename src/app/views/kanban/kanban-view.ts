@@ -191,6 +191,7 @@ import {
     buildTriageQueue,
     bumpEnumValue,
     isPropUnset,
+    pruneProcessedTriageQueue,
     pruneTriageQueue,
     reviewState,
     unsetCount
@@ -412,6 +413,10 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
     // entering triage, and the cursor into it. Null = needs (re)building.
     private triageQueueKeys: string[] | null = null
     private triageCursor = 0
+    // True once the cursor ran off the end of a non-empty queue: keeps the
+    // "all done" celebration up even after the processed cards were pruned
+    // out of the queue (which would otherwise read as a plain empty scope).
+    private triageCompletedAll = false
     // Focus mode (issue #160): the spotlighted card's key (null = off) and
     // the 1s timer-label tick (running only while the overlay is mounted).
     private focusCardKey: string | null = null
@@ -2895,9 +2900,13 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             // re-parses the note would snap the card back to its old column.
             // `previous` is read from the cache, not from the model, so a
             // second move of the same card records the value it must mask.
+            // When the cache is momentarily empty (a preceding write to this
+            // note is still being re-parsed), the model's value is the best
+            // knowledge of what the cache will come back with — recording
+            // null there would let that stale echo un-mask the move.
             this.pendingStatusWrites.set(card.key, {
                 value: newStatus,
-                previous: this.cachedStatus(card.file, statusProperty),
+                previous: this.cachedStatus(card.file, statusProperty) ?? previousStatus,
                 until: window.performance.now() + PENDING_STATUS_WRITE_TIMEOUT_MS
             })
         }
@@ -4580,7 +4589,10 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         // cards, never adds) — so the queue stayed empty until you bounced through
         // board mode (which resets it to null). An empty snapshot is never a valid
         // "done" state (advancing keeps the keys), so rebuilding it is safe.
-        if (this.triageQueueKeys === null || this.triageQueueKeys.length === 0) {
+        if (
+            this.triageQueueKeys === null ||
+            (this.triageQueueKeys.length === 0 && !this.triageCompletedAll)
+        ) {
             // Fall back to a stable no-op order when the view sort is manual.
             const compare = this.cardComparator() ?? ((): number => 0)
             const queue = buildTriageQueue(
@@ -4590,11 +4602,26 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             )
             this.triageQueueKeys = queue.map((c) => c.key)
             this.triageCursor = 0
+            this.triageCompletedAll = false
         } else {
-            // Drop cards no longer in the result set (filtered out / deleted).
-            this.triageQueueKeys = this.triageQueueKeys.filter((k) => this.cardsByKey.has(k))
+            // Drop cards no longer in the result set (filtered out / deleted) AND
+            // cards that no longer need triage in this scope (processed — their
+            // write echoed back through the cache). The card under the cursor is
+            // kept until you move on, so it never vanishes mid-edit. Removals
+            // before the cursor pull it back in step (no card gets skipped).
+            const pruned = pruneProcessedTriageQueue(
+                this.triageQueueKeys,
+                this.triageCursor,
+                (k) => this.cardsByKey.has(k),
+                (k) => this.triageRankByKey(k, cfg, override).include
+            )
+            this.triageQueueKeys = pruned.queue
+            this.triageCursor = pruned.index
         }
         if (this.triageCursor < 0) this.triageCursor = 0
+        if (this.triageQueueKeys.length > 0 && this.triageCursor >= this.triageQueueKeys.length) {
+            this.triageCompletedAll = true
+        }
         const currentKey = this.triageQueueKeys[this.triageCursor]
         const current = currentKey ? this.cardsByKey.get(currentKey) : undefined
         const data = current
@@ -4618,7 +4645,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         // A null card with a non-empty queue means the cursor ran off the end —
         // i.e. the user worked through every card. Distinguish that "all done"
         // celebration from a scope that simply had nothing to triage (empty queue).
-        const completedAll = data === null && this.triageQueueKeys.length > 0
+        const completedAll = data === null && this.triageCompletedAll
         const scrollToTop = this.triageResetScroll
         this.triageResetScroll = false
         renderTriageView(
@@ -4631,8 +4658,8 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
                 onNext: () => this.triageAdvance(),
                 onSkip: () => this.triageAdvance(),
                 onMarkReviewed: () => void this.triageMarkReviewed(current),
-                onOpen: () => {
-                    if (current) this.openCard(current, false)
+                onOpen: (newTab) => {
+                    if (current) this.openCard(current, newTab)
                 },
                 onExit: () => this.setViewMode('board'),
                 onRefresh: () => {
@@ -5006,6 +5033,21 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
     }
 
     /** Rank a card for the active scope: membership + worst-first weight. */
+    /** {@link triageRank} by card key, applying `override` only to its own card. */
+    private triageRankByKey(
+        key: string,
+        cfg: TriageConfig,
+        override?: TriageValueOverride
+    ): TriageRank {
+        const card = this.cardsByKey.get(key)
+        if (!card) return { include: false, weight: 0 }
+        return this.triageRank(
+            card,
+            cfg,
+            override && override.cardKey === key ? override : undefined
+        )
+    }
+
     private triageRank(
         card: KanbanCard,
         cfg: TriageConfig,

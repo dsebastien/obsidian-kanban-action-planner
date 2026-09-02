@@ -24,10 +24,10 @@ describe('resolvePendingWrite', () => {
         })
     })
 
-    test('settles as soon as the cache reports the written value', () => {
+    test('keeps the mask alive once the cache agrees (follow-up writes reopen the window)', () => {
         expect(resolvePendingWrite(pending(), '20 - This Year', 0)).toEqual({
             value: '20 - This Year',
-            settled: true
+            settled: false
         })
     })
 
@@ -42,6 +42,27 @@ describe('resolvePendingWrite', () => {
         expect(resolvePendingWrite(pending(), '10 - Backlog', 1000)).toEqual({
             value: '10 - Backlog',
             settled: true
+        })
+    })
+
+    test('keeps masking while the cache entry is missing (mid re-parse)', () => {
+        // Obsidian briefly drops the file cache between the write and the
+        // re-parse; an absent value is not the cache moving on.
+        expect(resolvePendingWrite(pending(), null, 0)).toEqual({
+            value: '20 - This Year',
+            settled: false
+        })
+        // …but the deadline still wins over a cache that never comes back.
+        expect(resolvePendingWrite(pending(), null, 1000)).toEqual({
+            value: null,
+            settled: true
+        })
+    })
+
+    test('a cleared write keeps masking on an empty cache', () => {
+        expect(resolvePendingWrite(pending({ value: null }), null, 0)).toEqual({
+            value: null,
+            settled: false
         })
     })
 

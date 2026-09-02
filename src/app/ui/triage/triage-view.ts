@@ -89,7 +89,8 @@ export interface TriageCallbacks {
     onSkip(): void
     /** Stamp the review fields and advance (review scope only, issue #57). */
     onMarkReviewed(): void
-    onOpen(): void
+    /** Open the current note; `newTab` when the click/key carried Ctrl/Cmd. */
+    onOpen(newTab: boolean): void
     onExit(): void
     onRefresh(): void
     /** Open the "Configure triage" modal. */
@@ -205,7 +206,11 @@ export function renderTriageView(
     })
     setIcon(open.createSpan({ cls: 'kap-triage-open-icon' }), 'square-arrow-out-up-right')
     open.createSpan({ text: 'Open' })
-    open.addEventListener('click', () => callbacks.onOpen())
+    // Ctrl/Cmd-click opens in a new tab, like a card on the board.
+    open.addEventListener('click', (e) => callbacks.onOpen(e.ctrlKey || e.metaKey))
+    open.addEventListener('auxclick', (e) => {
+        if (e.button === 1) callbacks.onOpen(true)
+    })
 
     if (data.context.length > 0) {
         const ctx = card.createDiv({ cls: 'kap-triage-context' })
@@ -283,7 +288,8 @@ function handleTriageKey(
         return
     }
     if (e.key === 'o' || e.key === 'O') {
-        callbacks.onOpen()
+        // Ctrl/Cmd+O opens in a new tab (mirrors Ctrl-click on the Open button).
+        callbacks.onOpen(e.ctrlKey || e.metaKey)
         return
     }
     if (/^[1-9]$/.test(e.key)) {
@@ -627,7 +633,7 @@ function renderActions(
     // Shortcut hints (issue #122): keyboard + swipe triage discoverability.
     actions.createDiv({
         cls: 'kap-triage-hints',
-        text: '→ next · ← skip · ↑↓ priority · ⇧↑/⇧↓ top/bottom · 1-9 status · O open · or drag the card'
+        text: '→ next · ← skip · ↑↓ priority · ⇧↑/⇧↓ top/bottom · 1-9 status · O open (Ctrl/Cmd: new tab) · or drag the card'
     })
 }
 

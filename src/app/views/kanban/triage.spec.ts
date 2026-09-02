@@ -4,6 +4,7 @@ import {
     bumpEnumValue,
     classifySwipe,
     isPropUnset,
+    pruneProcessedTriageQueue,
     pruneTriageQueue,
     reviewState,
     unsetCount
@@ -144,6 +145,48 @@ describe('classifySwipe (issue #122)', () => {
 
     it('a tie goes to the horizontal axis', () => {
         expect(classifySwipe(120, 120, 110)).toBe('right')
+    })
+})
+
+describe('pruneProcessedTriageQueue (processed cards leave the queue)', () => {
+    const all = () => true
+    const needs = (kept: string[]) => (key: string) => kept.includes(key)
+
+    it('drops cards that no longer need triage, keeping the cursor on its card', () => {
+        // a was processed and we moved on to b: a leaves, cursor still on b.
+        const result = pruneProcessedTriageQueue(['a', 'b', 'c'], 1, all, needs(['b', 'c']))
+        expect(result.queue).toEqual(['b', 'c'])
+        expect(result.queue[result.index]).toBe('b')
+    })
+
+    it('never drops the card under the cursor, even once it is handled', () => {
+        // The current card got its last value set — it stays until Next.
+        const result = pruneProcessedTriageQueue(['a', 'b', 'c'], 1, all, needs(['a', 'c']))
+        expect(result.queue).toEqual(['a', 'b', 'c'])
+        expect(result.queue[result.index]).toBe('b')
+    })
+
+    it('drops processed cards behind AND ahead of the cursor', () => {
+        const result = pruneProcessedTriageQueue(['a', 'b', 'c', 'd'], 2, all, needs(['c']))
+        expect(result.queue).toEqual(['c'])
+        expect(result.index).toBe(0)
+    })
+
+    it('still drops vanished cards, cursor card included', () => {
+        const result = pruneProcessedTriageQueue(
+            ['a', 'b', 'c'],
+            1,
+            (k) => k !== 'b',
+            needs(['a', 'b', 'c'])
+        )
+        expect(result.queue).toEqual(['a', 'c'])
+        expect(result.queue[result.index]).toBe('c')
+    })
+
+    it('past the end (all done) there is no cursor card to protect', () => {
+        const result = pruneProcessedTriageQueue(['a', 'b'], 2, all, needs([]))
+        expect(result.queue).toEqual([])
+        expect(result.index).toBe(0)
     })
 })
 

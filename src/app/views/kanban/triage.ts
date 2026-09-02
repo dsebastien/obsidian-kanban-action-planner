@@ -132,6 +132,27 @@ export function pruneTriageQueue(
     return { queue: kept, index: Math.max(0, index - removedBefore) }
 }
 
+/**
+ * Drop processed cards from the triage queue snapshot: a card leaves the
+ * queue once it no longer needs triage in the active scope (its write echoed
+ * back), so the left pane and the counter only ever show what is left. The
+ * card under the cursor is exempt — it stays until you move on, so it never
+ * vanishes mid-edit. Cursor correction is {@link pruneTriageQueue}'s. Pure.
+ */
+export function pruneProcessedTriageQueue(
+    queue: ReadonlyArray<string>,
+    index: number,
+    exists: (key: string) => boolean,
+    needsTriage: (key: string) => boolean
+): { queue: string[]; index: number } {
+    const cursorKey = queue[index]
+    return pruneTriageQueue(
+        queue,
+        index,
+        (key) => exists(key) && (key === cursorKey || needsTriage(key))
+    )
+}
+
 /** A card's queue ranking: whether to include it, and its worst-first weight. */
 export interface TriageRank {
     include: boolean

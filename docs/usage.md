@@ -353,7 +353,8 @@ triage mode** command).
 
 **Keyboard and swipe triage.** Triage is built for fast passes (issue #122):
 
-- **→** next (or **Reviewed** in the review scope) · **←** skip · **O** open the note.
+- **→** next (or **Reviewed** in the review scope) · **←** skip · **O** open the note
+  (**Ctrl/Cmd+O** in a new tab).
 - **↑ / ↓** bump the card's priority-like enum one step (the first configured enum named
   _priority_, else _urgency_, else the first one) — up moves toward the list's start.
 - **⇧↑ / ⇧↓** send the card to the top / bottom of its column (manual card sort only).
@@ -368,13 +369,16 @@ The card scrolls on its own when it's tall (or the UI is zoomed), and the scope 
 
 A **queue pane on the left** lists every card in the current scope, **grouped by note type
 then status** (the type level only appears on multi-type boards). **Click any card to jump
-straight to it** on the right — the current one is highlighted, and a card that no longer needs
-triage in this scope is muted. Collapse a group with its header, or the whole pane with the
-**«** toggle (remembered per view). It's the same panel used by the calendar and timeline.
+straight to it** on the right — the current one is highlighted. The pane only ever shows what is
+**left**: a card **leaves the queue** (and the count) as soon as it no longer needs triage in this
+scope and you've moved on from it — the card you're working on stays put until you do, even once
+it's fully handled. Collapse a group with its header, or the whole pane with the **«** toggle
+(remembered per view). It's the same panel used by the calendar and timeline.
 
 Each card shows:
 
-- **The note title** at the top, with an **Open** button beside it to jump to the note.
+- **The note title** at the top, with an **Open** button beside it to jump to the note
+  (**Ctrl/Cmd-click** or middle-click opens it in a new tab).
 - **Read-only context** below it: the properties you chose to see, **including base formulas** (e.g.
   a `priority_score` or a horizon formula), so you decide with the computed values in view.
 - **One-click editable controls**: each editable enum property (priority, urgency, effort, and so
