@@ -1,5 +1,13 @@
 # Release Notes
 
+## 1.20.1 (2026-09-02)
+
+### Bug Fixes
+
+- **plugin:** serialize frontmatter writes per note and re-apply a card move a concurrent writer overwrote
+- **plugin:** survive a plugin reload without losing the Kanban view
+- **plugin:** triage ctrl-click opens in a new tab, processed cards leave the queue, moves no longer snap back
+
 ## 1.20.0 (2026-08-30)
 
 ### Features
