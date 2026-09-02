@@ -41,6 +41,42 @@ export function getFrontmatterValue(app: App, file: TFile, propertyName: string)
     return key === null ? undefined : fm[key]
 }
 
+/**
+ * In-flight frontmatter writes by file path. Two `processFrontMatter` calls
+ * that overlap on the SAME file lose the earlier one: each reads the note,
+ * edits, and writes back, so the later read predates the earlier write
+ * (observed live — a concurrent property write reverted a card move). Every
+ * write here is chained behind the previous one on its path, so the plugin's
+ * own writes never overlap, whatever paths they come from (a drop while an
+ * automation or a triage write on the same note is still in flight).
+ */
+const writeQueues = new Map<string, Promise<void>>()
+
+/** Run `write` after every earlier queued write to `file` has finished. */
+export function queueFrontmatterWrite(file: TFile, write: () => Promise<void>): Promise<void> {
+    const path = file.path
+    const previous = writeQueues.get(path)
+    // An idle file starts writing at once (as a bare `processFrontMatter`
+    // would). A failed predecessor must not poison the chain: it is
+    // swallowed here (the caller that queued it still sees its own rejection).
+    const next = previous ? previous.then(write, write) : write()
+    writeQueues.set(path, next)
+    const forget = (): void => {
+        if (writeQueues.get(path) === next) writeQueues.delete(path)
+    }
+    next.then(forget, forget)
+    return next
+}
+
+/** `processFrontMatter` serialized per file (see {@link queueFrontmatterWrite}). */
+function processFrontMatter(
+    app: App,
+    file: TFile,
+    fn: (fm: Record<string, unknown>) => void
+): Promise<void> {
+    return queueFrontmatterWrite(file, () => app.fileManager.processFrontMatter(file, fn))
+}
+
 /** Set a frontmatter property, reusing an existing differently-cased key. */
 export async function setProperty(
     app: App,
@@ -48,7 +84,7 @@ export async function setProperty(
     propertyName: string,
     value: unknown
 ): Promise<void> {
-    await app.fileManager.processFrontMatter(file, (fm: Record<string, unknown>) => {
+    await processFrontMatter(app, file, (fm: Record<string, unknown>) => {
         const key = findKeyCaseInsensitive(fm, propertyName) ?? propertyName
         fm[key] = value
     })
@@ -66,7 +102,7 @@ export async function setProperties(
     file: TFile,
     properties: Record<string, unknown>
 ): Promise<void> {
-    await app.fileManager.processFrontMatter(file, (fm: Record<string, unknown>) => {
+    await processFrontMatter(app, file, (fm: Record<string, unknown>) => {
         for (const [name, value] of Object.entries(properties)) {
             const key = findKeyCaseInsensitive(fm, name) ?? name
             fm[key] = value
@@ -76,7 +112,7 @@ export async function setProperties(
 
 /** Delete a frontmatter property (case-insensitive); used to clear a value. */
 export async function deleteProperty(app: App, file: TFile, propertyName: string): Promise<void> {
-    await app.fileManager.processFrontMatter(file, (fm: Record<string, unknown>) => {
+    await processFrontMatter(app, file, (fm: Record<string, unknown>) => {
         const key = findKeyCaseInsensitive(fm, propertyName)
         if (key !== null) delete fm[key]
     })
@@ -95,7 +131,7 @@ export async function appendToListProperty(
     entry: string,
     matches: (item: unknown) => boolean = (item) => item === entry
 ): Promise<void> {
-    await app.fileManager.processFrontMatter(file, (fm: Record<string, unknown>) => {
+    await processFrontMatter(app, file, (fm: Record<string, unknown>) => {
         const key = findKeyCaseInsensitive(fm, propertyName) ?? propertyName
         const raw = fm[key]
         const list = Array.isArray(raw) ? raw : raw === null || raw === undefined ? [] : [raw]
@@ -117,7 +153,7 @@ export async function replaceInListProperty(
     entry: string,
     replacement: string
 ): Promise<void> {
-    await app.fileManager.processFrontMatter(file, (fm: Record<string, unknown>) => {
+    await processFrontMatter(app, file, (fm: Record<string, unknown>) => {
         const key = findKeyCaseInsensitive(fm, propertyName)
         if (key === null) return
         const raw = fm[key]
@@ -143,7 +179,7 @@ export async function removeFromListProperty(
     entry: string,
     matches: (item: unknown) => boolean = (item) => item === entry
 ): Promise<void> {
-    await app.fileManager.processFrontMatter(file, (fm: Record<string, unknown>) => {
+    await processFrontMatter(app, file, (fm: Record<string, unknown>) => {
         const key = findKeyCaseInsensitive(fm, propertyName)
         if (key === null) return
         const raw = fm[key]

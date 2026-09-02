@@ -17,7 +17,7 @@ import {
     stripCursorMarkers,
     writeTemplateToFile
 } from './templater.service'
-import { findKeyCaseInsensitive } from './frontmatter.service'
+import { findKeyCaseInsensitive, queueFrontmatterWrite } from './frontmatter.service'
 import { formatDate } from '../utils/momentjs'
 import { log } from '../../utils/log'
 
@@ -271,20 +271,22 @@ async function writeCreationFrontmatter(
     const hasLists = Object.keys(request.listProperties ?? {}).length > 0
     if (!hasProperties && !hasLists && request.tags.length === 0) return
 
-    await app.fileManager.processFrontMatter(file, (fm: Record<string, unknown>) => {
-        for (const [name, value] of Object.entries(request.properties)) {
-            const key = findKeyCaseInsensitive(fm, name) ?? name
-            fm[key] = value
-        }
-        for (const [name, values] of Object.entries(request.listProperties ?? {})) {
-            const key = findKeyCaseInsensitive(fm, name) ?? name
-            fm[key] = mergeList(fm[key], values, false)
-        }
-        if (request.tags.length > 0) {
-            const key = findKeyCaseInsensitive(fm, 'tags') ?? 'tags'
-            fm[key] = mergeList(fm[key], request.tags, true)
-        }
-    })
+    await queueFrontmatterWrite(file, () =>
+        app.fileManager.processFrontMatter(file, (fm: Record<string, unknown>) => {
+            for (const [name, value] of Object.entries(request.properties)) {
+                const key = findKeyCaseInsensitive(fm, name) ?? name
+                fm[key] = value
+            }
+            for (const [name, values] of Object.entries(request.listProperties ?? {})) {
+                const key = findKeyCaseInsensitive(fm, name) ?? name
+                fm[key] = mergeList(fm[key], values, false)
+            }
+            if (request.tags.length > 0) {
+                const key = findKeyCaseInsensitive(fm, 'tags') ?? 'tags'
+                fm[key] = mergeList(fm[key], request.tags, true)
+            }
+        })
+    )
 }
 
 /**

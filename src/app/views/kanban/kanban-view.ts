@@ -1,4 +1,14 @@
-import { BasesView, debounce, getAllTags, Menu, Notice, Scope, TFile } from 'obsidian'
+import {
+    BasesView,
+    debounce,
+    getAllTags,
+    getFrontMatterInfo,
+    Menu,
+    Notice,
+    parseYaml,
+    Scope,
+    TFile
+} from 'obsidian'
 import { offsetTopWithin } from '../../utils/offset-top'
 import type {
     BasesEntry,
@@ -267,6 +277,15 @@ const REVEAL_NEW_CARD_TIMEOUT_MS = 5000
  * which never landed corrects itself instead of leaving the board lying.
  */
 const PENDING_STATUS_WRITE_TIMEOUT_MS = 5000
+
+/**
+ * How long after a card move's writes settle before the status is verified
+ * against the note on disk (see {@link KanbanView.verifyStatusWrite}). Long
+ * enough for a concurrent writer that overlapped with the move (another
+ * plugin's `processFrontMatter` on the same note) to have finished, so a
+ * clobbered write is re-applied on top of its result rather than under it.
+ */
+const STATUS_WRITE_VERIFY_DELAY_MS = 1000
 
 /**
  * Floor for a board sized to its Canvas node (issue #154). A node dragged
@@ -2910,6 +2929,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
                 until: window.performance.now() + PENDING_STATUS_WRITE_TIMEOUT_MS
             })
         }
+        const pendingWrite = this.pendingStatusWrites.get(card.key)
         this.applyFilterAndRender()
 
         // Persist. Each write triggers onDataUpdated → a debounced rebuild that
@@ -2932,6 +2952,9 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
                     await this.runStatusAutomations(card, previousStatus, newStatus)
                 }
             })
+            if (statusChanged && statusProperty && pendingWrite) {
+                this.scheduleStatusWriteVerification(card, statusProperty, pendingWrite)
+            }
             return true
         } catch (error) {
             // A failed write leaves disk behind the optimistic model, and no
@@ -2944,6 +2967,94 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             void this.resolveAndRebuild()
             return false
         }
+    }
+
+    /**
+     * Verify a move's status write against the note ON DISK after a delay,
+     * and re-apply it once when another writer clobbered it. Two
+     * `processFrontMatter` calls that overlap on one note lose the earlier
+     * one (each reads, edits, writes back); the plugin's own writes are
+     * serialized per file, but another plugin's write (a timestamp on
+     * modify, a linter) can still straddle the move — observed live: the
+     * card landed, then the note came back with its old status. The delay
+     * lets that writer finish so the re-apply lands on top of its result.
+     * Skipped when a newer move superseded this one (its own verification
+     * covers it) or the pending write was already discarded.
+     */
+    private scheduleStatusWriteVerification(
+        card: KanbanCard,
+        statusProperty: string,
+        pendingWrite: PendingWrite
+    ): void {
+        window.setTimeout(() => {
+            void this.verifyStatusWrite(card, statusProperty, pendingWrite)
+        }, STATUS_WRITE_VERIFY_DELAY_MS)
+    }
+
+    private async verifyStatusWrite(
+        card: KanbanCard,
+        statusProperty: string,
+        pendingWrite: PendingWrite,
+        retried = false
+    ): Promise<void> {
+        if (this.pendingStatusWrites.get(card.key) !== pendingWrite) return
+        if (!this.fileStillExists(card.file)) return
+        let onDisk: string | null
+        try {
+            onDisk = await this.statusOnDisk(card.file, statusProperty)
+        } catch (error) {
+            log('Could not verify the card move on disk.', 'warn', error)
+            return
+        }
+        if (onDisk === pendingWrite.value) return
+        if (retried) {
+            log('Card move was overwritten by another write twice; giving up.', 'error', {
+                path: card.key,
+                expected: pendingWrite.value,
+                onDisk
+            })
+            new Notice('Another write keeps overriding the card move — check the note.')
+            return
+        }
+        log('Card move was overwritten by a concurrent write; re-applying.', 'warn', {
+            path: card.key,
+            expected: pendingWrite.value,
+            onDisk
+        })
+        try {
+            await this.withRebuildsSuppressed(async () => {
+                if (pendingWrite.value === null) {
+                    await deleteProperty(this.app, card.file, statusProperty)
+                } else {
+                    await setProperty(this.app, card.file, statusProperty, pendingWrite.value)
+                }
+            })
+        } catch (error) {
+            log('Re-applying the card move failed.', 'error', error)
+            return
+        }
+        // Give the mask a fresh deadline: the re-apply reopens the re-parse
+        // windows the original deadline may no longer cover.
+        pendingWrite.until = window.performance.now() + PENDING_STATUS_WRITE_TIMEOUT_MS
+        window.setTimeout(() => {
+            void this.verifyStatusWrite(card, statusProperty, pendingWrite, true)
+        }, STATUS_WRITE_VERIFY_DELAY_MS)
+    }
+
+    /**
+     * The status the note holds ON DISK right now — read from the file, not
+     * the metadata cache (which lags every write). Case-insensitive lookup
+     * like {@link getFrontmatterValue}.
+     */
+    private async statusOnDisk(file: TFile, statusProperty: string): Promise<string | null> {
+        const content = await this.app.vault.read(file)
+        const info = getFrontMatterInfo(content)
+        if (!info.exists) return null
+        const parsed: unknown = parseYaml(info.frontmatter)
+        if (typeof parsed !== 'object' || parsed === null) return null
+        const fm = parsed as Record<string, unknown>
+        const key = findKeyCaseInsensitive(fm, statusProperty)
+        return key === null ? null : normalizeStatusValue(fm[key])
     }
 
     // ── Quick capture (issue #46) ─────────────────────────────

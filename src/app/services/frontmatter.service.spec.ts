@@ -3,6 +3,7 @@ import type { App, TFile } from 'obsidian'
 import {
     coerceOrder,
     findKeyCaseInsensitive,
+    queueFrontmatterWrite,
     replaceInListProperty,
     setProperties
 } from './frontmatter.service'
@@ -114,5 +115,68 @@ describe('coerceOrder', () => {
         expect(coerceOrder(null)).toBeNull()
         expect(coerceOrder(undefined)).toBeNull()
         expect(coerceOrder(Infinity)).toBeNull()
+    })
+})
+
+describe('queueFrontmatterWrite (per-file write serialization)', () => {
+    const file = (path: string): TFile => ({ path }) as TFile
+    const deferred = (): {
+        promise: Promise<void>
+        resolve: () => void
+        reject: (e: Error) => void
+    } => {
+        let resolve = (): void => undefined
+        let reject = (_e: Error): void => undefined
+        const promise = new Promise<void>((res, rej) => {
+            resolve = res
+            reject = rej
+        })
+        return { promise, resolve, reject }
+    }
+
+    it('runs overlapping writes to the same file one after the other', async () => {
+        const order: string[] = []
+        const first = deferred()
+        const a = queueFrontmatterWrite(file('same.md'), async () => {
+            order.push('a:start')
+            await first.promise
+            order.push('a:end')
+        })
+        const b = queueFrontmatterWrite(file('same.md'), async () => {
+            order.push('b:start')
+        })
+        // a starts at once (idle file); b must wait while a is still writing.
+        expect(order).toEqual(['a:start'])
+        first.resolve()
+        await Promise.all([a, b])
+        expect(order).toEqual(['a:start', 'a:end', 'b:start'])
+    })
+
+    it('lets writes to different files overlap', async () => {
+        const order: string[] = []
+        const first = deferred()
+        const a = queueFrontmatterWrite(file('a.md'), async () => {
+            order.push('a:start')
+            await first.promise
+        })
+        const b = queueFrontmatterWrite(file('b.md'), async () => {
+            order.push('b:start')
+        })
+        await b
+        expect(order).toEqual(['a:start', 'b:start'])
+        first.resolve()
+        await a
+    })
+
+    it('a failed write neither blocks nor fails the next one on the same file', async () => {
+        const boom = new Error('boom')
+        const a = queueFrontmatterWrite(file('failing.md'), () => Promise.reject(boom))
+        const b = queueFrontmatterWrite(file('failing.md'), () => Promise.resolve())
+        let caught: unknown = null
+        await a.catch((e: unknown) => {
+            caught = e
+        })
+        expect(caught).toBe(boom)
+        await b
     })
 })

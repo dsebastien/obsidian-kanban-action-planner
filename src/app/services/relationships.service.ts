@@ -5,7 +5,7 @@ import { RELATIONSHIP_ROLES, normalizeTag, resolveRelationships } from '../domai
 import type { HeuristicRule, NoteRecord, RelationshipSet } from '../domain/relationships'
 import { isArchivedPath } from '../domain/archive-paths'
 import { formatWikiLink, parseWikiLinkTarget, toLinkStringList } from '../domain/wikilinks'
-import { findKeyCaseInsensitive } from './frontmatter.service'
+import { findKeyCaseInsensitive, queueFrontmatterWrite } from './frontmatter.service'
 import {
     DEFAULT_BLOCKED_BY_PROPERTY,
     DEFAULT_CHILD_PROPERTY,
@@ -125,12 +125,14 @@ export async function addRelationshipLink(
 ): Promise<boolean> {
     if (directLinkTargets(app, file, property).some((d) => d.path === target.path)) return false
     const linkString = formatWikiLink(app.metadataCache.fileToLinktext(target, file.path))
-    await app.fileManager.processFrontMatter(file, (fm: Record<string, unknown>) => {
-        const key = findKeyCaseInsensitive(fm, property) ?? property
-        const list = toLinkStringList(fm[key])
-        list.push(linkString)
-        fm[key] = list
-    })
+    await queueFrontmatterWrite(file, () =>
+        app.fileManager.processFrontMatter(file, (fm: Record<string, unknown>) => {
+            const key = findKeyCaseInsensitive(fm, property) ?? property
+            const list = toLinkStringList(fm[key])
+            list.push(linkString)
+            fm[key] = list
+        })
+    )
     return true
 }
 
@@ -144,17 +146,19 @@ export async function removeRelationshipLink(
     property: string,
     targetPath: string
 ): Promise<void> {
-    await app.fileManager.processFrontMatter(file, (fm: Record<string, unknown>) => {
-        const key = findKeyCaseInsensitive(fm, property)
-        if (key === null) return
-        const kept = toLinkStringList(fm[key]).filter((linkString) => {
-            const linkpath = parseWikiLinkTarget(linkString)
-            const dest = app.metadataCache.getFirstLinkpathDest(linkpath, file.path)
-            return (dest?.path ?? linkpath) !== targetPath
+    await queueFrontmatterWrite(file, () =>
+        app.fileManager.processFrontMatter(file, (fm: Record<string, unknown>) => {
+            const key = findKeyCaseInsensitive(fm, property)
+            if (key === null) return
+            const kept = toLinkStringList(fm[key]).filter((linkString) => {
+                const linkpath = parseWikiLinkTarget(linkString)
+                const dest = app.metadataCache.getFirstLinkpathDest(linkpath, file.path)
+                return (dest?.path ?? linkpath) !== targetPath
+            })
+            if (kept.length === 0) delete fm[key]
+            else fm[key] = kept
         })
-        if (kept.length === 0) delete fm[key]
-        else fm[key] = kept
-    })
+    )
 }
 
 /** Build a {@link NoteRecord} for one file. */
