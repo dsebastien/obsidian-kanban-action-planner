@@ -1,5 +1,15 @@
 # Release Notes
 
+## 1.21.0 (2026-09-08)
+
+### Features
+
+- **plugin:** show the triaged column's name top-center in column triage
+
+### Bug Fixes
+
+- **plugin:** restore overlay focus when the Kanban leaf becomes active again
+
 ## 1.20.1 (2026-09-02)
 
 ### Bug Fixes

@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.21.0](https://github.com/dsebastien/obsidian-kanban-action-planner/compare/1.20.1...1.21.0) (2026-09-08)
+
+### Features
+
+* **plugin:** show the triaged column's name top-center in column triage ([71da190](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/71da19083793d658d52906876f6f50a019cbdecd))
+
+### Bug Fixes
+
+* **plugin:** restore overlay focus when the Kanban leaf becomes active again ([5e28dc1](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/5e28dc11f558742f1de12fc7af1744c09d8b1e91))
+
 ## [1.20.1](https://github.com/dsebastien/obsidian-kanban-action-planner/compare/1.20.0...1.20.1) (2026-09-02)
 
 ### Bug Fixes
@@ -509,6 +519,7 @@ All notable changes to this project will be documented in this file.
 
 * **plugin:** match Starter Kit's {{quarter}} placeholder format (Q2, not 2) ([4fde618](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/4fde6185c5956e3f6fd2ca3a9b03e70cf5e16840))
 * **plugin:** persist discovered statuses so Show empty columns works ([cf91b81](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/cf91b81a1b0786e35c73f4885882e2dc33564c62))
+
 
 
 
