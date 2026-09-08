@@ -459,7 +459,9 @@ interval. Review works on **any** Kanban view via the scope switch, with no per-
 Triage also comes to the board itself (issue #170): every column header carries a small
 **triage** button that starts a **Tinder-style one-card pass over that column** — the cards
 of that specific status, in the column's current order, one at a time, as a card **stack**
-(the next cards peek behind the current one) with a progress bar in the header.
+(the next cards peek behind the current one). The header keeps the **column name front and
+center** (with the progress count on the left and a progress bar underneath), so the pass
+never loses track of which column it is working through.
 
 ![Column triage mid-swipe: the card follows the pointer toward the next status]({{ '/images/column-triage.png' | relative_url }})
 
@@ -482,7 +484,10 @@ new column:
   written back to the status the card had before, a keep simply rewinds. Works all the way
   back through the pass, including on the very last decision while the completion
   celebration plays.
-- **Esc** exits; **O** opens the note; right-click shows the full card menu.
+- **Esc** exits; **O** opens the note (**Ctrl/Cmd-click** the Open button for a new tab);
+  right-click shows the full card menu. Leaving the board tab — to read or edit the note
+  in another tab, say — keeps the pass alive: coming back returns keyboard control to it,
+  and a card archived or otherwise removed in the meantime simply leaves the queue.
 
 Decisions are **optimistic**: the next card is on screen the instant you decide, and the
 status write settles in the background — a failed write puts the card back into the pass.

@@ -3432,6 +3432,31 @@
         container-type: inline-size;
     }
 
+    /* Three-track header: count | column name (true center, independent of
+       the side tracks' widths) | exit. */
+    .kap-root .kap-coltriage-header {
+        @apply grid items-center gap-3;
+        grid-template-columns: 1fr auto 1fr;
+    }
+
+    .kap-root .kap-coltriage-header > .kap-triage-icon-btn {
+        justify-self: end;
+    }
+
+    .kap-root .kap-coltriage-heading {
+        @apply flex min-w-0 flex-col items-center text-center;
+    }
+
+    .kap-root .kap-coltriage-kicker {
+        @apply text-[0.7em] uppercase tracking-wide;
+        color: var(--text-faint);
+    }
+
+    .kap-root .kap-coltriage-column {
+        @apply m-0 max-w-full truncate text-[1.1em] font-semibold;
+        color: var(--text-normal);
+    }
+
     /* Confetti bursts hosted on the root must paint ABOVE the overlay
        (both defaulted to the same z-index, and the overlay mounts later). */
     .kap-root > .kap-confetti {
