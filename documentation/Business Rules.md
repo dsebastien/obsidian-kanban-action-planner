@@ -831,3 +831,14 @@ When a new business rule is mentioned:
       render pass. The badge syncs idempotently on the patch path (added, updated, and
       **removed** when it turns off or the column loses its last numeric value), and is
       inserted after the count so it never lands past the quick-capture `+`.
+
+46. **Overlays keep keyboard control across leaf switches (issue #170 follow-up).** Column
+    triage and focus mode take every shortcut but Esc as a `keydown` on their overlay root,
+    so they depend on DOM focus. Opening the current card in another tab (O / Ctrl-click)
+    and coming back re-activates the leaf with focus on `<body>`; the pass looked intact but
+    answered no key. Invariant: whenever this view's leaf becomes the active one
+    (`workspace.on('active-leaf-change')`, checked via `leaf.view.containerEl.contains(rootEl)`),
+    focus returns to the mounted overlay one frame later (`refocusOverlay` →
+    `focusColumnTriageView` / `focusFocusView`, no-ops when nothing is mounted or focus is
+    already inside). Cards archived or removed while the leaf was hidden are pruned from the
+    queue by the existing rebuild path — the pass itself never froze, only its focus did.

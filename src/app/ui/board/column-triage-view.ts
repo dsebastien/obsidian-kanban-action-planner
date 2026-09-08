@@ -93,6 +93,20 @@ export interface ColumnTriageDecisionAnimation {
     stampColor: string | null
 }
 
+/**
+ * Put DOM focus back on a mounted column-triage overlay (no-op when none is
+ * mounted or it already holds focus). Every shortcut but Esc is a `keydown`
+ * on the overlay root, so a pass that lost focus — the note opened in a new
+ * tab via O / Ctrl-click, then the board tab re-activated — looked intact
+ * but answered no key. Returns whether an overlay was found.
+ */
+export function focusColumnTriageView(host: HTMLElement): boolean {
+    const root = host.querySelector<HTMLElement>(':scope > .kap-coltriage')
+    if (!root) return false
+    if (!root.contains(root.doc.activeElement)) root.focus({ preventScroll: true })
+    return true
+}
+
 /** Remove the column-triage overlay (and any in-flight decision ghost) from `host`. */
 export function removeColumnTriageView(host: HTMLElement): void {
     host.querySelector(':scope > .kap-coltriage')?.remove()
@@ -228,9 +242,14 @@ export function renderColumnTriageView(
     })
 
     // ── Static skeleton (built once per pass) ─────────────────
-    const header = root.createDiv({ cls: 'kap-focus-header' })
+    // Three-track header: progress count left, the triaged COLUMN's name
+    // top-center (the pass's one fixed reference while cards fly by),
+    // exit right.
+    const header = root.createDiv({ cls: 'kap-focus-header kap-coltriage-header' })
     const countEl = header.createSpan({ cls: 'kap-focus-count' })
-    const modeEl = header.createSpan({ cls: 'kap-focus-mode-label' })
+    const heading = header.createDiv({ cls: 'kap-coltriage-heading' })
+    heading.createSpan({ cls: 'kap-coltriage-kicker', text: 'Column triage' })
+    const columnEl = heading.createEl('h2', { cls: 'kap-coltriage-column' })
     const exit = header.createEl('button', {
         cls: 'kap-triage-icon-btn',
         attr: { 'aria-label': 'Exit column triage (Esc)', 'title': 'Exit column triage (Esc)' }
@@ -284,7 +303,8 @@ export function renderColumnTriageView(
     const apply = (): void => {
         const d = ref.data
         countEl.setText(`${String(Math.min(d.done + 1, d.total))} / ${String(d.total)}`)
-        modeEl.setText(`Column triage — ${d.columnLabel}`)
+        columnEl.setText(d.columnLabel)
+        columnEl.setAttribute('title', `Triaging the ${d.columnLabel} column`)
         const pct = d.total > 0 ? Math.round((d.done / d.total) * 100) : 0
         fill.setCssProps({ '--kap-progress': `${String(pct)}%` })
 

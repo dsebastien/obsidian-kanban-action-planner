@@ -132,9 +132,15 @@ import {
     startTimeSession,
     stopTimeSession
 } from '../../services/time-tracking.service'
-import { removeFocusView, renderFocusView, updateFocusTimerLabel } from '../../ui/focus/focus-view'
+import {
+    focusFocusView,
+    removeFocusView,
+    renderFocusView,
+    updateFocusTimerLabel
+} from '../../ui/focus/focus-view'
 import type { FocusCardData, FocusRelatedGroup } from '../../ui/focus/focus-view'
 import {
+    focusColumnTriageView,
     removeColumnTriageView,
     renderColumnTriageView,
     spawnColumnTriageDecisionGhost
@@ -872,6 +878,20 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
                 if (this.affectsBoard(file.path)) this.debouncedRebuild()
             })
         )
+        // The overlays (column triage #170, focus mode #160) take every
+        // shortcut but Esc as a `keydown` on their root, so they depend on
+        // DOM focus. Opening the current card in another tab (O / Ctrl-click)
+        // and coming back re-activates this leaf with focus on <body>: the
+        // pass looked intact but answered no key (a "freeze"). Re-centre
+        // focus on the mounted overlay whenever this view's leaf becomes the
+        // active one again.
+        this.registerEvent(
+            this.app.workspace.on('active-leaf-change', (leaf) => {
+                if (leaf && this.rootEl && leaf.view.containerEl.contains(this.rootEl)) {
+                    this.refocusOverlay()
+                }
+            })
+        )
         // Native note popover on card hover via the core "Page preview" plugin.
         this.registerDomEvent(this.boardEl, 'pointerover', (evt) => this.onCardPointerOver(evt))
         this.plugin.trackKanbanView(this)
@@ -963,6 +983,21 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
 
     override onDataUpdated(): void {
         this.debouncedRebuild()
+    }
+
+    /**
+     * Restore DOM focus to whichever overlay is mounted (column triage sits
+     * on the view root, focus mode on the board host) — one frame later, so
+     * it lands after any focus move Obsidian makes while activating the leaf.
+     */
+    private refocusOverlay(): void {
+        const root = this.rootEl
+        if (!root) return
+        root.win.requestAnimationFrame(() => {
+            if (!root.isConnected) return
+            if (focusColumnTriageView(root)) return
+            if (this.boardEl) focusFocusView(this.boardEl)
+        })
     }
 
     // ── Public command surface (issue #27) ───────────────────

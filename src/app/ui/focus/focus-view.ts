@@ -62,6 +62,19 @@ export interface FocusCallbacks {
 /** The CSS class the timer label carries — the host updates it in place. */
 export const FOCUS_TIMER_LABEL_CLASS = 'kap-focus-timer-label'
 
+/**
+ * Put DOM focus back on a mounted focus overlay (no-op when none is mounted
+ * or it already holds focus): its shortcuts are `keydown`s on the overlay
+ * root, which the leaf drops when the note opens in another tab and the
+ * board tab is re-activated. Returns whether an overlay was found.
+ */
+export function focusFocusView(host: HTMLElement): boolean {
+    const root = host.querySelector<HTMLElement>(':scope > .kap-focus:not(.kap-coltriage)')
+    if (!root) return false
+    if (!root.contains(root.doc.activeElement)) root.focus({ preventScroll: true })
+    return true
+}
+
 /** Remove the focus overlay from `host` (exit / card gone). */
 export function removeFocusView(host: HTMLElement): void {
     // The column-triage overlay (issue #170) shares the .kap-focus shell —
