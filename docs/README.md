@@ -92,7 +92,8 @@ every change written straight back into your notes.
   into a duration property, and the WBS rolls tracked time up the tree next to the estimates.
 
 - **Archiving.** Move a finished note to a placeholder-driven archive folder, manually or
-  automatically when it reaches a chosen status.
+  automatically when it reaches a chosen status — at once, or after a grace period counted
+  from its done date. Folder notes (`Foo/Foo (Project).md`) take their whole folder along.
 - **Done state.** Per note type, define what "done" means — a property plus the value(s) that
   count (e.g. the Completed and Done statuses, or a checkbox). Done notes read as 100% complete
   in WBS progress rollups, even without a progress number.

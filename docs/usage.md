@@ -695,11 +695,48 @@ Set this up in each type's **Archiving** section:
   card is archived automatically the moment it **transitions into** any of them (by drag or
   menu). Reordering a card that's already in such a status does nothing. Only the transition
   triggers it.
+- **Done-date properties**: comma-separated frontmatter properties, **first present wins**
+  (e.g. `date_completed, date_abandoned`). Only matters with a grace period (below); leave it
+  blank and the type archives on the transition itself.
 
 To archive manually, **right-click a card → Archive** (only shown when an archive folder is
 set). If the note still has active children or blockers you get a non-blocking heads-up: the
 move proceeds and the wikilinks are preserved. Archived notes leave the board because they no
 longer match the Base's filter.
+
+### Folder notes move with their folder
+
+A note that is the **namesake of its folder** — `Projects/Foo/Foo.md`, or with a
+parenthesised type suffix like `Projects/Foo/Foo (Project).md` — is archived by moving the
+**whole folder**: every sibling file (sub-notes, attachments, plans) goes along and wikilinks
+keep resolving. On a name clash in the destination the folder gets the numeric suffix, not
+the note. Any other note moves alone. The same applies to the **Move to folder** automation
+action.
+
+### Grace period: keep done cards around for a while
+
+By default an auto-archive status archives the card the moment it gets there, so your Done
+column is always empty. If you'd rather see finished work linger for a week, set **Settings →
+Archiving → Archive grace period (days)**. From then on:
+
+- A card entering an auto-archive status **stays on the board**. It is archived once its
+  **done date** — the first present of the type's **Done-date properties** — is at least that
+  many days old.
+- Aged cards are archived when a board **loads** (once per open board), or on demand with the
+  **Archive aged done notes (open boards)** command. A notice tells you what moved.
+- A card in an auto-archive status with **no done date** gets one **stamped with today**: the
+  property an automation rule of its type would write on that transition (so an Abandoned
+  project gets `date_abandoned`, a Done task `date_completed`), else the first listed one. That
+  starts its clock — and it also catches notes you marked done in the editor or with a script,
+  which never went through the board. A date the plugin can't parse is left alone; the note
+  just waits.
+- Types with no done-date properties ignore the grace period and archive at once, as before.
+- Two boards showing the same note don't race: sweeps run one at a time, and a note something
+  else already archived in the meantime is simply skipped.
+
+Tip: pair it with an automation that stamps the done date on the transition (**enters a done
+state → set `date_completed` to `{{date}}`**) so the clock starts from the exact day you
+finished, whatever write path you used.
 
 ## Automation rules
 
@@ -725,7 +762,10 @@ Each rule is a **trigger** plus a list of **actions** that run in order:
   links preserved — the archive machinery).
 
 Rules fire **once per actual transition** and automation writes never trigger other rules,
-so you can't build an accidental loop. Rules live on the note type, so they apply on every
+so you can't build an accidental loop. When a transition both auto-archives the note and
+matches rules, the property/tag actions land first and the archive owns the final folder (a
+rule's move on that transition is skipped); with a [grace period](#grace-period-keep-done-cards-around-for-a-while)
+the archive waits and a rule's done-date stamp is what the later sweep reads. Rules live on the note type, so they apply on every
 board showing that type — and they work the same for types mirrored from the Obsidian
 Starter Kit.
 
@@ -1453,6 +1493,11 @@ is active, and each can be given a hotkey in **Settings → Hotkeys**):
 - **Focus filter**: jump to the filter box
 - **Clear filter**
 - **Go to next swimlane** / **Go to previous swimlane**
+
+One command acts on **every open Kanban view** instead:
+
+- **Archive aged done notes (open boards)**: run the [archive grace sweep](#grace-period-keep-done-cards-around-for-a-while)
+  now (a no-op with a grace period of 0).
 
 ## Where it lives
 
