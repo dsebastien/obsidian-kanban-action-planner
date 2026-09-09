@@ -1199,11 +1199,15 @@ command), or embed it with `mode=ideal-week` (`mode=week` works too).
   writes `Ideal week <date>.json` or `.md` into the attachment folder: day lists and ranges
   become one app block per run of consecutive days, and 15-minute times are rounded outwards
   to the app's 30-minute grid, each rounding listed in the notice.
-- **Settings.** Under **Ideal week** in the plugin settings: the three property names, the
+- **Settings.** Under **Ideal week** in the plugin settings: the four property names (time
+  blocks, planned, target and alarm minutes), the committed date property used by the WBS
+  lifecycle chip, the
   visible hours (the full day by default), the work hours and work days (09:00–17:00,
   Monday to Friday by default), the new block length, and the vertical scale. The column
   order follows the global **First day of the week** setting (block strings stay
-  Monday-first: `mon-fri 09:00-12:00` means the same days whatever the setting).
+  Monday-first: `mon-fri 09:00-12:00` means the same days whatever the setting). A note type
+  can map its own four properties in **Configure board → Ideal week** (blank = the global
+  default).
 
 ## Time tracking
 

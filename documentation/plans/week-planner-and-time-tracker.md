@@ -1,6 +1,6 @@
 # Week Planner mode and one time tracker for every note type (issue #172)
 
-Status: phase A (tracker rewrite) released as 1.24.0; phase B (time_blocks + Ideal week mode, real-mouse follow-ups, optimistic UI) on `main`, pushed, release 1.25.0 pending Sébastien's go; phase C implemented on branch `phase-c` (checked live, unmerged, to release after 1.25.0); phases D–E planned. Gate: each phase is decided with Sébastien and released on its own. The Obsidian Starter Kit side (schema, templates, backfill, Bases, docs, per-type config re-sync) shipped on 2026-09-09; the plugin reads and writes the properties below. Source of truth for the design: the OSK vault task note "Explore additional activity properties (Task)" (21 decisions + implementation amendments) and the spec comment on issue #172.
+Status: phases A–E shipped (A in 1.24.0; B follow-ups, C, D, E in 1.25.0 from the `integration` branch merged into `main`); phase F (voice pass on the docs) and phase G (targets sub-mode, areas, time repartition) planned. **Hand-off: see the last two sections.**
 
 ## Data model (already in the vault, units are the vault's: minutes, ISO datetimes, HH:MM)
 
@@ -32,7 +32,7 @@ Shipped: `domain/time-blocks.ts` + `domain/week-planner.ts` (pure, tested), `vie
 - Statuses resolved through the mirrored OSK status config (open values), never literals.
 - Tests: parser round-trips, planned-minutes sums, overlap cases (same day, crossing midnight, range vs list), project date window filtering.
 
-## Phase B follow-ups (fixed, part of 1.25.0)
+## Phase B follow-ups — DONE (1.25.0)
 
 Reported by Sébastien while testing the dev build with a real mouse; all three fixed and checked in the running vault:
 
@@ -43,7 +43,7 @@ Reported by Sébastien while testing the dev build with a real mouse; all three 
 5. **Ctrl/Cmd-click opens the note in a new tab** (blocks and rail entries; a plain click opens it in place); selection toggling moved to Shift-click.
 6. **Hover affordance thinned**: the resize zones stay 8 / 10 px wide for the mouse but paint only a 2 px line on their outer edge; the hover shadow is lighter.
 
-## Phase C: budget ring + WBS roll-ups + lifecycle columns — IMPLEMENTED (branch `phase-c`)
+## Phase C: budget ring + WBS roll-ups + lifecycle columns — DONE (1.25.0)
 
 Shipped on the branch (two commits, 1005 tests): settings `defaultAlarmMinutesProperty` + `committedDateProperty`, per-type `weekPlanner` override (Configure → Ideal week, `weekPropertiesForType`), `domain/budget.ts` (ring, ISO week, alarm memo), `domain/lifecycle.ts`, `clipEntryMinutes` / `minutesInRange`, `services/week-budget.service.ts`, ring chip on cards (`renderBudget`, in the card signature) and WBS rows (`renderBudgetChip`, derived for goals / plans via `childrenEstimate` over the budget readers), `renderLifecycleChip`, alarm notice once per note per week (`weekAlarmNotified`, written through immer `produce` — settings are frozen), business rule 50, docs. Checked live in the vault: Workout with a 30-minute alarm and a 45-minute entry → card ring `45m / 2h` red (ratio 0.375) with the four numbers in the tooltip, one notice, memo persisted; the goal _Run a marathon_ derives `0m / 4h` from Running; a project with `date_started` shows `▶0d`. Lifecycle reads started / due from the card's TYPE (calendar config): activities without a calendar mapping show a blank chip until their type maps `date_started`. Linked tasks count only when they are on the board (a vault-wide backlink pass is a follow-up if that proves too narrow).
 
@@ -59,7 +59,7 @@ Decided with Sébastien (2026-09-09): a ring with a short label; the alarm is vi
 - Tests: clipping (inside, crossing start, crossing end, open entry, wrong order), ring tones and labels, the two roll-ups on a small tree, lifecycle days with missing dates, alarm memo pruning.
 - Docs: `docs/usage.md` Ideal week + WBS sections, `docs/configuration.md` property table, README bullet.
 
-## Phase D: week-planner app import and export — IMPLEMENTED (branch `phase-d`)
+## Phase D: week-planner app import and export — DONE (1.25.0)
 
 Shipped on the branch: `domain/week-planner-io.ts` (+ spec, 12 tests: JSON / Markdown parsing, matching, round trips, rounding report), `ui/week/week-import-modal.ts` (paste or pick a file, replace / extend toggle), controller `importFromApp` / `runImport` / `askNoteFor` / `applyImport` / `exportToApp`, commands `import-ideal-week`, `export-ideal-week-json`, `export-ideal-week-markdown`, business rule 51, docs. Limits: a note must carry the time blocks property to be an import target (the rail's notes); export covers the notes drawn on the grid.
 
@@ -67,7 +67,7 @@ Shipped on the branch: `domain/week-planner-io.ts` (+ spec, 12 tests: JSON / Mar
 - Export: the reverse, from the current ideal week: JSON and Markdown in the app's formats, day ranges and lists expanded to one block per day, 15-minute slots rounded to the app's 30-minute grid with a warning listing what was rounded. Commands: "Export ideal week (JSON)", "Export ideal week (Markdown)", "Import ideal week".
 - Tests: fixture round-trips on both formats, rounding report, name matching.
 
-## Phase E: deep review of the old week-planner app (before closing the issue)
+## Phase E: deep review of the old week-planner app — DONE (1.25.0)
 
 Decided with Sébastien on 2026-09-09: adopt #1, #2, #3, #4, #5, #7, #8, #15 — **implemented on branch `phase-e`** (undo / redo with batches, selection move / copy, drag-to-create over cells and days, Ctrl+A, empty-cell menu, paste-target highlight, remove-all per note, print via a print-only copy of the grid; plus #186 Set weekly target…; business rule 52; docs); explore #6 in #184; drop the rest. Follow-ups filed: #185 (status change by dragging a rail entry between groups). Controller logic is checked live (no unit harness for the controllers); the pure pieces already have specs. Inventory done (2026-09-09, read end to end: `src/*.ts`, `index.html`, README, TODO). What the app has that the Ideal week mode does not, with the proposed verdict; the final adopt / adapt / drop is Sébastien's, and the adopted ones become tasks:
 
@@ -100,3 +100,24 @@ Read the week-planner app end to end (`$WKS/week-planner`: `src/types.ts`, `src/
 ## Phase F: user guide in Sébastien's voice
 
 Once the feature set is stable, pass `docs/` (usage, configuration, README) through the ghostwriter with Sébastien's voice profile (`developassion-content-ghostwriter` + `osk-writing-humanizer`, `user-voice-profile`): same facts, his tone, no AI patterns; keep the structure and the screenshots.
+
+## Phase G: targets sub-mode, areas, time repartition (requested 2026-09-09, NOT started)
+
+Sébastien's requests, verbatim in spirit; **shape every one of them by grilling him with the `AskUserQuestion` tool before writing code** (one decision per question, options with a recommended default, no assumptions on grouping levels, defaults, or storage):
+
+1. **Targets sub-mode of the Ideal week.** A view inside the Ideal week mode where every note of the view is listed with its weekly target editable in place (minutes or `5h`, writing the type's target property), with running totals: the sum of targets, the sum of planned minutes, tracked this week, and how much of the available time it all represents. Optional **grouping by a property** of the notes (e.g. `contexts`, the coming `areas`, or any list / enum property the notes carry), with per-group subtotals. Questions to settle: is it a toggle inside the Ideal week mode (a rail tab? a full-pane table replacing the grid?), which columns, whether tracked-this-week belongs there, keyboard flow for fast target entry, how groups are chosen (a picker of the note types' properties).
+2. **Auto-adjusting the target.** When blocks planned for a note exceed its target (`minutes_planned_per_week` > `minutes_per_week`), raise the target to the planned minutes automatically (with a notice saying so) — or ask; to decide: always raise, ask once per note per session, or a setting (`weekTargetFollowsPlanned`). Never lower a target silently.
+3. **Areas.** A new global property, default `areas` (list of strings), the domain a note belongs to (Sleep → Health, Run → Exercise, Workout → Exercise, Day Job → Work…). OSK side (vault, through the OSK skills `osk-vault-note-properties` / `osk-vault-plugin-api`, documented in all the places the property procedure lists): add `areas` to the `activities` note type; **evaluate and decide with Sébastien** whether goals, plans, projects and tasks also carry it (proposal: yes for activities and projects, optional for goals and plans as a roll-up hint, no for tasks which inherit their project's / activity's areas); update the OSK user guide (Action System, note types reference, properties) and the Actions Base (a grouping / filter on areas). Plugin side: a global **Areas property** setting (`areas` by default; per-type override alongside the four ideal-week properties), the rail grouped by area **as a proposal to validate**: the rail already groups Not planned / Planned → status; three levels are too many, so propose a rail **grouping switch** (by status, by area, by context) instead of nesting, remembered per view like the panel state; colour by context stays.
+4. **Time repartition.** In the targets sub-mode (and maybe as a toolbar summary), show how the planned / targeted time splits: vs the total available time, vs areas, vs contexts. Configuration to propose and settle: the **available hours per week** (a number, or derived from the work band × work days, or from a sleep / free-time model), where "available" is stored — **in the plugin settings, never in the base view** — and whether the repartition is a table, bars, or a ring per group.
+5. **Business rules and docs**: each adopted piece gets a business rule, the user guide sections (Ideal week, Configuration property table, README) and the OSK user guide for `areas`; the vault skills `osk-action-time-budget` / `osk-action-lifecycle` may need `areas` awareness (per-area totals) — check with Sébastien.
+
+## Current state (hand-off, 2026-09-09 late evening)
+
+- **Shipped**: 1.24.0 = phase A. **1.25.0** = phase B (Ideal week) + the real-mouse follow-ups + optimistic UI (rule 49) + Ctrl-click / hover outline + phase C (budget ring, WBS roll-ups, lifecycle chip, per-type Ideal week properties, alarm and committed-date settings; rule 50) + phase D (week-planner app import / export; rule 51) + phase E (undo / redo, group moves, drag-to-create over cells and days, Ctrl+A, empty-cell menu, paste-target highlight, remove-all per note, print, Set weekly target…; rule 52). All live-checked in Sébastien's vault (a virtual uinput mouse through Hyprland for the real-mouse cases; `obsidian eval` for the rest; the Bases view must be recreated after a dev build because a hot reload leaves an open view on the old code).
+- **Branches**: `main` carries everything after the 1.25.0 release; `phase-c`, `phase-d`, `phase-e`, `integration` are merged history and can be deleted. Worktrees under `$WKS/kap-*` can be removed (`git worktree remove`).
+- **Open issues**: #172 (this feature; close after phase G or when Sébastien says so), #184 (corner handles, explore), #185 (status change by dragging a rail entry between status groups), #186 (done in 1.25.0, close).
+- **Known limits**: linked tasks count in the ring only when they are on the board (no vault-wide backlink pass); lifecycle start / due follow the note type's calendar mapping (activities show a blank lifecycle chip until their type maps `date_started`); the print uses `zoom: 0.55` to fit A4 landscape; controllers have no unit harness (pure domain modules do).
+- **Vault consumers to keep in step**: `osk-action-time-budget` / `osk-action-lifecycle` read the same property names (unchanged so far); the Actions Base _Time Budget_ view; the OSK user guide sections ⏱️ Time Budget and 🔁 Lifecycle; the public note `Kanban Action Planner plugin for Obsidian`.
+- **Next**: phase F (voice pass on `docs/` with `developassion-content-ghostwriter` + `osk-writing-humanizer`, keep structure and screenshots), then phase G after the grilling; screenshots of the ring, the lifecycle chip and the import dialog are missing from `docs/images/`.
+
+**To continue**: "Continue [[Kanban Action Planner - week planner mode and time tracker (Task)]]: read `documentation/plans/week-planner-and-time-tracker.md` (Current state + Phase G), grill me with AskUserQuestion on every phase G decision, then implement phase G on a branch, live-check in the vault, and release through `developassion-obsidian-plugins`."

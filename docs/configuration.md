@@ -264,7 +264,9 @@ start and a due date, as configured for its type in **Calendar**) only while tod
 between them.
 
 Global settings under **Ideal week**: **Time blocks property**, **Planned minutes
-property**, **Target minutes property** (see the property table), **Grid starts at** /
+property**, **Target minutes property**, **Alarm minutes property** and **Committed date
+property** (see the property table; the four ideal-week properties can be overridden per
+note type in **Configure board → Ideal week**), **Grid starts at** /
 **Grid ends at** (hours, the full day by default), **Work hours** (`09:00-17:00` by default;
 empty = no band) and **Work days** (`mon-fri` by default; the band's days), **New block
 length** (60 minutes), and **Pixels per hour** (the vertical scale). There are no per-view
