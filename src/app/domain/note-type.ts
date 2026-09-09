@@ -143,6 +143,23 @@ export const timeTrackingConfigSchema = z.object({
 export type NoteTypeTimeTrackingConfig = z.infer<typeof timeTrackingConfigSchema>
 
 /**
+ * Per-type ideal-week / budget property overrides (issue #172, phase C):
+ * '' falls back to the matching global default. Plugin-owned, like the
+ * time-tracking override; `.default('')` per field so a partial block parses.
+ */
+export const weekPlannerConfigSchema = z.object({
+    /** `<days> HH:MM-HH:MM` entries list. */
+    timeBlocksProperty: z.string().default(''),
+    /** Minutes per week reserved by the blocks (plugin-written). */
+    plannedMinutesProperty: z.string().default(''),
+    /** Weekly target in minutes (user). */
+    targetMinutesProperty: z.string().default(''),
+    /** Weekly alarm in minutes (user). */
+    alarmMinutesProperty: z.string().default('')
+})
+export type NoteTypeWeekPlannerConfig = z.infer<typeof weekPlannerConfigSchema>
+
+/**
  * Per-type done-state definition (issue #56): which frontmatter property and
  * value(s) mark a note of this type as done. `property` '' falls back to the
  * type's status property; an empty `values` list treats a boolean `true` as
@@ -319,6 +336,11 @@ export const noteTypeSchema = z.object({
      * types, no backfill) = the global default properties.
      */
     timeTracking: nullToAbsent(timeTrackingConfigSchema),
+    /**
+     * Ideal-week / budget property overrides (issue #172, phase C); absent
+     * (older stored types, no backfill) = the global default properties.
+     */
+    weekPlanner: nullToAbsent(weekPlannerConfigSchema),
     /**
      * Done-state definition (issue #56); absent (older stored types, no
      * backfill) = no done state configured.

@@ -26,6 +26,7 @@ import {
     slotPieces
 } from '../../domain/week-planner'
 import type { WeekEntry, WeekGridConfig } from '../../domain/week-planner'
+import type { WeekProperties } from '../../services/week-properties.service'
 import { renderWeek } from '../../ui/week/week-renderer'
 import type { BlockKeyAction, WeekBlockPiece, WeekViewModel } from '../../ui/week/week-renderer'
 import { WeekNotePickerModal } from '../../ui/week/week-note-picker'
@@ -48,9 +49,6 @@ export interface WeekViewState {
 
 /** The settings the mode reads (resolved by the host). */
 export interface WeekSettings {
-    timeBlocksProperty: string
-    plannedMinutesProperty: string
-    targetMinutesProperty: string
     gridStartHour: number
     gridEndHour: number
     workStartMinutes: number
@@ -74,6 +72,8 @@ export interface WeekHost {
     /** The card's start / due date property names (its type's calendar config). */
     startPropertyFor(card: KanbanCard): string
     duePropertyFor(card: KanbanCard): string
+    /** The card's ideal-week property names (its type's override, else the globals). */
+    weekPropertiesFor(card: KanbanCard): WeekProperties
     noteTypeFor(card: KanbanCard): { id: string; name: string } | null
     /** The card's status label and its rank in the card's own column order (unmapped = last). */
     statusLabelFor(card: KanbanCard): string | null
@@ -175,10 +175,10 @@ export class WeekController {
      */
     private collectEntries(cards: readonly KanbanCard[]): WeekEntry[] {
         const today = startOfDay(new Date())
-        const s = this.host.settings()
         const entries: WeekEntry[] = []
         for (const card of cards) {
-            const rawBlocks = getFrontmatterValue(this.host.app, card.file, s.timeBlocksProperty)
+            const p = this.host.weekPropertiesFor(card)
+            const rawBlocks = getFrontmatterValue(this.host.app, card.file, p.timeBlocks)
             const pending = this.overlay.get(card.key)
             if (rawBlocks === undefined && !pending) continue
             const start = parseFrontmatterDate(
@@ -188,9 +188,7 @@ export class WeekController {
                 getFrontmatterValue(this.host.app, card.file, this.host.duePropertyFor(card))
             )
             let { blocks, errors } = parseTimeBlocks(rawBlocks)
-            let target = coerceOrder(
-                getFrontmatterValue(this.host.app, card.file, s.targetMinutesProperty)
-            )
+            let target = coerceOrder(getFrontmatterValue(this.host.app, card.file, p.targetMinutes))
             if (pending) {
                 const echoed =
                     sameBlocks(pending.blocks, blocks) &&
@@ -398,19 +396,16 @@ export class WeekController {
     ): Promise<void> {
         const card = this.host.cardForKey(path)
         if (!card) return
-        const s = this.host.settings()
+        const p = this.host.weekPropertiesFor(card)
         // Optimistic (issue #172): show the result now, write in the background.
-        const target =
-            s.targetMinutesProperty in extra
-                ? coerceOrder(extra[s.targetMinutesProperty])
-                : undefined
+        const target = p.targetMinutes in extra ? coerceOrder(extra[p.targetMinutes]) : undefined
         this.overlay.set(path, { blocks, target, at: Date.now() })
         this.host.refresh()
         try {
             await setProperties(this.host.app, card.file, {
                 ...extra,
-                [s.timeBlocksProperty]: formatTimeBlocks(blocks),
-                [s.plannedMinutesProperty]: plannedMinutesPerWeek(blocks)
+                [p.timeBlocks]: formatTimeBlocks(blocks),
+                [p.plannedMinutes]: plannedMinutesPerWeek(blocks)
             })
         } catch (error) {
             this.overlay.delete(path)
@@ -651,17 +646,15 @@ export class WeekController {
             await this.write(path, blocks)
             return
         }
-        const s = this.host.settings()
+        const card = this.host.cardForKey(path)
+        if (!card) return
+        const targetProperty = this.host.weekPropertiesFor(card).targetMinutes
         new EstimatePromptModal(
             this.host.app,
             `Weekly target for ${entry.title} (minutes per week, or 5h)`,
             null,
             (value) => {
-                void this.write(
-                    path,
-                    blocks,
-                    value !== null ? { [s.targetMinutesProperty]: value } : {}
-                )
+                void this.write(path, blocks, value !== null ? { [targetProperty]: value } : {})
             },
             'minutes',
             this.host.minutesPerDay()

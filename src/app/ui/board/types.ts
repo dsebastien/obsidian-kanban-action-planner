@@ -1,6 +1,7 @@
 import type { TFile } from 'obsidian'
 import type { BoardCardBase } from '../../domain/board-model'
 import type { CardRelationships } from '../../services/relationships.service'
+import type { BudgetRing } from '../../domain/budget'
 
 /**
  * A field's visual tone (issue: card scannability):
@@ -71,6 +72,8 @@ export interface CardDisplay {
     dueState: DueState
     /** Due-countdown badge when enabled for the view; null otherwise (issue #62). */
     countdown: CardCountdown | null
+    /** Weekly budget ring (issue #172, phase C); null when the note carries no weekly budget. */
+    budget: BudgetRing | null
 }
 
 /** A card as rendered on the board: derived display data plus its note file. */

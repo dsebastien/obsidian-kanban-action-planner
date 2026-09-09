@@ -278,6 +278,15 @@ import { cssEscapeAttr } from '../../utils/css-escape'
 import { DatePromptModal } from '../../ui/date-prompt-modal'
 import { TextPromptModal } from '../../ui/text-prompt-modal'
 import { log } from '../../../utils/log'
+import { weekPropertiesForType } from '../../services/week-properties.service'
+import { produce } from 'immer'
+import { weekBudgetOf } from '../../services/week-budget.service'
+import type { WeekBudget } from '../../services/week-budget.service'
+import { alarmNoticeDue, formatBudgetMinutes, isoWeekKey } from '../../domain/budget'
+import { parseDay } from '../../domain/lifecycle'
+import type { LifecycleDates } from '../../domain/lifecycle'
+import { doneDateProperties } from '../../domain/archive-grace'
+import type { WeekProperties } from '../../services/week-properties.service'
 
 /** The (untyped) settings controller exposed on `app.setting`. */
 interface ObsidianSettings {
@@ -817,10 +826,8 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             },
             firstDayOfWeek: () => this.plugin.settings.firstDayOfWeek,
             minutesPerDay: () => this.plugin.settings.minutesPerDay,
+            weekPropertiesFor: (card) => this.weekPropertiesFor(card),
             settings: () => ({
-                timeBlocksProperty: this.plugin.settings.defaultTimeBlocksProperty,
-                plannedMinutesProperty: this.plugin.settings.defaultPlannedMinutesProperty,
-                targetMinutesProperty: this.plugin.settings.defaultTargetMinutesProperty,
                 gridStartHour: this.plugin.settings.weekGridStartHour,
                 gridEndHour: this.plugin.settings.weekGridEndHour,
                 workStartMinutes: this.plugin.settings.weekWorkStartMinutes,
@@ -906,6 +913,8 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             trackingPropertiesFor: (card) => this.trackingPropertiesFor(card),
             trackedMinutesFor: (card) =>
                 readTrackedMinutesOf(this.app, card.file, this.trackingPropertiesFor(card)),
+            weekBudgetFor: (card) => this.weekBudgetFor(card),
+            lifecycleDatesFor: (card) => this.lifecycleDatesFor(card),
             saveTotalTracked: (card, minutes) =>
                 saveTotalTrackedTime(this.plugin, card.file, minutes),
             recomputeTracked: (card) => recomputeTrackedTime(this.plugin, card.file),
@@ -1399,6 +1408,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             ])
         )
 
+        this.applyBudgets()
         this.applyFilterAndRender()
     }
 
@@ -2327,6 +2337,107 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         const typeId = this.noteTypeByPath.get(card.key)?.id
         const noteType = typeId ? findNoteType(this.plugin, typeId) : undefined
         return trackingPropertiesForType(this.plugin.settings, noteType)
+    }
+
+    private weekPropertiesFor(card: KanbanCard): WeekProperties {
+        const typeId = this.noteTypeByPath.get(card.key)?.id
+        const noteType = typeId ? findNoteType(this.plugin, typeId) : undefined
+        return weekPropertiesForType(this.plugin.settings, noteType)
+    }
+
+    /** Unfiltered lookup by key, rebuilt when the result set changes identity. */
+    private allCardsByKeyCache: { source: KanbanCard[]; map: Map<string, KanbanCard> } | null = null
+
+    private allCardByKey(key: string): KanbanCard | undefined {
+        if (this.allCardsByKeyCache?.source !== this.allCards) {
+            this.allCardsByKeyCache = {
+                source: this.allCards,
+                map: new Map(this.allCards.map((c) => [c.key, c]))
+            }
+        }
+        return this.allCardsByKeyCache.map.get(key)
+    }
+
+    /** The card's weekly budget (issue #172, phase C); null when it carries none. */
+    private weekBudgetFor(card: KanbanCard): WeekBudget | null {
+        return weekBudgetOf(
+            {
+                app: this.app,
+                weekPropertiesFor: (c) => this.weekPropertiesFor(c),
+                trackingPropertiesFor: (c) => this.trackingPropertiesFor(c),
+                cardForKey: (key) => this.allCardByKey(key)
+            },
+            card
+        )
+    }
+
+    /**
+     * The card's lifecycle dates (issue #172, phase C). Started and due come
+     * from the card's type (its calendar start / due properties), done is
+     * the property the mirrored done status stamps (else the archive's
+     * done-date property), committed is the global setting.
+     */
+    private lifecycleDatesFor(card: KanbanCard): LifecycleDates {
+        const read = (property: string | null): Date | null =>
+            property ? parseDay(getFrontmatterValue(this.app, card.file, property)) : null
+        // Started / due follow the card's TYPE (its calendar config), like
+        // the week grid: a project's `date_started`, a task's scheduled date.
+        const dates = this.datePropertiesFor(card)
+        return {
+            committed: read(this.plugin.settings.committedDateProperty),
+            started: read(dates.start),
+            due: read(dates.due),
+            done: read(this.doneDatePropertyFor(card))
+        }
+    }
+
+    /** The property a done status stamps on notes of the card's type, or null. */
+    private doneDatePropertyFor(card: KanbanCard): string | null {
+        const typeId = this.noteTypeByPath.get(card.key)?.id
+        const noteType = typeId ? findNoteType(this.plugin, typeId) : this.noteType
+        if (!noteType) return null
+        const done = resolveDoneConfig(noteType)
+        if (done && done.values.length > 0) {
+            const doneValues = new Set(done.values.map((v) => v.toLowerCase()))
+            for (const rule of noteType.automations) {
+                if (rule.trigger.kind !== 'status-entered') continue
+                if (!rule.trigger.statuses.some((v) => doneValues.has(v.toLowerCase()))) continue
+                for (const action of rule.actions) {
+                    if (action.kind === 'set-property') return action.property
+                }
+            }
+        }
+        return doneDateProperties(noteType.archive)[0] ?? null
+    }
+
+    /**
+     * Weekly budget rings on the cards (issue #172, phase C), plus the alarm
+     * notice: once per note per ISO week, remembered in settings.
+     */
+    private applyBudgets(): void {
+        const weekKey = isoWeekKey(new Date())
+        let memo: Record<string, string> = this.plugin.settings.weekAlarmNotified
+        let fired = false
+        for (const card of this.allCards) {
+            const budget = this.weekBudgetFor(card)
+            card.display = { ...card.display, budget: budget?.ring ?? null }
+            if (!budget || budget.ring.tone !== 'alarm' || budget.alarm === null) continue
+            const check = alarmNoticeDue(memo, card.key, weekKey)
+            memo = check.memo
+            if (!check.due) continue
+            fired = true
+            new Notice(
+                `${card.display.title}: ${formatBudgetMinutes(budget.tracked)} tracked this week, over the ${formatBudgetMinutes(budget.alarm)} alarm`
+            )
+        }
+        if (fired) {
+            // Settings are immutable (immer): replace, never assign into.
+            const next = memo
+            this.plugin.settings = produce(this.plugin.settings, (draft) => {
+                draft.weekAlarmNotified = next
+            })
+            void this.plugin.saveSettings('chrome')
+        }
     }
 
     private estimateConfigFor(card: KanbanCard): EstimateConfig {
@@ -4502,6 +4613,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
                 : null
             card.display = { ...card.display, countdown }
         }
+        this.applyBudgets()
         this.applyFilterAndRender()
     }
 

@@ -1,6 +1,7 @@
 import type { RelationshipRole } from '../../domain/note-type'
 import type { CardRelationships } from '../../services/relationships.service'
 import { hasAnyRelationship } from '../../services/relationships.service'
+import type { BudgetRing } from '../../domain/budget'
 import type { CardCountdown, KanbanCard } from './types'
 
 /** Append the due-countdown badge to `parent`, tagged by placement + tone (issue #62). */
@@ -34,6 +35,22 @@ const RELATIONSHIP_BADGES: Array<{ role: RelationshipRole; glyph: string; label:
  * `blocked_by` shows a distinct red blocked badge. `accentColor` is the resolved
  * status color for the left accent.
  */
+/**
+ * The weekly budget chip (issue #172, phase C): a ring filled by tracked /
+ * target with a short label; the tone colours both, the tooltip carries the
+ * numbers.
+ */
+export function renderBudget(parent: HTMLElement, budget: BudgetRing): HTMLElement {
+    const chip = parent.createDiv({
+        cls: `kap-card-field kap-card-budget kap-card-budget-${budget.tone}`,
+        attr: { 'title': budget.detail, 'aria-label': `Weekly budget: ${budget.detail}` }
+    })
+    const ring = chip.createSpan({ cls: `kap-ring kap-ring-${budget.tone}` })
+    ring.style.setProperty('--kap-ring-ratio', String(budget.ratio ?? 0))
+    chip.createSpan({ cls: 'kap-card-field-value', text: budget.label })
+    return chip
+}
+
 export function renderCard(
     card: KanbanCard,
     accentColor: string,
@@ -70,9 +87,11 @@ export function renderCard(
     if (cd && cd.placement === 'title') renderCountdown(titleEl, cd)
 
     const countdownAsChip = cd !== null && cd.placement === 'chip'
-    if (card.display.fields.length > 0 || countdownAsChip) {
+    const budget = card.display.budget
+    if (card.display.fields.length > 0 || countdownAsChip || budget) {
         const fieldsEl = el.createDiv({ cls: 'kap-card-fields' })
         if (cd && countdownAsChip) renderCountdown(fieldsEl, cd)
+        if (budget) renderBudget(fieldsEl, budget)
         for (const field of card.display.fields) {
             const chip = fieldsEl.createDiv({ cls: 'kap-card-field' })
             if (field.emphasis === 'due-red') chip.addClass('kap-card-field-due')

@@ -22,6 +22,9 @@ import { setIcon } from 'obsidian'
 import { renderGroupHeader } from '../calendar/calendar-renderer'
 import { planReconcile } from '../board/reconcile'
 import { cssEscapeAttr } from '../../utils/css-escape'
+import type { BudgetRing } from '../../domain/budget'
+import type { LifecycleDays } from '../../domain/lifecycle'
+import { formatDays } from '../../domain/lifecycle'
 import type { KanbanCard, CountdownTone } from '../board/types'
 import { parseEstimateInput } from '../../domain/estimate'
 import type { DurationParts, EstimateUnit } from '../../domain/estimate'
@@ -96,6 +99,16 @@ export interface WbsRowModel {
     dueTone: CountdownTone | null
     /** The due date key (tooltip / modal prefill), null when unset. */
     dueDateKey: string | null
+    /**
+     * Weekly budget ring (issue #172, phase C): the note's own budget, or
+     * one derived from the budget-carrying descendants (target and planned
+     * roll up own-wins-else-children; tracked this week adds). Null when
+     * nothing in the subtree carries a weekly budget.
+     */
+    budget: BudgetRing | null
+    budgetDerived: boolean
+    /** Lifecycle days (issue #172, phase C); null for context rows. */
+    lifecycle: LifecycleDays | null
 }
 
 export interface WbsPaneStatusGroupModel {
@@ -402,7 +415,10 @@ function rowSignature(row: WbsRowModel): string {
         p: row.progress,
         pd: row.progressDerived,
         du: row.dueLabel,
-        dt: row.dueTone
+        dt: row.dueTone,
+        bu: row.budget ? [row.budget.label, row.budget.tone, row.budget.ratio] : null,
+        bd: row.budgetDerived,
+        lc: row.lifecycle
     })
 }
 
@@ -577,6 +593,8 @@ function buildRowNode(
     renderDueChip(meta, row, callbacks)
     renderEstimateChip(meta, row, callbacks, minutesPerDay)
     renderTrackedChip(meta, row)
+    renderBudgetChip(meta, row)
+    renderLifecycleChip(meta, row)
 
     const open = (newTab: boolean): void => {
         if (row.card) callbacks.onOpen(row.card, newTab)
@@ -779,6 +797,85 @@ function renderEstimateChip(
  * the row menu's "Save total tracked time". Same fixed unit slots as the
  * estimate chip so tracked and estimated durations align by unit.
  */
+/**
+ * Weekly budget chip (issue #172, phase C): the ring and its short label;
+ * derived rows (a goal or plan summing its activities and projects) render
+ * italic like every rollup. Every row renders the chip so columns align.
+ */
+function renderBudgetChip(parent: HTMLElement, row: WbsRowModel): void {
+    const budget = row.budget
+    const title = budget
+        ? `${row.budgetDerived ? 'Weekly budget, rolled up from the subtree · ' : 'Weekly budget · '}${budget.detail}`
+        : 'No weekly budget in this subtree'
+    const btn = parent.createEl('button', {
+        cls: 'kap-wbs-chip-btn kap-wbs-budget',
+        attr: { 'type': 'button', title, 'aria-label': `Weekly budget: ${title}` }
+    })
+    btn.disabled = true
+    if (!budget) {
+        btn.addClass('kap-wbs-chip-unset')
+        btn.createSpan({ cls: 'kap-wbs-est-empty', text: '–' })
+        return
+    }
+    if (row.budgetDerived) btn.addClass('kap-wbs-chip-derived')
+    btn.addClass(`kap-wbs-budget-${budget.tone}`)
+    const ring = btn.createSpan({ cls: `kap-ring kap-ring-${budget.tone}` })
+    ring.style.setProperty('--kap-ring-ratio', String(budget.ratio ?? 0))
+    btn.createSpan({ text: budget.label })
+}
+
+/**
+ * Lifecycle chip (issue #172, phase C), three fixed slots: lead (started −
+ * committed), then cycle (done − started) and lateness (done − due) for a
+ * done item, or the days active (today − started) for an open one. A
+ * missing date leaves its slot blank: never guessed.
+ */
+function renderLifecycleChip(parent: HTMLElement, row: WbsRowModel): void {
+    const life = row.lifecycle
+    const btn = parent.createEl('button', {
+        cls: 'kap-wbs-chip-btn kap-wbs-lifecycle',
+        attr: { type: 'button' }
+    })
+    btn.disabled = true
+    const grid = btn.createDiv({ cls: 'kap-wbs-life-grid' })
+    if (!life || (life.lead === null && life.cycle === null && life.active === null)) {
+        btn.addClass('kap-wbs-chip-unset')
+        btn.title = 'Lifecycle: no committed, started or done date yet'
+        grid.createSpan({ cls: 'kap-wbs-est-empty', text: '–' })
+        return
+    }
+    const parts: string[] = []
+    grid.createSpan({
+        cls: 'kap-wbs-life-seg',
+        text: life.lead === null ? '' : `⏳${formatDays(life.lead)}`
+    })
+    if (life.lead !== null) parts.push(`lead ${formatDays(life.lead)} (started − committed)`)
+    if (life.cycle !== null) {
+        grid.createSpan({ cls: 'kap-wbs-life-seg', text: `⟳${formatDays(life.cycle)}` })
+        parts.push(`cycle ${formatDays(life.cycle)} (done − started)`)
+        const late = grid.createSpan({ cls: 'kap-wbs-life-seg' })
+        if (life.lateness !== null) {
+            late.setText(`${life.lateness > 0 ? '+' : ''}${formatDays(life.lateness)}`)
+            late.addClass(life.lateness > 0 ? 'kap-wbs-life-late' : 'kap-wbs-life-early')
+            parts.push(
+                life.lateness > 0
+                    ? `${formatDays(life.lateness)} late (done − due)`
+                    : `${formatDays(-life.lateness)} early (done − due)`
+            )
+        }
+    } else {
+        grid.createSpan({
+            cls: 'kap-wbs-life-seg',
+            text: life.active === null ? '' : `▶${formatDays(life.active)}`
+        })
+        grid.createSpan({ cls: 'kap-wbs-life-seg' })
+        if (life.active !== null)
+            parts.push(`active for ${formatDays(life.active)} (today − started)`)
+    }
+    btn.title = `Lifecycle: ${parts.join(' · ')}`
+    btn.setAttribute('aria-label', btn.title)
+}
+
 function renderTrackedChip(parent: HTMLElement, row: WbsRowModel): void {
     const title =
         row.trackedParts === null

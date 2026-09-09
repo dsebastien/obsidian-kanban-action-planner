@@ -1,6 +1,6 @@
 # Week Planner mode and one time tracker for every note type (issue #172)
 
-Status: phase A (tracker rewrite) released as 1.24.0; phase B (time_blocks + Ideal week mode) implemented and committed locally (unreleased, Sébastien testing); phases C–E planned. Gate: each phase is decided with Sébastien and released on its own. The Obsidian Starter Kit side (schema, templates, backfill, Bases, docs, per-type config re-sync) shipped on 2026-09-09; the plugin reads and writes the properties below. Source of truth for the design: the OSK vault task note "Explore additional activity properties (Task)" (21 decisions + implementation amendments) and the spec comment on issue #172.
+Status: phase A (tracker rewrite) released as 1.24.0; phase B (time_blocks + Ideal week mode, real-mouse follow-ups, optimistic UI) on `main`, pushed, release 1.25.0 pending Sébastien's go; phase C implemented on branch `phase-c` (checked live, unmerged, to release after 1.25.0); phases D–E planned. Gate: each phase is decided with Sébastien and released on its own. The Obsidian Starter Kit side (schema, templates, backfill, Bases, docs, per-type config re-sync) shipped on 2026-09-09; the plugin reads and writes the properties below. Source of truth for the design: the OSK vault task note "Explore additional activity properties (Task)" (21 decisions + implementation amendments) and the spec comment on issue #172.
 
 ## Data model (already in the vault, units are the vault's: minutes, ISO datetimes, HH:MM)
 
@@ -43,7 +43,9 @@ Reported by Sébastien while testing the dev build with a real mouse; all three 
 5. **Ctrl/Cmd-click opens the note in a new tab** (blocks and rail entries; a plain click opens it in place); selection toggling moved to Shift-click.
 6. **Hover affordance thinned**: the resize zones stay 8 / 10 px wide for the mouse but paint only a 2 px line on their outer edge; the hover shadow is lighter.
 
-## Phase C: budget ring + WBS roll-ups + lifecycle columns
+## Phase C: budget ring + WBS roll-ups + lifecycle columns — IMPLEMENTED (branch `phase-c`)
+
+Shipped on the branch (two commits, 1005 tests): settings `defaultAlarmMinutesProperty` + `committedDateProperty`, per-type `weekPlanner` override (Configure → Ideal week, `weekPropertiesForType`), `domain/budget.ts` (ring, ISO week, alarm memo), `domain/lifecycle.ts`, `clipEntryMinutes` / `minutesInRange`, `services/week-budget.service.ts`, ring chip on cards (`renderBudget`, in the card signature) and WBS rows (`renderBudgetChip`, derived for goals / plans via `childrenEstimate` over the budget readers), `renderLifecycleChip`, alarm notice once per note per week (`weekAlarmNotified`, written through immer `produce` — settings are frozen), business rule 50, docs. Checked live in the vault: Workout with a 30-minute alarm and a 45-minute entry → card ring `45m / 2h` red (ratio 0.375) with the four numbers in the tooltip, one notice, memo persisted; the goal _Run a marathon_ derives `0m / 4h` from Running; a project with `date_started` shows `▶0d`. Lifecycle reads started / due from the card's TYPE (calendar config): activities without a calendar mapping show a blank chip until their type maps `date_started`. Linked tasks count only when they are on the board (a vault-wide backlink pass is a follow-up if that proves too narrow).
 
 Decided with Sébastien (2026-09-09): a ring with a short label; the alarm is visual plus ONE notice per note per ISO week; tracked-this-week = the note's own entries plus the entries of the tasks linked to it, both clipped to the ISO week (an entry crossing the week boundary counts only its minutes inside the week).
 

@@ -1,4 +1,9 @@
 import { getAllTags, Notice } from 'obsidian'
+import type { BudgetRing } from '../../domain/budget'
+import { budgetRing } from '../../domain/budget'
+import type { LifecycleDates } from '../../domain/lifecycle'
+import { lifecycleDays } from '../../domain/lifecycle'
+import type { WeekBudget } from '../../services/week-budget.service'
 import type { App, Menu } from 'obsidian'
 import { parseFrontmatterDate, startOfDay, toDateKey } from '../../domain/calendar'
 import { formatCountdown } from '../../services/card-display.service'
@@ -119,6 +124,10 @@ export interface WbsHost {
      */
     trackingPropertiesFor(card: KanbanCard): TrackingProperties
     trackedMinutesFor(card: KanbanCard): number | null
+    /** Weekly budget (issue #172, phase C); null when the note carries no target / planned minutes. */
+    weekBudgetFor(card: KanbanCard): WeekBudget | null
+    /** Lifecycle dates (issue #172, phase C): committed / started / due / done, null when unset. */
+    lifecycleDatesFor(card: KanbanCard): LifecycleDates
     saveTotalTracked(card: KanbanCard, minutes: number): Promise<void>
     recomputeTracked(card: KanbanCard): Promise<number | null>
     scheduledProperty(): string
@@ -355,6 +364,25 @@ export class WbsController {
             }
             return value
         }
+        // Weekly budget (issue #172, phase C): own budgets per path, cached per
+        // render; target and planned roll up own-wins-else-children like
+        // estimates, tracked-this-week adds across the contributing notes.
+        const budgetCache = new Map<string, WeekBudget | null>()
+        const budgetOf = (path: string): WeekBudget | null => {
+            let value = budgetCache.get(path)
+            if (value === undefined) {
+                const card = byKey.get(path)
+                value = card ? this.host.weekBudgetFor(card) : null
+                budgetCache.set(path, value)
+            }
+            return value
+        }
+        const targetOf = (path: string): number | null => budgetOf(path)?.target ?? null
+        const plannedOf = (path: string): number | null => budgetOf(path)?.planned ?? null
+        const trackedWeekOf = (path: string): number | null => {
+            const budget = budgetOf(path)
+            return budget ? budget.tracked : null
+        }
         const startCache = new Map<string, Date | null>()
         const startOf = (path: string): Date | null => {
             let value = startCache.get(path)
@@ -436,6 +464,21 @@ export class WbsController {
             const ownTracked = durationOf(node.path)
             const totalTracked = subtreeDuration(node, durationOf)
             const collapsed = this.collapsedNodes.has(node.path)
+            // Weekly budget ring (issue #172, phase C): the own ring, else one
+            // derived from the budget-carrying descendants.
+            const ownBudget = budgetOf(node.path)
+            let budget: BudgetRing | null = ownBudget?.ring ?? null
+            let budgetDerived = false
+            if (!ownBudget && node.children.length > 0) {
+                const target = childrenEstimate(node, targetOf)
+                const planned = childrenEstimate(node, plannedOf)
+                if (target !== null || planned !== null) {
+                    const tracked = childrenEstimate(node, trackedWeekOf) ?? 0
+                    budget = budgetRing({ target, planned, tracked, alarm: null })
+                    budgetDerived = true
+                }
+            }
+            const lifecycle = card ? lifecycleDays(this.host.lifecycleDatesFor(card), today) : null
             rows.push({
                 card,
                 title: card?.display.title ?? labelForPath(node.path),
@@ -473,6 +516,9 @@ export class WbsController {
                 trackedDerived: totalTracked !== null && totalTracked !== (ownTracked ?? 0),
                 dueLabel: countdown?.text ?? null,
                 dueTone: countdown?.tone ?? null,
+                budget,
+                budgetDerived,
+                lifecycle,
                 dueDateKey: due ? toDateKey(due) : null
             })
             seenPaths.add(node.path)

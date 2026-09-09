@@ -38,6 +38,7 @@ export function cardSignature(
         .map((r) => `${r}:${card.relationships[r].map((x) => x.key).join(',')}`)
         .join(';')
     const cd = d.countdown ? `${d.countdown.text}|${d.countdown.tone}|${d.countdown.placement}` : ''
+    const budget = d.budget ? `${d.budget.label}|${d.budget.tone}|${String(d.budget.ratio)}` : ''
     return [
         d.title,
         d.wrap ? 'w' : '',
@@ -45,6 +46,7 @@ export function cardSignature(
         d.dueState,
         card.deferred ? 'D' : '',
         cd,
+        budget,
         fields,
         rels,
         accent

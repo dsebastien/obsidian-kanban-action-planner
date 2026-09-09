@@ -1218,6 +1218,17 @@ records), straight from the cards — on **any note type**:
 
     ![Start time tracking and Start pomodoro in the card menu]({{ '/images/card-menu-pomodoro.png' | relative_url }})
 
+- Activities and projects carry a **weekly budget ring** on their cards and WBS rows: the arc is
+  the time tracked this ISO week (the note's own entries plus its linked tasks', clipped to the
+  week) against the weekly target, the label reads `1h 30m / 4h`, and the tooltip adds the planned
+  minutes and the alarm. Blue is under the target, green at 90% or more, orange over it, and
+  **red above the alarm** (`minutes_alarm_per_week`), with one notice per note per week. In the
+  WBS, goals and plans without a budget of their own show one rolled up from their subtree
+  (target and planned own-wins-else-children, tracked adds; styled derived).
+- Every WBS row also carries a **lifecycle chip**: ⏳ lead (started − committed), then ⟳ cycle
+  (done − started) and the lateness (+2d late, -3d early, done − due) once the item is done, or
+  ▶ the days active for an open one. A missing date leaves its slot blank, never guessed. The
+  done date is the property the done status stamps; the committed date is a global setting.
 - The **WBS** shows a **⏱ tracked** chip per row: the subtree's total tracked time — own
   minutes plus every distinct descendant's (actuals **add**; unlike estimates, an own value
   never replaces the children's contribution). A total the children contributed to is styled
