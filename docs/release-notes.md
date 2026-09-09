@@ -1,5 +1,11 @@
 # Release Notes
 
+## 1.24.0 (2026-09-09)
+
+### Features
+
+- **plugin:** tasknotes-compatible time entries, per-type tracking properties, and pomodoro mode
+
 ## 1.23.0 (2026-09-09)
 
 ### Features

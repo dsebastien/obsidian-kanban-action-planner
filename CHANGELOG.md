@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.24.0](https://github.com/dsebastien/obsidian-kanban-action-planner/compare/1.23.0...1.24.0) (2026-09-09)
+
+### Features
+
+* **plugin:** tasknotes-compatible time entries, per-type tracking properties, and pomodoro mode ([d6199ad](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/d6199ad4417fad5c7c8b124c373f27e684640340)), closes [#172](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/172)
+
 ## [1.23.0](https://github.com/dsebastien/obsidian-kanban-action-planner/compare/1.22.0...1.23.0) (2026-09-09)
 
 ### Features
@@ -541,6 +547,7 @@ All notable changes to this project will be documented in this file.
 
 * **plugin:** match Starter Kit's {{quarter}} placeholder format (Q2, not 2) ([4fde618](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/4fde6185c5956e3f6fd2ca3a9b03e70cf5e16840))
 * **plugin:** persist discovered statuses so Show empty columns works ([cf91b81](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/cf91b81a1b0786e35c73f4885882e2dc33564c62))
+
 
 
 
