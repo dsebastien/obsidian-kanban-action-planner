@@ -18,7 +18,12 @@ import { claimPointerDrag } from '../pointer-claim'
  * - drag a rail entry onto a day column → create a block for that note;
  * - Delete / Backspace with a selection → remove the selected blocks;
  * - Ctrl/Cmd+C copies the selection (or the focused block), Ctrl/Cmd+V
- *   pastes it at the grid cell under the mouse pointer.
+ *   pastes it at the grid cell under the mouse pointer (that cell is lit
+ *   while the clipboard holds blocks);
+ * - phase E: Alt-drag on the empty grid draws a new block; dragging a
+ *   selected block moves the whole selection; Ctrl/Cmd+A selects all;
+ *   Ctrl/Cmd+Z / Ctrl/Cmd+Shift+Z (or +Y) undo / redo; right-click on an
+ *   empty cell opens the cell menu.
  *
  * Geometry is read live from the day columns' rects, so scrolling and
  * popout windows work. Every gesture previews in place and commits ONCE
@@ -51,6 +56,17 @@ export interface WeekDndCallbacks {
     /** Ctrl+C on the given block keys; Ctrl+V at a grid cell (day, floored minutes). */
     onCopy(keys: string[]): void
     onPaste(day: number, startMinutes: number): void
+    /** Phase E: the selection dragged as one (the dragged block's key is selected). */
+    onMoveSelection(path: string, from: Slot, to: Slot, copy: boolean): void
+    /** Alt-drag on the empty grid drew a block from `start` to `end` on `day`. */
+    onCreateRange(day: number, startMinutes: number, endMinutes: number): void
+    onSelectAll(): void
+    onUndo(): void
+    onRedo(): void
+    /** Right-click on an empty cell. */
+    onCellContextMenu(day: number, minutes: number, event: MouseEvent): void
+    /** Whether the clipboard holds blocks (drives the paste-target highlight). */
+    hasClipboard(): boolean
 }
 
 type Gesture =
@@ -59,6 +75,7 @@ type Gesture =
     | { kind: 'span'; el: HTMLElement; path: string; from: Slot; edge: 'left' | 'right' }
     | { kind: 'rail'; el: HTMLElement; path: string }
     | { kind: 'marquee'; gridEl: HTMLElement }
+    | { kind: 'create'; dayEl: HTMLElement; day: number; anchor: number }
 
 export class WeekDnd {
     private readonly containerEl: HTMLElement
@@ -83,11 +100,16 @@ export class WeekDnd {
     private readonly onPointerCancel = (): void => this.cancel()
     private readonly onClick = (e: MouseEvent): void => this.handleClick(e)
     private readonly onKeyDown = (e: KeyboardEvent): void => this.handleKeyDown(e)
+    private readonly onContextMenu = (e: MouseEvent): void => this.handleContextMenu(e)
     /** Last pointer position over the container (the paste target). */
     private lastPointer: { x: number; y: number } | null = null
+    /** The paste-target highlight (phase E): the cell under the pointer while the clipboard holds blocks. */
+    private pasteHint: HTMLElement | null = null
     private readonly onHover = (e: PointerEvent): void => {
         this.lastPointer = { x: e.clientX, y: e.clientY }
+        this.updatePasteHint(e.clientX, e.clientY)
     }
+    private readonly onLeave = (): void => this.hidePasteHint()
 
     constructor(containerEl: HTMLElement, callbacks: WeekDndCallbacks) {
         this.containerEl = containerEl
@@ -96,6 +118,8 @@ export class WeekDnd {
         containerEl.addEventListener('click', this.onClick)
         containerEl.addEventListener('keydown', this.onKeyDown)
         containerEl.addEventListener('pointermove', this.onHover)
+        containerEl.addEventListener('pointerleave', this.onLeave)
+        containerEl.addEventListener('contextmenu', this.onContextMenu)
     }
 
     destroy(): void {
@@ -103,6 +127,9 @@ export class WeekDnd {
         this.containerEl.removeEventListener('click', this.onClick)
         this.containerEl.removeEventListener('keydown', this.onKeyDown)
         this.containerEl.removeEventListener('pointermove', this.onHover)
+        this.containerEl.removeEventListener('pointerleave', this.onLeave)
+        this.containerEl.removeEventListener('contextmenu', this.onContextMenu)
+        this.hidePasteHint()
         this.cancel()
     }
 
@@ -154,10 +181,20 @@ export class WeekDnd {
             claimPointerDrag(e)
             this.gesture = { kind: 'rail', el: rail, path }
         } else if (gridEl && this.containerEl.contains(gridEl) && target.closest('.kap-week-day')) {
-            // Empty area of a day column: a drag becomes a marquee selection,
-            // a plain click creates (handled by the click listener).
+            // Empty area of a day column: a drag becomes a marquee selection
+            // (Alt-drag draws a new block instead), a plain click creates
+            // (handled by the click listener).
             claimPointerDrag(e)
-            this.gesture = { kind: 'marquee', gridEl }
+            const dayEl = target.closest<HTMLElement>('.kap-week-day')
+            const day = Number(dayEl?.dataset['day'])
+            if (e.altKey && dayEl && Number.isFinite(day)) {
+                const cfg = this.callbacks.config()
+                const rect = dayEl.getBoundingClientRect()
+                const raw = cfg.gridStart + (e.clientY - rect.top) / cfg.pxPerMinute
+                this.gesture = { kind: 'create', dayEl, day, anchor: floorToGrid(raw) }
+            } else {
+                this.gesture = { kind: 'marquee', gridEl }
+            }
         } else {
             return
         }
@@ -190,6 +227,19 @@ export class WeekDnd {
         const cfg = this.callbacks.config()
         if (gesture.kind === 'marquee') {
             this.updateMarquee(gesture.gridEl, e.clientX, e.clientY)
+            return
+        }
+        if (gesture.kind === 'create') {
+            const rect = gesture.dayEl.getBoundingClientRect()
+            const raw = cfg.gridStart + (e.clientY - rect.top) / cfg.pxPerMinute
+            const cell = floorToGrid(raw)
+            const start = Math.max(cfg.gridStart, Math.min(gesture.anchor, cell))
+            const end = Math.min(cfg.gridEnd, Math.max(gesture.anchor, cell) + GRID_MINUTES)
+            this.preview = { day: gesture.day, start, end: Math.max(start + GRID_MINUTES, end) }
+            this.showPhantom(gesture.dayEl, this.preview, cfg)
+            this.setLabel(
+                `${formatMinutes(this.preview.start)}–${formatMinutes(this.preview.end)} · new block`
+            )
             return
         }
         const hit = this.dayAt(e.clientX, e.clientY)
@@ -241,8 +291,9 @@ export class WeekDnd {
             const start = clampStart(snapToGrid(rawStart), length, cfg)
             this.preview = { day: hit.day, start, end: start + length }
             this.showPhantom(hit.el, this.preview, cfg)
+            const group = this.selectionSizeFor(gesture.path, gesture.from)
             this.setLabel(
-                `${formatMinutes(this.preview.start)}–${formatMinutes(this.preview.end)}${e.altKey ? ' · copy' : ''}`
+                `${formatMinutes(this.preview.start)}–${formatMinutes(this.preview.end)}${group > 1 ? ` · ${group} blocks` : ''}${e.altKey ? ' · copy' : ''}`
             )
             return
         }
@@ -301,6 +352,10 @@ export class WeekDnd {
             return
         }
         if (!preview) return
+        if (gesture.kind === 'create') {
+            this.callbacks.onCreateRange(preview.day, preview.start, preview.end)
+            return
+        }
         if (gesture.kind === 'rail') {
             this.callbacks.onRailDrop(gesture.path, preview.day, preview.start)
         } else if (gesture.kind === 'move') {
@@ -309,7 +364,11 @@ export class WeekDnd {
                 preview.start !== gesture.from.start ||
                 e.altKey
             ) {
-                this.callbacks.onMove(gesture.path, gesture.from, preview, e.altKey)
+                if (this.selectionSizeFor(gesture.path, gesture.from) > 1) {
+                    this.callbacks.onMoveSelection(gesture.path, gesture.from, preview, e.altKey)
+                } else {
+                    this.callbacks.onMove(gesture.path, gesture.from, preview, e.altKey)
+                }
             }
         } else if (preview.start !== gesture.from.start || preview.end !== gesture.from.end) {
             this.callbacks.onResize(gesture.path, gesture.from, preview)
@@ -395,6 +454,23 @@ export class WeekDnd {
         const target = e.target as HTMLElement | null
         const focusedBlock = target?.closest<HTMLElement>('.kap-week-block') ?? null
         const mod = e.ctrlKey || e.metaKey
+        if (mod && !e.altKey && (e.key === 'z' || e.key === 'Z')) {
+            e.preventDefault()
+            if (e.shiftKey) this.callbacks.onRedo()
+            else this.callbacks.onUndo()
+            return
+        }
+        if (mod && !e.altKey && !e.shiftKey && (e.key === 'y' || e.key === 'Y')) {
+            e.preventDefault()
+            this.callbacks.onRedo()
+            return
+        }
+        if (mod && !e.altKey && !e.shiftKey && (e.key === 'a' || e.key === 'A')) {
+            if (target?.closest('input, textarea, [contenteditable]')) return
+            e.preventDefault()
+            this.callbacks.onSelectAll()
+            return
+        }
         if (mod && !e.altKey && !e.shiftKey && (e.key === 'c' || e.key === 'C')) {
             const selected = [...this.callbacks.selectedKeys()]
             const keys =
@@ -434,6 +510,55 @@ export class WeekDnd {
         }
     }
 
+    /** How many blocks move with a drag of `from`: the selection when it holds it, else one. */
+    private selectionSizeFor(path: string, from: Slot): number {
+        const selected = this.callbacks.selectedKeys()
+        const key = `${path}|${from.day}|${from.start}|${from.end}`
+        return selected.has(key) ? selected.size : 1
+    }
+
+    private handleContextMenu(e: MouseEvent): void {
+        const target = e.target as HTMLElement | null
+        if (!target || target.closest('.kap-week-block') || target.closest('.kap-week-rail-item'))
+            return
+        const dayEl = target.closest<HTMLElement>('.kap-week-day')
+        if (!dayEl || !this.containerEl.contains(dayEl)) return
+        const day = Number(dayEl.dataset['day'])
+        if (!Number.isFinite(day)) return
+        e.preventDefault()
+        const cfg = this.callbacks.config()
+        const rect = dayEl.getBoundingClientRect()
+        const minutes = cfg.gridStart + (e.clientY - rect.top) / cfg.pxPerMinute
+        this.callbacks.onCellContextMenu(day, minutes, e)
+    }
+
+    /** Light the cell under the pointer while the clipboard holds blocks (and no drag runs). */
+    private updatePasteHint(x: number, y: number): void {
+        if (this.gesture || !this.callbacks.hasClipboard()) {
+            this.hidePasteHint()
+            return
+        }
+        const hit = this.dayAt(x, y)
+        if (!hit) {
+            this.hidePasteHint()
+            return
+        }
+        const cfg = this.callbacks.config()
+        const start = Math.min(
+            cfg.gridEnd - GRID_MINUTES,
+            Math.max(cfg.gridStart, floorToGrid(hit.minutes))
+        )
+        if (!this.pasteHint) this.pasteHint = hit.el.createDiv({ cls: 'kap-week-paste-hint' })
+        if (this.pasteHint.parentElement !== hit.el) hit.el.appendChild(this.pasteHint)
+        this.pasteHint.style.top = `${(start - cfg.gridStart) * cfg.pxPerMinute}px`
+        this.pasteHint.style.height = `${GRID_MINUTES * cfg.pxPerMinute}px`
+    }
+
+    private hidePasteHint(): void {
+        this.pasteHint?.remove()
+        this.pasteHint = null
+    }
+
     // ── Preview helpers ─────────────────────────────────────────────
 
     private beginDrag(gesture: Gesture): void {
@@ -444,6 +569,7 @@ export class WeekDnd {
             return
         }
         this.label = createFloatingLabel(doc)
+        if (gesture.kind === 'create') return
         if (gesture.kind === 'rail') {
             this.ghost = gesture.el.cloneNode(true) as HTMLElement
             this.ghost.addClass('kap-card-ghost')
@@ -541,6 +667,7 @@ export class WeekDnd {
             gesture.el.removeClass('kap-card-dragging')
             return
         }
+        if (gesture.kind === 'create') return
         gesture.el.removeClass('kap-week-block-dragging')
     }
 

@@ -1,5 +1,5 @@
-import { Notice } from 'obsidian'
-import type { App, Menu } from 'obsidian'
+import { Menu, Notice } from 'obsidian'
+import type { App } from 'obsidian'
 import type { KanbanCard } from '../../ui/board/types'
 import { parseFrontmatterDate, startOfDay } from '../../domain/calendar'
 import {
@@ -27,9 +27,19 @@ import {
 } from '../../domain/week-planner'
 import type { WeekEntry, WeekGridConfig } from '../../domain/week-planner'
 import type { WeekProperties } from '../../services/week-properties.service'
-import { renderWeek } from '../../ui/week/week-renderer'
+import { renderWeek, renderWeekPrint } from '../../ui/week/week-renderer'
 import type { BlockKeyAction, WeekBlockPiece, WeekViewModel } from '../../ui/week/week-renderer'
 import { WeekNotePickerModal } from '../../ui/week/week-note-picker'
+import { WeekImportModal } from '../../ui/week/week-import-modal'
+import type { ExportEntry, ImportedBlock } from '../../domain/week-planner-io'
+import {
+    matchImports,
+    parseAppExport,
+    toAppBlocks,
+    toAppJson,
+    toAppMarkdown,
+    toTimeBlocks
+} from '../../domain/week-planner-io'
 import type { WeekPickerItem } from '../../ui/week/week-note-picker'
 import { EstimatePromptModal } from '../../ui/timeline/estimate-modal'
 import type { ContextLegendItem } from '../../ui/calendar/calendar-renderer'
@@ -115,6 +125,18 @@ export class WeekController {
         string,
         { blocks: TimeBlock[]; target: number | null | undefined; at: number }
     >()
+    /**
+     * Undo / redo (issue #172, phase E): every write records the note's
+     * block list before and after; a batch (paste, selection move, import,
+     * multi-delete) records one item with several steps so one Ctrl+Z
+     * reverts it whole. In memory only, capped, cleared when the view closes.
+     */
+    private history: HistoryItem[] = []
+    private redoStack: HistoryItem[] = []
+    private batch: HistoryStep[] | null = null
+    private replaying = false
+    /** The model of the latest render (printing reuses it). */
+    private lastModel: WeekViewModel | null = null
     /** Rail headers folded by the user (in memory; everything starts open). */
     private readonly collapsedGroups = new Set<string>()
     /** Selected block keys (`slotKey`), marquee or Ctrl-click; cleared by Escape / empty click. */
@@ -286,6 +308,7 @@ export class WeekController {
         ])
         pruneStaleContent(scrolls, this.lastScrollContentKeys, contentKeys)
         this.lastScrollContentKeys = contentKeys
+        this.lastModel = model
         renderWeek(boardEl, model, {
             onTogglePanel: () => this.togglePanel(),
             onToggleGroup: (label) => {
@@ -298,7 +321,12 @@ export class WeekController {
             onBlockKey: (path, slot, action) => void this.keyEdit(path, slot, action),
             onRailContextMenu: (path, event) => {
                 const card = this.host.cardForKey(path)
-                if (card) this.host.showCardMenu(card, event)
+                if (card) {
+                    this.host.showCardMenu(card, event, (menu) => {
+                        menu.addSeparator()
+                        this.addNoteMenuItems(menu, path)
+                    })
+                }
             },
             onToggleContext: (value) => this.host.toggleContext(value)
         })
@@ -348,7 +376,35 @@ export class WeekController {
                     .setSection('kap-week')
                     .onClick(() => void this.remove(path, slot))
             )
+            this.addNoteMenuItems(menu, path)
         })
+    }
+
+    /** The note-level ideal-week items shared by the block and rail menus. */
+    private addNoteMenuItems(menu: Menu, path: string): void {
+        const entry = this.entries.get(path)
+        if (!entry) return
+        menu.addItem((item) =>
+            item
+                .setTitle(
+                    entry.targetMinutes !== null
+                        ? `Set weekly target… (now ${formatMinutes(entry.targetMinutes)} h)`
+                        : 'Set weekly target…'
+                )
+                .setIcon('target')
+                .setSection('kap-week')
+                .onClick(() => this.setTarget(path))
+        )
+        const n = slotsOf(entry.blocks).length
+        if (n > 0) {
+            menu.addItem((item) =>
+                item
+                    .setTitle(`Remove every block of this note (${n})`)
+                    .setIcon('calendar-off')
+                    .setSection('kap-week')
+                    .onClick(() => void this.removeAllOf(path))
+            )
+        }
     }
 
     // ── Edits ───────────────────────────────────────────────────────
@@ -397,6 +453,12 @@ export class WeekController {
         const card = this.host.cardForKey(path)
         if (!card) return
         const p = this.host.weekPropertiesFor(card)
+        const entry = this.entries.get(path)
+        if (entry && !this.replaying) {
+            const step: HistoryStep = { path, before: entry.blocks, after: blocks }
+            if (this.batch) this.batch.push(step)
+            else this.record([step])
+        }
         // Optimistic (issue #172): show the result now, write in the background.
         const target = p.targetMinutes in extra ? coerceOrder(extra[p.targetMinutes]) : undefined
         this.overlay.set(path, { blocks, target, at: Date.now() })
@@ -463,6 +525,429 @@ export class WeekController {
             }
         }
         await this.write(path, blocks)
+    }
+
+    // ── Undo / redo, batches (issue #172, phase E) ──────────────────
+
+    private record(steps: HistoryStep[]): void {
+        if (steps.length === 0) return
+        this.history.push({ steps })
+        if (this.history.length > HISTORY_LIMIT) this.history.shift()
+        this.redoStack = []
+    }
+
+    /** Run `fn` so every write inside becomes ONE undo item. */
+    private async batched(fn: () => Promise<void>): Promise<void> {
+        if (this.batch) return fn()
+        this.batch = []
+        try {
+            await fn()
+        } finally {
+            const steps = this.batch
+            this.batch = null
+            if (!this.replaying) this.record(steps)
+        }
+    }
+
+    canUndo(): boolean {
+        return this.history.length > 0
+    }
+
+    canRedo(): boolean {
+        return this.redoStack.length > 0
+    }
+
+    async undo(): Promise<void> {
+        const item = this.history.pop()
+        if (!item) {
+            new Notice('Nothing to undo in the ideal week.')
+            return
+        }
+        await this.replay(item, 'before')
+        this.redoStack.push(item)
+    }
+
+    async redo(): Promise<void> {
+        const item = this.redoStack.pop()
+        if (!item) {
+            new Notice('Nothing to redo in the ideal week.')
+            return
+        }
+        await this.replay(item, 'after')
+        this.history.push(item)
+    }
+
+    private async replay(item: HistoryItem, side: 'before' | 'after'): Promise<void> {
+        this.replaying = true
+        try {
+            const steps = side === 'before' ? [...item.steps].reverse() : item.steps
+            for (const step of steps) {
+                if (!this.host.cardForKey(step.path)) continue
+                await this.write(step.path, step[side])
+            }
+        } finally {
+            this.replaying = false
+        }
+    }
+
+    /** Select every block drawn on the grid (Ctrl+A). */
+    selectAll(): void {
+        const keys: string[] = []
+        for (const entry of this.entries.values()) {
+            if (!entry.onGrid) continue
+            for (const slot of slotsOf(entry.blocks)) keys.push(slotKey(entry.path, slot))
+        }
+        this.select(keys)
+    }
+
+    /**
+     * Move (or copy) the whole selection by the offset the dragged block
+     * travelled: all-or-nothing — one refused slot (overlap, outside the
+     * week) cancels the move and names the note — then one write per note,
+     * one undo item.
+     */
+    async moveSelection(_path: string, from: Slot, to: Slot, copy: boolean): Promise<boolean> {
+        const dDay = to.day - from.day
+        const dMinutes = to.start - from.start
+        if (dDay === 0 && dMinutes === 0 && !copy) return false
+        const cfg = this.config()
+        const moving: { path: string; from: Slot; to: Slot }[] = []
+        for (const key of this.selected) {
+            const parsed = parseSlotKey(key)
+            if (!parsed || !this.entries.has(parsed.path)) continue
+            const length = parsed.slot.end - parsed.slot.start
+            const day = parsed.slot.day + dDay
+            const start = parsed.slot.start + dMinutes
+            if (day < 0 || day > 6 || start < cfg.gridStart || start + length > cfg.gridEnd) {
+                new Notice(
+                    `${this.entries.get(parsed.path)?.title ?? parsed.path} would leave the week. Nothing was moved.`
+                )
+                this.host.refresh()
+                return false
+            }
+            moving.push({
+                path: parsed.path,
+                from: parsed.slot,
+                to: { day, start, end: start + length }
+            })
+        }
+        if (moving.length === 0) return false
+        // The universe: every slot except the ones being moved (a copy keeps them).
+        const movingKeys = new Set(moving.map((m) => slotKey(m.path, m.from)))
+        const universe: OwnedSlot[] = []
+        for (const entry of this.entries.values()) {
+            if (!entry.onGrid) continue
+            for (const slot of slotsOf(entry.blocks)) {
+                if (!copy && movingKeys.has(slotKey(entry.path, slot))) continue
+                universe.push({ ...slot, path: entry.path })
+            }
+        }
+        for (const m of moving) universe.push({ ...m.to, path: m.path })
+        for (const m of moving) {
+            const others = universe.filter(
+                (u) =>
+                    !(
+                        u.path === m.path &&
+                        u.day === m.to.day &&
+                        u.start === m.to.start &&
+                        u.end === m.to.end
+                    )
+            )
+            const hit = findOverlap(m.to, others)
+            if (hit) {
+                const owner = this.entries.get(hit.path)
+                new Notice(
+                    `${this.entries.get(m.path)?.title ?? m.path} would overlap ${owner?.title ?? hit.path} (${formatMinutes(hit.start)}–${formatMinutes(hit.end)}). Nothing was moved.`
+                )
+                this.host.refresh()
+                return false
+            }
+        }
+        // Remove every origin first, then add every target: two slots of one
+        // note that shift onto each other's days must not cancel out.
+        const byPath = new Map<string, TimeBlock[]>()
+        for (const m of moving) {
+            const current = byPath.get(m.path) ?? this.entries.get(m.path)?.blocks ?? []
+            byPath.set(m.path, copy ? current : removeSlot(current, m.from))
+        }
+        for (const m of moving) {
+            byPath.set(m.path, addSlot(byPath.get(m.path) ?? [], m.to))
+        }
+        const nextKeys = moving.map((m) => slotKey(m.path, m.to))
+        await this.batched(async () => {
+            for (const [p, blocks] of byPath) await this.write(p, blocks)
+        })
+        this.select(copy ? [...this.selected] : nextKeys)
+        return true
+    }
+
+    /** A drag on the empty grid drew a block: ask which note, then plan it at that size. */
+    createRange(day: number, start: number, end: number): void {
+        this.pickNote(
+            (path) => void this.createFor(path, day, start, Math.max(GRID_MINUTES, end - start))
+        )
+    }
+
+    /** Right-click on an empty cell: plan a block here, paste here. */
+    cellMenu(day: number, minutes: number, event: MouseEvent): void {
+        const menu = new Menu()
+        const start = Math.min(
+            this.config().gridEnd - GRID_MINUTES,
+            Math.max(this.config().gridStart, Math.floor(minutes / GRID_MINUTES) * GRID_MINUTES)
+        )
+        menu.addItem((item) =>
+            item
+                .setTitle(`Plan a block here (${formatMinutes(start)})…`)
+                .setIcon('calendar-plus')
+                .onClick(() => this.create(day, start))
+        )
+        const n = this.clipboard.length
+        menu.addItem((item) =>
+            item
+                .setTitle(
+                    n > 0 ? `Paste ${n} block${n === 1 ? '' : 's'} here` : 'Paste (nothing copied)'
+                )
+                .setIcon('clipboard-paste')
+                .setDisabled(n === 0)
+                .onClick(() => void this.paste(day, start))
+        )
+        menu.showAtMouseEvent(event)
+    }
+
+    /** Remove every block of one note (one write, one undo item). */
+    async removeAllOf(path: string): Promise<void> {
+        const entry = this.entries.get(path)
+        if (!entry || entry.blocks.length === 0) return
+        await this.write(path, [])
+    }
+
+    /** Ask for (or clear) a note's weekly target (issue #186). */
+    setTarget(path: string): void {
+        const entry = this.entries.get(path)
+        const card = this.host.cardForKey(path)
+        if (!entry || !card) return
+        const targetProperty = this.host.weekPropertiesFor(card).targetMinutes
+        new EstimatePromptModal(
+            this.host.app,
+            `Weekly target for ${entry.title} (minutes per week, or 5h)`,
+            entry.targetMinutes,
+            (value) => {
+                this.overlay.set(path, {
+                    blocks: entry.blocks,
+                    target: value,
+                    at: Date.now()
+                })
+                this.host.refresh()
+                void setProperties(this.host.app, card.file, {
+                    [targetProperty]: value ?? null
+                })
+            },
+            'minutes',
+            this.host.minutesPerDay()
+        ).open()
+    }
+
+    /** Whether the clipboard holds blocks (the paste-target highlight). */
+    hasClipboard(): boolean {
+        return this.clipboard.length > 0
+    }
+
+    /**
+     * Print the ideal week (issue #172, phase E): a static copy of the grid
+     * in a print-only container, the OS print dialog, then the copy goes.
+     */
+    print(): void {
+        this.ensureLoaded()
+        const model = this.lastModel
+        if (!model || model.pieces.length === 0) {
+            new Notice('Nothing to print: the ideal week has no block.')
+            return
+        }
+        const doc = this.host.boardEl()?.ownerDocument ?? document
+        const win = doc.defaultView ?? window
+        const root = renderWeekPrint(doc, model, 'Ideal week')
+        doc.body.addClass('kap-week-printing')
+        const done = (): void => {
+            win.removeEventListener('afterprint', done)
+            doc.body.removeClass('kap-week-printing')
+            root.remove()
+        }
+        win.addEventListener('afterprint', done)
+        win.setTimeout(() => {
+            win.print()
+            // Some platforms never fire afterprint: clean up on a timer too.
+            win.setTimeout(done, 60_000)
+        }, 50)
+    }
+
+    // ── Week-planner app import / export (issue #172, phase D) ──────
+
+    /** Open the import dialog, then match, ask about the rest, and apply. */
+    importFromApp(): void {
+        this.ensureLoaded()
+        new WeekImportModal(this.host.app, (text, replace) => {
+            void this.runImport(text, replace)
+        }).open()
+    }
+
+    private async runImport(text: string, replace: boolean): Promise<void> {
+        const parsed = parseAppExport(text)
+        if (parsed.blocks.length === 0) {
+            new Notice(
+                parsed.errors.length > 0
+                    ? `Nothing to import: ${parsed.errors[0]?.entry ?? ''} — ${parsed.errors[0]?.error ?? ''}`
+                    : 'Nothing to import: no block found in the text.'
+            )
+            return
+        }
+        const candidates = [...this.entries.values()].map((e) => ({ path: e.path, title: e.title }))
+        const matched = matchImports(parsed.blocks, candidates)
+        const assignments = new Map<string, ImportedBlock[]>()
+        const push = (path: string, block: ImportedBlock): void => {
+            const list = assignments.get(path) ?? []
+            list.push(block)
+            assignments.set(path, list)
+        }
+        for (const m of matched) if (m.path) push(m.path, m.block)
+        // Ask about every unmatched text once (Escape skips it).
+        const unmatched = new Map<string, ImportedBlock[]>()
+        for (const m of matched) {
+            if (m.path) continue
+            const list = unmatched.get(m.block.text) ?? []
+            list.push(m.block)
+            unmatched.set(m.block.text, list)
+        }
+        const skipped: string[] = []
+        for (const [text, blocks] of unmatched) {
+            const path = await this.askNoteFor(text)
+            if (path) for (const block of blocks) push(path, block)
+            else skipped.push(text)
+        }
+        const result = await this.applyImport(assignments, replace)
+        const parts = [`${result.written} note${result.written === 1 ? '' : 's'} updated`]
+        if (result.refused.length > 0) parts.push(`refused (overlap): ${result.refused.join(', ')}`)
+        if (skipped.length > 0) parts.push(`not matched: ${skipped.join(', ')}`)
+        if (parsed.errors.length > 0)
+            parts.push(
+                `${parsed.errors.length} unreadable entr${parsed.errors.length === 1 ? 'y' : 'ies'}`
+            )
+        new Notice(`Ideal week import: ${parts.join(' · ')}`, 8000)
+    }
+
+    /** The picker for an imported text nothing matched; null when dismissed. */
+    private askNoteFor(text: string): Promise<string | null> {
+        const items: WeekPickerItem[] = [...this.entries.values()].map((entry) => ({
+            path: entry.path,
+            title: entry.title,
+            typeName: entry.typeName,
+            detail: `for “${text}”`
+        }))
+        return new Promise((resolve) => {
+            let picked = false
+            const modal = new WeekNotePickerModal(this.host.app, items, (item) => {
+                picked = true
+                resolve(item.path)
+            })
+            modal.setPlaceholder(`Which note is “${text}”? Escape skips it`)
+            modal.onClose = () => {
+                if (!picked) resolve(null)
+            }
+            modal.open()
+        })
+    }
+
+    /**
+     * Write the imported blocks: a note's list is replaced (or extended)
+     * and checked against every other note's slots, the other imported
+     * notes included; a note whose result overlaps is refused, named.
+     */
+    private async applyImport(
+        assignments: Map<string, ImportedBlock[]>,
+        replace: boolean
+    ): Promise<{ written: number; refused: string[] }> {
+        const finals = new Map<string, TimeBlock[]>()
+        for (const [path, imported] of assignments) {
+            const entry = this.entries.get(path)
+            if (!entry) continue
+            let blocks = replace ? [] : entry.blocks
+            for (const slot of slotsOf(toTimeBlocks(imported))) blocks = addSlot(blocks, slot)
+            finals.set(path, blocks)
+        }
+        const refused: string[] = []
+        let written = 0
+        await this.batched(async () => {
+            for (const [path, blocks] of finals) {
+                const entry = this.entries.get(path)
+                if (!entry) continue
+                const universe: OwnedSlot[] = []
+                for (const other of this.entries.values()) {
+                    if (other.path === path || !other.onGrid) continue
+                    const otherBlocks = finals.get(other.path) ?? other.blocks
+                    for (const slot of slotsOf(otherBlocks))
+                        universe.push({ ...slot, path: other.path })
+                }
+                const own = slotsOf(blocks)
+                const conflict =
+                    own.map((slot) => findOverlap(slot, universe)).find((hit) => hit !== null) ??
+                    own
+                        .map((slot, i) =>
+                            findOverlap(
+                                slot,
+                                own.filter((_, j) => j !== i).map((s) => ({ ...s, path }))
+                            )
+                        )
+                        .find((hit) => hit !== null) ??
+                    null
+                if (conflict) {
+                    refused.push(entry.title)
+                    continue
+                }
+                await this.write(path, blocks)
+                written++
+            }
+        })
+        return { written, refused }
+    }
+
+    /** Save the ideal week as the app's JSON or Markdown file next to the attachments. */
+    async exportToApp(format: 'json' | 'markdown'): Promise<void> {
+        this.ensureLoaded()
+        const entries: ExportEntry[] = [...this.entries.values()]
+            .filter((e) => e.onGrid && e.blocks.length > 0)
+            .map((e) => {
+                const context = e.contexts[0]
+                const color = context ? contextColor(context) : null
+                return {
+                    title: e.title,
+                    blocks: e.blocks,
+                    color: color?.startsWith('#') ? color : null
+                }
+            })
+        if (entries.length === 0) {
+            new Notice('Nothing to export: the ideal week has no block.')
+            return
+        }
+        const now = new Date()
+        const { blocks, rounded } = toAppBlocks(entries)
+        const s = this.host.settings()
+        const text =
+            format === 'json'
+                ? toAppJson(blocks, { startHour: s.gridStartHour, endHour: s.gridEndHour }, now)
+                : toAppMarkdown(blocks, now)
+        const stamp = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+        const name = `Ideal week ${stamp}.${format === 'json' ? 'json' : 'md'}`
+        const path = await this.host.app.fileManager.getAvailablePathForAttachment(name)
+        await this.host.app.vault.create(path, text)
+        const parts = [`${blocks.length} block${blocks.length === 1 ? '' : 's'} written to ${path}`]
+        if (rounded.length > 0) {
+            parts.push(
+                `${rounded.length} rounded to the app's 30-minute grid: ${rounded
+                    .slice(0, 3)
+                    .map((r) => `${r.title} ${r.from} → ${r.to}`)
+                    .join('; ')}${rounded.length > 3 ? '…' : ''}`
+            )
+        }
+        new Notice(`Ideal week exported: ${parts.join(' · ')}`, 8000)
     }
 
     // ── Selection ───────────────────────────────────────────────────
@@ -562,7 +1047,9 @@ export class WeekController {
             }
             byPath.set(item.path, addSlot(current, slot))
         }
-        for (const [path, blocks] of byPath) await this.write(path, blocks)
+        await this.batched(async () => {
+            for (const [path, blocks] of byPath) await this.write(path, blocks)
+        })
         if (skipped.length > 0) {
             new Notice(
                 `Not pasted (overlap or outside the week): ${[...new Set(skipped)].join(', ')}`
@@ -581,13 +1068,15 @@ export class WeekController {
             byPath.set(parsed.path, list)
         }
         this.selected = new Set()
-        for (const [path, slots] of byPath) {
-            const entry = this.entries.get(path)
-            if (!entry) continue
-            let blocks = entry.blocks
-            for (const slot of slots) blocks = removeSlot(blocks, slot)
-            await this.write(path, blocks)
-        }
+        await this.batched(async () => {
+            for (const [path, slots] of byPath) {
+                const entry = this.entries.get(path)
+                if (!entry) continue
+                let blocks = entry.blocks
+                for (const slot of slots) blocks = removeSlot(blocks, slot)
+                await this.write(path, blocks)
+            }
+        })
     }
 
     /** Keyboard edit of a focused block: move by a step, resize its end, or remove. */
@@ -627,10 +1116,15 @@ export class WeekController {
      * drop, picker). A note without a weekly target is asked for one first;
      * the answer is written with the block (Cancel plans nothing).
      */
-    async createFor(path: string, day: number, start: number): Promise<void> {
+    async createFor(
+        path: string,
+        day: number,
+        start: number,
+        minutes = this.newBlockMinutes()
+    ): Promise<void> {
         const entry = this.entries.get(path)
         if (!entry) return
-        const slot = newBlockSlot(day, start, this.newBlockMinutes(), this.config())
+        const slot = newBlockSlot(day, start, minutes, this.config())
         const conflict = this.conflictOf(path, slot, null)
         if (conflict) {
             new Notice(conflict)
@@ -663,6 +1157,11 @@ export class WeekController {
 
     /** Click on an empty slot: pick the note, then create. */
     create(day: number, start: number): void {
+        this.pickNote((path) => void this.createFor(path, day, start))
+    }
+
+    /** The type-aware note picker of the ideal week; `onPick` gets the chosen path. */
+    private pickNote(onPick: (path: string) => void): void {
         const items: WeekPickerItem[] = []
         for (const entry of this.entries.values()) {
             const planned = plannedMinutesPerWeek(entry.blocks)
@@ -688,9 +1187,7 @@ export class WeekController {
             )
             return
         }
-        new WeekNotePickerModal(this.host.app, items, (item) => {
-            void this.createFor(item.path, day, start)
-        }).open()
+        new WeekNotePickerModal(this.host.app, items, (item) => onPick(item.path)).open()
     }
 }
 
@@ -714,3 +1211,17 @@ function sameBlocks(a: readonly TimeBlock[], b: readonly TimeBlock[]): boolean {
     const right = formatTimeBlocks(b)
     return left.length === right.length && left.every((entry, i) => entry === right[i])
 }
+
+/** One note's block list before and after one write (undo / redo). */
+interface HistoryStep {
+    path: string
+    before: TimeBlock[]
+    after: TimeBlock[]
+}
+
+/** One undoable edit: one step, or several for a batch. */
+interface HistoryItem {
+    steps: HistoryStep[]
+}
+
+const HISTORY_LIMIT = 100

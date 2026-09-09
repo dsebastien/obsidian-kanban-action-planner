@@ -42,7 +42,7 @@ Or see what's on your plate right now with the Agenda: a flat, prioritized list 
 
 ![Agenda mode](docs/images/agenda.png)
 
-Shape your ideal week: the recurring time blocks of every active activity and project on a date-less weekly grid, dragged, resized, copied, and keyboard-nudged straight into the notes' `time_blocks`, overlaps refused, every note listed against its weekly target. Cards and WBS rows then show a weekly budget ring (tracked this week vs target, red above the alarm) and the WBS adds lead, cycle and lateness days per row:
+Shape your ideal week: the recurring time blocks of every active activity and project on a date-less weekly grid, dragged, resized, copied, and keyboard-nudged straight into the notes' `time_blocks`, overlaps refused, every note listed against its weekly target, importable from and exportable to the week-planner app. Cards and WBS rows then show a weekly budget ring (tracked this week vs target, red above the alarm) and the WBS adds lead, cycle and lateness days per row:
 
 ![Ideal week mode](docs/images/week.png)
 

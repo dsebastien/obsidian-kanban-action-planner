@@ -960,3 +960,35 @@ When a new business rule is mentioned:
     missing date is a blank slot, never a guess; the done date is the property the mirrored
     done status stamps, else the archive's done-date property. All four ideal-week property
     names resolve per type (`weekPropertiesForType`, `Configure → Ideal week`, blank = global).
+
+51. **Week-planner app import / export (issue #172, phase D).** `domain/week-planner-io.ts`
+    reads the app's JSON (`version 1.0`, `{startDay, daySpan, startTime, duration, text}`) and
+    Markdown (`## Monday` sections, `- HH:MM - HH:MM: text`, `(Day x/y)` parts merged) into
+    `{text, days, start, end}` blocks in the vault's grammar (an end at or past midnight wraps);
+    a block's TEXT is the note it belongs to, matched exact then case-insensitive, with or
+    without a trailing `(Type)` suffix, the rest asked one text at a time (Escape skips);
+    styling is never imported. The import replaces (or extends) each matched note's list in
+    ONE write per note through the controller's `write`, after an overlap check against every
+    other note's slots — the other imported notes' new slots included — that refuses and names
+    a conflicting note rather than writing it. The export covers the notes drawn on the grid,
+    turns a run of consecutive days sharing a time into one app block with a `daySpan`, rounds
+    15-minute times outwards to the app's 30-minute grid and reports every rounding; it writes
+    a new file next to the attachments and never overwrites one.
+
+52. **Ideal week parity with the week-planner app (issue #172, phase E; decided 2026-09-09).**
+    Undo / redo is an in-memory stack of `{path, before, after}` block-list steps recorded by
+    `write()` (a batch — paste, selection move / delete, import — is ONE item with several
+    steps, replayed in reverse on undo), replayed through `write()` itself so it stays
+    optimistic and never bypasses the domain; it is capped at 100 and dies with the view.
+    Dragging a block that is part of the selection moves (Alt: copies) the whole selection by
+    the same offset, all-or-nothing: one slot that would overlap or leave the week cancels the
+    move and names the note. Alt-drag on the empty grid draws a sized block (15-minute floor
+    of the drag, one column) and goes through the same type-aware picker as a click; a plain
+    drag stays a marquee. Ctrl/Cmd+A selects every drawn block. The empty-cell menu plans a
+    block (picker) or pastes the clipboard at that cell; while the clipboard holds blocks the
+    cell under the pointer is lit. "Remove every block of this note" is one write; "Set
+    weekly target…" (issue #186) writes the type's target property only, optimistically.
+    Printing renders a static copy of the grid (head + pieces, no handles, no rail) into a
+    print-only container isolated by `body.kap-week-printing`, calls the window's print, and
+    removes the copy afterwards; nothing is written. Dropped on purpose: per-block styling,
+    style clipboard, quick templates, text editing, lunch band, corner handles (#184).

@@ -554,3 +554,31 @@ function renderPiece(
     })
     return el
 }
+
+/**
+ * A static, print-friendly copy of the grid (issue #172, phase E): the same
+ * head, gutter and pieces as the live render, no rail, no toolbar, no
+ * handles, inside a container the print stylesheet isolates. Returns the
+ * container; the caller prints and removes it.
+ */
+export function renderWeekPrint(doc: Document, model: WeekViewModel, title: string): HTMLElement {
+    const root = doc.body.createDiv({ cls: 'kap-root kap-week-print' })
+    root.createDiv({ cls: 'kap-week-print-title', text: title })
+    const summary = root.createDiv({ cls: 'kap-week-print-summary', text: summaryText(model) })
+    summary.setAttribute('aria-hidden', 'true')
+    const page = root.createDiv({ cls: 'kap-week kap-week-print-page' })
+    const scroller = page.createDiv({ cls: 'kap-week-scroller kap-week-print-scroller' })
+    renderHead(scroller, model)
+    const noop: WeekCallbacks = {
+        onTogglePanel: () => undefined,
+        onToggleGroup: () => undefined,
+        onOpen: () => undefined,
+        onBlockContextMenu: () => undefined,
+        onBlockKey: () => undefined,
+        onRailContextMenu: () => undefined,
+        onToggleContext: () => undefined
+    }
+    renderGrid(scroller, { ...model, selectedKeys: new Set<string>() }, noop)
+    for (const handle of Array.from(root.querySelectorAll('.kap-week-handle'))) handle.remove()
+    return root
+}
