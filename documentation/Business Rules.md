@@ -945,3 +945,18 @@ When a new business rule is mentioned:
     emptying and rebuilding, so the echo causes no flash or reflow. References: board
     (`reconcile.ts` + `signatures.ts`), WBS (`rowSignature` + in-place re-parent), Ideal week
     (`overlay` + `reconcilePieces`).
+
+50. **Weekly budget ring (issue #172, phase C).** Target (`minutes_per_week`), planned
+    (`minutes_planned_per_week`), alarm (`minutes_alarm_per_week`) and tracked-this-week are
+    the four numbers; the week is the ISO week (Monday 00:00 local, exclusive end), and tracked
+    = the note's own entries plus the entries of its linked children on the board, each note
+    once, clipped to the week (`clipEntryMinutes`). A note shows a ring only when it carries a
+    target or planned minutes; in the WBS a node without one derives target and planned
+    own-wins-else-children (`childrenEstimate` over the readers) and tracked by adding the
+    contributing notes' weeks. Tones: alarm (tracked > alarm) beats over (> target) beats on
+    (≥ 90%) beats under; no target = a plain count. The alarm notice fires ONCE per note per ISO
+    week (`weekAlarmNotified` in settings, pruned of past weeks) and is never repeated by a
+    re-render. Lifecycle days (`lifecycle.ts`) are computed from dates and never stored: a
+    missing date is a blank slot, never a guess; the done date is the property the mirrored
+    done status stamps, else the archive's done-date property. All four ideal-week property
+    names resolve per type (`weekPropertiesForType`, `Configure → Ideal week`, blank = global).

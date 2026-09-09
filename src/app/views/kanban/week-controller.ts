@@ -188,9 +188,7 @@ export class WeekController {
                 getFrontmatterValue(this.host.app, card.file, this.host.duePropertyFor(card))
             )
             let { blocks, errors } = parseTimeBlocks(rawBlocks)
-            let target = coerceOrder(
-                getFrontmatterValue(this.host.app, card.file, p.targetMinutes)
-            )
+            let target = coerceOrder(getFrontmatterValue(this.host.app, card.file, p.targetMinutes))
             if (pending) {
                 const echoed =
                     sameBlocks(pending.blocks, blocks) &&

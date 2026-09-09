@@ -279,6 +279,7 @@ import { DatePromptModal } from '../../ui/date-prompt-modal'
 import { TextPromptModal } from '../../ui/text-prompt-modal'
 import { log } from '../../../utils/log'
 import { weekPropertiesForType } from '../../services/week-properties.service'
+import { produce } from 'immer'
 import { weekBudgetOf } from '../../services/week-budget.service'
 import type { WeekBudget } from '../../services/week-budget.service'
 import { alarmNoticeDue, formatBudgetMinutes, isoWeekKey } from '../../domain/budget'
@@ -2371,17 +2372,21 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
     }
 
     /**
-     * The card's lifecycle dates (issue #172, phase C). Started = the WBS /
-     * timeline start property, due = the deadline, done = the property the
-     * mirrored done status stamps (else the archive's done-date property).
+     * The card's lifecycle dates (issue #172, phase C). Started and due come
+     * from the card's type (its calendar start / due properties), done is
+     * the property the mirrored done status stamps (else the archive's
+     * done-date property), committed is the global setting.
      */
     private lifecycleDatesFor(card: KanbanCard): LifecycleDates {
         const read = (property: string | null): Date | null =>
             property ? parseDay(getFrontmatterValue(this.app, card.file, property)) : null
+        // Started / due follow the card's TYPE (its calendar config), like
+        // the week grid: a project's `date_started`, a task's scheduled date.
+        const dates = this.datePropertiesFor(card)
         return {
             committed: read(this.plugin.settings.committedDateProperty),
-            started: read(this.resolveTimelineStartProperty()),
-            due: read(this.dueDateProperty),
+            started: read(dates.start),
+            due: read(dates.due),
             done: read(this.doneDatePropertyFor(card))
         }
     }
@@ -2426,7 +2431,11 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             )
         }
         if (fired) {
-            this.plugin.settings.weekAlarmNotified = memo
+            // Settings are immutable (immer): replace, never assign into.
+            const next = memo
+            this.plugin.settings = produce(this.plugin.settings, (draft) => {
+                draft.weekAlarmNotified = next
+            })
             void this.plugin.saveSettings('chrome')
         }
     }
