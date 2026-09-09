@@ -45,6 +45,26 @@ interface SkApiLike {
     getNoteType?: (id: string) => unknown
     getNoteTypeByName?: (name: string) => unknown
     recognizeNoteType?: (file: unknown) => Promise<unknown>
+    /** Starter Kit ≥ 1.13: the type's status property + done states. */
+    getNoteTypeStatus?: (ref: string) => unknown
+}
+
+/** One status value of a Starter Kit note type, as its `getNoteTypeStatus` resolves it. */
+export interface SkStatusValue {
+    value: string
+    done: boolean
+    outcome: 'success' | 'failure' | null
+    /** Date property stamped when a note enters this status (null = none). */
+    stampsDate: string | null
+    stampOnlyIfEmpty: boolean
+}
+
+/** A Starter Kit note type's resolved status (property + every value's meaning). */
+export interface SkResolvedStatus {
+    property: string
+    /** True when configured on the type; false = the Starter Kit's own heuristic. */
+    explicit: boolean
+    values: SkStatusValue[]
 }
 
 /** Normalize either a raw value or an `ApiResult<T>` wrapper into `T | null`. */
@@ -89,6 +109,37 @@ export function getNoteTypeById(app: App, id: string): SkNoteType | null {
         if (type) return type
     }
     return listNoteTypes(app).find((type) => type.id === id) ?? null
+}
+
+/**
+ * The Starter Kit's status resolution for a note type (its status property,
+ * done states, outcomes and stamped dates), or `null` when the installed
+ * Starter Kit predates the API, the type is unknown, or it has no status
+ * property. Shapes are normalized defensively like every other SK result.
+ */
+export function getNoteTypeStatus(app: App, id: string): SkResolvedStatus | null {
+    const api = getStarterKitApi(app)
+    if (!api?.getNoteTypeStatus) return null
+    try {
+        const raw = unwrap<Partial<SkResolvedStatus>>(api.getNoteTypeStatus(id))
+        if (!raw || typeof raw.property !== 'string' || !Array.isArray(raw.values)) return null
+        return {
+            property: raw.property,
+            explicit: raw.explicit === true,
+            values: raw.values
+                .filter((v): v is SkStatusValue => typeof v?.value === 'string')
+                .map((v) => ({
+                    value: v.value,
+                    done: v.done === true,
+                    outcome: v.outcome === 'success' || v.outcome === 'failure' ? v.outcome : null,
+                    stampsDate:
+                        typeof v.stampsDate === 'string' && v.stampsDate ? v.stampsDate : null,
+                    stampOnlyIfEmpty: v.stampOnlyIfEmpty !== false
+                }))
+        }
+    } catch {
+        return null
+    }
 }
 
 /**

@@ -104,7 +104,9 @@ column rule.
   for estimates and progress: **a note's own value wins; without one it derives from its
   children** (`effectiveEstimate`/`childrenEstimate`, `effectiveProgress` — weighted by
   effective estimates; `parseProgress` clamps to 0–100). A card matching its type's
-  **done definition** (`domain/done.ts`: `resolveDoneConfig` + `isDoneValue`, rule 39)
+  **done definition** (`domain/done.ts`: `resolveDoneConfig` + `isDoneValue`, rule 39; mirrored
+  read-only from an explicit Starter Kit status via `domain/status-mirror.ts`, which also
+  regenerates the `sk-stamp:*` date-stamping rules)
   reads as own progress 100 before the frontmatter number. **Automations** (rule 40,
   `domain/automation.ts` pure matching: `rulesForTransition`/`rulesForArchive`/
   `rulesForPropertyChange` edge-triggered + `propertyConditionMet`, `coerceActionValue`,

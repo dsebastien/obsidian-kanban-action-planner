@@ -255,6 +255,15 @@ default the property is the type's **status property**, and you toggle the statu
 done note reads as **100% complete** in the WBS progress rollups — even without a `progress`
 number — so parents show real momentum as their children complete.
 
+**With the Obsidian Starter Kit (1.13+)**: when a note type's **Status** section there
+declares its status property and done states, this plugin **mirrors** them — the done state
+becomes read-only here ("Mirrored from the Obsidian Starter Kit"), the status property and
+columns follow the declaration, and one **stamping rule** per status that stamps a date
+(Planned → `date_committed`, Completed → `date_completed`, …) appears under Automations
+(`Stamp … on …`, mirrored, re-synced on every board load; **only if empty** so a date you set
+by hand is never overwritten). Edit all of it in the Starter Kit. A type whose Starter Kit
+status is not configured keeps its plugin-owned done state exactly as before.
+
 ## Creating notes (quick capture)
 
 **Configure board → Creating notes**, per note type. Drives the **Add card** button in each
@@ -306,7 +315,9 @@ order:
 
 - **Set property** — the value supports the archive placeholders (`{{date}}`,
   `{{year}}`, `{{month}}`, `{{day}}`, `{{week}}`, `{{quarter}}`, `{{datetime}}`,
-  `{{uuid}}`); plain numbers and `true`/`false` are written as numbers and booleans.
+  `{{uuid}}`); plain numbers and `true`/`false` are written as numbers and booleans. The
+  **only if empty** toggle skips the write when the property already has a value — the
+  right choice for date stamps (`date_completed` = `{{date}}`), so a date set by hand wins.
 - **Remove property** — deletes the property (e.g. clear `date_due` when a task is done).
 - **Add tag / Remove tag** — edits the frontmatter `tags` list (case-insensitive, `#`
   optional).

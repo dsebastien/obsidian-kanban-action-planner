@@ -21,6 +21,7 @@ import type { CreationConfig } from '../domain/note-creation'
 import { creationDefaults, getNoteTypeById } from '../services/starter-kit.service'
 import { isTemplaterAvailable, templaterTemplatesFolder } from '../services/templater.service'
 import { splitStatusValue } from '../domain/status'
+import { isMirroredRule } from '../domain/status-mirror'
 import { resolveDoneConfig } from '../domain/done'
 import { doneIsStatusBased } from '../domain/automation'
 import { isValidHex, paletteTokens, resolveColor } from '../services/colors.service'
@@ -249,6 +250,22 @@ export class ConfigureBoardModal extends Modal {
 
     private renderAutomationRule(noteType: NoteType, rule: AutomationRule, index: number): void {
         const block = this.body.createDiv({ cls: 'kap-automation-rule' })
+
+        if (isMirroredRule(rule)) {
+            const first = rule.actions[0]
+            const stamp = first?.kind === 'set-property' ? first.property : ''
+            const status =
+                rule.trigger.kind === 'status-entered' ? (rule.trigger.statuses[0] ?? '') : ''
+            new Setting(block)
+                .setName(rule.name.trim() || `Rule ${String(index + 1)}`)
+                .setDesc(
+                    `Mirrored from the Obsidian Starter Kit: entering "${splitStatusValue(status).label}" ` +
+                        `stamps "${stamp}" with today` +
+                        (first?.kind === 'set-property' && first.onlyIfEmpty ? ' when empty' : '') +
+                        '. Edit it in the Starter Kit (Note types → Edit → Status); it is re-synced on every board load.'
+                )
+            return
+        }
 
         const heading = new Setting(block)
         heading
@@ -492,6 +509,15 @@ export class ConfigureBoardModal extends Modal {
                             (value) => void this.patchActionField(ruleIndex, actionIndex, { value })
                         )
                 )
+                row.addToggle((toggle) =>
+                    toggle
+                        .setTooltip('Only if empty: never overwrite a value that is already set')
+                        .setValue(action.onlyIfEmpty ?? false)
+                        .onChange(
+                            (onlyIfEmpty) =>
+                                void this.patchActionField(ruleIndex, actionIndex, { onlyIfEmpty })
+                        )
+                )
                 break
             case 'remove-property':
                 row.addText((input) =>
@@ -661,6 +687,17 @@ export class ConfigureBoardModal extends Modal {
         })
 
         const done = noteType.done
+        if (done?.mirrored) {
+            new Setting(this.body)
+                .setName('Mirrored from the Obsidian Starter Kit')
+                .setDesc(
+                    `The Starter Kit declares the status property and done states of ${noteType.name} ` +
+                        `notes (Settings → Obsidian Starter Kit → Note types → Edit → Status). ` +
+                        `Done: ${done.values.length > 0 ? done.values.map((v) => splitStatusValue(v).label).join(', ') : 'none'}. ` +
+                        'Edit them there; this plugin re-syncs on every board load.'
+                )
+            return
+        }
         new Setting(this.body)
             .setName('Has a done state')
             .setDesc('Enable to define the property and value(s) that mean done.')

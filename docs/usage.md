@@ -757,9 +757,16 @@ Each rule is a **trigger** plus a list of **actions** that run in order:
   when the condition _becomes_ true, from any edit source, as long as a board showing the
   note is open.
 - Actions: **set a property** (values expand `{{date}}`, `{{year}}` and the other archive
-  placeholders; numbers and true/false are written natively), **remove a property**, **add
-  or remove a tag**, and **move the note to a folder** (placeholders, auto-created folders,
-  links preserved — the archive machinery).
+  placeholders; numbers and true/false are written natively; **only if empty** never
+  overwrites a value that is already set), **remove a property**, **add or remove a tag**,
+  and **move the note to a folder** (placeholders, auto-created folders, links preserved —
+  the archive machinery).
+
+With the Obsidian Starter Kit (1.13+), a note type whose **Status** section declares done
+states and stamped dates gets its **Done state** and one `Stamp … on …` rule per stamping
+status **mirrored** here, read-only and re-synced on every board load — configure them once
+in the Starter Kit and every board, the `osk-cli` and your AI skills agree on what "done"
+means.
 
 Rules fire **once per actual transition** and automation writes never trigger other rules,
 so you can't build an accidental loop. When a transition both auto-archives the note and

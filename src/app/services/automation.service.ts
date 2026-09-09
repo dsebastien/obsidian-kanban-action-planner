@@ -4,6 +4,7 @@ import { coerceActionValue, normalizeTag, tagMatches } from '../domain/automatio
 import {
     appendToListProperty,
     deleteProperty,
+    getFrontmatterValue,
     removeFromListProperty,
     setProperty
 } from './frontmatter.service'
@@ -31,6 +32,14 @@ export interface AutomationRunResult {
      * for exactly these, so automation writes never re-trigger rules.
      */
     writtenProperties: Set<string>
+}
+
+/** Missing, null, empty string or empty list: nothing set yet. */
+function isEmptyValue(raw: unknown): boolean {
+    if (raw === undefined || raw === null) return true
+    if (typeof raw === 'string') return raw.trim().length === 0
+    if (Array.isArray(raw)) return raw.length === 0
+    return false
 }
 
 /** Run every action of the matched rules, in rule + action order. */
@@ -74,6 +83,8 @@ async function runAction(
         case 'set-property': {
             const property = action.property.trim()
             if (!property) return
+            if (action.onlyIfEmpty && !isEmptyValue(getFrontmatterValue(app, file, property)))
+                return
             const value = coerceActionValue(resolvePlaceholders(action.value, ctx))
             await setProperty(app, file, property, value)
             result.writtenProperties.add(property.toLowerCase())

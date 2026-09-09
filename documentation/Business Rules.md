@@ -634,8 +634,13 @@ When a new business rule is mentioned:
 
 39. **Per-type done state (issue #56).** A note type may declare a **done definition** via
     its plugin-owned `done` config (`doneConfigSchema`: `enabled` + `property` + `values`;
-    Configure board → **Done state**; editable for Starter Kit–mirrored types, untouched by
-    the SK mirror): a note is **done** when the configured frontmatter property matches any
+    Configure board → **Done state**; editable for Starter Kit–mirrored types **unless the
+    Starter Kit declares the type's status explicitly** — then `done` is mirrored from
+    `getNoteTypeStatus` (`mirrored: true`, read-only in the UI, re-synced on every
+    `resolveActiveNoteType`; `domain/status-mirror.ts` `reconcileDone`), and the status
+    property + column values follow the Starter Kit resolution instead of the historical
+    `findStatusProperty` detection; a Starter Kit that stops declaring it hands the values
+    back editable): a note is **done** when the configured frontmatter property matches any
     configured value (trimmed, case-insensitive; list properties match on ANY element). An
     empty property falls back to the type's **status property** (the UI then offers
     per-status toggles instead of free-text values); an empty values list means **checkbox
@@ -657,7 +662,8 @@ When a new business rule is mentioned:
     values only match `unset` — never `not-equals`). **Actions:** set property
     (placeholder-expanded value — the archive `{{year}}`/`{{date}}`/… vocabulary — then
     coerced: CANONICAL numeric strings → numbers, true/false → booleans, else trimmed
-    string), remove property, add/remove tag (frontmatter `tags` list only,
+    string; optional `onlyIfEmpty` skips the write when the property holds a non-empty
+    value, list or string — a set date is never overwritten), remove property, add/remove tag (frontmatter `tags` list only,
     case-insensitive `#`-agnostic matching), move to folder (the archive machinery:
     placeholders, mkdir-p, collision suffix, `renameFile`; self-move is a no-op).
     **Firing:** status/done triggers fire from EVERY plugin status-write path — applyMove
@@ -677,6 +683,13 @@ When a new business rule is mentioned:
     defaults to `[]` (older data.json degrades, no backfill); rules are parsed
     ITEM-tolerantly — an unknown trigger/action kind (from a newer version) drops that
     rule instead of failing the whole settings parse.
+    **Mirrored stamping rules:** when the Starter Kit declares a type's status explicitly,
+    one rule per value with a stamped date is regenerated on every board resolution —
+    `status-entered [value] → set-property <stampsDate> = {{date}}` with `onlyIfEmpty` per the
+    Starter Kit's `stampOnlyIfEmpty` — under ids prefixed `sk-stamp:` (`domain/status-mirror.ts`
+    `mirroredStampRules` / `mergeMirroredRules`: user rules keep their order, stale mirrored
+    rules are replaced in place). They render read-only in the Automations section and are
+    edited in the Starter Kit.
 41. **Render-performance invariants (issue #105).** Three fixed constraints govern every render
     change: (a) **optimistic updates stay** — nothing may wait for the Bases echo for visible
     feedback; (b) **visual stability** — content must not move, resize, or lose scroll position

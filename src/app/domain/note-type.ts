@@ -122,7 +122,13 @@ export const doneConfigSchema = z.object({
     /** Property name; '' falls back to the type's status property. */
     property: z.string(),
     /** Values meaning done (case-insensitive); empty = boolean `true`. */
-    values: z.array(z.string())
+    values: z.array(z.string()),
+    /**
+     * Mirrored from the Obsidian Starter Kit's status configuration (its
+     * explicit done states); read-only in this plugin while true, re-synced
+     * on every board resolution. Absent/false = plugin-owned.
+     */
+    mirrored: z.boolean().optional()
 })
 export type DoneConfig = z.infer<typeof doneConfigSchema>
 
@@ -181,7 +187,13 @@ export type AutomationTrigger = z.infer<typeof automationTriggerSchema>
  * numbers/booleans. Tags target the frontmatter `tags` list.
  */
 export const automationActionSchema = z.discriminatedUnion('kind', [
-    z.object({ kind: z.literal('set-property'), property: z.string(), value: z.string() }),
+    z.object({
+        kind: z.literal('set-property'),
+        property: z.string(),
+        value: z.string(),
+        /** Write only when the property is empty (a set value is never overwritten). */
+        onlyIfEmpty: z.boolean().optional()
+    }),
     z.object({ kind: z.literal('remove-property'), property: z.string() }),
     z.object({ kind: z.literal('add-tag'), tag: z.string() }),
     z.object({ kind: z.literal('remove-tag'), tag: z.string() }),
