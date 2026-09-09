@@ -1,5 +1,23 @@
 # Release Notes
 
+## 1.25.0 (2026-09-09)
+
+### Features
+
+- **plugin:** configure the ideal week and budget properties per note type, with a weekly alarm property
+- **plugin:** ctrl-click opens an ideal week note in a new tab, lighter hover outline
+- **plugin:** drag on the ideal week grid to draw a block over the covered cells and days
+- **plugin:** hand stamping over to the Starter Kit when it runs automation rules
+- **plugin:** ideal week mode over time blocks, with status roles mirrored from the starter kit
+- **plugin:** import the ideal week from the week-planner app and export it back
+- **plugin:** undo and redo, group moves, drawn blocks, cell menu, print, and weekly targets in the ideal week
+- **plugin:** weekly budget ring on activity and project cards and WBS rows, with lifecycle columns
+
+### Bug Fixes
+
+- **plugin:** ideal week edits stretch across days with a real mouse, show at once, and keep the grid steady
+- **plugin:** the weekly alarm notice fires once per week and lifecycle dates follow each note type
+
 ## 1.24.0 (2026-09-09)
 
 ### Features

@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.25.0](https://github.com/dsebastien/obsidian-kanban-action-planner/compare/1.24.0...1.25.0) (2026-09-09)
+
+### Features
+
+* **plugin:** configure the ideal week and budget properties per note type, with a weekly alarm property ([74cc57f](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/74cc57fc1c6362819377d583ae27426e53bffbb2))
+* **plugin:** ctrl-click opens an ideal week note in a new tab, lighter hover outline ([9caf48b](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/9caf48bbeec4b06dcf2753361983a95cfbaeb75b))
+* **plugin:** drag on the ideal week grid to draw a block over the covered cells and days ([f1bc5a9](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/f1bc5a9259ae8fc1f76a9c6625b88f3ab70cdd2b))
+* **plugin:** hand stamping over to the Starter Kit when it runs automation rules ([b39011e](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/b39011ea7cfd20f5344bec3d94ba2903523b537d))
+* **plugin:** ideal week mode over time blocks, with status roles mirrored from the starter kit ([077e372](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/077e37284fec771428364977da7f2ac447f7c62c)), closes [#172](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/172)
+* **plugin:** import the ideal week from the week-planner app and export it back ([3e8f089](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/3e8f089f5e666b665c673f379163e9e997e38a2d))
+* **plugin:** undo and redo, group moves, drawn blocks, cell menu, print, and weekly targets in the ideal week ([6ab42c0](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/6ab42c07f26742df3db246ef1f13103becca2ad7))
+* **plugin:** weekly budget ring on activity and project cards and WBS rows, with lifecycle columns ([63bcf20](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/63bcf20b4571f1e22eb6a97cc7160fe9c4b64d5d))
+
+### Bug Fixes
+
+* **plugin:** ideal week edits stretch across days with a real mouse, show at once, and keep the grid steady ([fa7b26e](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/fa7b26e7f7f2c1fa48bdb793ce887b712eb078c1))
+* **plugin:** the weekly alarm notice fires once per week and lifecycle dates follow each note type ([a99ddf5](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/a99ddf595cf3959d38c0442a2ace6e5c1c998ae7))
+
 ## [1.24.0](https://github.com/dsebastien/obsidian-kanban-action-planner/compare/1.23.0...1.24.0) (2026-09-09)
 
 ### Features
@@ -547,6 +565,7 @@ All notable changes to this project will be documented in this file.
 
 * **plugin:** match Starter Kit's {{quarter}} placeholder format (Q2, not 2) ([4fde618](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/4fde6185c5956e3f6fd2ca3a9b03e70cf5e16840))
 * **plugin:** persist discovered statuses so Show empty columns works ([cf91b81](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/cf91b81a1b0786e35c73f4885882e2dc33564c62))
+
 
 
 
