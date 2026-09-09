@@ -67,7 +67,7 @@ Shipped on the branch: `domain/week-planner-io.ts` (+ spec, 12 tests: JSON / Mar
 
 ## Phase E: deep review of the old week-planner app (before closing the issue)
 
-Inventory done (2026-09-09, read end to end: `src/*.ts`, `index.html`, README, TODO). What the app has that the Ideal week mode does not, with the proposed verdict; the final adopt / adapt / drop is Sébastien's, and the adopted ones become tasks:
+Decided with Sébastien on 2026-09-09: adopt #1, #2, #3, #4, #5, #7, #8, #15 (implemented as phase E on branch `phase-e`); explore #6 in its own issue; drop the rest. Inventory done (2026-09-09, read end to end: `src/*.ts`, `index.html`, README, TODO). What the app has that the Ideal week mode does not, with the proposed verdict; the final adopt / adapt / drop is Sébastien's, and the adopted ones become tasks:
 
 | #   | App feature                                                                                                                                             | Ideal week today                                                    | Proposed                                                                                                                                                                                   |
 | --- | ------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
