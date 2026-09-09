@@ -485,6 +485,12 @@ export class KanbanActionPlannerSettingTab extends PluginSettingTab {
             'minutes_per_week'
         )
         text(
+            'Committed date property',
+            'When the note was committed to. The WBS shows lead time (started − committed), cycle time (done − started) and lateness (done − due).',
+            'committedDateProperty',
+            'date_committed'
+        )
+        text(
             'Alarm minutes property',
             'Weekly alarm in minutes: a week tracked above it turns the budget ring red and shows one notice.',
             'defaultAlarmMinutesProperty',

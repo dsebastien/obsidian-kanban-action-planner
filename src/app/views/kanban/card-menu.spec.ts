@@ -36,7 +36,8 @@ function makeCard(): KanbanCard {
             coverUrl: null,
             wrap: false,
             dueState: 'none',
-            countdown: null
+            countdown: null,
+            budget: null
         },
         relationships: { blocked_by: [], parent: [], child: [], sibling: [] },
         contexts: [],

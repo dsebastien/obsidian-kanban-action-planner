@@ -1941,6 +1941,85 @@
     }
 
     /* ========================================
+       WEEKLY BUDGET RING + LIFECYCLE CHIPS (issue #172, phase C)
+       ======================================== */
+    /* A conic ring: --kap-ring-ratio (0..1) fills the arc, the tone colours it. */
+    .kap-ring {
+        @apply inline-block shrink-0 rounded-full;
+        width: 1.05em;
+        height: 1.05em;
+        --kap-ring-color: var(--text-muted);
+        --kap-ring-ratio: 0;
+        background: conic-gradient(
+            var(--kap-ring-color) calc(var(--kap-ring-ratio) * 360deg),
+            color-mix(in srgb, var(--kap-ring-color) 18%, transparent) 0
+        );
+        -webkit-mask: radial-gradient(circle, transparent 52%, #000 56%);
+        mask: radial-gradient(circle, transparent 52%, #000 56%);
+    }
+
+    .kap-ring-under {
+        --kap-ring-color: var(--color-blue);
+    }
+
+    .kap-ring-on {
+        --kap-ring-color: var(--color-green);
+    }
+
+    .kap-ring-over {
+        --kap-ring-color: var(--color-orange);
+    }
+
+    .kap-ring-alarm {
+        --kap-ring-color: var(--color-red);
+    }
+
+    .kap-card-budget {
+        @apply inline-flex items-center gap-1;
+    }
+
+    .kap-card-budget-alarm {
+        color: var(--color-red);
+    }
+
+    .kap-card-budget-over {
+        color: var(--color-orange);
+    }
+
+    .kap-wbs-budget-alarm {
+        color: var(--color-red);
+    }
+
+    .kap-wbs-budget-over {
+        color: var(--color-orange);
+    }
+
+    .kap-wbs-budget {
+        width: 8.5rem;
+    }
+
+    .kap-wbs-lifecycle {
+        width: 9rem;
+    }
+
+    .kap-wbs-life-grid {
+        @apply grid items-center gap-1;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .kap-wbs-life-seg {
+        @apply text-right whitespace-nowrap;
+    }
+
+    .kap-wbs-life-late {
+        color: var(--color-red);
+    }
+
+    .kap-wbs-life-early {
+        color: var(--color-green);
+    }
+
+    /* ========================================
        WEEK PLANNER MODE (issue #172)
        ======================================== */
     .kap-week-root {

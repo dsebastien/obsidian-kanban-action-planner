@@ -262,6 +262,7 @@ export function buildCardDisplay(
         dueState: computeDueState(due, today),
         countdown: countdown.show
             ? formatCountdown(countdownDate, today, countdown.soonDays, countdown.placement)
-            : null
+            : null,
+        budget: null
     }
 }

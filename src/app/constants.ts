@@ -27,6 +27,8 @@ export const DEFAULT_ORDER_PROPERTY = 'manual_order'
 export const DEFAULT_BLOCKED_BY_PROPERTY = 'blocked_by'
 export const DEFAULT_SCHEDULED_DATE_PROPERTY = 'date_scheduled'
 export const DEFAULT_DUE_DATE_PROPERTY = 'date_due'
+/** Lifecycle (issue #172, phase C): when the note was committed to (lead time starts). */
+export const DEFAULT_COMMITTED_DATE_PROPERTY = 'date_committed'
 /** Default defer ("can't start until") date property (issue #113). */
 export const DEFAULT_DEFER_DATE_PROPERTY = 'date_defer'
 /** Days a note is expected to take (drives the timeline's bar length). */

@@ -44,6 +44,7 @@ function display(over: Partial<CardDisplay> = {}): CardDisplay {
         coverUrl: null,
         wrap: false,
         dueState: 'none',
+        budget: null,
         countdown: null,
         ...over
     }
