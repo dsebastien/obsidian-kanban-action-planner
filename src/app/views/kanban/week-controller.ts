@@ -104,6 +104,17 @@ export class WeekController {
     private lastScrollContentKeys = new Map<string, string>()
     /** The entries of the last render, by path (the edit paths read them). */
     private entries = new Map<string, WeekEntry>()
+    /**
+     * Optimistic edits (issue #172): the blocks a note WILL carry once its
+     * frontmatter write lands, keyed by path. Renders read through it so a
+     * drop shows its result at once; the entry is dropped when the vault
+     * echoes the same blocks back (or after a grace period, whatever the
+     * echo looks like), so a linter rewrite can never pin a stale value.
+     */
+    private readonly overlay = new Map<
+        string,
+        { blocks: TimeBlock[]; target: number | null | undefined; at: number }
+    >()
     /** Rail headers folded by the user (in memory; everything starts open). */
     private readonly collapsedGroups = new Set<string>()
     /** Selected block keys (`slotKey`), marquee or Ctrl-click; cleared by Escape / empty click. */
@@ -168,17 +179,30 @@ export class WeekController {
         const entries: WeekEntry[] = []
         for (const card of cards) {
             const rawBlocks = getFrontmatterValue(this.host.app, card.file, s.timeBlocksProperty)
-            if (rawBlocks === undefined) continue
+            const pending = this.overlay.get(card.key)
+            if (rawBlocks === undefined && !pending) continue
             const start = parseFrontmatterDate(
                 getFrontmatterValue(this.host.app, card.file, this.host.startPropertyFor(card))
             )
             const due = parseFrontmatterDate(
                 getFrontmatterValue(this.host.app, card.file, this.host.duePropertyFor(card))
             )
-            const { blocks, errors } = parseTimeBlocks(rawBlocks)
-            const target = coerceOrder(
+            let { blocks, errors } = parseTimeBlocks(rawBlocks)
+            let target = coerceOrder(
                 getFrontmatterValue(this.host.app, card.file, s.targetMinutesProperty)
             )
+            if (pending) {
+                const echoed =
+                    sameBlocks(pending.blocks, blocks) &&
+                    (pending.target === undefined || pending.target === target)
+                if (echoed || Date.now() - pending.at > OVERLAY_GRACE_MS) {
+                    this.overlay.delete(card.key)
+                } else {
+                    blocks = pending.blocks
+                    errors = []
+                    if (pending.target !== undefined) target = pending.target
+                }
+            }
             entries.push({
                 path: card.key,
                 title: card.display.title,
@@ -375,11 +399,24 @@ export class WeekController {
         const card = this.host.cardForKey(path)
         if (!card) return
         const s = this.host.settings()
-        await setProperties(this.host.app, card.file, {
-            ...extra,
-            [s.timeBlocksProperty]: formatTimeBlocks(blocks),
-            [s.plannedMinutesProperty]: plannedMinutesPerWeek(blocks)
-        })
+        // Optimistic (issue #172): show the result now, write in the background.
+        const target =
+            s.targetMinutesProperty in extra
+                ? coerceOrder(extra[s.targetMinutesProperty])
+                : undefined
+        this.overlay.set(path, { blocks, target, at: Date.now() })
+        this.host.refresh()
+        try {
+            await setProperties(this.host.app, card.file, {
+                ...extra,
+                [s.timeBlocksProperty]: formatTimeBlocks(blocks),
+                [s.plannedMinutesProperty]: plannedMinutesPerWeek(blocks)
+            })
+        } catch (error) {
+            this.overlay.delete(path)
+            this.host.refresh()
+            throw error
+        }
     }
 
     /** Move (or copy) one occurrence; false when refused (overlap) or unknown. */
@@ -673,4 +710,14 @@ function parseSlotKey(key: string): { path: string; slot: Slot } | null {
     const day = Number(parts.pop())
     if (![day, start, end].every(Number.isFinite)) return null
     return { path: parts.join('|'), slot: { day, start, end } }
+}
+
+/** How long an optimistic overlay may outlive its write before the vault's value wins again. */
+const OVERLAY_GRACE_MS = 10_000
+
+/** Whether two block lists spell the same entries. */
+function sameBlocks(a: readonly TimeBlock[], b: readonly TimeBlock[]): boolean {
+    const left = formatTimeBlocks(a)
+    const right = formatTimeBlocks(b)
+    return left.length === right.length && left.every((entry, i) => entry === right[i])
 }

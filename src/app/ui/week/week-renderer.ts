@@ -87,21 +87,180 @@ export interface WeekCallbacks {
     onToggleContext: (value: string) => void
 }
 
-/** Render the whole mode into `rootEl` (replaces its content). */
+/**
+ * Render the mode into `rootEl`. When a previous render of the same
+ * structure (grid config, columns, panel state) is still there, the DOM is
+ * PATCHED in place: pieces are reconciled by key (an untouched block keeps
+ * its element, so the vault's echo of an optimistic edit never flashes or
+ * reflows the grid), the rail / legend / errors are rebuilt only when their
+ * content changed, and the toolbar text is updated. Otherwise it is built
+ * from scratch.
+ */
 export function renderWeek(
     rootEl: HTMLElement,
     model: WeekViewModel,
     callbacks: WeekCallbacks
 ): void {
+    const structure = structureKey(model)
+    const existing = rootEl.querySelector<HTMLElement>(':scope > .kap-week-root')
+    if (existing && existing.dataset['structure'] === structure) {
+        if (patchWeek(existing, model, callbacks)) return
+    }
     rootEl.empty()
     const root = rootEl.createDiv({ cls: 'kap-week-root' })
+    root.dataset['structure'] = structure
     renderRail(root, model, callbacks)
     const main = root.createDiv({ cls: 'kap-week' })
     renderToolbar(main, model, callbacks)
     if (model.errors.length > 0) renderErrors(main, model)
-    renderHead(main, model)
+    // The head lives INSIDE the scroller (sticky) so it shares the grid's
+    // width: outside it, the scroller's scrollbar narrowed the day columns
+    // but not the headers, and the two drifted apart towards the right.
     const scroller = main.createDiv({ cls: 'kap-week-scroller' })
+    renderHead(scroller, model)
     renderGrid(scroller, model, callbacks)
+}
+
+/** What a full rebuild depends on; anything else is patched in place. */
+function structureKey(model: WeekViewModel): string {
+    return JSON.stringify([model.cfg, model.columnDays, model.panelCollapsed])
+}
+
+/** The rail's content identity (rebuilt only when it changes). */
+function railKey(model: WeekViewModel): string {
+    return JSON.stringify([
+        model.sections.map((sec) => [
+            sec.key,
+            sec.groups.map((g) => [
+                g.label,
+                g.entries.map((e) => [
+                    e.path,
+                    e.title,
+                    e.typeName,
+                    e.statusLabel,
+                    e.active,
+                    e.targetMinutes,
+                    e.contexts[0] ?? null,
+                    plannedMinutesPerWeek(e.blocks)
+                ])
+            ])
+        ]),
+        [...model.collapsedGroups].sort()
+    ])
+}
+
+function legendKey(model: WeekViewModel): string {
+    return JSON.stringify(model.contextLegend)
+}
+
+function errorsKey(model: WeekViewModel): string {
+    return JSON.stringify(model.errors)
+}
+
+/**
+ * Update an existing render to `model` without rebuilding what did not
+ * change; false when the previous DOM is not patchable (full build instead).
+ */
+function patchWeek(root: HTMLElement, model: WeekViewModel, callbacks: WeekCallbacks): boolean {
+    const main = root.querySelector<HTMLElement>(':scope > .kap-week')
+    const scroller = main?.querySelector<HTMLElement>(':scope > .kap-week-scroller')
+    const grid = scroller?.querySelector<HTMLElement>(':scope > .kap-week-grid')
+    const toolbar = main?.querySelector<HTMLElement>(':scope > .kap-week-toolbar')
+    if (!main || !scroller || !grid || !toolbar) return false
+    // Rail: rebuilt as a whole when its content changed (it is small and
+    // its scroll position is captured / restored by the controller).
+    const panel = root.querySelector<HTMLElement>(':scope > .kap-week-panel')
+    const rail = railKey(model)
+    if (!panel || panel.dataset['rail'] !== rail) {
+        panel?.remove()
+        const next = renderRail(root, model, callbacks)
+        root.insertBefore(next, main)
+    }
+    // Toolbar: the summary text, and the legend when it changed.
+    const summary = toolbar.querySelector<HTMLElement>('.kap-week-planned')
+    if (summary) summary.setText(summaryText(model))
+    const legend = toolbar.querySelector<HTMLElement>('.kap-cal-legend')
+    const legendId = legendKey(model)
+    if (!legend || legend.dataset['legend'] !== legendId) {
+        legend?.remove()
+        renderLegend(toolbar, model, callbacks)
+    }
+    // Errors strip: rebuilt when it changed, kept between toolbar and grid.
+    const strip = main.querySelector<HTMLElement>(':scope > .kap-week-errors')
+    const errorsId = errorsKey(model)
+    if (!strip || strip.dataset['errors'] !== errorsId) {
+        strip?.remove()
+        if (model.errors.length > 0) {
+            const next = renderErrors(main, model)
+            main.insertBefore(next, scroller)
+        }
+    }
+    reconcilePieces(grid, model, callbacks)
+    return true
+}
+
+/**
+ * Reconcile the grid's block elements with the model's pieces: a piece whose
+ * signature is unchanged keeps its element (and its focus, hover, and
+ * selection state), a changed one is re-rendered in place, a gone one is
+ * removed, a new one is appended to its day column.
+ */
+function reconcilePieces(grid: HTMLElement, model: WeekViewModel, callbacks: WeekCallbacks): void {
+    const columns = new Map<number, HTMLElement>()
+    for (const col of Array.from(grid.querySelectorAll<HTMLElement>(':scope > .kap-week-day'))) {
+        columns.set(Number(col.dataset['day']), col)
+    }
+    const existing = new Map<string, HTMLElement>()
+    for (const el of Array.from(grid.querySelectorAll<HTMLElement>('.kap-week-block'))) {
+        existing.set(pieceIdOf(el), el)
+    }
+    const seen = new Set<string>()
+    for (const piece of model.pieces) {
+        const id = pieceId(piece)
+        seen.add(id)
+        const col = columns.get(piece.day)
+        if (!col) continue
+        const signature = pieceSignature(piece, model)
+        const current = existing.get(id)
+        if (
+            current &&
+            current.dataset['signature'] === signature &&
+            current.parentElement === col
+        ) {
+            continue
+        }
+        const next = renderPiece(col, piece, model, callbacks)
+        if (current) {
+            current.replaceWith(next)
+        }
+    }
+    for (const [id, el] of existing) if (!seen.has(id)) el.remove()
+}
+
+/** DOM identity of a piece: its slot key plus which half of a crosser it is. */
+function pieceId(piece: WeekBlockPiece): string {
+    return `${piece.key}|${piece.continuation ? '1' : '0'}`
+}
+
+function pieceIdOf(el: HTMLElement): string {
+    return `${el.dataset['key'] ?? ''}|${el.dataset['continuation'] === '1' ? '1' : '0'}`
+}
+
+/** Everything `renderPiece` bakes into an element (the patch gate). */
+function pieceSignature(piece: WeekBlockPiece, model: WeekViewModel): string {
+    return JSON.stringify([
+        piece.path,
+        piece.title,
+        piece.color,
+        piece.contextLabel,
+        piece.inactive,
+        piece.slot,
+        piece.top,
+        piece.height,
+        piece.clippedTop,
+        piece.clippedBottom,
+        model.selectedKeys.has(piece.key)
+    ])
 }
 
 /** "2h" / "1h 30m" / "45m". */
@@ -112,8 +271,13 @@ export function formatHoursMinutes(minutes: number): string {
     return m === 0 ? `${h}h` : `${h}h ${m}m`
 }
 
-function renderRail(parent: HTMLElement, model: WeekViewModel, callbacks: WeekCallbacks): void {
+function renderRail(
+    parent: HTMLElement,
+    model: WeekViewModel,
+    callbacks: WeekCallbacks
+): HTMLElement {
     const panel = parent.createDiv({ cls: 'kap-scheduling-panel kap-week-panel' })
+    panel.dataset['rail'] = railKey(model)
     if (model.panelCollapsed) panel.addClass('kap-scheduling-panel-collapsed')
     const header = panel.createDiv({ cls: 'kap-panel-header' })
     const toggle = header.createEl('button', {
@@ -125,7 +289,7 @@ function renderRail(parent: HTMLElement, model: WeekViewModel, callbacks: WeekCa
         }
     })
     toggle.addEventListener('click', callbacks.onTogglePanel)
-    if (model.panelCollapsed) return
+    if (model.panelCollapsed) return panel
     const total = model.sections.reduce(
         (n, sec) => n + sec.groups.reduce((m, g) => m + g.entries.length, 0),
         0
@@ -137,7 +301,7 @@ function renderRail(parent: HTMLElement, model: WeekViewModel, callbacks: WeekCa
             cls: 'kap-panel-empty',
             text: 'Nothing here: the rail lists the notes of this board that carry the time blocks property.'
         })
-        return
+        return panel
     }
     for (const section of model.sections) {
         const count = section.groups.reduce((m, g) => m + g.entries.length, 0)
@@ -161,6 +325,7 @@ function renderRail(parent: HTMLElement, model: WeekViewModel, callbacks: WeekCa
             for (const entry of group.entries) renderRailItem(list, entry, model, callbacks)
         }
     }
+    return panel
 }
 
 function renderRailItem(
@@ -213,27 +378,34 @@ function renderRailItem(
 function renderToolbar(parent: HTMLElement, model: WeekViewModel, callbacks: WeekCallbacks): void {
     const toolbar = parent.createDiv({ cls: 'kap-calendar-toolbar kap-week-toolbar' })
     toolbar.createSpan({ cls: 'kap-calendar-anchor kap-week-anchor', text: 'Ideal week' })
-    const summary =
-        model.targetTotal > 0
-            ? `${formatHoursMinutes(model.plannedTotal)} planned of ${formatHoursMinutes(model.targetTotal)} targeted`
-            : `${formatHoursMinutes(model.plannedTotal)} planned`
     toolbar.createSpan({
         cls: 'kap-week-planned',
-        text: summary,
+        text: summaryText(model),
         attr: {
             title: 'Minutes reserved per week by every block shown, against the notes’ weekly targets'
         }
     })
-    if (model.contextLegend.length > 0) {
-        const legend = toolbar.createDiv({ cls: 'kap-cal-legend' })
-        for (const item of model.contextLegend) {
-            addContextLegendItem(legend, item, () => callbacks.onToggleContext(item.value))
-        }
+    renderLegend(toolbar, model, callbacks)
+}
+
+function summaryText(model: WeekViewModel): string {
+    return model.targetTotal > 0
+        ? `${formatHoursMinutes(model.plannedTotal)} planned of ${formatHoursMinutes(model.targetTotal)} targeted`
+        : `${formatHoursMinutes(model.plannedTotal)} planned`
+}
+
+function renderLegend(toolbar: HTMLElement, model: WeekViewModel, callbacks: WeekCallbacks): void {
+    if (model.contextLegend.length === 0) return
+    const legend = toolbar.createDiv({ cls: 'kap-cal-legend' })
+    legend.dataset['legend'] = legendKey(model)
+    for (const item of model.contextLegend) {
+        addContextLegendItem(legend, item, () => callbacks.onToggleContext(item.value))
     }
 }
 
-function renderErrors(parent: HTMLElement, model: WeekViewModel): void {
+function renderErrors(parent: HTMLElement, model: WeekViewModel): HTMLElement {
     const strip = parent.createDiv({ cls: 'kap-week-errors', attr: { role: 'alert' } })
+    strip.dataset['errors'] = errorsKey(model)
     strip.createSpan({
         cls: 'kap-week-errors-title',
         text: `${model.errors.length} block${model.errors.length === 1 ? '' : 's'} could not be read:`
@@ -241,6 +413,7 @@ function renderErrors(parent: HTMLElement, model: WeekViewModel): void {
     for (const error of model.errors.slice(0, 5)) {
         strip.createSpan({ cls: 'kap-week-error', text: `${error.title}: ${error.error}` })
     }
+    return strip
 }
 
 function renderHead(parent: HTMLElement, model: WeekViewModel): void {
@@ -260,6 +433,9 @@ function renderGrid(parent: HTMLElement, model: WeekViewModel, callbacks: WeekCa
     for (const mark of hourMarks(cfg)) {
         const label = gutter.createSpan({ cls: 'kap-week-hour', text: formatMinutes(mark) })
         label.style.top = `${(mark - cfg.gridStart) * cfg.pxPerMinute}px`
+        // Labels are centred on their line; the first one would hang above
+        // the grid and get clipped by the scroller, so it hangs below instead.
+        if (mark === cfg.gridStart) label.addClass('kap-week-hour-first')
     }
     const byDay = new Map<number, WeekBlockPiece[]>()
     for (const piece of model.pieces) {
@@ -319,9 +495,10 @@ function renderPiece(
     piece: WeekBlockPiece,
     model: WeekViewModel,
     callbacks: WeekCallbacks
-): void {
+): HTMLElement {
     const el = col.createDiv({ cls: 'kap-week-block', attr: { role: 'button', tabindex: '0' } })
     el.dataset['key'] = piece.key
+    el.dataset['signature'] = pieceSignature(piece, model)
     el.dataset['path'] = piece.path
     el.dataset['day'] = String(piece.slot.day)
     el.dataset['start'] = String(piece.slot.start)
@@ -375,4 +552,5 @@ function renderPiece(
         e.stopPropagation()
         callbacks.onBlockKey(piece.path, piece.slot, action)
     })
+    return el
 }

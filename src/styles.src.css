@@ -2001,10 +2001,13 @@
         @apply font-medium;
     }
 
-    /* Head row: gutter spacer + 7 day headers, aligned with the grid columns. */
+    /* Head row: gutter spacer + 7 day headers. It sits INSIDE the scroller
+       (sticky) so it is laid out on the same width as the grid: outside, the
+       scrollbar narrowed the grid's columns only and the headers drifted. */
     .kap-week-head {
-        @apply grid shrink-0;
+        @apply grid shrink-0 sticky top-0 z-[6];
         grid-template-columns: 3.25rem repeat(7, minmax(0, 1fr));
+        background: var(--background-primary);
         border-bottom: 1px solid var(--background-modifier-border);
     }
 
@@ -2044,6 +2047,11 @@
     .kap-week-hour {
         @apply absolute right-1 text-[0.7em] -translate-y-1/2 select-none;
         color: var(--text-faint);
+    }
+
+    /* The first label would hang above the grid (clipped): it hangs below. */
+    .kap-week-hour-first {
+        @apply translate-y-0;
     }
 
     .kap-week-day {
@@ -2140,8 +2148,11 @@
         color: var(--text-muted);
     }
 
+    /* Resize handles: 8px top / bottom. The side handles are 10px wide and
+       week-dnd.ts also treats a press within 10px of a block's side edge as
+       a stretch, so a real mouse does not have to land on the strip. */
     .kap-week-handle {
-        @apply absolute left-0 right-0 h-[6px] cursor-ns-resize opacity-0;
+        @apply absolute left-0 right-0 h-[8px] cursor-ns-resize opacity-0;
         background: color-mix(in srgb, var(--interactive-accent) 55%, transparent);
     }
 
@@ -2155,7 +2166,7 @@
 
     .kap-week-handle-left,
     .kap-week-handle-right {
-        @apply top-0 bottom-0 h-auto w-[6px] cursor-ew-resize;
+        @apply top-0 bottom-0 h-auto w-[10px] cursor-ew-resize;
     }
 
     .kap-week-handle-left {

@@ -120,12 +120,15 @@ export class WeekDnd {
             const path = block.dataset['path'] ?? ''
             if (!from || !path) return
             claimPointerDrag(e)
-            if (
-                handle?.hasClass('kap-week-handle-left') ||
-                handle?.hasClass('kap-week-handle-right')
-            ) {
-                const edge = handle.hasClass('kap-week-handle-left') ? 'left' : 'right'
-                this.gesture = { kind: 'span', el: block, path, from, edge }
+            const sideEdge = handle
+                ? handle.hasClass('kap-week-handle-left')
+                    ? 'left'
+                    : handle.hasClass('kap-week-handle-right')
+                      ? 'right'
+                      : null
+                : sideEdgeAt(block, e.clientX)
+            if (sideEdge) {
+                this.gesture = { kind: 'span', el: block, path, from, edge: sideEdge }
             } else if (handle) {
                 const edge = handle.hasClass('kap-week-handle-top') ? 'start' : 'end'
                 this.gesture = { kind: 'resize', el: block, path, from, edge }
@@ -588,6 +591,40 @@ function slotOf(el: HTMLElement): Slot | null {
     const end = Number(el.dataset['end'])
     if (![day, start, end].every(Number.isFinite)) return null
     return { day, start, end }
+}
+
+/**
+ * Width of the grab zone along a block's left / right edge, in pixels. The
+ * handle elements are the visual affordance; the zone is measured against
+ * the block's own rect so a real mouse landing a little inside the edge
+ * (or on the title text over it) still stretches instead of moving.
+ */
+export const SIDE_EDGE_PX = 10
+
+/**
+ * The side edge a press at `clientX` sits on for a piece spanning
+ * `left`..`right`, or null for the body. A piece too narrow to keep a body
+ * between the two zones is all body (it can still be moved).
+ */
+export function sideEdgeOf(
+    left: number,
+    right: number,
+    clientX: number,
+    zone = SIDE_EDGE_PX
+): 'left' | 'right' | null {
+    if (right - left < zone * 3) return null
+    if (clientX - left <= zone) return 'left'
+    if (right - clientX <= zone) return 'right'
+    return null
+}
+
+/** `sideEdgeOf` for a rendered piece (continuation pieces have no side edges). */
+export function sideEdgeAt(block: HTMLElement, clientX: number): 'left' | 'right' | null {
+    // The run of days is edited on the piece that starts the slot, never on
+    // the second half of a midnight crosser.
+    if (block.dataset['continuation'] === '1') return null
+    const rect = block.getBoundingClientRect()
+    return sideEdgeOf(rect.left, rect.right, clientX)
 }
 
 /** Snap DOWN to the grid step: the cell the pointer is in. */

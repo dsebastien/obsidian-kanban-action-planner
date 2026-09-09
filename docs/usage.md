@@ -1141,7 +1141,8 @@ command), or embed it with `mode=ideal-week` (`mode=week` works too).
   (`fri 23:00-01:00` renders as a Friday tail and a Saturday head). Entries the plugin cannot
   read are listed in a strip above the grid, naming the note and the problem; nothing is
   rewritten until you edit them.
-- **Editing.** Drag a block to **move** it (day and time, snapped to 15 minutes; a dashed
+- **Editing.** Every edit shows at once; the note is written in the background, and the grid
+  does not flicker when the Base picks the change up. Drag a block to **move** it (day and time, snapped to 15 minutes; a dashed
   **phantom** shows where it will land), drag its top or bottom edge to **resize**, drag its
   **left or right edge to stretch it across days** (the run of days it repeats on grows or
   shrinks: `mon-wed` dragged to Friday becomes `mon-fri`), hold **Alt** while dropping to

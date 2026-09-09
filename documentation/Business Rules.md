@@ -934,3 +934,14 @@ When a new business rule is mentioned:
     selected occurrences in memory and Ctrl+V pastes them at the cell under the pointer,
     relative to the earliest copied one, skipping (never overwriting) anything that would
     overlap or leave the week.
+
+49. **Every view mode is optimistic (issue #172, phase B; owner rule).** An edit shows its result
+    at once from in-memory state and the frontmatter write runs in the background; the Base's
+    re-query never makes a change visible. Two halves, both required: an in-memory overlay
+    (or in-place mutation) that renders read through until the vault echoes the same value
+    back — dropped on echo, after a grace period (so a linter rewrite cannot pin it), and on
+    a failed write — and a renderer that patches the existing DOM by key with per-element
+    signatures (unchanged elements keep their node, focus, hover and selection) instead of
+    emptying and rebuilding, so the echo causes no flash or reflow. References: board
+    (`reconcile.ts` + `signatures.ts`), WBS (`rowSignature` + in-place re-parent), Ideal week
+    (`overlay` + `reconcilePieces`).

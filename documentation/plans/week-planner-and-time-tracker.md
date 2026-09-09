@@ -32,20 +32,28 @@ Shipped: `domain/time-blocks.ts` + `domain/week-planner.ts` (pure, tested), `vie
 - Statuses resolved through the mirrored OSK status config (open values), never literals.
 - Tests: parser round-trips, planned-minutes sums, overlap cases (same day, crossing midnight, range vs list), project date window filtering.
 
-## Very next steps (before releasing phase B)
+## Phase B follow-ups (fixed, part of 1.25.0)
 
-Reported by Sébastien while testing the dev build with a real mouse; reproduce, fix, then release 1.25.0:
+Reported by Sébastien while testing the dev build with a real mouse; all three fixed and checked in the running vault:
 
-1. **Left / right edge stretch does not seem to work.** The synthetic-event check passes, so suspect the landing phantom (visual only), the 6-pixel edge zone being too thin, or the top/bottom handles winning the hit-test. Widen the zones if needed.
-2. **The 00:00 hour label is not fully readable** (the first gutter label is clipped at the top of the grid; labels are centred on their line with `-translate-y-1/2`).
-3. **Column headers and day columns drift out of alignment, worse to the right.** Head row and grid share the `3.25rem + 7 × minmax(0, 1fr)` template, but the grid lives in a vertical scroller whose scrollbar narrows its columns only. Reserve the scrollbar gutter on both (`scrollbar-gutter: stable`) or pad the head by the scroller's `offsetWidth − clientWidth`.
+1. **Left / right edge stretch**: the side zones were 6 px strips; now 10 px, and `week-dnd.ts` also treats a press within 10 px of a block's side edge as a stretch (`sideEdgeOf`, tested), so the handle element is only the visual affordance. Top / bottom handles are 8 px.
+2. **00:00 label** was clipped (labels centre on their line; the first hung above the grid): the first label carries `kap-week-hour-first` and hangs below its line.
+3. **Header / column drift**: the head row now lives inside the scroller as a sticky row, so it is laid out on the same width as the grid (the scrollbar narrows both).
+4. **Optimistic UI** (owner rule, business rule 49): every edit renders at once from an in-memory overlay (`write()` sets it, then writes in the background; dropped when the vault echoes the same blocks, after a 10 s grace, or on a failed write) and `renderWeek` patches the existing DOM by piece key (`reconcilePieces`; rail / legend / errors rebuilt only when their content key changed; toolbar text updated in place), so the Base's echo neither flashes nor reflows the grid.
 
 ## Phase C: budget ring + WBS roll-ups + lifecycle columns
 
-- Budget ring on activity and project cards and in the WBS row: target (`minutes_per_week`) vs planned vs tracked this ISO week (own entries plus linked tasks' entries clipped to the week); alarm state when tracked > `minutes_alarm_per_week`.
-- WBS: roll target / planned / tracked-this-week up to goals and plans (display only, never persisted, same "own value wins else children" model as estimates for target and planned; tracked adds).
-- WBS columns cycle (done date − `date_started`), lead (`date_started` − `date_committed`), lateness (done date − `date_due`) for done items; days active for open ones. Done dates come from the mirrored status config.
-- Tests: ring math per week, roll-up model, column math with missing dates (blank, never guessed).
+Decided with Sébastien (2026-09-09): a ring with a short label; the alarm is visual plus ONE notice per note per ISO week; tracked-this-week = the note's own entries plus the entries of the tasks linked to it, both clipped to the ISO week (an entry crossing the week boundary counts only its minutes inside the week).
+
+- Settings: a fourth week property, `defaultAlarmMinutesProperty` (default `minutes_alarm_per_week`), next to the three existing ones under Ideal week; the four get the per-type override block the plan deferred in phase B (same shape as `timeTracking` on the note type: blank = global).
+- Domain (pure, tested): `clipEntryMinutes(entry, weekStart, weekEnd)` + `minutesInWeek(entries, week)` in `time-entries.ts`; `budgetRing({ target, planned, tracked, alarm })` → `{ ratio, tone: 'under' | 'on' | 'over' | 'alarm', label }` (label: `2h / 4h`, `4h` when no target); WBS roll-ups `effectiveTarget` / `effectivePlanned` ("own wins else children", mirror `createWbsRollups`) and `subtreeTrackedThisWeek` (adds, distinct descendant paths, like `subtreeDuration`); lifecycle days `cycleDays(done, started)`, `leadDays(started, committed)`, `latenessDays(done, due)`, `activeDays(today, started)` — null when a date is missing, never guessed.
+- Linked tasks: tasks are not on every board, so the ring resolves them vault-wide through `metadataCache.resolvedLinks` (notes linking to the activity / project from a `related_*` frontmatter link, task type only), read once per render and cached by path; their `time_entries` come through the task type's tracking properties.
+- Ring on activity and project cards (board mode) and in the WBS row: a conic-gradient ring driven by CSS custom properties (`--kap-ring-ratio`, tone class `kap-ring-<tone>`), short label inside the chip, full numbers in the tooltip (target / planned / tracked this week / alarm). Cards: the ring is part of the card signature (`signatures.ts`) so the reconciler refreshes it. WBS: one more fixed-width chip on EVERY row (context rows get the placeholder) and the fields join `rowSignature`.
+- Alarm: tone `alarm` when tracked > alarm; the notice fires once per note per ISO week, remembered in settings as `weekAlarmNotified: Record<path, isoWeekKey>` (pruned when the week changes), saved with scope `none`.
+- WBS columns cycle / lead / lateness for done items, days active for open ones; the done date is the property stamped by the mirrored done status rule (`sk-stamp:*` `set-property` action), falling back to the archive `doneDateProperties`; blank when unknown.
+- Business rule 50 documents the ring semantics (target own-or-derived, planned own-or-derived, tracked adds, week = ISO week, alarm once per note per week).
+- Tests: clipping (inside, crossing start, crossing end, open entry, wrong order), ring tones and labels, the two roll-ups on a small tree, lifecycle days with missing dates, alarm memo pruning.
+- Docs: `docs/usage.md` Ideal week + WBS sections, `docs/configuration.md` property table, README bullet.
 
 ## Phase D: week-planner app import and export
 
