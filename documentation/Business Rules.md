@@ -874,3 +874,25 @@ When a new business rule is mentioned:
     `focusColumnTriageView` / `focusFocusView`, no-ops when nothing is mounted or focus is
     already inside). Cards archived or removed while the leaf was hidden are pruned from the
     queue by the existing rebuild path — the pass itself never froze, only its focus did.
+
+47. **Time tracking writes TaskNotes' records, on every note type (issue #172, phase A).**
+    Stopping a session appends ONE `{startTime, endTime, description}` object (local ISO
+    datetimes without offset, `formatEntryDateTime`) to the note's entries list, then writes
+    the duration property as the **sum of the whole list** (`sumEntryMinutes`; never
+    `current + elapsed`, so a hand-edited or deleted entry is honoured) and the last-session
+    date as the day of the latest entry — one `setProperties` transaction. Existing list items
+    are kept verbatim (an unknown shape is not the plugin's to drop; only a template's `null`
+    placeholder goes); the list is never compacted. Reads (`readTrackedMinutes`) prefer the
+    entries list when it holds any entry, else the duration property, else a legacy `duration`
+    number (only when the configured duration property is not `duration` itself — no double
+    counting); nothing migrates data. The four property names resolve **per note type**
+    (`timeTracking` override, blank = global default: `trackingPropertiesForType`), and a
+    change of names is part of the WBS render signature. **Pomodoro is a mode of the same
+    tracker**, not a second one: a work pomodoro on a note opens that note's session and
+    closing the pomodoro closes the session; a break stops any session (a break is not work).
+    Its record goes to the **daily note** (`pomodoros` list, TaskNotes' shape, `id`-deduped),
+    resolved Periodic Notes → core Daily Notes → plugin fallback settings, the note created
+    empty when missing. A pomodoro completes when its planned time has elapsed (the plugin's
+    one-second clock; elapsed time always derives from the persisted epoch start), an early
+    stop is recorded with `completed: false` and resets the long-break cadence. The plugin
+    never stamps status dates from tracking — the OSK status mirror owns stamping.

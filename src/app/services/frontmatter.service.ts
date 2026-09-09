@@ -141,6 +141,29 @@ export async function appendToListProperty(
 }
 
 /**
+ * Append one OBJECT record to a list property (issue #172: pomodoro records
+ * in the daily note). Scalars are promoted to a list; a template's empty
+ * placeholder (`- ` → `[null]`) is dropped; `matches` dedupes (by id).
+ */
+export async function appendRecordToListProperty(
+    app: App,
+    file: TFile,
+    propertyName: string,
+    record: Record<string, unknown>,
+    matches: (item: unknown) => boolean = () => false
+): Promise<void> {
+    await processFrontMatter(app, file, (fm: Record<string, unknown>) => {
+        const key = findKeyCaseInsensitive(fm, propertyName) ?? propertyName
+        const raw = fm[key]
+        const list = (
+            Array.isArray(raw) ? raw : raw === null || raw === undefined ? [] : [raw]
+        ).filter((item) => item !== null && item !== undefined)
+        if (!list.some(matches)) list.push(record)
+        fm[key] = list
+    })
+}
+
+/**
  * Replace one entry (exact match) of a list property IN PLACE — the entry
  * keeps its position, unlike a remove + append round-trip. Scalars equal to
  * `entry` are replaced the same way. A miss is a no-op (the entry may have

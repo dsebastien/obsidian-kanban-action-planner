@@ -91,7 +91,7 @@ export interface WbsSignatureConfig {
     startProperty: string
     deadlineProperty: string
     progressProperty: string
-    /** Tracked-time property (issue #119) — the tracked chip reads it. */
+    /** Tracked-time property names (issue #119 / #172) — the tracked chip reads them. */
     durationProperty: string
     dueSoonDays: number
     /** Today (ISO day) — the due countdown tone depends on it. */

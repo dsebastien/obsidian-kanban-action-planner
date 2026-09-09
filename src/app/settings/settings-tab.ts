@@ -33,6 +33,11 @@ type StringSettingKey = {
     [K in keyof PluginSettings]: string extends PluginSettings[K] ? K : never
 }[keyof PluginSettings]
 
+/** Settings keys holding a plain number (pomodoro durations and cadence). */
+type NumberSettingKey = {
+    [K in keyof PluginSettings]: number extends PluginSettings[K] ? K : never
+}[keyof PluginSettings]
+
 /** Full weekday names indexed by `Date.getDay()` (0 = Sunday). */
 const WEEKDAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 
@@ -324,8 +329,8 @@ export class KanbanActionPlannerSettingTab extends PluginSettingTab {
         )
         text(
             'Duration property',
-            'Tracked time in minutes, accumulated by the card menu’s start/stop ' +
-                'time-tracking sessions.',
+            'Own tracked minutes: recomputed from the time-entries list on every ' +
+                'stop (a note type can override it in its Configure dialog).',
             'defaultDurationProperty',
             'duration'
         )
@@ -335,6 +340,19 @@ export class KanbanActionPlannerSettingTab extends PluginSettingTab {
                 '"Save total tracked time" writes the subtree total here.',
             'defaultTotalDurationProperty',
             'total_duration'
+        )
+        text(
+            'Time entries property',
+            'List of {startTime, endTime, description} session objects (TaskNotes-compatible); ' +
+                'the ledger the duration property is recomputed from.',
+            'defaultTimeEntriesProperty',
+            'time_entries'
+        )
+        text(
+            'Last session property',
+            'Date of the latest time entry, stamped on every stop.',
+            'defaultLastSessionProperty',
+            'date_last_session'
         )
         new Setting(containerEl)
             .setName('Contexts property')
@@ -367,6 +385,68 @@ export class KanbanActionPlannerSettingTab extends PluginSettingTab {
             'Date format',
             'Moment.js format used when writing scheduling dates to notes.',
             'defaultDateFormat',
+            'YYYY-MM-DD'
+        )
+
+        new Setting(containerEl).setName('Pomodoro').setHeading()
+        const minutes = (
+            name: string,
+            desc: string,
+            key: NumberSettingKey,
+            placeholder: string
+        ): void => {
+            new Setting(containerEl)
+                .setName(name)
+                .setDesc(desc)
+                .addText((input) => {
+                    input.inputEl.type = 'number'
+                    input.inputEl.min = '1'
+                    input
+                        .setPlaceholder(placeholder)
+                        .setValue(String(this.plugin.settings[key]))
+                        .onChange((value) => {
+                            const n = Number.parseInt(value, 10)
+                            if (Number.isFinite(n) && n > 0) void this.updateNumberSetting(key, n)
+                        })
+                })
+        }
+        minutes(
+            'Work pomodoro (minutes)',
+            'Length of a work pomodoro. A work pomodoro on a card also runs a time-tracking session on it.',
+            'pomodoroWorkMinutes',
+            '25'
+        )
+        minutes(
+            'Short break (minutes)',
+            'Length of a short break.',
+            'pomodoroShortBreakMinutes',
+            '5'
+        )
+        minutes('Long break (minutes)', 'Length of a long break.', 'pomodoroLongBreakMinutes', '15')
+        minutes(
+            'Long break interval',
+            'Every Nth completed work pomodoro is followed by a long break instead of a short one.',
+            'pomodoroLongBreakInterval',
+            '4'
+        )
+        text(
+            'Pomodoros property',
+            'Daily-note list property receiving one record per pomodoro (TaskNotes’ shape and name).',
+            'pomodorosProperty',
+            'pomodoros'
+        )
+        text(
+            'Daily note folder (fallback)',
+            'Used only when neither the Periodic Notes plugin nor the core Daily Notes plugin ' +
+                'provides a folder. Empty = vault root.',
+            'dailyNoteFolder',
+            ''
+        )
+        text(
+            'Daily note format (fallback)',
+            'Moment.js date format of daily-note names, used only when no daily-notes plugin ' +
+                'provides one. Empty = YYYY-MM-DD.',
+            'dailyNoteFormat',
             'YYYY-MM-DD'
         )
 
@@ -593,6 +673,13 @@ export class KanbanActionPlannerSettingTab extends PluginSettingTab {
     private async updateSoonThreshold(days: number): Promise<void> {
         this.plugin.settings = produce(this.plugin.settings, (draft) => {
             draft.dueSoonThresholdDays = days
+        })
+        await this.plugin.saveSettings('cards')
+    }
+
+    private async updateNumberSetting(key: NumberSettingKey, value: number): Promise<void> {
+        this.plugin.settings = produce(this.plugin.settings, (draft) => {
+            draft[key] = value
         })
         await this.plugin.saveSettings('cards')
     }

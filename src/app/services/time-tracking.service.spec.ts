@@ -2,7 +2,8 @@ import { describe, expect, test } from 'bun:test'
 import {
     elapsedSessionMinutes,
     formatTrackedMinutes,
-    readDurationMinutes
+    readDurationMinutes,
+    trackingPropertiesForType
 } from './time-tracking.service'
 
 describe('elapsedSessionMinutes (issue #119)', () => {
@@ -39,5 +40,44 @@ describe('formatTrackedMinutes (issue #119)', () => {
         expect(formatTrackedMinutes(90, 480)).toBe('1h 30m')
         expect(formatTrackedMinutes(480, 480)).toBe('1d')
         expect(formatTrackedMinutes(45, 480)).toBe('45m')
+    })
+})
+
+describe('trackingPropertiesForType (issue #172)', () => {
+    const globals = {
+        defaultDurationProperty: 'time_spent',
+        defaultTotalDurationProperty: 'total_time_spent',
+        defaultTimeEntriesProperty: 'time_entries',
+        defaultLastSessionProperty: 'date_last_session'
+    }
+
+    test('an untyped note (or a type without override) uses the globals', () => {
+        expect(trackingPropertiesForType(globals, undefined)).toEqual({
+            duration: 'time_spent',
+            totalDuration: 'total_time_spent',
+            entries: 'time_entries',
+            lastSession: 'date_last_session'
+        })
+        expect(trackingPropertiesForType(globals, { timeTracking: undefined })).toEqual(
+            trackingPropertiesForType(globals, undefined)
+        )
+    })
+
+    test('a per-type override wins field by field; blanks fall back', () => {
+        expect(
+            trackingPropertiesForType(globals, {
+                timeTracking: {
+                    durationProperty: ' spent ',
+                    totalDurationProperty: '',
+                    entriesProperty: 'sessions',
+                    lastSessionProperty: ''
+                }
+            })
+        ).toEqual({
+            duration: 'spent',
+            totalDuration: 'total_time_spent',
+            entries: 'sessions',
+            lastSession: 'date_last_session'
+        })
     })
 })

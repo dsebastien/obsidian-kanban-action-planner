@@ -21,7 +21,14 @@ import {
     DEFAULT_REVIEWED_DATE_PROPERTY,
     DEFAULT_SCHEDULED_DATE_PROPERTY,
     DEFAULT_STATUS_PROPERTY,
-    DEFAULT_TOTAL_DURATION_PROPERTY
+    DEFAULT_TOTAL_DURATION_PROPERTY,
+    DEFAULT_TIME_ENTRIES_PROPERTY,
+    DEFAULT_LAST_SESSION_PROPERTY,
+    DEFAULT_POMODOROS_PROPERTY,
+    DEFAULT_POMODORO_WORK_MINUTES,
+    DEFAULT_POMODORO_SHORT_BREAK_MINUTES,
+    DEFAULT_POMODORO_LONG_BREAK_MINUTES,
+    DEFAULT_POMODORO_LONG_BREAK_INTERVAL
 } from '../constants'
 
 /** Current settings schema version; bump when the shape changes (migrations). */
@@ -82,6 +89,55 @@ export const pluginSettingsSchema = z.object({
         .object({ path: z.string(), startedAt: z.number() })
         .nullable()
         .default(null),
+    /**
+     * TaskNotes-compatible tracking (issue #172): the entries-list property
+     * (`{startTime, endTime, description}` objects, the ledger the duration
+     * cache is recomputed from) and the last-session date property. Global
+     * defaults; a note type can override both in its Configure dialog.
+     */
+    defaultTimeEntriesProperty: z.string().default(DEFAULT_TIME_ENTRIES_PROPERTY),
+    defaultLastSessionProperty: z.string().default(DEFAULT_LAST_SESSION_PROPERTY),
+    /**
+     * Pomodoro mode of the tracker (issue #172): work / break lengths in
+     * minutes, the long-break cadence, the daily-note list property the
+     * records go to, and the daily-note folder + format used only when
+     * neither Periodic Notes nor the core Daily Notes plugin answers.
+     */
+    pomodoroWorkMinutes: z.number().int().positive().default(DEFAULT_POMODORO_WORK_MINUTES),
+    pomodoroShortBreakMinutes: z
+        .number()
+        .int()
+        .positive()
+        .default(DEFAULT_POMODORO_SHORT_BREAK_MINUTES),
+    pomodoroLongBreakMinutes: z
+        .number()
+        .int()
+        .positive()
+        .default(DEFAULT_POMODORO_LONG_BREAK_MINUTES),
+    pomodoroLongBreakInterval: z
+        .number()
+        .int()
+        .positive()
+        .default(DEFAULT_POMODORO_LONG_BREAK_INTERVAL),
+    pomodorosProperty: z.string().default(DEFAULT_POMODOROS_PROPERTY),
+    dailyNoteFolder: z.string().default(''),
+    dailyNoteFormat: z.string().default(''),
+    /**
+     * The running pomodoro (null = none) and how many work pomodoros
+     * completed in a row (drives the long-break cadence; reset by a manual
+     * stop). Persisted so a restart mid-pomodoro loses nothing.
+     */
+    activePomodoro: z
+        .object({
+            id: z.string(),
+            path: z.string().nullable(),
+            type: z.enum(['work', 'short-break', 'long-break']),
+            startedAt: z.number(),
+            plannedMinutes: z.number()
+        })
+        .nullable()
+        .default(null),
+    pomodoroCompletedWork: z.number().int().min(0).default(0),
     /** Review (spaced-repetition) property names (issue #57). */
     reviewedDateProperty: z.string(),
     reviewIntervalProperty: z.string(),
@@ -146,6 +202,17 @@ export const DEFAULT_SETTINGS: PluginSettings = {
     defaultDurationProperty: DEFAULT_DURATION_PROPERTY,
     defaultTotalDurationProperty: DEFAULT_TOTAL_DURATION_PROPERTY,
     activeTimeSession: null,
+    defaultTimeEntriesProperty: DEFAULT_TIME_ENTRIES_PROPERTY,
+    defaultLastSessionProperty: DEFAULT_LAST_SESSION_PROPERTY,
+    pomodoroWorkMinutes: DEFAULT_POMODORO_WORK_MINUTES,
+    pomodoroShortBreakMinutes: DEFAULT_POMODORO_SHORT_BREAK_MINUTES,
+    pomodoroLongBreakMinutes: DEFAULT_POMODORO_LONG_BREAK_MINUTES,
+    pomodoroLongBreakInterval: DEFAULT_POMODORO_LONG_BREAK_INTERVAL,
+    pomodorosProperty: DEFAULT_POMODOROS_PROPERTY,
+    dailyNoteFolder: '',
+    dailyNoteFormat: '',
+    activePomodoro: null,
+    pomodoroCompletedWork: 0,
     reviewedDateProperty: DEFAULT_REVIEWED_DATE_PROPERTY,
     reviewIntervalProperty: DEFAULT_REVIEW_INTERVAL_PROPERTY,
     reviewCountProperty: DEFAULT_REVIEW_COUNT_PROPERTY,

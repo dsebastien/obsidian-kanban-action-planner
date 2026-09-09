@@ -128,11 +128,18 @@ import { buildCardSearchRecord, stringifyForSearch } from '../../services/card-s
 import {
     elapsedSessionMinutes,
     formatTrackedMinutes,
+    isPomodoroOnPath,
     isTrackingPath,
-    readDurationMinutes,
+    readTrackedMinutesOf,
+    recomputeTrackedTime,
+    saveTotalTrackedTime,
+    startPomodoro,
     startTimeSession,
-    stopTimeSession
+    stopPomodoro,
+    stopTimeSession,
+    trackingPropertiesForType
 } from '../../services/time-tracking.service'
+import type { TrackingProperties } from '../../services/time-tracking.service'
 import {
     focusFocusView,
     removeFocusView,
@@ -824,8 +831,12 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             minutesPerDay: () => this.plugin.settings.minutesPerDay,
             firstDayOfWeek: () => this.plugin.settings.firstDayOfWeek,
             progressProperty: () => this.resolveProgressProperty(),
-            durationProperty: () => this.plugin.settings.defaultDurationProperty,
-            totalDurationProperty: () => this.plugin.settings.defaultTotalDurationProperty,
+            trackingPropertiesFor: (card) => this.trackingPropertiesFor(card),
+            trackedMinutesFor: (card) =>
+                readTrackedMinutesOf(this.app, card.file, this.trackingPropertiesFor(card)),
+            saveTotalTracked: (card, minutes) =>
+                saveTotalTrackedTime(this.plugin, card.file, minutes),
+            recomputeTracked: (card) => recomputeTrackedTime(this.plugin, card.file),
             scheduledProperty: () => this.scheduledDateProperty,
             deadlineProperty: () => this.dueDateProperty,
             dueSoonDays: () => this.plugin.settings.dueSoonThresholdDays,
@@ -2181,6 +2192,16 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
      * else the global default property in days. An override with an empty
      * property keeps the global name and only changes the unit.
      */
+    /**
+     * Per-card time-tracking properties (issue #172): the card's note type's
+     * overrides, else the global defaults.
+     */
+    private trackingPropertiesFor(card: KanbanCard): TrackingProperties {
+        const typeId = this.noteTypeByPath.get(card.key)?.id
+        const noteType = typeId ? findNoteType(this.plugin, typeId) : undefined
+        return trackingPropertiesForType(this.plugin.settings, noteType)
+    }
+
     private estimateConfigFor(card: KanbanCard): EstimateConfig {
         const typeId = this.noteTypeByPath.get(card.key)?.id
         const noteType = typeId ? findNoteType(this.plugin, typeId) : undefined
@@ -3526,13 +3547,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
     } {
         const perDay = this.plugin.settings.minutesPerDay
         let minutes =
-            readDurationMinutes(
-                getFrontmatterValue(
-                    this.app,
-                    card.file,
-                    this.plugin.settings.defaultDurationProperty
-                )
-            ) ?? 0
+            readTrackedMinutesOf(this.app, card.file, this.trackingPropertiesFor(card)) ?? 0
         const session = this.plugin.settings.activeTimeSession
         if (session && session.path === card.key) {
             minutes += elapsedSessionMinutes(session.startedAt, Date.now())
@@ -4122,6 +4137,10 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             isTrackingCard: (card) => isTrackingPath(this.plugin, card.key),
             startTracking: (card) => startTimeSession(this.plugin, card.key),
             stopTracking: () => stopTimeSession(this.plugin),
+            // Pomodoro mode (issue #172): a work pomodoro on the card.
+            isPomodoroCard: (card) => isPomodoroOnPath(this.plugin, card.key),
+            startPomodoro: (card) => startPomodoro(this.plugin, card.key, 'work'),
+            stopPomodoro: () => stopPomodoro(this.plugin),
             openRelated: (note, newTab) => this.openRelated(note, newTab),
             focusOnChildren: (card) => this.focusOnChildren(card),
             focusOnDescendants: (card) => this.focusOnDescendants(card.display.title),

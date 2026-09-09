@@ -126,6 +126,13 @@ column rule.
   positions are midpoints between neighbours (per-column scope).
 - **blocked_by**, **date_scheduled**, **date_due** are property names (configurable) used by
   relationships and calendar mode respectively.
+- **Time tracking** (issue #172) uses four per-type-resolvable properties: the **time
+  entries** list (`time_entries`, `{startTime, endTime, description}` objects, TaskNotes'
+  shape, the ledger), the **duration** cache (`duration` by default, minutes, recomputed from
+  the ledger), the **total duration** persisted subtree rollup, and the **last session** date.
+  Pomodoro records (`{id, taskPath, startTime, endTime, plannedDuration, type, completed,
+activePeriods}`) live in the daily note's `pomodoros` list. Domain: `time-entries.ts`,
+  `pomodoro.ts`, `daily-note.ts`; service: `time-tracking.service.ts`, `daily-note.service.ts`.
 
 ## Settings shape
 

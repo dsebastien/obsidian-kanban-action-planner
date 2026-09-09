@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 import type { App, TFile } from 'obsidian'
 import {
+    appendRecordToListProperty,
     coerceOrder,
     findKeyCaseInsensitive,
     queueFrontmatterWrite,
@@ -178,5 +179,43 @@ describe('queueFrontmatterWrite (per-file write serialization)', () => {
         })
         expect(caught).toBe(boom)
         await b
+    })
+})
+
+describe('appendRecordToListProperty (issue #172)', () => {
+    const appFor = (fm: Record<string, unknown>): App => {
+        const fileManager: Pick<App['fileManager'], 'processFrontMatter'> = {
+            processFrontMatter: (
+                _file: TFile,
+                cb: (frontmatter: Record<string, unknown>) => void
+            ): Promise<void> => {
+                cb(fm)
+                return Promise.resolve()
+            }
+        }
+        return { fileManager } as App
+    }
+    const file = { path: 'Daily/2026-09-09.md' } as TFile
+
+    it('creates the list, drops a template placeholder, and appends the object', async () => {
+        const fm: Record<string, unknown> = { pomodoros: [null] }
+        await appendRecordToListProperty(appFor(fm), file, 'pomodoros', { id: 'a', type: 'work' })
+        expect(fm['pomodoros']).toEqual([{ id: 'a', type: 'work' }])
+        const empty: Record<string, unknown> = {}
+        await appendRecordToListProperty(appFor(empty), file, 'pomodoros', { id: 'b' })
+        expect(empty['pomodoros']).toEqual([{ id: 'b' }])
+    })
+
+    it('keeps existing records, reuses a differently-cased key, and dedupes via matches', async () => {
+        const fm: Record<string, unknown> = { Pomodoros: [{ id: 'a' }] }
+        const sameId =
+            (id: string) =>
+            (item: unknown): boolean =>
+                (item as { id?: unknown }).id === id
+        await appendRecordToListProperty(appFor(fm), file, 'pomodoros', { id: 'a' }, sameId('a'))
+        expect(fm['Pomodoros']).toEqual([{ id: 'a' }])
+        expect('pomodoros' in fm).toBe(false)
+        await appendRecordToListProperty(appFor(fm), file, 'pomodoros', { id: 'b' }, sameId('b'))
+        expect(fm['Pomodoros']).toEqual([{ id: 'a' }, { id: 'b' }])
     })
 })

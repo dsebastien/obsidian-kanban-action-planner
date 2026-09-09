@@ -57,6 +57,13 @@ export interface CardMenuHost {
     startTracking(card: KanbanCard): Promise<void>
     /** Stop the active session, writing its elapsed minutes to the card. */
     stopTracking(card: KanbanCard): Promise<void>
+    // Pomodoro mode of the tracker (issue #172).
+    /** Whether the running pomodoro is a work pomodoro on THIS card. */
+    isPomodoroCard(card: KanbanCard): boolean
+    /** Start a work pomodoro on this card (also starts its time session). */
+    startPomodoro(card: KanbanCard): Promise<void>
+    /** Stop the running pomodoro (recorded in the daily note). */
+    stopPomodoro(card: KanbanCard): Promise<void>
     openRelated(note: RelatedNote, newTab: boolean): void
     /** Focus mode (issue #160): spotlight this card full-pane. */
     enterFocus(card: KanbanCard): void
@@ -385,6 +392,14 @@ function addTimeTrackingMenuItems(menu: Menu, card: KanbanCard, host: CardMenuHo
             .setIcon(tracking ? 'timer-off' : 'timer')
             .setSection('kap-track')
             .onClick(() => void (tracking ? host.stopTracking(card) : host.startTracking(card)))
+    )
+    const pomodoro = host.isPomodoroCard(card)
+    menu.addItem((i) =>
+        i
+            .setTitle(pomodoro ? 'Stop pomodoro' : 'Start pomodoro')
+            .setIcon(pomodoro ? 'circle-stop' : 'hourglass')
+            .setSection('kap-track')
+            .onClick(() => void (pomodoro ? host.stopPomodoro(card) : host.startPomodoro(card)))
     )
 }
 

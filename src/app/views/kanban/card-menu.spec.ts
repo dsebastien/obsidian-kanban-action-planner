@@ -63,6 +63,9 @@ function makeHost(overrides: Partial<CardMenuHost> = {}): CardMenuHost {
         isTrackingCard: () => false,
         startTracking: () => Promise.resolve(),
         stopTracking: () => Promise.resolve(),
+        isPomodoroCard: () => false,
+        startPomodoro: () => Promise.resolve(),
+        stopPomodoro: () => Promise.resolve(),
         openRelated: () => {},
         focusOnChildren: () => {},
         focusOnDescendants: () => {},
@@ -176,7 +179,8 @@ describe('buildCardMenu — extend hook (issue #80)', () => {
         'Schedule on a date…',
         'Set deadline today',
         'Set deadline on a date…',
-        'Start time tracking'
+        'Start time tracking',
+        'Start pomodoro'
     ]
 
     const titlesOf = (items: MenuItemRecord[]): string[] =>
@@ -257,6 +261,15 @@ describe('buildCardMenu — time tracking (issue #119)', () => {
         const items = menuItems(makeCard(), makeHost({ isTrackingCard: () => false }))
         expect(items.some((i) => i.title === 'Start time tracking')).toBe(true)
         expect(items.some((i) => i.title === 'Stop time tracking')).toBe(false)
+    })
+
+    it('offers Start pomodoro, and Stop pomodoro while one runs on the card (issue #172)', () => {
+        const idle = menuItems(makeCard(), makeHost({ isPomodoroCard: () => false }))
+        expect(idle.some((i) => i.title === 'Start pomodoro')).toBe(true)
+        expect(idle.some((i) => i.title === 'Stop pomodoro')).toBe(false)
+        const running = menuItems(makeCard(), makeHost({ isPomodoroCard: () => true }))
+        expect(running.some((i) => i.title === 'Stop pomodoro')).toBe(true)
+        expect(running.some((i) => i.title === 'Start pomodoro')).toBe(false)
     })
 
     it('offers Stop time tracking when the card is tracked', () => {

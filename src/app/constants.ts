@@ -41,6 +41,19 @@ export const DEFAULT_PROGRESS_PROPERTY = 'progress'
 export const DEFAULT_DURATION_PROPERTY = 'duration'
 /** Persisted subtree tracked-time rollup in minutes (issue #119). */
 export const DEFAULT_TOTAL_DURATION_PROPERTY = 'total_duration'
+/**
+ * TaskNotes-compatible tracking (issue #172): the entries ledger and the
+ * last-session date. Defaults are TaskNotes' mapped names.
+ */
+export const DEFAULT_TIME_ENTRIES_PROPERTY = 'time_entries'
+export const DEFAULT_LAST_SESSION_PROPERTY = 'date_last_session'
+/** Daily-note list property holding pomodoro records (TaskNotes' name). */
+export const DEFAULT_POMODOROS_PROPERTY = 'pomodoros'
+/** Pomodoro durations (minutes) and long-break cadence (TaskNotes' defaults). */
+export const DEFAULT_POMODORO_WORK_MINUTES = 25
+export const DEFAULT_POMODORO_SHORT_BREAK_MINUTES = 5
+export const DEFAULT_POMODORO_LONG_BREAK_MINUTES = 15
+export const DEFAULT_POMODORO_LONG_BREAK_INTERVAL = 4
 
 /** Default review (spaced-repetition) property names (issue #57; configurable). */
 export const DEFAULT_REVIEWED_DATE_PROPERTY = 'last_reviewed'

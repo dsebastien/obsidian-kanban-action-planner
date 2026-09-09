@@ -8,7 +8,8 @@ import type {
     DoneConfig,
     LaneGrouping,
     NoteType,
-    NoteTypeEstimateConfig
+    NoteTypeEstimateConfig,
+    NoteTypeTimeTrackingConfig
 } from '../domain/note-type'
 import type { CreationConfig } from '../domain/note-creation'
 import { compareStatusValues, splitStatusValue } from '../domain/status'
@@ -245,6 +246,26 @@ export async function setEstimateConfig(
         plugin,
         produce(noteType, (draft) => {
             draft.estimate = estimate
+        })
+    )
+}
+
+/**
+ * Set (or clear, with `undefined`) a note type's time-tracking property
+ * overrides (issue #172). Plugin-owned config: valid for Starter Kit–mirrored
+ * types too.
+ */
+export async function setTimeTrackingConfig(
+    plugin: KanbanActionPlannerPlugin,
+    noteTypeId: string,
+    timeTracking: NoteTypeTimeTrackingConfig | undefined
+): Promise<void> {
+    const noteType = requireNoteType(plugin, noteTypeId)
+    if (!noteType) return
+    await upsertNoteType(
+        plugin,
+        produce(noteType, (draft) => {
+            draft.timeTracking = timeTracking
         })
     )
 }

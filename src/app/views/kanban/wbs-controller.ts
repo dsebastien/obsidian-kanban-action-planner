@@ -33,7 +33,8 @@ import {
     getFrontmatterValue,
     setProperty
 } from '../../services/frontmatter.service'
-import { formatTrackedMinutes, readDurationMinutes } from '../../services/time-tracking.service'
+import { formatTrackedMinutes } from '../../services/time-tracking.service'
+import type { TrackingProperties } from '../../services/time-tracking.service'
 import {
     addRelationshipLink,
     directLinkTargets,
@@ -110,9 +111,16 @@ export interface WbsHost {
     /** First day of the week (0 = Sunday … 6 = Saturday) for NL date entry. */
     firstDayOfWeek(): number
     progressProperty(): string
-    /** Tracked-time (minutes) property + persisted rollup property (issue #119). */
-    durationProperty(): string
-    totalDurationProperty(): string
+    /**
+     * Tracked time (issue #119, rewritten for #172): the card's resolved
+     * tracking properties (per note type), its own tracked minutes (entries
+     * ledger, else spent cache, else legacy `duration`), and the writes —
+     * persist a subtree total, recompute the cache from the ledger.
+     */
+    trackingPropertiesFor(card: KanbanCard): TrackingProperties
+    trackedMinutesFor(card: KanbanCard): number | null
+    saveTotalTracked(card: KanbanCard, minutes: number): Promise<void>
+    recomputeTracked(card: KanbanCard): Promise<number | null>
     scheduledProperty(): string
     /** Resolved due-date property (the rows' due chip reads and writes it). */
     deadlineProperty(): string
@@ -342,15 +350,7 @@ export class WbsController {
             let value = durationCache.get(path)
             if (value === undefined) {
                 const card = byKey.get(path)
-                value = card
-                    ? readDurationMinutes(
-                          getFrontmatterValue(
-                              this.host.app,
-                              card.file,
-                              this.host.durationProperty()
-                          )
-                      )
-                    : null
+                value = card ? this.host.trackedMinutesFor(card) : null
                 durationCache.set(path, value)
             }
             return value
@@ -605,7 +605,7 @@ export class WbsController {
                 startProperty: this.host.startProperty(),
                 deadlineProperty: this.host.deadlineProperty(),
                 progressProperty: this.host.progressProperty(),
-                durationProperty: this.host.durationProperty(),
+                durationProperty: this.trackingSignature(cards),
                 dueSoonDays: this.host.dueSoonDays(),
                 todayKey: toDateKey(startOfDay(new Date())),
                 comparator: this.host.comparatorKey()
@@ -1065,16 +1065,43 @@ export class WbsController {
                     )
                     .setIcon('timer')
                     .setSection('kap-wbs')
-                    .onClick(() => {
-                        void setProperty(
-                            this.host.app,
-                            card.file,
-                            this.host.totalDurationProperty(),
-                            totalTracked
-                        )
-                    })
+                    .onClick(() => void this.host.saveTotalTracked(card, totalTracked))
             )
         }
+        // Ledger repair (issue #172): the spent cache and last-session date
+        // recomputed from the entries list (edited by hand or by TaskNotes).
+        if (this.hasTimeEntries(card)) {
+            menu.addItem((item) =>
+                item
+                    .setTitle('Recompute tracked time from entries')
+                    .setIcon('refresh-cw')
+                    .setSection('kap-wbs')
+                    .onClick(() => void this.host.recomputeTracked(card))
+            )
+        }
+    }
+
+    /** Whether the card's entries ledger holds at least one item. */
+    private hasTimeEntries(card: KanbanCard): boolean {
+        const raw = getFrontmatterValue(
+            this.host.app,
+            card.file,
+            this.host.trackingPropertiesFor(card).entries
+        )
+        return Array.isArray(raw) && raw.some((item) => item !== null)
+    }
+
+    /**
+     * The tracking property names in play across the rendered cards, as one
+     * signature token (a per-type override change must re-render).
+     */
+    private trackingSignature(cards: readonly KanbanCard[]): string {
+        const names = new Set<string>()
+        for (const card of cards) {
+            const p = this.host.trackingPropertiesFor(card)
+            names.add(`${p.duration}|${p.entries}`)
+        }
+        return [...names].sort().join(',')
     }
 
     /**
@@ -1109,11 +1136,7 @@ export class WbsController {
     /** A path's own tracked minutes, read from frontmatter (menu-time, uncached). */
     private readonly durationOfPath = (path: string): number | null => {
         const card = this.host.allCardForKey(path)
-        return card
-            ? readDurationMinutes(
-                  getFrontmatterValue(this.host.app, card.file, this.host.durationProperty())
-              )
-            : null
+        return card ? this.host.trackedMinutesFor(card) : null
     }
 
     /** A path's own progress, read from frontmatter (menu-time, uncached). */

@@ -123,6 +123,26 @@ export const estimateConfigSchema = z.object({
 export type NoteTypeEstimateConfig = z.infer<typeof estimateConfigSchema>
 
 /**
+ * Per-type time-tracking property overrides (issue #172). Each name is the
+ * frontmatter property the tracker reads and writes for notes of this type;
+ * '' falls back to the matching global default. Plugin-owned, like the
+ * estimate override: editable for Starter Kit–mirrored types too, untouched
+ * by the SK mirror. `.default('')` per field so a partial block stored by an
+ * older version (or a hand edit) still parses.
+ */
+export const timeTrackingConfigSchema = z.object({
+    /** Own tracked minutes cache (sum of the note's entries). */
+    durationProperty: z.string().default(''),
+    /** Persisted subtree roll-up of tracked minutes. */
+    totalDurationProperty: z.string().default(''),
+    /** TaskNotes-shaped `{startTime, endTime, description}` entries list. */
+    entriesProperty: z.string().default(''),
+    /** Date of the latest entry. */
+    lastSessionProperty: z.string().default('')
+})
+export type NoteTypeTimeTrackingConfig = z.infer<typeof timeTrackingConfigSchema>
+
+/**
  * Per-type done-state definition (issue #56): which frontmatter property and
  * value(s) mark a note of this type as done. `property` '' falls back to the
  * type's status property; an empty `values` list treats a boolean `true` as
@@ -284,6 +304,11 @@ export const noteTypeSchema = z.object({
      * backfill) = the global default property in days.
      */
     estimate: nullToAbsent(estimateConfigSchema),
+    /**
+     * Time-tracking property overrides (issue #172); absent (older stored
+     * types, no backfill) = the global default properties.
+     */
+    timeTracking: nullToAbsent(timeTrackingConfigSchema),
     /**
      * Done-state definition (issue #56); absent (older stored types, no
      * backfill) = no done state configured.

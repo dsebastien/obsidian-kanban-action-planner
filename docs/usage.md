@@ -1111,20 +1111,44 @@ already selects.
 
 ## Time tracking
 
-Track actual time against your estimates (issue #119), straight from the cards:
+Track actual time against your estimates (issue #119, rewritten in #172 to share TaskNotes'
+records), straight from the cards — on **any note type**:
 
 - **Start / Stop time tracking** in a card's right-click menu starts (or stops) a session
   for that note. Only **one session runs at a time** — starting another card stops the
-  previous session first, writing its elapsed time. A global **Stop time tracking** command
-  stops the active session from anywhere.
-- Stopping adds the elapsed whole minutes to the note's **duration** property (configurable
-  as **Duration property**; minutes, accumulated across sessions). The session survives an
-  Obsidian restart — elapsed time derives from the stored start, not a running timer.
+  previous session first, writing its entry. A global **Stop time tracking** command stops
+  the active session from anywhere, and a **status-bar readout** (`⏱ 12m · Note`) shows what
+  runs; click it for stop / pomodoro actions.
+- Stopping appends a **time entry** — a `{startTime, endTime, description}` object with local
+  ISO datetimes, exactly TaskNotes' shape — to the note's **time entries** list property
+  (`time_entries` by default), then **recomputes** the note's **duration** property from the
+  whole list (minutes; an entry you edited or deleted by hand is honoured, nothing accumulates
+  blindly) and stamps the **last session** date property (`date_last_session`). A session that
+  crosses midnight is one entry with its real start and end. The session survives an Obsidian
+  restart — elapsed time derives from the stored start, not a running timer.
+- **Property names per note type.** Each type can map the four tracking properties (duration,
+  total duration, time entries, last session) in **Configure → Time tracking**; blanks fall
+  back to the global settings. Notes that only carry a legacy `duration` number from an older
+  version keep reading correctly (it is used when both the entries list and the duration
+  property are absent); nothing migrates data.
+- **Pomodoro mode.** **Start pomodoro** in the card menu runs a timed work pomodoro on the
+  card (25 minutes by default) and opens its time session at the same time, so the entry
+  ledger stays complete. The status bar counts down (`🍅 24:31 work pomodoro · Note`); when
+  the time is up the pomodoro completes, the session stops, and one record in TaskNotes' shape
+  (`{id, taskPath, startTime, endTime, plannedDuration, type, completed, activePeriods}`) is
+  appended to the **pomodoros** list of today's **daily note** — resolved through the Periodic
+  Notes plugin, else the core Daily Notes plugin, else the folder and format in the plugin
+  settings (the note is created empty when missing). Breaks come from the **Start pomodoro
+  break** command or the status-bar menu: a short break (5 min), or a long one (15 min) after
+  every 4th completed work pomodoro; a break stops any running session. **Stop pomodoro** ends
+  one early (recorded as not completed). Durations and the cadence are settings.
 - The **WBS** shows a **⏱ tracked** chip per row: the subtree's total tracked time — own
   minutes plus every distinct descendant's (actuals **add**; unlike estimates, an own value
   never replaces the children's contribution). A total the children contributed to is styled
   derived, and the row menu offers **Save total tracked time** to persist it (in minutes) to
-  the **Total duration property** (`total_duration` by default).
+  the **total duration** property (`total_duration` by default). **Recompute tracked time from
+  entries** repairs a note's duration and last-session date after the list was edited by hand
+  or by TaskNotes.
 - Tracked time renders with the same `d / h / m` grammar as estimates, sized by **Minutes
   per day**, so tracked vs estimated reads side by side.
 

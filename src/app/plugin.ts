@@ -1,4 +1,4 @@
-import { Plugin, View } from 'obsidian'
+import { Menu, Plugin, View } from 'obsidian'
 import { DEFAULT_SETTINGS, pluginSettingsSchema } from './types/plugin-settings.intf'
 import type { PluginSettings, SettingsRefreshScope } from './types/plugin-settings.intf'
 import { KanbanActionPlannerSettingTab } from './settings/settings-tab'
@@ -7,7 +7,15 @@ import { getKanbanViewOptions } from './views/kanban/kanban-view-options'
 import { KANBAN_VIEW_ICON, KANBAN_VIEW_NAME, KANBAN_VIEW_TYPE } from './constants'
 import { log } from '../utils/log'
 import { registerWhatsNewView } from './whats-new'
-import { stopTimeSession } from './services/time-tracking.service'
+import {
+    nextBreakType,
+    pomodoroLabel,
+    startPomodoro,
+    stopPomodoro,
+    stopTimeSession,
+    tickPomodoro,
+    trackerStatusText
+} from './services/time-tracking.service'
 import { produce } from 'immer'
 
 export class KanbanActionPlannerPlugin extends Plugin {
@@ -24,6 +32,9 @@ export class KanbanActionPlannerPlugin extends Plugin {
      * themselves on load/unload.
      */
     private readonly openKanbanViews = new Set<KanbanActionPlannerView>()
+
+    /** Status-bar item showing the running session / pomodoro (issue #172). */
+    private statusBarEl: HTMLElement | null = null
 
     /** Register a live kanban view for settings-change notifications. */
     trackKanbanView(view: KanbanActionPlannerView): void {
@@ -56,6 +67,79 @@ export class KanbanActionPlannerPlugin extends Plugin {
 
         // Add a settings screen for the plugin
         this.addSettingTab(new KanbanActionPlannerSettingTab(this.app, this))
+
+        // Tracker clock (issue #172): the status-bar readout and the pomodoro
+        // completion check, once a second. Elapsed time always derives from
+        // the persisted epoch start, so a missed tick loses nothing.
+        this.registerTrackerClock()
+    }
+
+    /** The status-bar readout + pomodoro completion tick. */
+    private registerTrackerClock(): void {
+        const el = this.addStatusBarItem()
+        el.addClass('kap-status-tracker')
+        el.addEventListener('click', (event) => this.showTrackerMenu(event))
+        this.statusBarEl = el
+        this.refreshTrackerStatus()
+        this.registerInterval(
+            window.setInterval(() => {
+                void tickPomodoro(this, Date.now())
+                this.refreshTrackerStatus()
+            }, 1000)
+        )
+    }
+
+    /** Repaint the status-bar readout (hidden when nothing runs). */
+    private refreshTrackerStatus(): void {
+        const el = this.statusBarEl
+        if (!el) return
+        const text = trackerStatusText(this, Date.now())
+        if (text === null) {
+            el.hide()
+            return
+        }
+        el.show()
+        el.setText(text)
+        el.setAttribute('aria-label', 'Time tracking — click for actions')
+    }
+
+    /** Stop / next-phase actions for the running session or pomodoro. */
+    private showTrackerMenu(event: MouseEvent): void {
+        const menu = new Menu()
+        const pomodoro = this.settings.activePomodoro
+        const session = this.settings.activeTimeSession
+        if (pomodoro) {
+            menu.addItem((item) =>
+                item
+                    .setTitle(`Stop ${pomodoroLabel(pomodoro.type).toLowerCase()}`)
+                    .setIcon('circle-stop')
+                    .onClick(() => void stopPomodoro(this))
+            )
+        } else {
+            if (session) {
+                menu.addItem((item) =>
+                    item
+                        .setTitle('Start work pomodoro on the tracked note')
+                        .setIcon('hourglass')
+                        .onClick(() => void startPomodoro(this, session.path, 'work'))
+                )
+            }
+            menu.addItem((item) =>
+                item
+                    .setTitle(`Start ${pomodoroLabel(nextBreakType(this)).toLowerCase()}`)
+                    .setIcon('coffee')
+                    .onClick(() => void startPomodoro(this, null, nextBreakType(this)))
+            )
+        }
+        if (session) {
+            menu.addItem((item) =>
+                item
+                    .setTitle('Stop time tracking')
+                    .setIcon('timer-off')
+                    .onClick(() => void stopTimeSession(this))
+            )
+        }
+        menu.showAtMouseEvent(event)
     }
 
     /**
@@ -157,6 +241,30 @@ export class KanbanActionPlannerPlugin extends Plugin {
             checkCallback: (checking: boolean): boolean => {
                 if (!this.settings.activeTimeSession) return false
                 if (!checking) void stopTimeSession(this)
+                return true
+            }
+        })
+        // Pomodoro mode (issue #172): global like the session. A work
+        // pomodoro from the palette runs on the tracked note when a session
+        // is open, else on nothing; a card's own menu starts one on that card.
+        this.addCommand({
+            id: 'start-pomodoro',
+            name: 'Start work pomodoro',
+            callback: () => {
+                void startPomodoro(this, this.settings.activeTimeSession?.path ?? null, 'work')
+            }
+        })
+        this.addCommand({
+            id: 'start-pomodoro-break',
+            name: 'Start pomodoro break',
+            callback: () => void startPomodoro(this, null, nextBreakType(this))
+        })
+        this.addCommand({
+            id: 'stop-pomodoro',
+            name: 'Stop pomodoro',
+            checkCallback: (checking: boolean): boolean => {
+                if (!this.settings.activePomodoro) return false
+                if (!checking) void stopPomodoro(this)
                 return true
             }
         })

@@ -1,6 +1,6 @@
 # Week Planner mode and one time tracker for every note type (issue #172)
 
-Status: planned, nothing implemented. The Obsidian Starter Kit side (schema, templates, backfill, Bases, docs, per-type config re-sync) shipped on 2026-09-09; the plugin reads and writes the properties below. Source of truth for the design: the OSK vault task note "Explore additional activity properties (Task)" (21 decisions + implementation amendments) and the spec comment on issue #172.
+Status: phase A (tracker rewrite) implemented, released as the version that carries this line's commit; phases B–D planned. Gate: each phase is decided with Sébastien and released on its own. The Obsidian Starter Kit side (schema, templates, backfill, Bases, docs, per-type config re-sync) shipped on 2026-09-09; the plugin reads and writes the properties below. Source of truth for the design: the OSK vault task note "Explore additional activity properties (Task)" (21 decisions + implementation amendments) and the spec comment on issue #172.
 
 ## Data model (already in the vault, units are the vault's: minutes, ISO datetimes, HH:MM)
 
@@ -10,7 +10,9 @@ Settings already re-synced in the vault: `defaultDurationProperty = time_spent`,
 
 Decisions that bind the implementation: actuals are two numbers (own + persisted subtree) because actuals add while estimates are own-wins-else-derived; `cadence` is user-owned and never written; the week is an ideal week, no per-week overrides on periodic notes; colour and grouping come from the global `contexts` property, no category property; tasks stay out of the week grid (calendar / agenda modes keep them).
 
-## Phase A: tracker rewrite (foundation)
+## Phase A: tracker rewrite (foundation) — DONE
+
+Shipped: `domain/time-entries.ts`, `domain/pomodoro.ts`, `domain/daily-note.ts`, `services/time-tracking.service.ts` (rewrite), `services/daily-note.service.ts`, per-type `timeTracking` override (`Configure → Time tracking`), globals for entries / last session / pomodoro / daily-note fallback, status-bar readout with actions, commands `Start work pomodoro` / `Start pomodoro break` / `Stop pomodoro`, card-menu `Start / Stop pomodoro`, WBS `Recompute tracked time from entries`. Business rule 47. Not done (deferred, not needed by the vault): a `description` prompt on stop; auto-starting the next phase after a pomodoro (the notice names it; the status-bar menu starts it).
 
 - Sessions write a `{startTime, endTime, description}` object to the note's `time_entries` (create the list when absent) on stop, instead of only adding minutes; `time_spent` = sum of the note's own entries (recompute from the list, do not accumulate blindly, so an edited entry is honoured); `date_last_session` = date of the latest entry. Property names per type through the existing per-type config, falling back to the global defaults (`defaultDurationProperty`, `defaultTotalDurationProperty`) plus new globals for entries and last session.
 - The tracker works on any note type (it already does: one session at a time, epoch start persisted in settings); keep that.

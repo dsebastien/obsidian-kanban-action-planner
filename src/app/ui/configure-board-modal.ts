@@ -36,6 +36,7 @@ import {
     setCreationConfig,
     setDoneConfig,
     setEstimateConfig,
+    setTimeTrackingConfig,
     setLaneGrouping,
     setNoteTypeName,
     setEnumProperty,
@@ -57,6 +58,7 @@ type SectionId =
     | 'archiving'
     | 'limits'
     | 'estimate'
+    | 'tracking'
     | 'done'
     | 'automation'
     | 'creation'
@@ -69,6 +71,7 @@ const SECTIONS: ReadonlyArray<{ id: SectionId; label: string; icon: string }> = 
     { id: 'swimlanes', label: 'Swimlanes', icon: 'rows-3' },
     { id: 'relationships', label: 'Relationships', icon: 'git-fork' },
     { id: 'estimate', label: 'Estimate', icon: 'ruler' },
+    { id: 'tracking', label: 'Time tracking', icon: 'timer' },
     { id: 'done', label: 'Done state', icon: 'circle-check' },
     { id: 'automation', label: 'Automations', icon: 'zap' },
     { id: 'creation', label: 'Creating notes', icon: 'file-plus' },
@@ -204,6 +207,9 @@ export class ConfigureBoardModal extends Modal {
                 return
             case 'estimate':
                 this.renderEstimate(noteType)
+                return
+            case 'tracking':
+                this.renderTimeTracking(noteType)
                 return
             case 'done':
                 this.renderDone(noteType)
@@ -826,6 +832,81 @@ export class ConfigureBoardModal extends Modal {
                         )
                     })
             })
+    }
+
+    // ── Time-tracking properties (issue #172; per-type override; plugin-owned) ──
+
+    private renderTimeTracking(noteType: NoteType): void {
+        new Setting(this.body).setName('Time tracking').setHeading()
+        this.body.createEl('p', {
+            cls: 'kap-modal-subtitle',
+            text:
+                `Which frontmatter properties the time tracker reads and writes on ${noteType.name} ` +
+                'notes. Leave a field empty to use the global default from the plugin settings. ' +
+                'Stopping a session appends a {startTime, endTime, description} object to the ' +
+                'entries list, recomputes the duration from that list, and stamps the last-session date.'
+        })
+        const globals = this.plugin.settings
+        const fields: ReadonlyArray<{
+            key:
+                | 'durationProperty'
+                | 'totalDurationProperty'
+                | 'entriesProperty'
+                | 'lastSessionProperty'
+            name: string
+            desc: string
+            placeholder: string
+        }> = [
+            {
+                key: 'durationProperty',
+                name: 'Duration property',
+                desc: 'Own tracked minutes (recomputed from the entries).',
+                placeholder: globals.defaultDurationProperty
+            },
+            {
+                key: 'totalDurationProperty',
+                name: 'Total duration property',
+                desc: 'Persisted subtree rollup ("Save total tracked time").',
+                placeholder: globals.defaultTotalDurationProperty
+            },
+            {
+                key: 'entriesProperty',
+                name: 'Time entries property',
+                desc: 'TaskNotes-compatible list of session objects.',
+                placeholder: globals.defaultTimeEntriesProperty
+            },
+            {
+                key: 'lastSessionProperty',
+                name: 'Last session property',
+                desc: 'Date of the latest entry.',
+                placeholder: globals.defaultLastSessionProperty
+            }
+        ]
+        const persist = (key: (typeof fields)[number]['key'], value: string): void => {
+            const current = this.noteType()?.timeTracking ?? {
+                durationProperty: '',
+                totalDurationProperty: '',
+                entriesProperty: '',
+                lastSessionProperty: ''
+            }
+            const next = { ...current, [key]: value.trim() }
+            const allBlank = Object.values(next).every((v) => v === '')
+            void setTimeTrackingConfig(
+                this.plugin,
+                this.noteTypeId,
+                allBlank ? undefined : next
+            ).then(() => this.onChange())
+        }
+        for (const field of fields) {
+            new Setting(this.body)
+                .setName(field.name)
+                .setDesc(`${field.desc} Empty = the global default.`)
+                .addText((text) => {
+                    text.setPlaceholder(field.placeholder)
+                        .setValue(noteType.timeTracking?.[field.key] ?? '')
+                        .onChange((value) => persist(field.key, value))
+                })
+        }
     }
 
     // ── Note type recognition (issue #31; local types only) ───
