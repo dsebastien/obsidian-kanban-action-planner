@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'bun:test'
-import { archiveConfigSchema } from './note-type'
+import { archiveConfigSchema, noteTypeSchema } from './note-type'
+import { createDefaultNoteType } from '../services/note-type.service'
 
 describe('archiveConfigSchema (issue #32 migration)', () => {
     it('keeps an explicit triggerStatuses list', () => {
@@ -58,5 +59,16 @@ describe('archiveConfigSchema (issue #32 migration)', () => {
                 triggerStatuses: ['done', 'done', 'abandoned']
             }).triggerStatuses
         ).toEqual(['done', 'abandoned'])
+    })
+})
+
+describe('noteTypeSchema (null-tolerant optional blocks)', () => {
+    it('reads estimate / done / creation stored as null as absent', () => {
+        const base = createDefaultNoteType('nt-1', 'X', 'local')
+        const parsed = noteTypeSchema.parse({ ...base, estimate: null, done: null, creation: null })
+        expect(parsed.estimate).toBeUndefined()
+        expect(parsed.done).toBeUndefined()
+        expect(parsed.creation).toBeUndefined()
+        expect(noteTypeSchema.parse(base)).toEqual(base)
     })
 })

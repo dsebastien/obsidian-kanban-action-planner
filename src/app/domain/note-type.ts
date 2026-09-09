@@ -16,6 +16,18 @@ import { creationConfigSchema } from './note-creation'
  * (Milestone 1).
  */
 
+/**
+ * An optional config block that external writers (the Starter Kit re-sync,
+ * hand edits, other tools) may store as `null` for "unset": accepted and read
+ * as absent, instead of failing the whole settings parse and silently
+ * resetting the plugin to defaults.
+ */
+function nullToAbsent<T extends z.ZodTypeAny>(
+    schema: T
+): z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodOptional<T>> {
+    return z.preprocess((value) => (value === null ? undefined : value), schema.optional())
+}
+
 /** Card/column color: a curated palette token or an explicit hex override. */
 export const colorSpecSchema = z.discriminatedUnion('kind', [
     z.object({ kind: z.literal('palette'), token: z.string() }),
@@ -271,19 +283,19 @@ export const noteTypeSchema = z.object({
      * Estimate property + unit override; absent (older stored types, no
      * backfill) = the global default property in days.
      */
-    estimate: estimateConfigSchema.optional(),
+    estimate: nullToAbsent(estimateConfigSchema),
     /**
      * Done-state definition (issue #56); absent (older stored types, no
      * backfill) = no done state configured.
      */
-    done: doneConfigSchema.optional(),
+    done: nullToAbsent(doneConfigSchema),
     /**
      * Quick-capture creation config (issue #46): where a new note of this type
      * goes, which template it gets, and how its name is decorated. Absent (older
      * stored types, no backfill) = inherit everything from the Starter Kit type /
      * the Base's filters, exactly like an all-blank config.
      */
-    creation: creationConfigSchema.optional(),
+    creation: nullToAbsent(creationConfigSchema),
     /**
      * Automation rules. Defaults to `[]` so older stored note types degrade
      * gracefully (no backfill). Items are parsed individually and invalid
