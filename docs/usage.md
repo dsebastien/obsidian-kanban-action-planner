@@ -1141,6 +1141,8 @@ command), or embed it with `mode=ideal-week` (`mode=week` works too).
   (`fri 23:00-01:00` renders as a Friday tail and a Saturday head). Entries the plugin cannot
   read are listed in a strip above the grid, naming the note and the problem; nothing is
   rewritten until you edit them.
+- **Opening.** Click a block, or a note in the rail, to open the note; **Ctrl/Cmd-click** opens it
+  in a new tab. Hovering a block outlines its resize edges.
 - **Editing.** Every edit shows at once; the note is written in the background, and the grid
   does not flicker when the Base picks the change up. Drag a block to **move** it (day and time, snapped to 15 minutes; a dashed
   **phantom** shows where it will land), drag its top or bottom edge to **resize**, drag its
@@ -1149,7 +1151,7 @@ command), or embed it with `mode=ideal-week` (`mode=week` works too).
   **copy** it, right-click for the card menu plus **Remove this block**. With a block focused:
   **arrows** move it by 15 minutes or one day, **Shift+↑/↓** resize its end, **Delete**
   removes it, **Enter** opens the note. **Select several blocks** by dragging a rectangle on
-  an empty area of the grid (or Ctrl/Cmd-click them), then **Delete** removes them all;
+  an empty area of the grid (or Shift-click them), then **Delete** removes them all;
   Escape or a click on empty space clears the selection. **Ctrl/Cmd+C** copies the selection (or
   the focused block) and **Ctrl/Cmd+V** pastes it at the grid cell under the mouse pointer —
   several copied blocks keep their layout relative to the earliest one; a pasted block that

@@ -365,7 +365,7 @@ function renderRailItem(
             ? ` of a ${formatHoursMinutes(entry.targetMinutes)} target`
             : ', no weekly target yet') +
         (entry.active ? '' : '\nNot active: its blocks render dimmed') +
-        '\nDrag onto the grid to plan a block'
+        '\nClick to open (Ctrl/Cmd-click in a new tab), drag onto the grid to plan a block'
     item.addEventListener('contextmenu', (e) => {
         e.preventDefault()
         callbacks.onRailContextMenu(entry.path, e)
@@ -520,7 +520,7 @@ function renderPiece(
     const timeLabel = `${formatMinutes(piece.slot.start)}–${formatMinutes(piece.slot.end)}`
     el.title =
         `${piece.title}\n${timeLabel}${piece.contextLabel ? `\n${piece.contextLabel}` : ''}\n` +
-        'Drag to move, drag the top/bottom edge to resize, the left/right edge to stretch across days, Alt-drop to copy, Ctrl-click to select. Keys: arrows move, Shift+↑↓ resize, Delete removes, Ctrl+C / Ctrl+V copy and paste at the pointer.'
+        'Click to open (Ctrl/Cmd-click in a new tab), Shift-click to select. Drag to move, drag the top/bottom edge to resize, the left/right edge to stretch across days, Alt-drop to copy. Keys: arrows move, Shift+↑↓ resize, Delete removes, Ctrl+C / Ctrl+V copy and paste at the pointer.'
     el.setAttribute('aria-label', `${piece.title}, ${timeLabel}`)
     if (!piece.continuation && piece.height >= 14) {
         el.createDiv({ cls: 'kap-week-block-title', text: piece.title })

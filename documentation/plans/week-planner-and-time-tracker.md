@@ -40,6 +40,8 @@ Reported by Sébastien while testing the dev build with a real mouse; all three 
 2. **00:00 label** was clipped (labels centre on their line; the first hung above the grid): the first label carries `kap-week-hour-first` and hangs below its line.
 3. **Header / column drift**: the head row now lives inside the scroller as a sticky row, so it is laid out on the same width as the grid (the scrollbar narrows both).
 4. **Optimistic UI** (owner rule, business rule 49): every edit renders at once from an in-memory overlay (`write()` sets it, then writes in the background; dropped when the vault echoes the same blocks, after a 10 s grace, or on a failed write) and `renderWeek` patches the existing DOM by piece key (`reconcilePieces`; rail / legend / errors rebuilt only when their content key changed; toolbar text updated in place), so the Base's echo neither flashes nor reflows the grid.
+5. **Ctrl/Cmd-click opens the note in a new tab** (blocks and rail entries; a plain click opens it in place); selection toggling moved to Shift-click.
+6. **Hover affordance thinned**: the resize zones stay 8 / 10 px wide for the mouse but paint only a 2 px line on their outer edge; the hover shadow is lighter.
 
 ## Phase C: budget ring + WBS roll-ups + lifecycle columns
 

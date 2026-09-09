@@ -13,7 +13,8 @@ import { claimPointerDrag } from '../pointer-claim'
  * - drag on an empty area → marquee-select the blocks it touches;
  * - click an empty spot of a day column → create a block there (a click
  *   while blocks are selected only clears the selection);
- * - Ctrl/Cmd-click a block → toggle it in the selection;
+ * - Shift-click a block → toggle it in the selection; a plain click opens
+ *   the note (Ctrl/Cmd-click in a new tab), on blocks and rail entries alike;
  * - drag a rail entry onto a day column → create a block for that note;
  * - Delete / Backspace with a selection → remove the selected blocks;
  * - Ctrl/Cmd+C copies the selection (or the focused block), Ctrl/Cmd+V
@@ -40,9 +41,9 @@ export interface WeekDndCallbacks {
     onSpan(path: string, from: Slot, edge: 'left' | 'right', toDay: number): void
     onCreate(day: number, startMinutes: number): void
     onRailDrop(path: string, day: number, startMinutes: number): void
-    /** A block clicked without dragging (opens the note). */
+    /** A block or rail entry clicked without dragging (opens the note). */
     onBlockClick(path: string, newTab: boolean): void
-    /** Replace the selection (marquee) / toggle one key (Ctrl-click). */
+    /** Replace the selection (marquee) / toggle one key (Shift-click). */
     onSelect(keys: string[]): void
     onToggleSelect(key: string): void
     /** Delete pressed with a non-empty selection. */
@@ -355,14 +356,21 @@ export class WeekDnd {
         if (block) {
             const path = block.dataset['path']
             const key = block.dataset['key']
-            if (e.ctrlKey || e.metaKey) {
+            // Shift-click toggles the selection; Ctrl/Cmd-click opens in a
+            // new tab (Obsidian's convention, same as board cards).
+            if (e.shiftKey) {
                 if (key) this.callbacks.onToggleSelect(key)
                 return
             }
-            if (path) this.callbacks.onBlockClick(path, false)
+            if (path) this.callbacks.onBlockClick(path, e.ctrlKey || e.metaKey)
             return
         }
-        if (target.closest('.kap-week-rail-item')) return
+        const rail = target.closest<HTMLElement>('.kap-week-rail-item')
+        if (rail) {
+            const path = rail.dataset['path']
+            if (path) this.callbacks.onBlockClick(path, e.ctrlKey || e.metaKey)
+            return
+        }
         const dayEl = target.closest<HTMLElement>('.kap-week-day')
         if (!dayEl || !this.containerEl.contains(dayEl)) return
         // With a selection, a click on empty space only clears it.

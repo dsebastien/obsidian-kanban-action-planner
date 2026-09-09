@@ -2098,7 +2098,7 @@
 
     .kap-week-block:hover,
     .kap-week-block:focus-visible {
-        box-shadow: 0 2px 6px rgb(0 0 0 / 0.18);
+        box-shadow: 0 1px 3px rgb(0 0 0 / 0.14);
         z-index: 3;
     }
 
@@ -2148,12 +2148,14 @@
         color: var(--text-muted);
     }
 
-    /* Resize handles: 8px top / bottom. The side handles are 10px wide and
-       week-dnd.ts also treats a press within 10px of a block's side edge as
-       a stretch, so a real mouse does not have to land on the strip. */
+    /* Resize handles: the hit zones are 8px (top / bottom) and 10px (sides)
+       — week-dnd.ts also treats a press within 10px of a block's side edge
+       as a stretch — but on hover only a 2px line on the outer edge shows,
+       painted by a gradient over the transparent zone. */
     .kap-week-handle {
         @apply absolute left-0 right-0 h-[8px] cursor-ns-resize opacity-0;
-        background: color-mix(in srgb, var(--interactive-accent) 55%, transparent);
+        --kap-handle-line: color-mix(in srgb, var(--interactive-accent) 70%, transparent);
+        background: linear-gradient(to bottom, var(--kap-handle-line) 2px, transparent 2px);
     }
 
     .kap-week-handle-top {
@@ -2162,6 +2164,7 @@
 
     .kap-week-handle-bottom {
         @apply bottom-0;
+        background: linear-gradient(to top, var(--kap-handle-line) 2px, transparent 2px);
     }
 
     .kap-week-handle-left,
@@ -2171,10 +2174,12 @@
 
     .kap-week-handle-left {
         @apply left-0 right-auto;
+        background: linear-gradient(to right, var(--kap-handle-line) 2px, transparent 2px);
     }
 
     .kap-week-handle-right {
         @apply right-0 left-auto;
+        background: linear-gradient(to left, var(--kap-handle-line) 2px, transparent 2px);
     }
 
     .kap-week-block-selected,
