@@ -32,6 +32,14 @@ Shipped: `domain/time-blocks.ts` + `domain/week-planner.ts` (pure, tested), `vie
 - Statuses resolved through the mirrored OSK status config (open values), never literals.
 - Tests: parser round-trips, planned-minutes sums, overlap cases (same day, crossing midnight, range vs list), project date window filtering.
 
+## Very next steps (before releasing phase B)
+
+Reported by Sébastien while testing the dev build with a real mouse; reproduce, fix, then release 1.25.0:
+
+1. **Left / right edge stretch does not seem to work.** The synthetic-event check passes, so suspect the landing phantom (visual only), the 6-pixel edge zone being too thin, or the top/bottom handles winning the hit-test. Widen the zones if needed.
+2. **The 00:00 hour label is not fully readable** (the first gutter label is clipped at the top of the grid; labels are centred on their line with `-translate-y-1/2`).
+3. **Column headers and day columns drift out of alignment, worse to the right.** Head row and grid share the `3.25rem + 7 × minmax(0, 1fr)` template, but the grid lives in a vertical scroller whose scrollbar narrows its columns only. Reserve the scrollbar gutter on both (`scrollbar-gutter: stable`) or pad the head by the scroller's `offsetWidth − clientWidth`.
+
 ## Phase C: budget ring + WBS roll-ups + lifecycle columns
 
 - Budget ring on activity and project cards and in the WBS row: target (`minutes_per_week`) vs planned vs tracked this ISO week (own entries plus linked tasks' entries clipped to the week); alarm state when tracked > `minutes_alarm_per_week`.
@@ -50,3 +58,7 @@ Shipped: `domain/time-blocks.ts` + `domain/week-planner.ts` (pure, tested), `vie
 Read the week-planner app end to end (`$WKS/week-planner`: `src/types.ts`, `src/time-block-manager.ts`, `src/week-planner.ts`, its UI, templates, and export code) and list every feature the Ideal week mode does not have yet — templates / presets, block styling that matters beyond colour, multi-day spans, undo, printing, keyboard shortcuts, anything in its README. Decide each one with Sébastien (adopt, adapt, drop) and file the adopted ones as tasks; the plugin note and issue #172 get the resulting gap list.
 
 `bun run format`, `bun run validate`, `bun run build`, live check in the vault (`bun run dev`, `obsidian dev:errors` clean), docs updated, commit with `bun run cm`, release through the shared plugin workflow, then re-check the OSK per-type config in the vault (`.obsidian/plugins/kanban-action-planner/data.json`) still matches the vault's properties and update the vault-side skills `osk-action-time-budget` / `osk-action-lifecycle` if a property name moved. Post a progress comment on issue #172 per phase.
+
+## Phase F: user guide in Sébastien's voice
+
+Once the feature set is stable, pass `docs/` (usage, configuration, README) through the ghostwriter with Sébastien's voice profile (`developassion-content-ghostwriter` + `osk-writing-humanizer`, `user-voice-profile`): same facts, his tone, no AI patterns; keep the structure and the screenshots.
