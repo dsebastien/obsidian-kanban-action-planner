@@ -484,6 +484,12 @@ export class KanbanActionPlannerSettingTab extends PluginSettingTab {
             'defaultTargetMinutesProperty',
             'minutes_per_week'
         )
+        text(
+            'Alarm minutes property',
+            'Weekly alarm in minutes: a week tracked above it turns the budget ring red and shows one notice.',
+            'defaultAlarmMinutesProperty',
+            'minutes_alarm_per_week'
+        )
         const hour = (
             name: string,
             desc: string,

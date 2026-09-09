@@ -1,6 +1,8 @@
 import { describe, expect, test } from 'bun:test'
 import {
     buildTimeEntry,
+    clipEntryMinutes,
+    minutesInRange,
     entryMinutes,
     formatEntryDate,
     formatEntryDateTime,
@@ -10,6 +12,7 @@ import {
     readTrackedMinutes,
     sumEntryMinutes
 } from './time-entries'
+import type { TimeEntry } from './time-entries'
 
 const local = (y: number, mo: number, d: number, h = 0, mi = 0, s = 0): Date =>
     new Date(y, mo - 1, d, h, mi, s)
@@ -150,5 +153,59 @@ describe('readTrackedMinutes (issue #172)', () => {
         expect(
             readTrackedMinutes({ entries: [{ startTime: '2026-09-09T09:00:00' }], spent: 0 })
         ).toBeNull()
+    })
+})
+
+describe('clipEntryMinutes / minutesInRange (issue #172, phase C)', () => {
+    const from = new Date(2026, 8, 7, 0, 0, 0) // Monday 2026-09-07 00:00 local
+    const to = new Date(2026, 8, 14, 0, 0, 0) // next Monday
+    const entry = (startTime: string, endTime?: string): TimeEntry => ({ startTime, endTime })
+
+    test('an entry inside the range counts whole', () => {
+        expect(
+            clipEntryMinutes(entry('2026-09-08T10:00:00', '2026-09-08T11:30:00'), from, to)
+        ).toBe(90)
+    })
+
+    test('an entry crossing the start counts its inside part only', () => {
+        expect(
+            clipEntryMinutes(entry('2026-09-06T23:30:00', '2026-09-07T00:45:00'), from, to)
+        ).toBe(45)
+    })
+
+    test('an entry crossing the end counts its inside part only', () => {
+        expect(
+            clipEntryMinutes(entry('2026-09-13T23:00:00', '2026-09-14T02:00:00'), from, to)
+        ).toBe(60)
+    })
+
+    test('an entry outside, an open entry, and a reversed entry count 0', () => {
+        expect(
+            clipEntryMinutes(entry('2026-09-01T10:00:00', '2026-09-01T11:00:00'), from, to)
+        ).toBe(0)
+        expect(clipEntryMinutes(entry('2026-09-08T10:00:00'), from, to)).toBe(0)
+        expect(
+            clipEntryMinutes(entry('2026-09-08T11:00:00', '2026-09-08T10:00:00'), from, to)
+        ).toBe(0)
+    })
+
+    test('a tap inside the range still counts one minute', () => {
+        expect(
+            clipEntryMinutes(entry('2026-09-08T10:00:00', '2026-09-08T10:00:10'), from, to)
+        ).toBe(1)
+    })
+
+    test('minutesInRange sums the clipped minutes', () => {
+        expect(
+            minutesInRange(
+                [
+                    entry('2026-09-08T10:00:00', '2026-09-08T11:00:00'),
+                    entry('2026-09-06T23:30:00', '2026-09-07T00:30:00'),
+                    entry('2026-09-20T10:00:00', '2026-09-20T11:00:00')
+                ],
+                from,
+                to
+            )
+        ).toBe(90)
     })
 })

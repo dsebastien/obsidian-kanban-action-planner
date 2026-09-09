@@ -37,6 +37,7 @@ import {
     setDoneConfig,
     setEstimateConfig,
     setTimeTrackingConfig,
+    setWeekPlannerConfig,
     setLaneGrouping,
     setNoteTypeName,
     setEnumProperty,
@@ -59,6 +60,7 @@ type SectionId =
     | 'limits'
     | 'estimate'
     | 'tracking'
+    | 'week'
     | 'done'
     | 'automation'
     | 'creation'
@@ -72,6 +74,7 @@ const SECTIONS: ReadonlyArray<{ id: SectionId; label: string; icon: string }> = 
     { id: 'relationships', label: 'Relationships', icon: 'git-fork' },
     { id: 'estimate', label: 'Estimate', icon: 'ruler' },
     { id: 'tracking', label: 'Time tracking', icon: 'timer' },
+    { id: 'week', label: 'Ideal week', icon: 'calendar-range' },
     { id: 'done', label: 'Done state', icon: 'circle-check' },
     { id: 'automation', label: 'Automations', icon: 'zap' },
     { id: 'creation', label: 'Creating notes', icon: 'file-plus' },
@@ -210,6 +213,9 @@ export class ConfigureBoardModal extends Modal {
                 return
             case 'tracking':
                 this.renderTimeTracking(noteType)
+                break
+            case 'week':
+                this.renderWeekPlanner(noteType)
                 return
             case 'done':
                 this.renderDone(noteType)
@@ -904,6 +910,79 @@ export class ConfigureBoardModal extends Modal {
                 .addText((text) => {
                     text.setPlaceholder(field.placeholder)
                         .setValue(noteType.timeTracking?.[field.key] ?? '')
+                        .onChange((value) => persist(field.key, value))
+                })
+        }
+    }
+
+    // ── Ideal-week / budget properties (issue #172, phase C; per-type override) ──
+
+    private renderWeekPlanner(noteType: NoteType): void {
+        new Setting(this.body).setName('Ideal week').setHeading()
+        this.body.createEl('p', {
+            cls: 'kap-modal-subtitle',
+            text:
+                `Which frontmatter properties the ideal week and the weekly budget read and write on ${noteType.name} ` +
+                'notes. Leave a field empty to use the global default from the plugin settings.'
+        })
+        const globals = this.plugin.settings
+        const fields: ReadonlyArray<{
+            key:
+                | 'timeBlocksProperty'
+                | 'plannedMinutesProperty'
+                | 'targetMinutesProperty'
+                | 'alarmMinutesProperty'
+            name: string
+            desc: string
+            placeholder: string
+        }> = [
+            {
+                key: 'timeBlocksProperty',
+                name: 'Time blocks property',
+                desc: 'List of "<days> HH:MM-HH:MM" entries.',
+                placeholder: globals.defaultTimeBlocksProperty
+            },
+            {
+                key: 'plannedMinutesProperty',
+                name: 'Planned minutes property',
+                desc: 'Minutes per week reserved by the blocks (recomputed on every edit).',
+                placeholder: globals.defaultPlannedMinutesProperty
+            },
+            {
+                key: 'targetMinutesProperty',
+                name: 'Target minutes property',
+                desc: 'Weekly time budget in minutes.',
+                placeholder: globals.defaultTargetMinutesProperty
+            },
+            {
+                key: 'alarmMinutesProperty',
+                name: 'Alarm minutes property',
+                desc: 'Weekly alarm in minutes: tracked time above it turns the ring red.',
+                placeholder: globals.defaultAlarmMinutesProperty
+            }
+        ]
+        const persist = (key: (typeof fields)[number]['key'], value: string): void => {
+            const current = this.noteType()?.weekPlanner ?? {
+                timeBlocksProperty: '',
+                plannedMinutesProperty: '',
+                targetMinutesProperty: '',
+                alarmMinutesProperty: ''
+            }
+            const next = { ...current, [key]: value.trim() }
+            const allBlank = Object.values(next).every((v) => v === '')
+            void setWeekPlannerConfig(
+                this.plugin,
+                this.noteTypeId,
+                allBlank ? undefined : next
+            ).then(() => this.onChange())
+        }
+        for (const field of fields) {
+            new Setting(this.body)
+                .setName(field.name)
+                .setDesc(`${field.desc} Empty = the global default.`)
+                .addText((text) => {
+                    text.setPlaceholder(field.placeholder)
+                        .setValue(noteType.weekPlanner?.[field.key] ?? '')
                         .onChange((value) => persist(field.key, value))
                 })
         }

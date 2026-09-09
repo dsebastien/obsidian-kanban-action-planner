@@ -32,6 +32,7 @@ import {
     DEFAULT_TIME_BLOCKS_PROPERTY,
     DEFAULT_PLANNED_MINUTES_PROPERTY,
     DEFAULT_TARGET_MINUTES_PROPERTY,
+    DEFAULT_ALARM_MINUTES_PROPERTY,
     DEFAULT_WEEK_GRID_START_HOUR,
     DEFAULT_WEEK_GRID_END_HOUR,
     DEFAULT_WEEK_WORK_START_MINUTES,
@@ -157,6 +158,12 @@ export const pluginSettingsSchema = z.object({
     defaultTimeBlocksProperty: z.string().default(DEFAULT_TIME_BLOCKS_PROPERTY),
     defaultPlannedMinutesProperty: z.string().default(DEFAULT_PLANNED_MINUTES_PROPERTY),
     defaultTargetMinutesProperty: z.string().default(DEFAULT_TARGET_MINUTES_PROPERTY),
+    defaultAlarmMinutesProperty: z.string().default(DEFAULT_ALARM_MINUTES_PROPERTY),
+    /**
+     * Budget alarm notices already shown (issue #172, phase C): note path →
+     * ISO week key. One notice per note per week; past weeks are pruned.
+     */
+    weekAlarmNotified: z.record(z.string(), z.string()).default({}),
     weekGridStartHour: z.number().int().min(0).max(23).default(DEFAULT_WEEK_GRID_START_HOUR),
     weekGridEndHour: z.number().int().min(1).max(24).default(DEFAULT_WEEK_GRID_END_HOUR),
     weekWorkStartMinutes: z
@@ -247,6 +254,8 @@ export const DEFAULT_SETTINGS: PluginSettings = {
     defaultTimeBlocksProperty: DEFAULT_TIME_BLOCKS_PROPERTY,
     defaultPlannedMinutesProperty: DEFAULT_PLANNED_MINUTES_PROPERTY,
     defaultTargetMinutesProperty: DEFAULT_TARGET_MINUTES_PROPERTY,
+    defaultAlarmMinutesProperty: DEFAULT_ALARM_MINUTES_PROPERTY,
+    weekAlarmNotified: {},
     weekGridStartHour: DEFAULT_WEEK_GRID_START_HOUR,
     weekGridEndHour: DEFAULT_WEEK_GRID_END_HOUR,
     weekWorkStartMinutes: DEFAULT_WEEK_WORK_START_MINUTES,

@@ -102,6 +102,29 @@ export function latestEntryDate(entries: readonly TimeEntry[]): string | null {
     return latest ? formatEntryDate(latest) : null
 }
 
+/**
+ * The whole minutes of one CLOSED entry that fall inside `[from, to)`, 0 when
+ * it lies outside or is open / unparsable (issue #172, phase C: tracked
+ * THIS week). An entry crossing a boundary counts only its inside part, so
+ * a session running over Sunday midnight splits across two weeks.
+ */
+export function clipEntryMinutes(entry: TimeEntry, from: Date, to: Date): number {
+    const start = parseEntryDateTime(entry.startTime)
+    const end = parseEntryDateTime(entry.endTime)
+    if (!start || !end) return 0
+    const lo = Math.max(start.getTime(), from.getTime())
+    const hi = Math.min(end.getTime(), to.getTime())
+    if (hi <= lo) return 0
+    return Math.max(1, Math.round((hi - lo) / 60000))
+}
+
+/** Sum of {@link clipEntryMinutes} over the entries. */
+export function minutesInRange(entries: readonly TimeEntry[], from: Date, to: Date): number {
+    let total = 0
+    for (const entry of entries) total += clipEntryMinutes(entry, from, to)
+    return total
+}
+
 /** Build the entry a session from `startedAt` to `endedAt` (epoch ms) produces. */
 export function buildTimeEntry(startedAt: number, endedAt: number, description = ''): TimeEntry {
     return {

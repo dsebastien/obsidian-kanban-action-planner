@@ -278,6 +278,8 @@ import { cssEscapeAttr } from '../../utils/css-escape'
 import { DatePromptModal } from '../../ui/date-prompt-modal'
 import { TextPromptModal } from '../../ui/text-prompt-modal'
 import { log } from '../../../utils/log'
+import { weekPropertiesForType } from '../../services/week-properties.service'
+import type { WeekProperties } from '../../services/week-properties.service'
 
 /** The (untyped) settings controller exposed on `app.setting`. */
 interface ObsidianSettings {
@@ -817,10 +819,8 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             },
             firstDayOfWeek: () => this.plugin.settings.firstDayOfWeek,
             minutesPerDay: () => this.plugin.settings.minutesPerDay,
+            weekPropertiesFor: (card) => this.weekPropertiesFor(card),
             settings: () => ({
-                timeBlocksProperty: this.plugin.settings.defaultTimeBlocksProperty,
-                plannedMinutesProperty: this.plugin.settings.defaultPlannedMinutesProperty,
-                targetMinutesProperty: this.plugin.settings.defaultTargetMinutesProperty,
                 gridStartHour: this.plugin.settings.weekGridStartHour,
                 gridEndHour: this.plugin.settings.weekGridEndHour,
                 workStartMinutes: this.plugin.settings.weekWorkStartMinutes,
@@ -2327,6 +2327,12 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         const typeId = this.noteTypeByPath.get(card.key)?.id
         const noteType = typeId ? findNoteType(this.plugin, typeId) : undefined
         return trackingPropertiesForType(this.plugin.settings, noteType)
+    }
+
+    private weekPropertiesFor(card: KanbanCard): WeekProperties {
+        const typeId = this.noteTypeByPath.get(card.key)?.id
+        const noteType = typeId ? findNoteType(this.plugin, typeId) : undefined
+        return weekPropertiesForType(this.plugin.settings, noteType)
     }
 
     private estimateConfigFor(card: KanbanCard): EstimateConfig {

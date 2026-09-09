@@ -9,7 +9,8 @@ import type {
     LaneGrouping,
     NoteType,
     NoteTypeEstimateConfig,
-    NoteTypeTimeTrackingConfig
+    NoteTypeTimeTrackingConfig,
+    NoteTypeWeekPlannerConfig
 } from '../domain/note-type'
 import type { CreationConfig } from '../domain/note-creation'
 import { compareStatusValues, splitStatusValue } from '../domain/status'
@@ -273,6 +274,26 @@ export async function setTimeTrackingConfig(
         plugin,
         produce(noteType, (draft) => {
             draft.timeTracking = timeTracking
+        })
+    )
+}
+
+/**
+ * Set (or clear, with `undefined`) a note type's ideal-week / budget property
+ * overrides (issue #172, phase C). Plugin-owned config: valid for Starter
+ * Kit–mirrored types too.
+ */
+export async function setWeekPlannerConfig(
+    plugin: KanbanActionPlannerPlugin,
+    noteTypeId: string,
+    weekPlanner: NoteTypeWeekPlannerConfig | undefined
+): Promise<void> {
+    const noteType = requireNoteType(plugin, noteTypeId)
+    if (!noteType) return
+    await upsertNoteType(
+        plugin,
+        produce(noteType, (draft) => {
+            draft.weekPlanner = weekPlanner
         })
     )
 }

@@ -107,6 +107,8 @@ export const CORE_TEMPLATES_PLUGIN_ID = 'templates'
 export const DEFAULT_TIME_BLOCKS_PROPERTY = 'time_blocks'
 export const DEFAULT_PLANNED_MINUTES_PROPERTY = 'minutes_planned_per_week'
 export const DEFAULT_TARGET_MINUTES_PROPERTY = 'minutes_per_week'
+/** Weekly alarm (issue #172, phase C): tracked minutes above it flag the week. */
+export const DEFAULT_ALARM_MINUTES_PROPERTY = 'minutes_alarm_per_week'
 /** Visible grid hours (0..24) — the full day by default. */
 export const DEFAULT_WEEK_GRID_START_HOUR = 0
 export const DEFAULT_WEEK_GRID_END_HOUR = 24
