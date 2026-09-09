@@ -1,5 +1,16 @@
 # Release Notes
 
+## 1.22.0 (2026-09-09)
+
+### Features
+
+- **plugin:** archive grace period and folder-note archiving
+
+### Bug Fixes
+
+- **build:** exclude bun-types alongside @types/bun from the release-age gate
+- **deps:** move the fast-uri override off the vulnerable line
+
 ## 1.21.0 (2026-09-08)
 
 ### Features

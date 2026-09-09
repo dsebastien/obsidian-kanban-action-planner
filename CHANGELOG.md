@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.22.0](https://github.com/dsebastien/obsidian-kanban-action-planner/compare/1.21.0...1.22.0) (2026-09-09)
+
+### Features
+
+* **plugin:** archive grace period and folder-note archiving ([0ca85db](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/0ca85dbc440e3fc52e28d6020ae31274b8bfaac9))
+
+### Bug Fixes
+
+* **build:** exclude bun-types alongside @types/bun from the release-age gate ([7e0d91d](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/7e0d91d171041ecc9ee757726a5e7339f2352783))
+* **deps:** move the fast-uri override off the vulnerable line ([b7be689](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/b7be6891a08c567d4945b47b3a8fd110ef207184))
+
 ## [1.21.0](https://github.com/dsebastien/obsidian-kanban-action-planner/compare/1.20.1...1.21.0) (2026-09-08)
 
 ### Features
@@ -519,6 +530,7 @@ All notable changes to this project will be documented in this file.
 
 * **plugin:** match Starter Kit's {{quarter}} placeholder format (Q2, not 2) ([4fde618](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/4fde6185c5956e3f6fd2ca3a9b03e70cf5e16840))
 * **plugin:** persist discovered statuses so Show empty columns works ([cf91b81](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/cf91b81a1b0786e35c73f4885882e2dc33564c62))
+
 
 
 
