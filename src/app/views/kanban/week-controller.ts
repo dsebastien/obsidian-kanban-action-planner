@@ -686,11 +686,13 @@ export class WeekController {
         return true
     }
 
-    /** A drag on the empty grid drew a block: ask which note, then plan it at that size. */
-    createRange(day: number, start: number, end: number): void {
-        this.pickNote(
-            (path) => void this.createFor(path, day, start, Math.max(GRID_MINUTES, end - start))
+    /** A drag on the empty grid drew a block over `days`: ask which note, then plan it at that size. */
+    createRange(days: number[], start: number, end: number): void {
+        const cfg = this.config()
+        const slots = days.map((day) =>
+            newBlockSlot(day, start, Math.max(GRID_MINUTES, end - start), cfg)
         )
+        this.pickNote((path) => void this.planSlots(path, slots))
     }
 
     /** Right-click on an empty cell: plan a block here, paste here. */
@@ -1127,15 +1129,33 @@ export class WeekController {
         start: number,
         minutes = this.newBlockMinutes()
     ): Promise<void> {
+        await this.planSlots(path, [newBlockSlot(day, start, minutes, this.config())])
+    }
+
+    /**
+     * Plan `slots` on a note in one write: every slot is checked for overlaps
+     * (a conflict refuses the whole plan, named); a note without a weekly
+     * target is asked for one first (Cancel plans nothing).
+     */
+    async planSlots(path: string, slots: Slot[]): Promise<void> {
         const entry = this.entries.get(path)
-        if (!entry) return
-        const slot = newBlockSlot(day, start, minutes, this.config())
-        const conflict = this.conflictOf(path, slot, null)
-        if (conflict) {
-            new Notice(conflict)
-            return
+        if (!entry || slots.length === 0) return
+        let blocks = entry.blocks
+        for (const slot of slots) {
+            const conflict = this.conflictOf(path, slot, null)
+            const selfHit = findOverlap(
+                slot,
+                slotsOf(blocks).map((s) => ({ ...s, path }))
+            )
+            if (conflict || selfHit) {
+                new Notice(
+                    conflict ??
+                        `That slot overlaps another block of ${entry.title} (${formatMinutes(selfHit?.start ?? 0)}–${formatMinutes(selfHit?.end ?? 0)}). Nothing was changed.`
+                )
+                return
+            }
+            blocks = addSlot(blocks, slot)
         }
-        const blocks = addSlot(entry.blocks, slot)
         if (!entry.onGrid) {
             new Notice(
                 `${entry.title} is not current (its start and due dates do not include today), so its blocks are saved but not drawn.`
@@ -1145,17 +1165,15 @@ export class WeekController {
             await this.write(path, blocks)
             return
         }
-        const s = this.host.settings()
+        const card = this.host.cardForKey(path)
+        if (!card) return
+        const targetProperty = this.host.settings().targetMinutesProperty
         new EstimatePromptModal(
             this.host.app,
             `Weekly target for ${entry.title} (minutes per week, or 5h)`,
             null,
             (value) => {
-                void this.write(
-                    path,
-                    blocks,
-                    value !== null ? { [s.targetMinutesProperty]: value } : {}
-                )
+                void this.write(path, blocks, value !== null ? { [targetProperty]: value } : {})
             },
             'minutes',
             this.host.minutesPerDay()

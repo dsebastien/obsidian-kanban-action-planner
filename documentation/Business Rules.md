@@ -967,9 +967,10 @@ When a new business rule is mentioned:
     optimistic and never bypasses the domain; it is capped at 100 and dies with the view.
     Dragging a block that is part of the selection moves (Alt: copies) the whole selection by
     the same offset, all-or-nothing: one slot that would overlap or leave the week cancels the
-    move and names the note. Alt-drag on the empty grid draws a sized block (15-minute floor
-    of the drag, one column) and goes through the same type-aware picker as a click; a plain
-    drag stays a marquee. Ctrl/Cmd+A selects every drawn block. The empty-cell menu plans a
+    move and names the note. A drag on the empty grid draws a sized block over the cells it
+    covers (15-minute floor of the drag; sideways drags add days, one slot per day, planned in
+    ONE write through `planSlots`) and goes through the same type-aware picker as a click;
+    Shift-drag is the marquee. Ctrl/Cmd+A selects every drawn block. The empty-cell menu plans a
     block (picker) or pastes the clipboard at that cell; while the clipboard holds blocks the
     cell under the pointer is lit. "Remove every block of this note" is one write; "Set
     weekly target…" (issue #186) writes the type's target property only, optimistically.
