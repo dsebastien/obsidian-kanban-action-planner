@@ -2132,6 +2132,13 @@
         cursor: grabbing;
     }
 
+    /* The cell a paste would land in (while the clipboard holds blocks). */
+    .kap-week-paste-hint {
+        @apply absolute left-[2px] right-[2px] rounded-sm pointer-events-none z-[1];
+        background: color-mix(in srgb, var(--interactive-accent) 16%, transparent);
+        border: 1px dashed color-mix(in srgb, var(--interactive-accent) 60%, transparent);
+    }
+
     /* Landing preview while a block / rail note is dragged. */
     .kap-week-phantom {
         @apply absolute left-[2px] right-[2px] rounded-md pointer-events-none z-[4];
@@ -2220,6 +2227,61 @@
     .kap-week-import-text {
         @apply w-full font-mono text-[0.85em] mb-2;
         min-height: 12em;
+    }
+
+    /* Printing (phase E): the static copy is hidden on screen, alone on paper. */
+    .kap-week-print {
+        display: none;
+    }
+
+    @media print {
+        @page {
+            size: A4 landscape;
+            margin: 10mm;
+        }
+
+        body.kap-week-printing > *:not(.kap-week-print) {
+            display: none !important;
+        }
+
+        body.kap-week-printing .kap-week-print {
+            display: block;
+            position: absolute;
+            inset: 0;
+            background: #fff;
+            color: #000;
+        }
+
+        .kap-week-print-title {
+            font-size: 14pt;
+            font-weight: 600;
+            margin-bottom: 2mm;
+        }
+
+        .kap-week-print-summary {
+            font-size: 9pt;
+            margin-bottom: 3mm;
+        }
+
+        .kap-week-print-scroller {
+            overflow: visible;
+            height: auto;
+        }
+
+        /* A full day at the screen scale is taller than a landscape page. */
+        .kap-week-print-page {
+            zoom: 0.55;
+        }
+
+        .kap-week-print .kap-week-head {
+            position: static;
+        }
+
+        .kap-week-print .kap-week-block {
+            box-shadow: none;
+            print-color-adjust: exact;
+            -webkit-print-color-adjust: exact;
+        }
     }
 
     /* Note picker rows (grouped by type on mixed boards). */

@@ -209,6 +209,21 @@ export class KanbanActionPlannerPlugin extends Plugin {
             checkCallback: onActiveView((view) => view.toggleWeek())
         })
         this.addCommand({
+            id: 'undo-ideal-week-edit',
+            name: 'Undo the last ideal week edit',
+            checkCallback: onActiveView((view) => view.undoIdealWeek())
+        })
+        this.addCommand({
+            id: 'redo-ideal-week-edit',
+            name: 'Redo the last undone ideal week edit',
+            checkCallback: onActiveView((view) => view.redoIdealWeek())
+        })
+        this.addCommand({
+            id: 'print-ideal-week',
+            name: 'Print the ideal week',
+            checkCallback: onActiveView((view) => view.printIdealWeek())
+        })
+        this.addCommand({
             id: 'import-ideal-week',
             name: 'Import ideal week from the week-planner app',
             checkCallback: onActiveView((view) => view.importIdealWeek())

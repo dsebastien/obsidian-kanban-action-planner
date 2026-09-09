@@ -848,7 +848,15 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             onToggleSelect: (key) => this.week?.toggleSelect(key),
             onDeleteSelection: () => void this.week?.removeSelected(),
             onCopy: (keys) => this.week?.copy(keys),
-            onPaste: (day, start) => void this.week?.paste(day, start)
+            onPaste: (day, start) => void this.week?.paste(day, start),
+            onMoveSelection: (path, from, to, copy) =>
+                void this.week?.moveSelection(path, from, to, copy),
+            onCreateRange: (day, start, end) => this.week?.createRange(day, start, end),
+            onSelectAll: () => this.week?.selectAll(),
+            onUndo: () => void this.week?.undo(),
+            onRedo: () => void this.week?.redo(),
+            onCellContextMenu: (day, minutes, event) => this.week?.cellMenu(day, minutes, event),
+            hasClipboard: () => this.week?.hasClipboard() ?? false
         })
         this.timeline = new TimelineController({
             app: this.app,
@@ -1136,6 +1144,18 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
 
     toggleWeek(): void {
         this.setViewMode(this.weekMode() ? 'board' : 'week')
+    }
+
+    printIdealWeek(): void {
+        this.week?.print()
+    }
+
+    undoIdealWeek(): void {
+        void this.week?.undo()
+    }
+
+    redoIdealWeek(): void {
+        void this.week?.redo()
     }
 
     /** Import the week-planner app's export into the ideal week (issue #172, phase D). */

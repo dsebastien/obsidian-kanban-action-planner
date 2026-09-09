@@ -1173,6 +1173,20 @@ command), or embed it with `mode=ideal-week` (`mode=week` works too).
   timeline, with the click-to-filter legend in the toolbar); a note without a context renders
   neutral grey. A tinted **work band** marks your work hours on work days, and the toolbar
   sums the planned minutes across the grid against the targets.
+- **Undo and redo.** **Ctrl/Cmd+Z** undoes the last ideal-week edit and **Ctrl/Cmd+Shift+Z**
+  (or **Ctrl/Cmd+Y**) redoes it, with the grid focused; the commands **Undo the last ideal week
+  edit** / **Redo the last undone ideal week edit** do the same from anywhere. A paste, a
+  selection move or delete, and an import are one step each. The history lives in memory and
+  ends with the view.
+- **More gestures.** **Alt-drag** on the empty grid draws a new block of the length you drag
+  (the picker then asks which note). Dragging a **selected** block moves (or Alt-copies) the
+  whole selection at once, all-or-nothing when something would overlap or leave the week.
+  **Ctrl/Cmd+A** selects every block. **Right-click an empty cell** to plan a block there or paste
+  the copied blocks there; while the clipboard holds blocks, the cell under the pointer is lit.
+  The card menu of a block or rail note offers **Set weekly target…** (the target property, in
+  minutes or `5h`; empty clears it) and **Remove every block of this note**.
+- **Print.** **Print the ideal week** (command) sends a print-friendly copy of the grid to the
+  system print dialog (A4 landscape, contexts' colours kept).
 - **Import and export.** The commands **Import ideal week from the week-planner app** and
   **Export ideal week (JSON / Markdown, week-planner app)** move the ideal week to and from
   [the week-planner app](https://github.com/dsebastien/week-planner). Importing reads the app's
@@ -1610,6 +1624,8 @@ is active, and each can be given a hotkey in **Settings → Hotkeys**):
 - **Toggle triage mode** / **Configure triage**
 - **Toggle agenda mode**
 - **Toggle ideal week mode**
+- **Undo the last ideal week edit** / **Redo the last undone ideal week edit**
+- **Print the ideal week**
 - **Import ideal week from the week-planner app**
 - **Export ideal week (JSON, week-planner app)** / **Export ideal week (Markdown, week-planner app)**
 - **Stop time tracking** (only while a session runs)
