@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.23.0](https://github.com/dsebastien/obsidian-kanban-action-planner/compare/1.22.0...1.23.0) (2026-09-09)
+
+### Features
+
+* **plugin:** mirror Starter Kit status configuration and only-if-empty stamps ([1b18f12](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/1b18f12593eadf120808dddd4ea0fa39124917d6))
+* **plugin:** skip a mirrored stamp rule a user rule already covers ([330a038](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/330a038b8550d0ac0a11d53065f4d8deac94ccf9))
+
+### Bug Fixes
+
+* **plugin:** read optional note-type blocks stored as null as absent ([23c5e40](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/23c5e40f0fc52f845226ac90be4364da38b64618))
+
 ## [1.22.0](https://github.com/dsebastien/obsidian-kanban-action-planner/compare/1.21.0...1.22.0) (2026-09-09)
 
 ### Features
@@ -530,6 +541,7 @@ All notable changes to this project will be documented in this file.
 
 * **plugin:** match Starter Kit's {{quarter}} placeholder format (Q2, not 2) ([4fde618](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/4fde6185c5956e3f6fd2ca3a9b03e70cf5e16840))
 * **plugin:** persist discovered statuses so Show empty columns works ([cf91b81](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/cf91b81a1b0786e35c73f4885882e2dc33564c62))
+
 
 
 

@@ -1,5 +1,16 @@
 # Release Notes
 
+## 1.23.0 (2026-09-09)
+
+### Features
+
+- **plugin:** mirror Starter Kit status configuration and only-if-empty stamps
+- **plugin:** skip a mirrored stamp rule a user rule already covers
+
+### Bug Fixes
+
+- **plugin:** read optional note-type blocks stored as null as absent
+
 ## 1.22.0 (2026-09-09)
 
 ### Features
