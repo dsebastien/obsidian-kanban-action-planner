@@ -1119,6 +1119,9 @@ records), straight from the cards — on **any note type**:
   previous session first, writing its entry. A global **Stop time tracking** command stops
   the active session from anywhere, and a **status-bar readout** (`⏱ 12m · Note`) shows what
   runs; click it for stop / pomodoro actions.
+
+    ![The status-bar readout while a session runs]({{ '/images/time-tracking-status-bar.png' | relative_url }})
+
 - Stopping appends a **time entry** — a `{startTime, endTime, description}` object with local
   ISO datetimes, exactly TaskNotes' shape — to the note's **time entries** list property
   (`time_entries` by default), then **recomputes** the note's **duration** property from the
@@ -1142,6 +1145,9 @@ records), straight from the cards — on **any note type**:
   break** command or the status-bar menu: a short break (5 min), or a long one (15 min) after
   every 4th completed work pomodoro; a break stops any running session. **Stop pomodoro** ends
   one early (recorded as not completed). Durations and the cadence are settings.
+
+    ![Start time tracking and Start pomodoro in the card menu]({{ '/images/card-menu-pomodoro.png' | relative_url }})
+
 - The **WBS** shows a **⏱ tracked** chip per row: the subtree's total tracked time — own
   minutes plus every distinct descendant's (actuals **add**; unlike estimates, an own value
   never replaces the children's contribution). A total the children contributed to is styled
