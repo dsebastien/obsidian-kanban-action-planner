@@ -24,7 +24,8 @@ import {
     recognitionMappings,
     recognizeNoteType,
     type SkNoteType,
-    type SkResolvedStatus
+    type SkResolvedStatus,
+    starterKitRunsAutomations
 } from './starter-kit.service'
 import {
     mergeMirroredRules,
@@ -523,12 +524,13 @@ export async function resolveActiveNoteType(
         // status property + done states, issue #56 follow-up); else the
         // historical detection over its properties.
         const skStatus = getNoteTypeStatus(app, skType.id)
+        const skRunsAutomations = starterKitRunsAutomations(app)
         const status = skStatus?.explicit
             ? { name: skStatus.property, allowedValues: skStatus.values.map((v) => v.value) }
             : findStatusProperty(skType, defaults.statusProperty)
         const base =
             (await getOrCreateNoteType(plugin, skType.id, skType.name, 'starter-kit')) ?? null
-        const merged = mirrorNoteType(base, skType, status, defaults, skStatus)
+        const merged = mirrorNoteType(base, skType, status, defaults, skStatus, skRunsAutomations)
         if (!noteTypesEqual(base, merged)) await upsertNoteType(plugin, merged)
         return {
             noteType: merged,
@@ -639,14 +641,17 @@ async function recognizeDominantNoteType(app: App, files: TFile[]): Promise<SkNo
 /**
  * Merge Starter Kit facts onto a note type, keeping local color overrides.
  * An explicit Starter Kit status also mirrors the done states (read-only)
- * and regenerates the `sk-stamp:*` date-stamping rules (`status-mirror.ts`).
+ * and regenerates the `sk-stamp:*` date-stamping rules (`status-mirror.ts`) —
+ * unless the Starter Kit runs its own automation rules, in which case the
+ * stale mirrored rules are dropped and none are generated (one executor).
  */
 function mirrorNoteType(
     base: NoteType,
     noteType: SkNoteType,
     status: { name: string; allowedValues: string[] } | null,
     defaults: NoteTypeDefaults,
-    skStatus: SkResolvedStatus | null = null
+    skStatus: SkResolvedStatus | null = null,
+    skRunsAutomations = false
 ): NoteType {
     return produce(base, (draft) => {
         draft.name = noteType.name
@@ -660,7 +665,10 @@ function mirrorNoteType(
         const done = reconcileDone(draft.done, skStatus)
         if (done) draft.done = done
         else delete draft.done
-        draft.automations = mergeMirroredRules(draft.automations, mirroredStampRules(skStatus))
+        draft.automations = mergeMirroredRules(
+            draft.automations,
+            mirroredStampRules(skStatus, skRunsAutomations)
+        )
         draft.statusRoles = mirroredStatusRoles(skStatus)
     })
 }

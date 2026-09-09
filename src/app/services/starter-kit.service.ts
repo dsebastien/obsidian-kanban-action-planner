@@ -47,6 +47,8 @@ interface SkApiLike {
     recognizeNoteType?: (file: unknown) => Promise<unknown>
     /** Starter Kit ≥ 1.13: the type's status property + done states. */
     getNoteTypeStatus?: (ref: string) => unknown
+    /** Starter Kit: the plugin settings (`globalSettings.enableAutomations` ≥ 1.15). */
+    getSettings?: () => unknown
 }
 
 /** One status value of a Starter Kit note type, as its `getNoteTypeStatus` resolves it. */
@@ -98,6 +100,26 @@ function getStarterKitApi(app: App): SkApiLike | null {
 /** True when the Starter Kit is installed, enabled, and exposes its API. */
 export function isStarterKitAvailable(app: App): boolean {
     return getStarterKitApi(app) !== null
+}
+
+/**
+ * True when the Starter Kit (≥ 1.15) runs its own automation rules — its
+ * "Run automation rules" setting is on. It then stamps dates itself, from any
+ * edit source, so this plugin must not mirror the stamping rules (exactly one
+ * executor per rule; see `status-mirror.ts`). False when the setting is off,
+ * absent (older Starter Kit) or the API is unavailable.
+ */
+export function starterKitRunsAutomations(app: App): boolean {
+    const api = getStarterKitApi(app)
+    if (!api?.getSettings) return false
+    try {
+        const settings = unwrap<{ globalSettings?: { enableAutomations?: unknown } }>(
+            api.getSettings()
+        )
+        return settings?.globalSettings?.enableAutomations === true
+    } catch {
+        return false
+    }
 }
 
 /** List the Starter Kit note types (empty when unavailable). */

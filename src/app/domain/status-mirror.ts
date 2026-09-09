@@ -26,9 +26,19 @@ export function mirroredDoneConfig(status: SkResolvedStatus | null): DoneConfig 
     }
 }
 
-/** One stamping rule per value with a stamped date, in status order. */
-export function mirroredStampRules(status: SkResolvedStatus | null): AutomationRule[] {
-    if (!status?.explicit) return []
+/**
+ * One stamping rule per value with a stamped date, in status order — unless
+ * the Starter Kit executes its own rules (`executedByStarterKit`, its "Run
+ * automation rules" setting): it then stamps from any edit source itself, and
+ * mirroring here would make two plugins write the same date on the same
+ * transition. Exactly one executor per rule: none here in that case (the
+ * done-state mirror is unaffected).
+ */
+export function mirroredStampRules(
+    status: SkResolvedStatus | null,
+    executedByStarterKit = false
+): AutomationRule[] {
+    if (!status?.explicit || executedByStarterKit) return []
     return status.values
         .filter((v) => v.stampsDate !== null)
         .map((v) => ({

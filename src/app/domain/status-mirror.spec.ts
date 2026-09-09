@@ -100,6 +100,11 @@ describe('mirroredStampRules / mergeMirroredRules', () => {
         })
         expect(rules[1]?.actions[0]).toMatchObject({ onlyIfEmpty: false })
         expect(mirroredStampRules(heuristic)).toEqual([])
+        // The Starter Kit executes its own rules: nothing is mirrored, even when explicit.
+        expect(mirroredStampRules(explicit, true)).toEqual([])
+        expect(
+            mergeMirroredRules(mirroredStampRules(explicit), mirroredStampRules(explicit, true))
+        ).toEqual([])
     })
     test('merge replaces stale mirrored rules in place and keeps user rules in order', () => {
         const existing = [
