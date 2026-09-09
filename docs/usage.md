@@ -1150,7 +1150,7 @@ command), or embed it with `mode=ideal-week` (`mode=week` works too).
   shrinks: `mon-wed` dragged to Friday becomes `mon-fri`), hold **Alt** while dropping to
   **copy** it, right-click for the card menu plus **Remove this block**. With a block focused:
   **arrows** move it by 15 minutes or one day, **Shift+↑/↓** resize its end, **Delete**
-  removes it, **Enter** opens the note. **Select several blocks** by dragging a rectangle on
+  removes it, **Enter** opens the note. **Select several blocks** by Shift-dragging a rectangle on
   an empty area of the grid (or Shift-click them), then **Delete** removes them all;
   Escape or a click on empty space clears the selection. **Ctrl/Cmd+C** copies the selection (or
   the focused block) and **Ctrl/Cmd+V** pastes it at the grid cell under the mouse pointer —
@@ -1178,8 +1178,9 @@ command), or embed it with `mode=ideal-week` (`mode=week` works too).
   edit** / **Redo the last undone ideal week edit** do the same from anywhere. A paste, a
   selection move or delete, and an import are one step each. The history lives in memory and
   ends with the view.
-- **More gestures.** **Alt-drag** on the empty grid draws a new block of the length you drag
-  (the picker then asks which note). Dragging a **selected** block moves (or Alt-copies) the
+- **More gestures.** **Drag** on the empty grid to draw a new block over the cells you cover —
+  down for the length, sideways for the days (`mon-wed 09:00-10:30` in one gesture); the picker
+  then asks which note. **Shift-drag** on the empty grid is the marquee selection. Dragging a **selected** block moves (or Alt-copies) the
   whole selection at once, all-or-nothing when something would overlap or leave the week.
   **Ctrl/Cmd+A** selects every block. **Right-click an empty cell** to plan a block there or paste
   the copied blocks there; while the clipboard holds blocks, the cell under the pointer is lit.

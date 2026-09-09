@@ -10,7 +10,7 @@ import { claimPointerDrag } from '../pointer-claim'
  * - drag a block's body → move it (Alt held at drop = copy instead);
  * - drag a block's top / bottom handle → resize its start / end;
  * - drag a block's left / right handle → stretch its repeat across days;
- * - drag on an empty area → marquee-select the blocks it touches;
+ * - Shift-drag on an empty area → marquee-select the blocks it touches;
  * - click an empty spot of a day column → create a block there (a click
  *   while blocks are selected only clears the selection);
  * - Shift-click a block → toggle it in the selection; a plain click opens
@@ -20,7 +20,8 @@ import { claimPointerDrag } from '../pointer-claim'
  * - Ctrl/Cmd+C copies the selection (or the focused block), Ctrl/Cmd+V
  *   pastes it at the grid cell under the mouse pointer (that cell is lit
  *   while the clipboard holds blocks);
- * - phase E: Alt-drag on the empty grid draws a new block; dragging a
+ * - phase E: a drag on the empty grid draws a new block over the cells it
+ *   covers (days included; Shift-drag is the marquee); dragging a
  *   selected block moves the whole selection; Ctrl/Cmd+A selects all;
  *   Ctrl/Cmd+Z / Ctrl/Cmd+Shift+Z (or +Y) undo / redo; right-click on an
  *   empty cell opens the cell menu.
@@ -58,8 +59,8 @@ export interface WeekDndCallbacks {
     onPaste(day: number, startMinutes: number): void
     /** Phase E: the selection dragged as one (the dragged block's key is selected). */
     onMoveSelection(path: string, from: Slot, to: Slot, copy: boolean): void
-    /** Alt-drag on the empty grid drew a block from `start` to `end` on `day`. */
-    onCreateRange(day: number, startMinutes: number, endMinutes: number): void
+    /** A drag on the empty grid drew a block from `start` to `end` over `days`. */
+    onCreateRange(days: number[], startMinutes: number, endMinutes: number): void
     onSelectAll(): void
     onUndo(): void
     onRedo(): void
@@ -75,7 +76,7 @@ type Gesture =
     | { kind: 'span'; el: HTMLElement; path: string; from: Slot; edge: 'left' | 'right' }
     | { kind: 'rail'; el: HTMLElement; path: string }
     | { kind: 'marquee'; gridEl: HTMLElement }
-    | { kind: 'create'; dayEl: HTMLElement; day: number; anchor: number }
+    | { kind: 'create'; day: number; anchor: number }
 
 export class WeekDnd {
     private readonly containerEl: HTMLElement
@@ -181,17 +182,17 @@ export class WeekDnd {
             claimPointerDrag(e)
             this.gesture = { kind: 'rail', el: rail, path }
         } else if (gridEl && this.containerEl.contains(gridEl) && target.closest('.kap-week-day')) {
-            // Empty area of a day column: a drag becomes a marquee selection
-            // (Alt-drag draws a new block instead), a plain click creates
-            // (handled by the click listener).
+            // Empty area of a day column: a drag draws a new block over the
+            // cells it covers (days included); Shift-drag is a marquee
+            // selection; a plain click creates (handled by the click listener).
             claimPointerDrag(e)
             const dayEl = target.closest<HTMLElement>('.kap-week-day')
             const day = Number(dayEl?.dataset['day'])
-            if (e.altKey && dayEl && Number.isFinite(day)) {
+            if (!e.shiftKey && dayEl && Number.isFinite(day)) {
                 const cfg = this.callbacks.config()
                 const rect = dayEl.getBoundingClientRect()
                 const raw = cfg.gridStart + (e.clientY - rect.top) / cfg.pxPerMinute
-                this.gesture = { kind: 'create', dayEl, day, anchor: floorToGrid(raw) }
+                this.gesture = { kind: 'create', day, anchor: floorToGrid(raw) }
             } else {
                 this.gesture = { kind: 'marquee', gridEl }
             }
@@ -230,15 +231,19 @@ export class WeekDnd {
             return
         }
         if (gesture.kind === 'create') {
-            const rect = gesture.dayEl.getBoundingClientRect()
-            const raw = cfg.gridStart + (e.clientY - rect.top) / cfg.pxPerMinute
-            const cell = floorToGrid(raw)
+            const at = this.dayAt(e.clientX, e.clientY)
+            if (!at) return
+            const cell = floorToGrid(at.minutes)
             const start = Math.max(cfg.gridStart, Math.min(gesture.anchor, cell))
             const end = Math.min(cfg.gridEnd, Math.max(gesture.anchor, cell) + GRID_MINUTES)
-            this.preview = { day: gesture.day, start, end: Math.max(start + GRID_MINUTES, end) }
-            this.showPhantom(gesture.dayEl, this.preview, cfg)
+            const first = Math.min(gesture.day, at.day)
+            const last = Math.max(gesture.day, at.day)
+            this.preview = { day: first, start, end: Math.max(start + GRID_MINUTES, end) }
+            this.previewDay = last
+            this.showCreatePhantoms(first, last, this.preview, cfg)
+            const days = first === last ? dayName(first) : `${dayName(first)} → ${dayName(last)}`
             this.setLabel(
-                `${formatMinutes(this.preview.start)}–${formatMinutes(this.preview.end)} · new block`
+                `${days} · ${formatMinutes(this.preview.start)}–${formatMinutes(this.preview.end)} · new block`
             )
             return
         }
@@ -353,7 +358,10 @@ export class WeekDnd {
         }
         if (!preview) return
         if (gesture.kind === 'create') {
-            this.callbacks.onCreateRange(preview.day, preview.start, preview.end)
+            const last = previewDay ?? preview.day
+            const days: number[] = []
+            for (let d = preview.day; d <= last; d++) days.push(d)
+            this.callbacks.onCreateRange(days, preview.start, preview.end)
             return
         }
         if (gesture.kind === 'rail') {
@@ -622,6 +630,36 @@ export class WeekDnd {
         }
     }
 
+    /** One landing outline per covered day column (the create gesture). */
+    private createPhantoms: HTMLElement[] = []
+
+    private showCreatePhantoms(first: number, last: number, slot: Slot, cfg: WeekGridConfig): void {
+        for (const el of this.createPhantoms) el.remove()
+        this.createPhantoms = []
+        const columns = new Map<number, HTMLElement>()
+        for (const col of Array.from(
+            this.containerEl.querySelectorAll<HTMLElement>('.kap-week-day')
+        )) {
+            columns.set(Number(col.dataset['day']), col)
+        }
+        const start = Math.max(slot.start, cfg.gridStart)
+        const end = Math.min(slot.end, cfg.gridEnd)
+        let anchorEl: HTMLElement | null = null
+        for (let d = first; d <= last; d++) {
+            const col = columns.get(d)
+            if (!col) continue
+            const el = col.createDiv({ cls: 'kap-week-phantom' })
+            el.style.top = `${(start - cfg.gridStart) * cfg.pxPerMinute}px`
+            el.style.height = `${Math.max(4, (end - start) * cfg.pxPerMinute)}px`
+            this.createPhantoms.push(el)
+            anchorEl ??= el
+        }
+        if (anchorEl && this.label) {
+            const rect = anchorEl.getBoundingClientRect()
+            this.label.style.transform = `translate(${rect.left}px, ${rect.top - 28}px)`
+        }
+    }
+
     /** Draw (or move) the landing outline in `dayEl` at `slot`. */
     private showPhantom(dayEl: HTMLElement, slot: Slot, cfg: WeekGridConfig): void {
         if (!this.phantom) this.phantom = dayEl.createDiv({ cls: 'kap-week-phantom' })
@@ -637,6 +675,8 @@ export class WeekDnd {
     private hidePhantom(): void {
         this.phantom?.remove()
         this.phantom = null
+        for (const el of this.createPhantoms) el.remove()
+        this.createPhantoms = []
     }
 
     private previewResize(
