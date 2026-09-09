@@ -945,3 +945,17 @@ When a new business rule is mentioned:
     emptying and rebuilding, so the echo causes no flash or reflow. References: board
     (`reconcile.ts` + `signatures.ts`), WBS (`rowSignature` + in-place re-parent), Ideal week
     (`overlay` + `reconcilePieces`).
+
+50. **Week-planner app import / export (issue #172, phase D).** `domain/week-planner-io.ts`
+    reads the app's JSON (`version 1.0`, `{startDay, daySpan, startTime, duration, text}`) and
+    Markdown (`## Monday` sections, `- HH:MM - HH:MM: text`, `(Day x/y)` parts merged) into
+    `{text, days, start, end}` blocks in the vault's grammar (an end at or past midnight wraps);
+    a block's TEXT is the note it belongs to, matched exact then case-insensitive, with or
+    without a trailing `(Type)` suffix, the rest asked one text at a time (Escape skips);
+    styling is never imported. The import replaces (or extends) each matched note's list in
+    ONE write per note through the controller's `write`, after an overlap check against every
+    other note's slots — the other imported notes' new slots included — that refuses and names
+    a conflicting note rather than writing it. The export covers the notes drawn on the grid,
+    turns a run of consecutive days sharing a time into one app block with a `daySpan`, rounds
+    15-minute times outwards to the app's 30-minute grid and reports every rounding; it writes
+    a new file next to the attachments and never overwrites one.

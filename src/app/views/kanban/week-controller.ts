@@ -29,6 +29,16 @@ import type { WeekEntry, WeekGridConfig } from '../../domain/week-planner'
 import { renderWeek } from '../../ui/week/week-renderer'
 import type { BlockKeyAction, WeekBlockPiece, WeekViewModel } from '../../ui/week/week-renderer'
 import { WeekNotePickerModal } from '../../ui/week/week-note-picker'
+import { WeekImportModal } from '../../ui/week/week-import-modal'
+import type { ExportEntry, ImportedBlock } from '../../domain/week-planner-io'
+import {
+    matchImports,
+    parseAppExport,
+    toAppBlocks,
+    toAppJson,
+    toAppMarkdown,
+    toTimeBlocks
+} from '../../domain/week-planner-io'
 import type { WeekPickerItem } from '../../ui/week/week-note-picker'
 import { EstimatePromptModal } from '../../ui/timeline/estimate-modal'
 import type { ContextLegendItem } from '../../ui/calendar/calendar-renderer'
@@ -468,6 +478,174 @@ export class WeekController {
             }
         }
         await this.write(path, blocks)
+    }
+
+    // ── Week-planner app import / export (issue #172, phase D) ──────
+
+    /** Open the import dialog, then match, ask about the rest, and apply. */
+    importFromApp(): void {
+        this.ensureLoaded()
+        new WeekImportModal(this.host.app, (text, replace) => {
+            void this.runImport(text, replace)
+        }).open()
+    }
+
+    private async runImport(text: string, replace: boolean): Promise<void> {
+        const parsed = parseAppExport(text)
+        if (parsed.blocks.length === 0) {
+            new Notice(
+                parsed.errors.length > 0
+                    ? `Nothing to import: ${parsed.errors[0]?.entry ?? ''} — ${parsed.errors[0]?.error ?? ''}`
+                    : 'Nothing to import: no block found in the text.'
+            )
+            return
+        }
+        const candidates = [...this.entries.values()].map((e) => ({ path: e.path, title: e.title }))
+        const matched = matchImports(parsed.blocks, candidates)
+        const assignments = new Map<string, ImportedBlock[]>()
+        const push = (path: string, block: ImportedBlock): void => {
+            const list = assignments.get(path) ?? []
+            list.push(block)
+            assignments.set(path, list)
+        }
+        for (const m of matched) if (m.path) push(m.path, m.block)
+        // Ask about every unmatched text once (Escape skips it).
+        const unmatched = new Map<string, ImportedBlock[]>()
+        for (const m of matched) {
+            if (m.path) continue
+            const list = unmatched.get(m.block.text) ?? []
+            list.push(m.block)
+            unmatched.set(m.block.text, list)
+        }
+        const skipped: string[] = []
+        for (const [text, blocks] of unmatched) {
+            const path = await this.askNoteFor(text)
+            if (path) for (const block of blocks) push(path, block)
+            else skipped.push(text)
+        }
+        const result = await this.applyImport(assignments, replace)
+        const parts = [`${result.written} note${result.written === 1 ? '' : 's'} updated`]
+        if (result.refused.length > 0) parts.push(`refused (overlap): ${result.refused.join(', ')}`)
+        if (skipped.length > 0) parts.push(`not matched: ${skipped.join(', ')}`)
+        if (parsed.errors.length > 0)
+            parts.push(
+                `${parsed.errors.length} unreadable entr${parsed.errors.length === 1 ? 'y' : 'ies'}`
+            )
+        new Notice(`Ideal week import: ${parts.join(' · ')}`, 8000)
+    }
+
+    /** The picker for an imported text nothing matched; null when dismissed. */
+    private askNoteFor(text: string): Promise<string | null> {
+        const items: WeekPickerItem[] = [...this.entries.values()].map((entry) => ({
+            path: entry.path,
+            title: entry.title,
+            typeName: entry.typeName,
+            detail: `for “${text}”`
+        }))
+        return new Promise((resolve) => {
+            let picked = false
+            const modal = new WeekNotePickerModal(this.host.app, items, (item) => {
+                picked = true
+                resolve(item.path)
+            })
+            modal.setPlaceholder(`Which note is “${text}”? Escape skips it`)
+            modal.onClose = () => {
+                if (!picked) resolve(null)
+            }
+            modal.open()
+        })
+    }
+
+    /**
+     * Write the imported blocks: a note's list is replaced (or extended)
+     * and checked against every other note's slots, the other imported
+     * notes included; a note whose result overlaps is refused, named.
+     */
+    private async applyImport(
+        assignments: Map<string, ImportedBlock[]>,
+        replace: boolean
+    ): Promise<{ written: number; refused: string[] }> {
+        const finals = new Map<string, TimeBlock[]>()
+        for (const [path, imported] of assignments) {
+            const entry = this.entries.get(path)
+            if (!entry) continue
+            let blocks = replace ? [] : entry.blocks
+            for (const slot of slotsOf(toTimeBlocks(imported))) blocks = addSlot(blocks, slot)
+            finals.set(path, blocks)
+        }
+        const refused: string[] = []
+        let written = 0
+        for (const [path, blocks] of finals) {
+            const entry = this.entries.get(path)
+            if (!entry) continue
+            const universe: OwnedSlot[] = []
+            for (const other of this.entries.values()) {
+                if (other.path === path || !other.onGrid) continue
+                const otherBlocks = finals.get(other.path) ?? other.blocks
+                for (const slot of slotsOf(otherBlocks))
+                    universe.push({ ...slot, path: other.path })
+            }
+            const own = slotsOf(blocks)
+            const conflict =
+                own.map((slot) => findOverlap(slot, universe)).find((hit) => hit !== null) ??
+                own
+                    .map((slot, i) =>
+                        findOverlap(
+                            slot,
+                            own.filter((_, j) => j !== i).map((s) => ({ ...s, path }))
+                        )
+                    )
+                    .find((hit) => hit !== null) ??
+                null
+            if (conflict) {
+                refused.push(entry.title)
+                continue
+            }
+            await this.write(path, blocks)
+            written++
+        }
+        return { written, refused }
+    }
+
+    /** Save the ideal week as the app's JSON or Markdown file next to the attachments. */
+    async exportToApp(format: 'json' | 'markdown'): Promise<void> {
+        this.ensureLoaded()
+        const entries: ExportEntry[] = [...this.entries.values()]
+            .filter((e) => e.onGrid && e.blocks.length > 0)
+            .map((e) => {
+                const context = e.contexts[0]
+                const color = context ? contextColor(context) : null
+                return {
+                    title: e.title,
+                    blocks: e.blocks,
+                    color: color?.startsWith('#') ? color : null
+                }
+            })
+        if (entries.length === 0) {
+            new Notice('Nothing to export: the ideal week has no block.')
+            return
+        }
+        const now = new Date()
+        const { blocks, rounded } = toAppBlocks(entries)
+        const s = this.host.settings()
+        const text =
+            format === 'json'
+                ? toAppJson(blocks, { startHour: s.gridStartHour, endHour: s.gridEndHour }, now)
+                : toAppMarkdown(blocks, now)
+        const stamp = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+        const name = `Ideal week ${stamp}.${format === 'json' ? 'json' : 'md'}`
+        const path = await this.host.app.fileManager.getAvailablePathForAttachment(name)
+        await this.host.app.vault.create(path, text)
+        const parts = [`${blocks.length} block${blocks.length === 1 ? '' : 's'} written to ${path}`]
+        if (rounded.length > 0) {
+            parts.push(
+                `${rounded.length} rounded to the app's 30-minute grid: ${rounded
+                    .slice(0, 3)
+                    .map((r) => `${r.title} ${r.from} → ${r.to}`)
+                    .join('; ')}${rounded.length > 3 ? '…' : ''}`
+            )
+        }
+        new Notice(`Ideal week exported: ${parts.join(' · ')}`, 8000)
     }
 
     // ── Selection ───────────────────────────────────────────────────

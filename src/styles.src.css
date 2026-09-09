@@ -2216,6 +2216,12 @@
         overflow: visible;
     }
 
+    /* Import dialog: the paste area. */
+    .kap-week-import-text {
+        @apply w-full font-mono text-[0.85em] mb-2;
+        min-height: 12em;
+    }
+
     /* Note picker rows (grouped by type on mixed boards). */
     .kap-week-pick-row {
         @apply flex items-center gap-2;

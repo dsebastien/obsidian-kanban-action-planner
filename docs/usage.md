@@ -1173,6 +1173,17 @@ command), or embed it with `mode=ideal-week` (`mode=week` works too).
   timeline, with the click-to-filter legend in the toolbar); a note without a context renders
   neutral grey. A tinted **work band** marks your work hours on work days, and the toolbar
   sums the planned minutes across the grid against the targets.
+- **Import and export.** The commands **Import ideal week from the week-planner app** and
+  **Export ideal week (JSON / Markdown, week-planner app)** move the ideal week to and from
+  [the week-planner app](https://github.com/dsebastien/week-planner). Importing reads the app's
+  JSON or Markdown export (pasted or picked as a file): each block's text names the note it
+  belongs to (exact title first, then case-insensitive, with or without the ` (Activity)` style
+  suffix); you are asked about anything else (Escape skips it). A note's imported blocks replace
+  its current ones (or join them, with the toggle off); a note whose result would overlap
+  another is refused and named; styling is not imported (contexts colour the blocks). Exporting
+  writes `Ideal week <date>.json` or `.md` into the attachment folder: day lists and ranges
+  become one app block per run of consecutive days, and 15-minute times are rounded outwards
+  to the app's 30-minute grid, each rounding listed in the notice.
 - **Settings.** Under **Ideal week** in the plugin settings: the three property names, the
   visible hours (the full day by default), the work hours and work days (09:00–17:00,
   Monday to Friday by default), the new block length, and the vertical scale. The column
@@ -1599,6 +1610,8 @@ is active, and each can be given a hotkey in **Settings → Hotkeys**):
 - **Toggle triage mode** / **Configure triage**
 - **Toggle agenda mode**
 - **Toggle ideal week mode**
+- **Import ideal week from the week-planner app**
+- **Export ideal week (JSON, week-planner app)** / **Export ideal week (Markdown, week-planner app)**
 - **Stop time tracking** (only while a session runs)
 - **Start work pomodoro** (on the tracked note when a session runs, else on nothing)
 - **Start pomodoro break** (short, or long after every Nth completed work pomodoro)

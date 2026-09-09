@@ -42,7 +42,7 @@ Or see what's on your plate right now with the Agenda: a flat, prioritized list 
 
 ![Agenda mode](docs/images/agenda.png)
 
-Shape your ideal week: the recurring time blocks of every active activity and project on a date-less weekly grid, dragged, resized, copied, and keyboard-nudged straight into the notes' `time_blocks`, overlaps refused, every note listed against its weekly target:
+Shape your ideal week: the recurring time blocks of every active activity and project on a date-less weekly grid, dragged, resized, copied, and keyboard-nudged straight into the notes' `time_blocks`, overlaps refused, every note listed against its weekly target, importable from and exportable to the week-planner app:
 
 ![Ideal week mode](docs/images/week.png)
 

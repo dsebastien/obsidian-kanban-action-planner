@@ -57,7 +57,9 @@ Decided with Sébastien (2026-09-09): a ring with a short label; the alarm is vi
 - Tests: clipping (inside, crossing start, crossing end, open entry, wrong order), ring tones and labels, the two roll-ups on a small tree, lifecycle days with missing dates, alarm memo pruning.
 - Docs: `docs/usage.md` Ideal week + WBS sections, `docs/configuration.md` property table, README bullet.
 
-## Phase D: week-planner app import and export
+## Phase D: week-planner app import and export — IMPLEMENTED (branch `phase-d`)
+
+Shipped on the branch: `domain/week-planner-io.ts` (+ spec, 12 tests: JSON / Markdown parsing, matching, round trips, rounding report), `ui/week/week-import-modal.ts` (paste or pick a file, replace / extend toggle), controller `importFromApp` / `runImport` / `askNoteFor` / `applyImport` / `exportToApp`, commands `import-ideal-week`, `export-ideal-week-json`, `export-ideal-week-markdown`, business rule 50 (numbered 51 once phase C's rule 50 merges first), docs. Limits: a note must carry the time blocks property to be an import target (the rail's notes); export covers the notes drawn on the grid.
 
 - Import: the week-planner app's JSON (`WeekPlannerData { version, blocks[], config }`) and Markdown (`## Monday`..`## Sunday` with `- 09:00 - 10:30: Text` lines, `block_styles` frontmatter); match block text to Active activity / project names (exact, then case-insensitive, then ask); write `time_blocks`; 30-minute blocks map 1:1, unmatched text is reported, styling is dropped (contexts drive colour).
 - Export: the reverse, from the current ideal week: JSON and Markdown in the app's formats, day ranges and lists expanded to one block per day, 15-minute slots rounded to the app's 30-minute grid with a warning listing what was rounded. Commands: "Export ideal week (JSON)", "Export ideal week (Markdown)", "Import ideal week".

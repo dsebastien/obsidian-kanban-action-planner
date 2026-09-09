@@ -1138,6 +1138,16 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         this.setViewMode(this.weekMode() ? 'board' : 'week')
     }
 
+    /** Import the week-planner app's export into the ideal week (issue #172, phase D). */
+    importIdealWeek(): void {
+        this.week?.importFromApp()
+    }
+
+    /** Export the ideal week as the week-planner app's JSON or Markdown file. */
+    async exportIdealWeek(format: 'json' | 'markdown'): Promise<void> {
+        await this.week?.exportToApp(format)
+    }
+
     /**
      * Toggle focus mode (issue #160): exit the spotlight when it's open,
      * else spotlight the first card of the current (filtered) result set.
