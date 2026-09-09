@@ -155,7 +155,9 @@ export const weekPlannerConfigSchema = z.object({
     /** Weekly target in minutes (user). */
     targetMinutesProperty: z.string().default(''),
     /** Weekly alarm in minutes (user). */
-    alarmMinutesProperty: z.string().default('')
+    alarmMinutesProperty: z.string().default(''),
+    /** Areas the note belongs to (list of strings; phase G). */
+    areasProperty: z.string().default('')
 })
 export type NoteTypeWeekPlannerConfig = z.infer<typeof weekPlannerConfigSchema>
 

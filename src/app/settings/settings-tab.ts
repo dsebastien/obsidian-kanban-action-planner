@@ -5,6 +5,7 @@ import { DEFAULT_CONTEXTS_PROPERTY } from '../constants'
 import type KanbanActionPlannerPlugin from '../../main'
 import type { PluginSettings, SettingsRefreshScope } from '../types/plugin-settings.intf'
 import { formatDays, formatMinutes as minutesLabel, parseTimeBlock } from '../domain/time-blocks'
+import { parseAvailableHours } from '../domain/week-targets'
 import type { NoteType } from '../domain/note-type'
 import { findStatusProperty, listNoteTypes } from '../services/starter-kit.service'
 import {
@@ -496,6 +497,38 @@ export class KanbanActionPlannerSettingTab extends PluginSettingTab {
             'defaultAlarmMinutesProperty',
             'minutes_alarm_per_week'
         )
+        text(
+            'Areas property',
+            'List of the areas a note belongs to (Health, Work, …). The ideal week rail and its targets table can group by it.',
+            'defaultAreasProperty',
+            'areas'
+        )
+        new Setting(containerEl)
+            .setName('Target follows planned')
+            .setDesc(
+                'When an ideal-week edit plans more minutes than a note’s weekly target, raise the target to the planned minutes (a notice says so). A target is never lowered.'
+            )
+            .addToggle((toggle) => {
+                toggle
+                    .setValue(this.plugin.settings.weekTargetFollowsPlanned)
+                    .onChange((value) => void this.updateTargetFollowsPlanned(value))
+            })
+        new Setting(containerEl)
+            .setName('Available hours per week')
+            .setDesc(
+                'The time every share in the targets table is measured against (10, 37.5, 168…). Empty = the visible grid hours times seven days (the whole week by default).'
+            )
+            .addText((input) => {
+                const current = this.plugin.settings.weekAvailableHoursPerWeek
+                input.inputEl.inputMode = 'decimal'
+                input
+                    .setPlaceholder('Grid hours × 7')
+                    .setValue(current !== null ? String(current) : '')
+                    .onChange((value) => {
+                        const parsed = parseAvailableHours(value)
+                        if (parsed !== undefined) void this.updateAvailableHours(parsed)
+                    })
+            })
         const hour = (
             name: string,
             desc: string,
@@ -815,6 +848,20 @@ export class KanbanActionPlannerSettingTab extends PluginSettingTab {
             draft[key] = value
         })
         await this.plugin.saveSettings(scope)
+    }
+
+    private async updateTargetFollowsPlanned(value: boolean): Promise<void> {
+        this.plugin.settings = produce(this.plugin.settings, (draft) => {
+            draft.weekTargetFollowsPlanned = value
+        })
+        await this.plugin.saveSettings('cards')
+    }
+
+    private async updateAvailableHours(value: number | null): Promise<void> {
+        this.plugin.settings = produce(this.plugin.settings, (draft) => {
+            draft.weekAvailableHoursPerWeek = value
+        })
+        await this.plugin.saveSettings('full')
     }
 
     private async updateWorkHours(start: number, end: number): Promise<void> {

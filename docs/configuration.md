@@ -55,6 +55,7 @@ used today; per-view overrides may arrive in later releases.
 | Target minutes  | `minutes_per_week`         | The weekly time budget you intend to give a note, in minutes. Shown in the ideal week's rail against the planned minutes; a note without one is asked for it the first time a block is planned for it. Set globally with **Target minutes property**.                                                                                                                                                                                                                                  |
 | Alarm minutes   | `minutes_alarm_per_week`   | Optional weekly alarm in minutes: when the minutes tracked this ISO week (the note's own entries plus its linked tasks') exceed it, the budget ring turns red and one notice fires per note per week. Set globally with **Alarm minutes property**. The four ideal-week properties can be mapped per note type in **Configure → Ideal week**.                                                                                                                                          |
 | Committed date  | `date_committed`           | When you committed to the note. The WBS lifecycle chip shows the **lead** (started − committed) next to the **cycle** (done − started) and the **lateness** (done − due) of done items, or the days **active** for open ones; a missing date leaves its slot blank. Set globally with **Committed date property**.                                                                                                                                                                     |
+| Areas           | `areas`                    | List of the areas (life domains) a note belongs to: Health, Exercise, Work… Read only: the ideal week's rail and targets table can **group by area** (a note files under its first value). Set globally with **Areas property**, per type in **Configure → Ideal week**.                                                                                                                                                                                                               |
 
 The status property is auto-detected, but the **columns are defined explicitly** (see below),
 not inferred from your notes' values.
@@ -264,13 +265,18 @@ start and a due date, as configured for its type in **Calendar**) only while tod
 between them.
 
 Global settings under **Ideal week**: **Time blocks property**, **Planned minutes
-property**, **Target minutes property**, **Alarm minutes property** and **Committed date
-property** (see the property table; the four ideal-week properties can be overridden per
-note type in **Configure board → Ideal week**), **Grid starts at** /
+property**, **Target minutes property**, **Alarm minutes property**, **Areas property** and
+**Committed date property** (see the property table; the five ideal-week properties can be
+overridden per note type in **Configure board → Ideal week**), **Target follows planned**
+(on by default: an edit that plans more than a note's weekly target raises the target to the
+planned minutes, with a notice; never lowered), **Available hours per week** (the base of
+every share in the targets table; empty = the visible grid hours × 7, the whole week by
+default), **Grid starts at** /
 **Grid ends at** (hours, the full day by default), **Work hours** (`09:00-17:00` by default;
 empty = no band) and **Work days** (`mon-fri` by default; the band's days), **New block
 length** (60 minutes), and **Pixels per hour** (the vertical scale). There are no per-view
-options; the panel state is remembered per view.
+options; the panel state, the grid / targets face and the two grouping choices are remembered
+per view.
 
 ### Done state
 

@@ -33,6 +33,7 @@ import {
     DEFAULT_PLANNED_MINUTES_PROPERTY,
     DEFAULT_TARGET_MINUTES_PROPERTY,
     DEFAULT_ALARM_MINUTES_PROPERTY,
+    DEFAULT_AREAS_PROPERTY,
     DEFAULT_COMMITTED_DATE_PROPERTY,
     DEFAULT_WEEK_GRID_START_HOUR,
     DEFAULT_WEEK_GRID_END_HOUR,
@@ -160,6 +161,20 @@ export const pluginSettingsSchema = z.object({
     defaultPlannedMinutesProperty: z.string().default(DEFAULT_PLANNED_MINUTES_PROPERTY),
     defaultTargetMinutesProperty: z.string().default(DEFAULT_TARGET_MINUTES_PROPERTY),
     defaultAlarmMinutesProperty: z.string().default(DEFAULT_ALARM_MINUTES_PROPERTY),
+    /** Areas property (issue #172, phase G): the rail and the targets table group by it. */
+    defaultAreasProperty: z.string().default(DEFAULT_AREAS_PROPERTY),
+    /**
+     * Target follows planned (issue #172, phase G): when an ideal-week edit
+     * plans more minutes than a note's weekly target, the target is raised to
+     * the planned minutes (with a notice). A target is never lowered.
+     */
+    weekTargetFollowsPlanned: z.boolean().default(true),
+    /**
+     * Available hours per week (issue #172, phase G), the base of every
+     * share in the targets table; null = derived from the visible grid
+     * hours times seven days (the whole week by default).
+     */
+    weekAvailableHoursPerWeek: z.number().positive().max(168).nullable().default(null),
     /** Lifecycle columns (issue #172, phase C): the committed date property. */
     committedDateProperty: z.string().default(DEFAULT_COMMITTED_DATE_PROPERTY),
     /**
@@ -259,6 +274,9 @@ export const DEFAULT_SETTINGS: PluginSettings = {
     defaultTargetMinutesProperty: DEFAULT_TARGET_MINUTES_PROPERTY,
     defaultAlarmMinutesProperty: DEFAULT_ALARM_MINUTES_PROPERTY,
     committedDateProperty: DEFAULT_COMMITTED_DATE_PROPERTY,
+    defaultAreasProperty: DEFAULT_AREAS_PROPERTY,
+    weekTargetFollowsPlanned: true,
+    weekAvailableHoursPerWeek: null,
     weekAlarmNotified: {},
     weekGridStartHour: DEFAULT_WEEK_GRID_START_HOUR,
     weekGridEndHour: DEFAULT_WEEK_GRID_END_HOUR,

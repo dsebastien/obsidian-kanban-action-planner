@@ -1188,6 +1188,37 @@ command), or embed it with `mode=ideal-week` (`mode=week` works too).
   minutes or `5h`; empty clears it) and **Remove every block of this note**.
 - **Print.** **Print the ideal week** (command) sends a print-friendly copy of the grid to the
   system print dialog (A4 landscape, contexts' colours kept).
+- **Targets table.** The toolbar switches the ideal week between its two faces: the
+  **Grid** (when the blocks fall) and **Targets** (how much each note gets per week), a table
+  that takes the whole pane. Every note of the rail is listed with its weekly **target**
+  editable in place (type minutes or `5h`; **Enter** saves and moves to the next row, **↑/↓**
+  move too, **Escape** reverts, an empty cell clears the target, an unreadable value is
+  refused and outlined), its **planned** minutes with the gap to the target (orange under,
+  red over), and the **share** of the available time the target represents. Notes that are
+  not active are dimmed and left out of the sums. **Group** the table by area or by context
+  (a note files under its first value): every group gets a subtotal and a repartition bar
+  (the target's share of the available week, the planned share drawn over it, red when a
+  group exceeds the week), and a totals row closes the table with the sum of the targets,
+  the planned minutes, the available time, what is left after the targets and what is not
+  planned yet. The toolbar summary (`Targets 32h · planned 30h · available 168h`) is shown
+  on both faces and opens the table; the command **Toggle the ideal week targets table**
+  does the same from anywhere. The choice of face and grouping is remembered per view.
+- **Available time.** Every share is measured against the **Available hours per week**
+  setting (a number of hours, `37.5` say). Leave it empty and the plugin uses the visible
+  grid hours times seven days — the whole week, 168 hours, by default. That default is on
+  purpose: sleep, meals and rest are activities like any other, with their own blocks and
+  targets, and whatever the table shows as left is your free time.
+- **Target follows planned.** When an edit plans more minutes for a note than its weekly
+  target allows, the target is raised to the planned minutes in the same write and a notice
+  says so (one notice for a paste, a group move or an import). A target is never lowered, and
+  a note without a target is left alone. Turn it off with the **Target follows planned**
+  setting.
+- **Areas.** Notes can carry a list of **areas** — the life domains they belong to (Health,
+  Exercise, Work…), in the `areas` property by default (**Areas property** setting, or a
+  per-type property in **Configure board → Ideal week**). The rail's grouping switch (next to
+  its title) groups the Not planned yet / Planned sections **by status**, **by area** or **by
+  context**; the targets table groups by area or context too. Colour stays with the first
+  context; areas are grouping only, and the plugin never writes them.
 - **Import and export.** The commands **Import ideal week from the week-planner app** and
   **Export ideal week (JSON / Markdown, week-planner app)** move the ideal week to and from
   [the week-planner app](https://github.com/dsebastien/week-planner). Importing reads the app's
@@ -1199,14 +1230,14 @@ command), or embed it with `mode=ideal-week` (`mode=week` works too).
   writes `Ideal week <date>.json` or `.md` into the attachment folder: day lists and ranges
   become one app block per run of consecutive days, and 15-minute times are rounded outwards
   to the app's 30-minute grid, each rounding listed in the notice.
-- **Settings.** Under **Ideal week** in the plugin settings: the four property names (time
-  blocks, planned, target and alarm minutes), the committed date property used by the WBS
-  lifecycle chip, the
+- **Settings.** Under **Ideal week** in the plugin settings: the five property names (time
+  blocks, planned, target and alarm minutes, areas), the committed date property used by the WBS
+  lifecycle chip, **Target follows planned**, **Available hours per week**, the
   visible hours (the full day by default), the work hours and work days (09:00–17:00,
   Monday to Friday by default), the new block length, and the vertical scale. The column
   order follows the global **First day of the week** setting (block strings stay
   Monday-first: `mon-fri 09:00-12:00` means the same days whatever the setting). A note type
-  can map its own four properties in **Configure board → Ideal week** (blank = the global
+  can map its own five properties in **Configure board → Ideal week** (blank = the global
   default).
 
 ## Time tracking

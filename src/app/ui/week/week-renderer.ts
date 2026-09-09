@@ -1,5 +1,7 @@
 import type { WeekEntry, WeekGridConfig } from '../../domain/week-planner'
 import { gridHeight, hourMarks, workBand } from '../../domain/week-planner'
+import { formatShare, repartitionBar, subtotalOf } from '../../domain/week-targets'
+import type { TargetsGroupBy, WeekGroup, WeekGroupBy, WeekTotals } from '../../domain/week-targets'
 import { DAY_LABELS, formatMinutes, plannedMinutesPerWeek } from '../../domain/time-blocks'
 import type { Slot } from '../../domain/time-blocks'
 import { addContextLegendItem, renderGroupHeader } from '../calendar/calendar-renderer'
@@ -42,6 +44,9 @@ export interface WeekBlockPiece {
     clippedBottom: boolean
 }
 
+/** The two faces of the ideal week (issue #172, phase G): the grid, or the targets table. */
+export type WeekSubMode = 'grid' | 'targets'
+
 export interface WeekViewModel {
     cfg: WeekGridConfig
     /** Monday-first day index per column. */
@@ -61,10 +66,18 @@ export interface WeekViewModel {
     /** Selected block keys (marquee / Ctrl-click). */
     selectedKeys: ReadonlySet<string>
     panelCollapsed: boolean
+    subMode: WeekSubMode
+    /** The rail's second grouping level (phase G). */
+    railGroupBy: WeekGroupBy
+    /** The targets table's grouping and content (phase G). */
+    targetsGroupBy: TargetsGroupBy
+    targets: { groups: WeekGroup[]; totals: WeekTotals }
     /** Planned minutes across every shown note. */
     plannedTotal: number
     /** Target minutes across every shown note carrying one. */
     targetTotal: number
+    /** Available minutes per week (the base of every share). */
+    available: number
     errors: { title: string; entry: string; error: string }[]
     contextLegend: ContextLegendItem[]
     /** Resolved colour for a context value (rail dots). */
@@ -85,6 +98,11 @@ export interface WeekCallbacks {
     onBlockKey: (path: string, slot: Slot, action: BlockKeyAction) => void
     onRailContextMenu: (path: string, event: MouseEvent) => void
     onToggleContext: (value: string) => void
+    onSetSubMode: (subMode: WeekSubMode) => void
+    onSetRailGroupBy: (by: WeekGroupBy) => void
+    onSetTargetsGroupBy: (by: TargetsGroupBy) => void
+    /** A target typed in the table; false = unreadable (nothing written). */
+    onCommitTarget: (path: string, raw: string) => boolean
 }
 
 /**
@@ -109,6 +127,13 @@ export function renderWeek(
     rootEl.empty()
     const root = rootEl.createDiv({ cls: 'kap-week-root' })
     root.dataset['structure'] = structure
+    // The targets table (phase G) takes the whole pane: no rail, no grid.
+    if (model.subMode === 'targets') {
+        const main = root.createDiv({ cls: 'kap-week' })
+        renderToolbar(main, model, callbacks)
+        renderTargets(main, model, callbacks)
+        return
+    }
     renderRail(root, model, callbacks)
     const main = root.createDiv({ cls: 'kap-week' })
     renderToolbar(main, model, callbacks)
@@ -123,7 +148,7 @@ export function renderWeek(
 
 /** What a full rebuild depends on; anything else is patched in place. */
 function structureKey(model: WeekViewModel): string {
-    return JSON.stringify([model.cfg, model.columnDays, model.panelCollapsed])
+    return JSON.stringify([model.cfg, model.columnDays, model.panelCollapsed, model.subMode])
 }
 
 /** The rail's content identity (rebuilt only when it changes). */
@@ -145,7 +170,30 @@ function railKey(model: WeekViewModel): string {
                 ])
             ])
         ]),
-        [...model.collapsedGroups].sort()
+        [...model.collapsedGroups].sort(),
+        model.railGroupBy
+    ])
+}
+
+/** The targets table's content identity (rebuilt, focus kept, when it changes). */
+function targetsKey(model: WeekViewModel): string {
+    return JSON.stringify([
+        model.targetsGroupBy,
+        model.available,
+        model.targets.groups.map((g) => [
+            g.key,
+            g.label,
+            g.entries.map((e) => [
+                e.path,
+                e.title,
+                e.typeName,
+                e.statusLabel,
+                e.active,
+                e.targetMinutes,
+                e.contexts[0] ?? null,
+                plannedMinutesPerWeek(e.blocks)
+            ])
+        ])
     ])
 }
 
@@ -163,10 +211,31 @@ function errorsKey(model: WeekViewModel): string {
  */
 function patchWeek(root: HTMLElement, model: WeekViewModel, callbacks: WeekCallbacks): boolean {
     const main = root.querySelector<HTMLElement>(':scope > .kap-week')
-    const scroller = main?.querySelector<HTMLElement>(':scope > .kap-week-scroller')
-    const grid = scroller?.querySelector<HTMLElement>(':scope > .kap-week-grid')
     const toolbar = main?.querySelector<HTMLElement>(':scope > .kap-week-toolbar')
-    if (!main || !scroller || !grid || !toolbar) return false
+    if (!main || !toolbar) return false
+    if (model.subMode === 'targets') {
+        const table = main.querySelector<HTMLElement>(':scope > .kap-week-targets')
+        if (!table) return false
+        patchToolbar(toolbar, model, callbacks)
+        if (table.dataset['targets'] !== targetsKey(model)) {
+            // Rebuild, keeping the focused target cell (Enter moved it already).
+            const focused = table.querySelector<HTMLInputElement>('.kap-week-target-input:focus')
+            const focusPath = focused?.dataset['path'] ?? null
+            const next = renderTargets(main, model, callbacks)
+            table.replaceWith(next)
+            if (focusPath !== null) {
+                const again = Array.from(
+                    next.querySelectorAll<HTMLInputElement>('.kap-week-target-input')
+                ).find((el) => el.dataset['path'] === focusPath)
+                again?.focus()
+                again?.select()
+            }
+        }
+        return true
+    }
+    const scroller = main.querySelector<HTMLElement>(':scope > .kap-week-scroller')
+    const grid = scroller?.querySelector<HTMLElement>(':scope > .kap-week-grid')
+    if (!scroller || !grid) return false
     // Rail: rebuilt as a whole when its content changed (it is small and
     // its scroll position is captured / restored by the controller).
     const panel = root.querySelector<HTMLElement>(':scope > .kap-week-panel')
@@ -176,15 +245,7 @@ function patchWeek(root: HTMLElement, model: WeekViewModel, callbacks: WeekCallb
         const next = renderRail(root, model, callbacks)
         root.insertBefore(next, main)
     }
-    // Toolbar: the summary text, and the legend when it changed.
-    const summary = toolbar.querySelector<HTMLElement>('.kap-week-planned')
-    if (summary) summary.setText(summaryText(model))
-    const legend = toolbar.querySelector<HTMLElement>('.kap-cal-legend')
-    const legendId = legendKey(model)
-    if (!legend || legend.dataset['legend'] !== legendId) {
-        legend?.remove()
-        renderLegend(toolbar, model, callbacks)
-    }
+    patchToolbar(toolbar, model, callbacks)
     // Errors strip: rebuilt when it changed, kept between toolbar and grid.
     const strip = main.querySelector<HTMLElement>(':scope > .kap-week-errors')
     const errorsId = errorsKey(model)
@@ -271,6 +332,21 @@ export function formatHoursMinutes(minutes: number): string {
     return m === 0 ? `${h}h` : `${h}h ${m}m`
 }
 
+/** Toolbar: the summary text, and the legend when it changed. */
+function patchToolbar(toolbar: HTMLElement, model: WeekViewModel, callbacks: WeekCallbacks): void {
+    const summary = toolbar.querySelector<HTMLElement>('.kap-week-planned')
+    if (summary) {
+        summary.setText(summaryText(model))
+        summary.title = summaryTitle(model)
+    }
+    const legend = toolbar.querySelector<HTMLElement>('.kap-cal-legend')
+    const legendId = legendKey(model)
+    if (!legend || legend.dataset['legend'] !== legendId) {
+        legend?.remove()
+        renderLegend(toolbar, model, callbacks)
+    }
+}
+
 function renderRail(
     parent: HTMLElement,
     model: WeekViewModel,
@@ -295,6 +371,25 @@ function renderRail(
         0
     )
     header.createSpan({ cls: 'kap-panel-title', text: `Notes (${total})` })
+    const groupBy = header.createEl('select', {
+        cls: 'dropdown kap-week-rail-groupby',
+        attr: { 'aria-label': 'Group the rail by' }
+    })
+    const choices: [WeekGroupBy, string][] = [
+        ['status', 'By status'],
+        ['area', 'By area'],
+        ['context', 'By context']
+    ]
+    for (const [value, label] of choices) {
+        groupBy.createEl('option', { value, text: label })
+    }
+    groupBy.value = model.railGroupBy
+    groupBy.addEventListener('change', () => {
+        const value = groupBy.value
+        if (value === 'status' || value === 'area' || value === 'context') {
+            callbacks.onSetRailGroupBy(value)
+        }
+    })
     const list = panel.createDiv({ cls: 'kap-panel-list kap-week-rail', attr: { role: 'list' } })
     if (total === 0) {
         list.createDiv({
@@ -378,20 +473,284 @@ function renderRailItem(
 function renderToolbar(parent: HTMLElement, model: WeekViewModel, callbacks: WeekCallbacks): void {
     const toolbar = parent.createDiv({ cls: 'kap-calendar-toolbar kap-week-toolbar' })
     toolbar.createSpan({ cls: 'kap-calendar-anchor kap-week-anchor', text: 'Ideal week' })
-    toolbar.createSpan({
+    // Grid / Targets (issue #172, phase G): the two faces of the ideal week.
+    const switcher = toolbar.createDiv({
+        cls: 'kap-calendar-nav kap-week-submode',
+        attr: { role: 'tablist' }
+    })
+    const faces: [WeekSubMode, string, string][] = [
+        ['grid', 'Grid', 'When the blocks fall'],
+        ['targets', 'Targets', 'How much each note gets per week']
+    ]
+    for (const [subMode, label, title] of faces) {
+        const btn = switcher.createEl('button', {
+            cls: 'kap-range-btn',
+            text: label,
+            attr: {
+                'type': 'button',
+                'role': 'tab',
+                'aria-selected': String(model.subMode === subMode),
+                title
+            }
+        })
+        if (model.subMode === subMode) btn.addClass('kap-range-btn-active')
+        btn.addEventListener('click', () => callbacks.onSetSubMode(subMode))
+    }
+    const summary = toolbar.createEl('button', {
         cls: 'kap-week-planned',
         text: summaryText(model),
-        attr: {
-            title: 'Minutes reserved per week by every block shown, against the notes’ weekly targets'
-        }
+        attr: { type: 'button', title: summaryTitle(model) }
     })
+    summary.addEventListener('click', () => callbacks.onSetSubMode('targets'))
     renderLegend(toolbar, model, callbacks)
 }
 
+/** `Targets 32h · planned 30h · available 168h` (the active notes). */
 function summaryText(model: WeekViewModel): string {
-    return model.targetTotal > 0
-        ? `${formatHoursMinutes(model.plannedTotal)} planned of ${formatHoursMinutes(model.targetTotal)} targeted`
-        : `${formatHoursMinutes(model.plannedTotal)} planned`
+    const parts: string[] = []
+    if (model.targetTotal > 0) parts.push(`Targets ${formatHoursMinutes(model.targetTotal)}`)
+    parts.push(
+        `${model.targetTotal > 0 ? 'planned' : 'Planned'} ${formatHoursMinutes(model.plannedTotal)}`
+    )
+    parts.push(`available ${formatHoursMinutes(model.available)}`)
+    return parts.join(' · ')
+}
+
+function summaryTitle(model: WeekViewModel): string {
+    const t = model.targets.totals
+    return (
+        `Active notes: targets ${formatHoursMinutes(t.target)} (${formatShare(t.target, t.available)} of the available time), ` +
+        `planned ${formatHoursMinutes(t.planned)} (${formatShare(t.planned, t.available)}), ` +
+        `${formatSigned(t.remaining)} left after the targets, ${formatSigned(t.unplanned)} not planned. Click for the targets table.`
+    )
+}
+
+/** `2h` / `−2h` (a negative amount reads as an overshoot). */
+function formatSigned(minutes: number): string {
+    return minutes < 0 ? `−${formatHoursMinutes(-minutes)}` : formatHoursMinutes(minutes)
+}
+
+// ── Targets table (issue #172, phase G) ─────────────────────────────
+
+/**
+ * The targets table: every note of the rail with its weekly target editable
+ * in place (minutes or `5h`; Enter commits and moves down, Escape reverts),
+ * its planned minutes with the gap to the target, and the share of the
+ * available time the target takes; groups (by area or context, first value
+ * wins) carry subtotals and a repartition bar; a totals row closes it.
+ */
+function renderTargets(
+    parent: HTMLElement,
+    model: WeekViewModel,
+    callbacks: WeekCallbacks
+): HTMLElement {
+    const root = parent.createDiv({ cls: 'kap-week-targets' })
+    root.dataset['targets'] = targetsKey(model)
+    const head = root.createDiv({ cls: 'kap-week-targets-head' })
+    head.createSpan({ cls: 'kap-week-targets-title', text: 'Weekly targets' })
+    const groupBy = head.createEl('select', {
+        cls: 'dropdown kap-week-targets-groupby',
+        attr: { 'aria-label': 'Group the targets by' }
+    })
+    const choices: [TargetsGroupBy, string][] = [
+        ['none', 'No grouping'],
+        ['area', 'By area'],
+        ['context', 'By context']
+    ]
+    for (const [value, label] of choices) groupBy.createEl('option', { value, text: label })
+    groupBy.value = model.targetsGroupBy
+    groupBy.addEventListener('change', () => {
+        const value = groupBy.value
+        if (value === 'none' || value === 'area' || value === 'context') {
+            callbacks.onSetTargetsGroupBy(value)
+        }
+    })
+    head.createSpan({
+        cls: 'kap-week-targets-hint',
+        text: 'Type minutes or 5h; Enter saves and moves down, Escape reverts, empty clears'
+    })
+    const total = model.targets.groups.reduce((n, g) => n + g.entries.length, 0)
+    if (total === 0) {
+        root.createDiv({
+            cls: 'kap-panel-empty',
+            text: 'Nothing here: the targets table lists the notes of this board that carry the time blocks property.'
+        })
+        return root
+    }
+    const table = root.createEl('table', { cls: 'kap-week-targets-table' })
+    const thead = table.createEl('thead')
+    const hr = thead.createEl('tr')
+    hr.createEl('th', { text: 'Note', cls: 'kap-week-targets-note' })
+    hr.createEl('th', { text: 'Target / week', cls: 'kap-week-targets-num' })
+    hr.createEl('th', { text: 'Planned', cls: 'kap-week-targets-num' })
+    hr.createEl('th', {
+        text: 'Share',
+        cls: 'kap-week-targets-num',
+        attr: { title: `Of the ${formatHoursMinutes(model.available)} available per week` }
+    })
+    const tbody = table.createEl('tbody')
+    const grouped = model.targetsGroupBy !== 'none'
+    for (const group of model.targets.groups) {
+        if (grouped) renderTargetsGroupRow(tbody, group, model)
+        for (const entry of group.entries) renderTargetsRow(parent, tbody, entry, model, callbacks)
+    }
+    renderTargetsTotals(table.createEl('tfoot'), model)
+    return root
+}
+
+function renderTargetsGroupRow(tbody: HTMLElement, group: WeekGroup, model: WeekViewModel): void {
+    const sub = subtotalOf(group.entries)
+    const tr = tbody.createEl('tr', { cls: 'kap-week-targets-group' })
+    const label = tr.createEl('td', { cls: 'kap-week-targets-note' })
+    label.createSpan({ cls: 'kap-week-targets-group-label', text: group.label })
+    label.createSpan({ cls: 'kap-week-targets-group-count', text: String(group.entries.length) })
+    renderBar(label, sub.target, sub.planned, model.available)
+    tr.createEl('td', { cls: 'kap-week-targets-num', text: formatHoursMinutes(sub.target) })
+    tr.createEl('td', { cls: 'kap-week-targets-num', text: formatHoursMinutes(sub.planned) })
+    tr.createEl('td', {
+        cls: 'kap-week-targets-num',
+        text: formatShare(sub.target, model.available)
+    })
+}
+
+/** A repartition bar: the target's share of the available time, the planned share over it. */
+function renderBar(parent: HTMLElement, target: number, planned: number, available: number): void {
+    const bar = repartitionBar(target, planned, available)
+    const el = parent.createDiv({
+        cls: 'kap-week-bar',
+        attr: {
+            title: `Target ${formatHoursMinutes(target)} (${formatShare(target, available)}), planned ${formatHoursMinutes(planned)} (${formatShare(planned, available)}) of ${formatHoursMinutes(available)} available`
+        }
+    })
+    if (bar.over) el.addClass('kap-week-bar-over')
+    el.createDiv({ cls: 'kap-week-bar-target' }).style.width = `${(bar.target * 100).toFixed(1)}%`
+    el.createDiv({ cls: 'kap-week-bar-planned' }).style.width = `${(bar.planned * 100).toFixed(1)}%`
+}
+
+function renderTargetsRow(
+    container: HTMLElement,
+    tbody: HTMLElement,
+    entry: WeekEntry,
+    model: WeekViewModel,
+    callbacks: WeekCallbacks
+): void {
+    const planned = plannedMinutesPerWeek(entry.blocks)
+    const tr = tbody.createEl('tr', { cls: 'kap-week-targets-row' })
+    tr.dataset['path'] = entry.path
+    if (!entry.active) tr.addClass('kap-week-targets-inactive')
+    // The flex layout lives on an inner wrapper: a `td` that is itself a
+    // flex container leaves table-cell layout and its row drifts.
+    const note = tr
+        .createEl('td', { cls: 'kap-week-targets-note' })
+        .createDiv({ cls: 'kap-week-targets-note-inner' })
+    const context = entry.contexts[0]
+    if (context) {
+        const dot = note.createSpan({ cls: 'kap-cal-card-ctx' })
+        dot.style.setProperty('--kap-ctx-color', model.contextColorOf(context))
+    }
+    const link = note.createEl('a', {
+        cls: 'kap-week-targets-link',
+        text: entry.title,
+        attr: { href: '#', title: 'Open the note; hold ctrl or cmd for a new tab' }
+    })
+    link.addEventListener('click', (e) => {
+        e.preventDefault()
+        callbacks.onOpen(entry.path, e.ctrlKey || e.metaKey)
+    })
+    const meta: string[] = []
+    if (entry.typeName) meta.push(entry.typeName)
+    if (!entry.active) meta.push(`${entry.statusLabel} · not counted`)
+    if (meta.length > 0) note.createSpan({ cls: 'kap-week-targets-meta', text: meta.join(' · ') })
+    // Target: editable in place.
+    const cell = tr.createEl('td', { cls: 'kap-week-targets-num kap-week-targets-target' })
+    const input = cell.createEl('input', {
+        cls: 'kap-week-target-input',
+        attr: {
+            'type': 'text',
+            'inputmode': 'text',
+            'placeholder': 'No target',
+            'autocomplete': 'off',
+            'aria-label': `Weekly target of ${entry.title}`
+        }
+    })
+    input.dataset['path'] = entry.path
+    const initial = entry.targetMinutes !== null ? formatHoursMinutes(entry.targetMinutes) : ''
+    input.value = initial
+    const commit = (): boolean => {
+        if (input.value.trim() === initial.trim()) return true
+        const ok = callbacks.onCommitTarget(entry.path, input.value)
+        input.toggleClass('kap-week-target-invalid', !ok)
+        return ok
+    }
+    // A commit re-renders the table (the cell is rebuilt), so the row to
+    // focus next is resolved BEFORE the commit and found again by path.
+    const moveTo = (step: 1 | -1): void => {
+        const nextPath = targetSiblingPath(input, step)
+        if (!commit() || nextPath === null) return
+        const next = Array.from(
+            container.querySelectorAll<HTMLInputElement>('.kap-week-target-input')
+        ).find((el) => el.dataset['path'] === nextPath)
+        next?.focus()
+        next?.select()
+    }
+    input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault()
+            moveTo(1)
+        } else if (e.key === 'Escape') {
+            e.preventDefault()
+            input.value = initial
+            input.removeClass('kap-week-target-invalid')
+            input.blur()
+        } else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+            e.preventDefault()
+            moveTo(e.key === 'ArrowDown' ? 1 : -1)
+        }
+    })
+    input.addEventListener('blur', () => void commit())
+    input.addEventListener('focus', () => input.select())
+    // Planned, with the gap to the target.
+    const plannedCell = tr.createEl('td', { cls: 'kap-week-targets-num' })
+    plannedCell.createSpan({ text: formatHoursMinutes(planned) })
+    if (entry.targetMinutes !== null && planned !== entry.targetMinutes) {
+        const delta = planned - entry.targetMinutes
+        const gap = plannedCell.createSpan({
+            cls: `kap-week-targets-gap ${delta < 0 ? 'kap-week-targets-under' : 'kap-week-targets-over'}`,
+            text: delta < 0 ? `−${formatHoursMinutes(-delta)}` : `+${formatHoursMinutes(delta)}`
+        })
+        gap.title = delta < 0 ? 'Planned below the target' : 'Planned above the target'
+    }
+    tr.createEl('td', {
+        cls: 'kap-week-targets-num',
+        text: entry.targetMinutes !== null ? formatShare(entry.targetMinutes, model.available) : '–'
+    })
+}
+
+/** The path of the previous / next target cell of the table, in document order. */
+function targetSiblingPath(input: HTMLInputElement, step: 1 | -1): string | null {
+    const table = input.closest<HTMLElement>('.kap-week-targets')
+    if (!table) return null
+    const inputs = Array.from(table.querySelectorAll<HTMLInputElement>('.kap-week-target-input'))
+    const next = inputs[inputs.indexOf(input) + step]
+    return next?.dataset['path'] ?? null
+}
+
+function renderTargetsTotals(tfoot: HTMLElement, model: WeekViewModel): void {
+    const t = model.targets.totals
+    const tr = tfoot.createEl('tr', { cls: 'kap-week-targets-totals' })
+    const label = tr.createEl('td', { cls: 'kap-week-targets-note' })
+    label.createSpan({
+        cls: 'kap-week-targets-group-label',
+        text: `Total (${t.counted} active note${t.counted === 1 ? '' : 's'})`
+    })
+    renderBar(label, t.target, t.planned, t.available)
+    label.createSpan({
+        cls: 'kap-week-targets-meta',
+        text: `${formatHoursMinutes(t.available)} available · ${formatSigned(t.remaining)} left after the targets · ${formatSigned(t.unplanned)} not planned`
+    })
+    tr.createEl('td', { cls: 'kap-week-targets-num', text: formatHoursMinutes(t.target) })
+    tr.createEl('td', { cls: 'kap-week-targets-num', text: formatHoursMinutes(t.planned) })
+    tr.createEl('td', { cls: 'kap-week-targets-num', text: formatShare(t.target, t.available) })
 }
 
 function renderLegend(toolbar: HTMLElement, model: WeekViewModel, callbacks: WeekCallbacks): void {
@@ -576,7 +935,11 @@ export function renderWeekPrint(doc: Document, model: WeekViewModel, title: stri
         onBlockContextMenu: () => undefined,
         onBlockKey: () => undefined,
         onRailContextMenu: () => undefined,
-        onToggleContext: () => undefined
+        onToggleContext: () => undefined,
+        onSetSubMode: () => undefined,
+        onSetRailGroupBy: () => undefined,
+        onSetTargetsGroupBy: () => undefined,
+        onCommitTarget: () => true
     }
     renderGrid(scroller, { ...model, selectedKeys: new Set<string>() }, noop)
     for (const handle of Array.from(root.querySelectorAll('.kap-week-handle'))) handle.remove()

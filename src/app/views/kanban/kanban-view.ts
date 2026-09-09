@@ -834,7 +834,9 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
                 workEndMinutes: this.plugin.settings.weekWorkEndMinutes,
                 workDays: this.plugin.settings.weekWorkDays,
                 blockMinutes: this.plugin.settings.weekBlockMinutes,
-                pixelsPerHour: this.plugin.settings.weekPixelsPerHour
+                pixelsPerHour: this.plugin.settings.weekPixelsPerHour,
+                availableHours: this.plugin.settings.weekAvailableHoursPerWeek,
+                targetFollowsPlanned: this.plugin.settings.weekTargetFollowsPlanned
             }),
             restoreState: () => this.restoreWeekState(),
             persistState: (state) => this.persistWeekState(state),
@@ -1157,6 +1159,16 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
 
     printIdealWeek(): void {
         this.week?.print()
+    }
+
+    /** Grid ↔ targets table of the ideal week (issue #172, phase G); enters the mode first. */
+    toggleIdealWeekTargets(): void {
+        if (!this.weekMode()) {
+            this.setViewMode('week')
+            this.week?.setSubMode('targets')
+            return
+        }
+        this.week?.toggleTargets()
     }
 
     undoIdealWeek(): void {
@@ -2226,11 +2238,24 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
 
     /** Read the persisted durable week-planner state (issue #172; the anchor week stays transient). */
     private restoreWeekState(): WeekViewState {
-        return { panelCollapsed: this.viewConfig.get('weekPanelCollapsed') === true }
+        const subMode = this.viewConfig.get('weekSubMode')
+        const railGroupBy = this.viewConfig.get('weekRailGroupBy')
+        const targetsGroupBy = this.viewConfig.get('weekTargetsGroupBy')
+        return {
+            panelCollapsed: this.viewConfig.get('weekPanelCollapsed') === true,
+            subMode: subMode === 'targets' ? 'targets' : 'grid',
+            railGroupBy:
+                railGroupBy === 'area' || railGroupBy === 'context' ? railGroupBy : 'status',
+            targetsGroupBy:
+                targetsGroupBy === 'area' || targetsGroupBy === 'context' ? targetsGroupBy : 'none'
+        }
     }
 
     private persistWeekState(state: WeekViewState): void {
         this.viewConfig.set('weekPanelCollapsed', state.panelCollapsed)
+        this.viewConfig.set('weekSubMode', state.subMode)
+        this.viewConfig.set('weekRailGroupBy', state.railGroupBy)
+        this.viewConfig.set('weekTargetsGroupBy', state.targetsGroupBy)
     }
 
     /**

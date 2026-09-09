@@ -993,3 +993,42 @@ When a new business rule is mentioned:
     print-only container isolated by `body.kap-week-printing`, calls the window's print, and
     removes the copy afterwards; nothing is written. Dropped on purpose: per-block styling,
     style clipboard, quick templates, text editing, lunch band, corner handles (#184).
+
+53. **Ideal week targets table (issue #172, phase G; decided 2026-09-09).** The ideal week has two
+    faces, switched in its toolbar and remembered per view (`weekSubMode`): the GRID (when the
+    blocks fall) and the TARGETS table (how much each note gets), which takes the whole pane
+    (no rail). The table lists every note of the rail, active or not (inactive rows are dimmed
+    and marked "not counted"), with its weekly target editable in place (minutes or a duration
+    like `5h`, parsed by `parseEstimateInput`; Enter commits and moves down, Escape reverts, an
+    empty cell clears the property, an unreadable value is refused and shown, nothing written),
+    its planned minutes with the gap to the target, and the share of the AVAILABLE time the
+    target takes. Available = the `weekAvailableHoursPerWeek` setting (hours, decimal), else
+    the visible grid hours × 7 days (the whole week, 168h, by default: sleep is an activity
+    like any other and the remainder is free time); it lives in the plugin settings, never in
+    the base view. Subtotals, the totals row (targets, planned, available, left after the
+    targets, not planned) and every share count ACTIVE notes only. Grouping (`none` / area /
+    context, remembered per view as `weekTargetsGroupBy`) files a note under its FIRST value —
+    the value that colours it — so no note is counted twice; the empty group is last; group
+    headers and the totals row carry a repartition bar (target share, planned share drawn
+    over it, red when either exceeds the available time). The toolbar of both faces shows one
+    summary (`Targets 32h · planned 30h · available 168h`, the active notes) that opens the
+    table. Target edits go through `writeTarget` (optimistic overlay, blocks untouched, no undo
+    step: undo is for blocks); the table is rebuilt only when its content key changes and the
+    focused cell is found again by path. Tracked-this-week stays out of the table (#187).
+
+54. **Target follows planned (issue #172, phase G).** With the `weekTargetFollowsPlanned`
+    setting on (default), every block write that leaves a note's planned minutes above its
+    weekly target raises the target to the planned minutes in the SAME write, with one notice
+    naming the note and the new target (one notice per batch: paste, selection move, import).
+    A target is never lowered, and a note WITHOUT a target is left alone (it is asked for one
+    on its first block; a refusal is a choice). An explicit target passed with the write (the
+    first-block prompt) wins over the raise. Undo restores the blocks, not the raised target.
+
+55. **Areas (issue #172, phase G).** A global **Areas property** setting (`areas` by default;
+    per-type override in `Configure → Ideal week`, the fifth ideal-week property) names the
+    list property holding the life domains a note belongs to (Health, Work, …); the plugin
+    only READS it. The rail keeps its two sections (Not planned yet / Planned) and gets a
+    grouping switch for the second level — by status (default, column order), by area, or by
+    context — remembered per view (`weekRailGroupBy`); nothing nests three deep. Colour stays
+    with the first context. Areas are set directly on activities, projects and goals in the
+    vault (no inheritance); the plugin never writes them.

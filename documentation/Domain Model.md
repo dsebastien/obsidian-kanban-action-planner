@@ -138,8 +138,10 @@ activePeriods}`) live in the daily note's `pomodoros` list. Domain: `time-entrie
   cache, sum of the blocks), `minutes_per_week` (user target; the Needs planning rail). A
   note's status **role** (`statusRoles` on the note type, mirrored from the Starter Kit:
   backlog / scheduled / active / waiting) decides membership. Domain: `time-blocks.ts`
-  (grammar, slots, overlaps, list edits), `week-planner.ts` (grid geometry, week window);
-  controller `views/kanban/week-controller.ts`; UI `ui/week/*`.
+  (grammar, slots, overlaps, list edits), `week-planner.ts` (grid geometry, week window),
+  `week-targets.ts` (phase G: available minutes, grouping by first area / context, subtotals,
+  totals, repartition bar, `raisedTarget`); `areas` (list of strings, read only) groups the
+  rail and the targets table; controller `views/kanban/week-controller.ts`; UI `ui/week/*`.
 
 ## Settings shape
 

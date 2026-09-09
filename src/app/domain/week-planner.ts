@@ -195,6 +195,8 @@ export interface WeekEntry {
     title: string
     /** First context wins for colour; empty = neutral. */
     contexts: string[]
+    /** Areas the note belongs to (issue #172, phase G); the first one files it when grouping by area. */
+    areas: string[]
     blocks: TimeBlock[]
     /** Parse errors of the note's own list (rendered as a warning). */
     errors: { entry: string; error: string }[]

@@ -2060,6 +2060,175 @@
         opacity: 0.7;
     }
 
+    /* Rail grouping switch (phase G): a small select in the panel header. */
+    .kap-week-rail-groupby {
+        @apply ml-auto shrink-0 text-[0.8em] h-6 py-0;
+    }
+
+    /* Grid / Targets switch (phase G) in the toolbar. */
+    .kap-week-submode {
+        @apply shrink-0;
+    }
+
+    /* The toolbar summary is a button (it opens the targets table). */
+    button.kap-week-planned {
+        @apply border-0 bg-transparent cursor-pointer px-1 rounded;
+        box-shadow: none;
+    }
+
+    button.kap-week-planned:hover {
+        background: var(--background-modifier-hover);
+        color: var(--text-normal);
+    }
+
+    /* ── Targets table (issue #172, phase G) ── */
+    .kap-week-targets {
+        @apply flex-1 min-h-0 overflow-auto p-2;
+    }
+
+    .kap-week-targets-head {
+        @apply flex flex-wrap items-center gap-2 mb-2;
+    }
+
+    .kap-week-targets-title {
+        @apply font-medium;
+    }
+
+    .kap-week-targets-groupby {
+        @apply text-[0.85em] h-7 py-0;
+    }
+
+    .kap-week-targets-hint {
+        @apply text-[0.75em] ml-auto;
+        color: var(--text-faint);
+    }
+
+    .kap-week-targets-table {
+        @apply w-full border-collapse text-[0.9em];
+    }
+
+    .kap-week-targets-table th {
+        @apply text-left font-medium py-1 px-2 sticky top-0 z-[2];
+        color: var(--text-muted);
+        background: var(--background-primary);
+        border-bottom: 1px solid var(--background-modifier-border);
+    }
+
+    .kap-week-targets-table td {
+        @apply py-1 px-2 align-middle;
+        border-bottom: 1px solid var(--background-modifier-border);
+    }
+
+    .kap-week-targets-num {
+        @apply text-right whitespace-nowrap w-[7.5rem];
+        font-variant-numeric: tabular-nums;
+    }
+
+    .kap-week-targets-note {
+        @apply min-w-0;
+    }
+
+    .kap-week-targets-note-inner {
+        @apply flex items-center gap-2 flex-wrap min-w-0;
+    }
+
+    .kap-week-targets-link {
+        @apply truncate;
+        color: var(--text-normal);
+        text-decoration: none;
+    }
+
+    .kap-week-targets-link:hover {
+        text-decoration: underline;
+    }
+
+    .kap-week-targets-meta {
+        @apply text-[0.8em] whitespace-nowrap;
+        color: var(--text-muted);
+    }
+
+    .kap-week-targets-inactive .kap-week-targets-link,
+    .kap-week-targets-inactive .kap-week-targets-num {
+        color: var(--text-muted);
+    }
+
+    .kap-week-targets-target {
+        @apply py-0.5;
+    }
+
+    .kap-week-target-input {
+        @apply w-full text-right h-7 px-2 text-[0.95em];
+        font-variant-numeric: tabular-nums;
+    }
+
+    .kap-week-target-invalid {
+        border-color: var(--text-error) !important;
+        box-shadow: 0 0 0 1px var(--text-error);
+    }
+
+    .kap-week-targets-gap {
+        @apply ml-1 text-[0.8em];
+    }
+
+    .kap-week-targets-under {
+        color: var(--color-orange);
+    }
+
+    .kap-week-targets-over {
+        color: var(--color-red);
+    }
+
+    .kap-week-targets-group td,
+    .kap-week-targets-totals td {
+        @apply font-medium;
+        background: var(--background-secondary);
+        border-top: 1px solid var(--background-modifier-border);
+    }
+
+    .kap-week-targets-totals td {
+        @apply sticky bottom-0 z-[2];
+        background: var(--background-primary);
+        border-top: 2px solid var(--background-modifier-border);
+    }
+
+    .kap-week-targets-group-label {
+        @apply mr-2;
+    }
+
+    .kap-week-targets-group-count {
+        @apply text-[0.8em] mr-2;
+        color: var(--text-muted);
+    }
+
+    .kap-week-targets-totals .kap-week-targets-meta {
+        @apply block font-normal mt-1;
+    }
+
+    /* Repartition bar: the target's share of the available week, the planned share drawn over it. */
+    .kap-week-bar {
+        @apply relative block w-full h-1.5 rounded mt-1 overflow-hidden;
+        max-width: 24rem;
+        background: var(--background-modifier-border);
+    }
+
+    .kap-week-bar-target,
+    .kap-week-bar-planned {
+        @apply absolute left-0 top-0 h-full rounded;
+    }
+
+    .kap-week-bar-target {
+        background: var(--interactive-accent);
+        opacity: 0.45;
+    }
+
+    .kap-week-bar-planned {
+        background: var(--interactive-accent);
+    }
+
+    .kap-week-bar-over .kap-week-bar-target {
+        background: var(--color-red);
+    }
+
     .kap-week-block-inactive {
         opacity: 0.55;
         border-style: dashed;

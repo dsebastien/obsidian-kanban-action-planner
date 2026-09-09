@@ -460,6 +460,9 @@ export class WeekDnd {
 
     private handleKeyDown(e: KeyboardEvent): void {
         const target = e.target as HTMLElement | null
+        // A text field (the targets table's cells) keeps every key: its own
+        // undo, its own Backspace, its Escape.
+        if (target?.closest('input, textarea, [contenteditable]')) return
         const focusedBlock = target?.closest<HTMLElement>('.kap-week-block') ?? null
         const mod = e.ctrlKey || e.metaKey
         if (mod && !e.altKey && (e.key === 'z' || e.key === 'Z')) {

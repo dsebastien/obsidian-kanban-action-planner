@@ -219,6 +219,11 @@ export class KanbanActionPlannerPlugin extends Plugin {
             checkCallback: onActiveView((view) => view.redoIdealWeek())
         })
         this.addCommand({
+            id: 'toggle-ideal-week-targets',
+            name: 'Toggle the ideal week targets table',
+            checkCallback: onActiveView((view) => view.toggleIdealWeekTargets())
+        })
+        this.addCommand({
             id: 'print-ideal-week',
             name: 'Print the ideal week',
             checkCallback: onActiveView((view) => view.printIdealWeek())

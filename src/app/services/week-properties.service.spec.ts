@@ -5,7 +5,8 @@ const settings = {
     defaultTimeBlocksProperty: 'time_blocks',
     defaultPlannedMinutesProperty: 'minutes_planned_per_week',
     defaultTargetMinutesProperty: 'minutes_per_week',
-    defaultAlarmMinutesProperty: 'minutes_alarm_per_week'
+    defaultAlarmMinutesProperty: 'minutes_alarm_per_week',
+    defaultAreasProperty: 'areas'
 }
 
 describe('weekPropertiesForType (issue #172, phase C)', () => {
@@ -14,7 +15,8 @@ describe('weekPropertiesForType (issue #172, phase C)', () => {
             timeBlocks: 'time_blocks',
             plannedMinutes: 'minutes_planned_per_week',
             targetMinutes: 'minutes_per_week',
-            alarmMinutes: 'minutes_alarm_per_week'
+            alarmMinutes: 'minutes_alarm_per_week',
+            areas: 'areas'
         }
         expect(weekPropertiesForType(settings, undefined)).toEqual(globals)
         expect(weekPropertiesForType(settings, {})).toEqual(globals)
@@ -26,14 +28,16 @@ describe('weekPropertiesForType (issue #172, phase C)', () => {
                 timeBlocksProperty: ' blocks ',
                 plannedMinutesProperty: '',
                 targetMinutesProperty: 'budget',
-                alarmMinutesProperty: '   '
+                alarmMinutesProperty: '   ',
+                areasProperty: 'domains'
             }
         })
         expect(props).toEqual({
             timeBlocks: 'blocks',
             plannedMinutes: 'minutes_planned_per_week',
             targetMinutes: 'budget',
-            alarmMinutes: 'minutes_alarm_per_week'
+            alarmMinutes: 'minutes_alarm_per_week',
+            areas: 'domains'
         })
     })
 })

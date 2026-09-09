@@ -1,11 +1,13 @@
 import type { NoteType } from '../domain/note-type'
 
-/** The four ideal-week / budget property names resolved for one note type. */
+/** The five ideal-week / budget property names resolved for one note type. */
 export interface WeekProperties {
     timeBlocks: string
     plannedMinutes: string
     targetMinutes: string
     alarmMinutes: string
+    /** The areas list (issue #172, phase G). */
+    areas: string
 }
 
 /**
@@ -19,6 +21,7 @@ export function weekPropertiesForType(
         defaultPlannedMinutesProperty: string
         defaultTargetMinutesProperty: string
         defaultAlarmMinutesProperty: string
+        defaultAreasProperty: string
     },
     noteType: Pick<NoteType, 'weekPlanner'> | undefined
 ): WeekProperties {
@@ -32,6 +35,7 @@ export function weekPropertiesForType(
             settings.defaultPlannedMinutesProperty
         ),
         targetMinutes: pick(override?.targetMinutesProperty, settings.defaultTargetMinutesProperty),
-        alarmMinutes: pick(override?.alarmMinutesProperty, settings.defaultAlarmMinutesProperty)
+        alarmMinutes: pick(override?.alarmMinutesProperty, settings.defaultAlarmMinutesProperty),
+        areas: pick(override?.areasProperty, settings.defaultAreasProperty)
     }
 }

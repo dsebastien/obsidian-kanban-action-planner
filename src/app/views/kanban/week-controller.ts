@@ -26,9 +26,23 @@ import {
     slotPieces
 } from '../../domain/week-planner'
 import type { WeekEntry, WeekGridConfig } from '../../domain/week-planner'
+import {
+    availableMinutesPerWeek,
+    groupByValue,
+    raisedTarget,
+    targetsGroups,
+    totalsOf
+} from '../../domain/week-targets'
+import type { TargetsGroupBy, WeekGroupBy } from '../../domain/week-targets'
+import { parseEstimateInput } from '../../domain/estimate'
 import type { WeekProperties } from '../../services/week-properties.service'
-import { renderWeek, renderWeekPrint } from '../../ui/week/week-renderer'
-import type { BlockKeyAction, WeekBlockPiece, WeekViewModel } from '../../ui/week/week-renderer'
+import { formatHoursMinutes, renderWeek, renderWeekPrint } from '../../ui/week/week-renderer'
+import type {
+    BlockKeyAction,
+    WeekBlockPiece,
+    WeekSubMode,
+    WeekViewModel
+} from '../../ui/week/week-renderer'
 import { WeekNotePickerModal } from '../../ui/week/week-note-picker'
 import { WeekImportModal } from '../../ui/week/week-import-modal'
 import type { ExportEntry, ImportedBlock } from '../../domain/week-planner-io'
@@ -45,6 +59,7 @@ import { EstimatePromptModal } from '../../ui/timeline/estimate-modal'
 import type { ContextLegendItem } from '../../ui/calendar/calendar-renderer'
 import { contextColor } from '../../services/colors.service'
 import { coerceOrder, getFrontmatterValue, setProperties } from '../../services/frontmatter.service'
+import { stringifyForSearch } from '../../services/card-search.service'
 import {
     WEEK_SCROLLER_SELECTORS,
     captureScrollBySelector,
@@ -55,6 +70,12 @@ import {
 /** Durable per-view ideal-week state. */
 export interface WeekViewState {
     panelCollapsed: boolean
+    /** Grid or targets table (issue #172, phase G). */
+    subMode: WeekSubMode
+    /** The rail's second grouping level (under Not planned / Planned). */
+    railGroupBy: WeekGroupBy
+    /** The targets table's grouping. */
+    targetsGroupBy: TargetsGroupBy
 }
 
 /** The settings the mode reads (resolved by the host). */
@@ -66,6 +87,10 @@ export interface WeekSettings {
     workDays: number[]
     blockMinutes: number
     pixelsPerHour: number
+    /** Available hours per week (null = grid hours × 7); phase G. */
+    availableHours: number | null
+    /** Raise a note's target to its planned minutes when an edit overshoots it; phase G. */
+    targetFollowsPlanned: boolean
 }
 
 /** What the controller asks the view for (closures; nothing is cached). */
@@ -110,7 +135,12 @@ export interface WeekHost {
 export class WeekController {
     private readonly host: WeekHost
     private panelCollapsed = false
+    private subMode: WeekSubMode = 'grid'
+    private railGroupBy: WeekGroupBy = 'status'
+    private targetsGroupBy: TargetsGroupBy = 'none'
     private loaded = false
+    /** Targets raised inside the current batch (one notice at its end). */
+    private raisedInBatch: string[] | null = null
     private lastScrollContentKeys = new Map<string, string>()
     /** The entries of the last render, by path (the edit paths read them). */
     private entries = new Map<string, WeekEntry>()
@@ -152,11 +182,65 @@ export class WeekController {
     private ensureLoaded(): void {
         if (this.loaded) return
         this.loaded = true
-        this.panelCollapsed = this.host.restoreState().panelCollapsed
+        const state = this.host.restoreState()
+        this.panelCollapsed = state.panelCollapsed
+        this.subMode = state.subMode
+        this.railGroupBy = state.railGroupBy
+        this.targetsGroupBy = state.targetsGroupBy
     }
 
     private persist(): void {
-        this.host.persistState({ panelCollapsed: this.panelCollapsed })
+        this.host.persistState({
+            panelCollapsed: this.panelCollapsed,
+            subMode: this.subMode,
+            railGroupBy: this.railGroupBy,
+            targetsGroupBy: this.targetsGroupBy
+        })
+    }
+
+    /** Grid ↔ targets table (issue #172, phase G). */
+    setSubMode(subMode: WeekSubMode): void {
+        this.ensureLoaded()
+        if (this.subMode === subMode) return
+        this.subMode = subMode
+        this.persist()
+        this.host.refresh()
+    }
+
+    toggleTargets(): void {
+        this.ensureLoaded()
+        this.setSubMode(this.subMode === 'targets' ? 'grid' : 'targets')
+    }
+
+    isTargetsMode(): boolean {
+        this.ensureLoaded()
+        return this.subMode === 'targets'
+    }
+
+    setRailGroupBy(by: WeekGroupBy): void {
+        this.ensureLoaded()
+        if (this.railGroupBy === by) return
+        this.railGroupBy = by
+        this.persist()
+        this.host.refresh()
+    }
+
+    setTargetsGroupBy(by: TargetsGroupBy): void {
+        this.ensureLoaded()
+        if (this.targetsGroupBy === by) return
+        this.targetsGroupBy = by
+        this.persist()
+        this.host.refresh()
+    }
+
+    /** The minutes every share of the targets table is measured against. */
+    availableMinutes(): number {
+        const s = this.host.settings()
+        return availableMinutesPerWeek({
+            availableHours: s.availableHours,
+            gridStartHour: s.gridStartHour,
+            gridEndHour: s.gridEndHour
+        })
     }
 
     /** The grid config from the settings. */
@@ -227,6 +311,9 @@ export class WeekController {
                 path: card.key,
                 title: card.display.title,
                 contexts: card.contexts,
+                areas: stringifyForSearch(getFrontmatterValue(this.host.app, card.file, p.areas))
+                    .map((v) => v.trim().replace(/^\[\[|\]\]$/g, ''))
+                    .filter((v) => v.length > 0),
                 blocks,
                 errors,
                 targetMinutes: target !== null && target > 0 ? target : null,
@@ -276,6 +363,11 @@ export class WeekController {
                 errors.push({ title: entry.title, entry: error.entry, error: error.error })
             }
         }
+        const group = (list: WeekEntry[]): WeekViewModel['sections'][number]['groups'] =>
+            this.railGroupBy === 'status'
+                ? groupByStatus(list)
+                : groupByValue(list, this.railGroupBy)
+        const available = this.availableMinutes()
         const model: WeekViewModel = {
             cfg,
             columnDays: columnDays(cfg.firstDayOfWeek),
@@ -284,19 +376,27 @@ export class WeekController {
                 {
                     key: 'unplanned',
                     label: 'Not planned yet',
-                    groups: groupByStatus(entries.filter((e) => e.blocks.length === 0))
+                    groups: group(entries.filter((e) => e.blocks.length === 0))
                 },
                 {
                     key: 'planned',
                     label: 'Planned',
-                    groups: groupByStatus(entries.filter((e) => e.blocks.length > 0))
+                    groups: group(entries.filter((e) => e.blocks.length > 0))
                 }
             ].filter((sec) => sec.groups.length > 0),
             collapsedGroups: this.collapsedGroups,
             selectedKeys: this.selected,
             panelCollapsed: this.panelCollapsed,
+            subMode: this.subMode,
+            railGroupBy: this.railGroupBy,
+            targetsGroupBy: this.targetsGroupBy,
+            targets: {
+                groups: targetsGroups(entries, this.targetsGroupBy),
+                totals: totalsOf(entries, available)
+            },
             plannedTotal,
             targetTotal,
+            available,
             errors,
             contextLegend: this.host.contextLegend(),
             contextColorOf: contextColor
@@ -304,7 +404,8 @@ export class WeekController {
         const scrolls = captureScrollBySelector(boardEl, WEEK_SCROLLER_SELECTORS)
         const contentKeys = new Map<string, string>([
             ['.kap-week-rail', 'rail'],
-            ['.kap-week-scroller', 'grid']
+            ['.kap-week-scroller', 'grid'],
+            ['.kap-week-targets', 'targets']
         ])
         pruneStaleContent(scrolls, this.lastScrollContentKeys, contentKeys)
         this.lastScrollContentKeys = contentKeys
@@ -328,7 +429,11 @@ export class WeekController {
                     })
                 }
             },
-            onToggleContext: (value) => this.host.toggleContext(value)
+            onToggleContext: (value) => this.host.toggleContext(value),
+            onSetSubMode: (subMode) => this.setSubMode(subMode),
+            onSetRailGroupBy: (by) => this.setRailGroupBy(by),
+            onSetTargetsGroupBy: (by) => this.setTargetsGroupBy(by),
+            onCommitTarget: (path, raw) => this.commitTarget(path, raw)
         })
         restoreScrollBySelector(boardEl, scrolls)
         this.scrollToWorkStart(boardEl, cfg)
@@ -459,6 +564,18 @@ export class WeekController {
             if (this.batch) this.batch.push(step)
             else this.record([step])
         }
+        // Target follows planned (issue #172, phase G): an edit that plans
+        // more than the note's target raises the target to the planned
+        // minutes (never lowers it); one notice, or one per batch.
+        if (entry && this.host.settings().targetFollowsPlanned && !(p.targetMinutes in extra)) {
+            const raised = raisedTarget(entry.targetMinutes, plannedMinutesPerWeek(blocks))
+            if (raised !== null) {
+                extra = { ...extra, [p.targetMinutes]: raised }
+                const label = `${entry.title} (${formatHoursMinutes(raised)})`
+                if (this.raisedInBatch) this.raisedInBatch.push(label)
+                else new Notice(`Weekly target raised to match the planned blocks: ${label}`)
+            }
+        }
         // Optimistic (issue #172): show the result now, write in the background.
         const target = p.targetMinutes in extra ? coerceOrder(extra[p.targetMinutes]) : undefined
         this.overlay.set(path, { blocks, target, at: Date.now() })
@@ -540,12 +657,21 @@ export class WeekController {
     private async batched(fn: () => Promise<void>): Promise<void> {
         if (this.batch) return fn()
         this.batch = []
+        this.raisedInBatch = []
         try {
             await fn()
         } finally {
             const steps = this.batch
+            const raised = this.raisedInBatch
             this.batch = null
+            this.raisedInBatch = null
             if (!this.replaying) this.record(steps)
+            if (raised && raised.length > 0) {
+                new Notice(
+                    `Weekly targets raised to match the planned blocks: ${raised.join(', ')}`,
+                    8000
+                )
+            }
         }
     }
 
@@ -728,25 +854,43 @@ export class WeekController {
         const entry = this.entries.get(path)
         const card = this.host.cardForKey(path)
         if (!entry || !card) return
-        const targetProperty = this.host.weekPropertiesFor(card).targetMinutes
         new EstimatePromptModal(
             this.host.app,
             `Weekly target for ${entry.title} (minutes per week, or 5h)`,
             entry.targetMinutes,
-            (value) => {
-                this.overlay.set(path, {
-                    blocks: entry.blocks,
-                    target: value,
-                    at: Date.now()
-                })
-                this.host.refresh()
-                void setProperties(this.host.app, card.file, {
-                    [targetProperty]: value ?? null
-                })
-            },
+            (value) => this.writeTarget(path, value),
             'minutes',
             this.host.minutesPerDay()
         ).open()
+    }
+
+    /** Write a note's weekly target (null clears it), optimistically; blocks untouched. */
+    writeTarget(path: string, value: number | null): void {
+        const entry = this.entries.get(path)
+        const card = this.host.cardForKey(path)
+        if (!entry || !card) return
+        if (entry.targetMinutes === value) return
+        const targetProperty = this.host.weekPropertiesFor(card).targetMinutes
+        this.overlay.set(path, { blocks: entry.blocks, target: value, at: Date.now() })
+        this.host.refresh()
+        void setProperties(this.host.app, card.file, { [targetProperty]: value ?? null })
+    }
+
+    /**
+     * A target typed in the targets table (issue #172, phase G): minutes or
+     * a duration (`5h`, `1h 30m`); empty clears. False when unreadable
+     * (nothing is written; the cell shows it).
+     */
+    commitTarget(path: string, raw: string): boolean {
+        const text = raw.trim()
+        if (text === '') {
+            this.writeTarget(path, null)
+            return true
+        }
+        const value = parseEstimateInput(text, 'minutes', this.host.minutesPerDay())
+        if (value === null) return false
+        this.writeTarget(path, value)
+        return true
     }
 
     /** Whether the clipboard holds blocks (the paste-target highlight). */

@@ -932,6 +932,7 @@ export class ConfigureBoardModal extends Modal {
                 | 'plannedMinutesProperty'
                 | 'targetMinutesProperty'
                 | 'alarmMinutesProperty'
+                | 'areasProperty'
             name: string
             desc: string
             placeholder: string
@@ -959,6 +960,12 @@ export class ConfigureBoardModal extends Modal {
                 name: 'Alarm minutes property',
                 desc: 'Weekly alarm in minutes: tracked time above it turns the ring red.',
                 placeholder: globals.defaultAlarmMinutesProperty
+            },
+            {
+                key: 'areasProperty',
+                name: 'Areas property',
+                desc: 'List of areas the note belongs to (Health, Work, …): the ideal week rail and targets table group by it.',
+                placeholder: globals.defaultAreasProperty
             }
         ]
         const persist = (key: (typeof fields)[number]['key'], value: string): void => {
@@ -966,7 +973,8 @@ export class ConfigureBoardModal extends Modal {
                 timeBlocksProperty: '',
                 plannedMinutesProperty: '',
                 targetMinutesProperty: '',
-                alarmMinutesProperty: ''
+                alarmMinutesProperty: '',
+                areasProperty: ''
             }
             const next = { ...current, [key]: value.trim() }
             const allBlank = Object.values(next).every((v) => v === '')
