@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { noteTypeSchema } from '../domain/note-type'
 import {
+    DEFAULT_ARCHIVE_GRACE_DAYS,
     DEFAULT_BLOCKED_BY_PROPERTY,
     DEFAULT_CONTEXTS_PROPERTY,
     DEFAULT_DATE_FORMAT,
@@ -100,6 +101,13 @@ export const pluginSettingsSchema = z.object({
     /** Play a confetti burst when a note's triage is completed in triage mode. */
     triageCelebrateOnComplete: z.boolean(),
     /**
+     * Archive grace period (days): a note entering an auto-archive status stays
+     * on the board until its done date (the type's `doneDateProperties`) is this
+     * many days old; the board-load sweep then archives it. 0 = archive on the
+     * transition itself. `.default()` so older `data.json` still parses.
+     */
+    archiveGraceDays: z.number().int().min(0).default(DEFAULT_ARCHIVE_GRACE_DAYS),
+    /**
      * Global default status values (columns) used when neither the view nor a
      * Starter Kit note type defines them. Order is the column order.
      */
@@ -148,6 +156,7 @@ export const DEFAULT_SETTINGS: PluginSettings = {
     dueSoonThresholdDays: DEFAULT_DUE_SOON_THRESHOLD_DAYS,
     dueCountdownStyle: 'title',
     triageCelebrateOnComplete: true,
+    archiveGraceDays: DEFAULT_ARCHIVE_GRACE_DAYS,
     defaultStatuses: [],
     noteTypes: []
 }

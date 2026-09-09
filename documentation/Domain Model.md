@@ -60,7 +60,10 @@ column rule.
   (`fileManager.renameFile`, links preserved); manual via the card menu (shown only when the
   card's type has a folder), or auto when a card **transitions into** its type's `triggerStatus`
   (opt-in, guarded). Blank `archiveFolder` disables archiving for that type; name clashes get a
-  numeric suffix.
+  numeric suffix. `doneDateProperties` (first present wins) plus the global `archiveGraceDays`
+  defer status-triggered archiving to a board-load sweep (`domain/archive-grace.ts`:
+  `graceDecision` → `none` / `immediate` / `aged` / `stamp` / `wait`; rule 11). A namesake
+  folder note moves with its folder (`planMove` in `services/archive.service.ts`).
 - **CalendarConfig** — scheduled/due date property names, momentjs `dateFormat`, default
   range, and tab sort key. Calendar mode (per-view `calendarMode` toggle) is driven by pure
   helpers: `domain/calendar.ts` (`CalendarRange`, month/week grid building with a configurable

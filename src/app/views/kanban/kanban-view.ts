@@ -46,7 +46,8 @@ import {
     watchedProperties
 } from '../../domain/automation'
 import { runAutomationRules } from '../../services/automation.service'
-import { archiveFolderPrefixes } from '../../domain/archive-paths'
+import { archiveFolderPrefixes, isArchivedPath } from '../../domain/archive-paths'
+import { graceDecision, isoDate, stampProperty } from '../../domain/archive-grace'
 import { buildBoard, restrictBoardColumns, restrictBoardLanes } from '../../domain/board-model'
 import { buildAgenda } from '../../domain/agenda'
 import type { AgendaWindow } from '../../domain/agenda'
@@ -377,6 +378,12 @@ interface ColumnTriagePass {
  * board, and persists status + manual order back to the notes. `data` is
  * replaced on every update, so it is always re-read in {@link onDataUpdated}.
  */
+/**
+ * Archive sweeps serialize across every open board: two views showing the same
+ * note must not race to move it (the second finds it gone and skips).
+ */
+let archiveSweepChain: Promise<void> = Promise.resolve()
+
 export class KanbanActionPlannerView extends BasesView implements HoverParent {
     override readonly type = KANBAN_VIEW_TYPE
     /** Set by the core "Page preview" plugin while a card hover popover is open. */
@@ -542,6 +549,19 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
     // Filter bar (issue #34). `allCards`/`searchByKey` are the unfiltered set +
     // per-card search index; the parsed query filters them on each render.
     private allCards: KanbanCard[] = []
+    /** The board-load archive sweep ran (once per view instance). */
+    private sweptOnLoad = false
+    /** Last archive sweep summary (support/debug introspection). */
+    lastArchiveSweep: {
+        at: string
+        cards: number
+        aged: number
+        stamp: number
+        archived: number
+        stamped: number
+        failed: number
+        error?: string
+    } | null = null
     private searchByKey = new Map<string, CardSearchRecord>()
     private filterQuery = ''
     private parsedQuery: FilterQuery = { groups: [] }
@@ -691,7 +711,8 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
                 this.applyFilterAndRender()
             },
             runExclusiveWrites: (writes) => this.withRebuildsSuppressed(writes),
-            runStatusAutomations: (card, from, to) => this.runStatusAutomations(card, from, to),
+            runStatusAutomations: (card, from, to) =>
+                this.runStatusAutomations(card, from, to).then(() => undefined),
             runArchiveAutomations: (card) => this.runArchiveAutomations(card)
         })
         this.filterEmptyEl = this.rootEl.createDiv({
@@ -1115,6 +1136,13 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         this.laneValueByPath = this.computeLaneValues(files, this.laneGrouping)
         this.archiveByPath = this.computeArchiveByPath(files)
         this.rebuild()
+        // Archive grace period: sweep aged done notes once per board load,
+        // as soon as the Base has handed over its entries (an empty first
+        // pass before `onDataUpdated` must not consume the one-shot).
+        if (!this.sweptOnLoad && this.allCards.length > 0) {
+            this.sweptOnLoad = true
+            void this.runArchiveSweep()
+        }
     }
 
     /** Recognize each file's note type (Starter Kit, then local mapping rules). */
@@ -1136,7 +1164,11 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
     private computeArchiveByPath(files: TFile[]): Map<string, ArchiveConfig> {
         const map = new Map<string, ArchiveConfig>()
         const byType = new Map<string, ArchiveConfig>()
-        const empty: ArchiveConfig = { archiveFolder: '', triggerStatuses: [] }
+        const empty: ArchiveConfig = {
+            archiveFolder: '',
+            triggerStatuses: [],
+            doneDateProperties: []
+        }
         for (const file of files) {
             const type = this.noteTypeByPath.get(file.path) ?? null
             if (!type) {
@@ -2223,14 +2255,14 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         from: string | null,
         to: string | null,
         options?: { skipMoveActions?: boolean }
-    ): Promise<void> {
+    ): Promise<Set<string>> {
         const statusProperty = this.statusPropertyFor(card)
-        if (!statusProperty) return
+        if (!statusProperty) return new Set()
         const rules = this.automationRulesForPath(card.key)
         // Keep the snapshot in sync even when nothing matches, so the echo
         // diff of this write never re-evaluates the same transition.
         this.automationSnapshot.get(card.key)?.set(statusProperty.toLowerCase(), to)
-        if (rules.length === 0) return
+        if (rules.length === 0) return new Set()
         let matched = [
             ...rulesForTransition(rules, { from, to }, this.doneConfigFor(card), statusProperty),
             ...rulesForPropertyChange(rules, statusProperty, from, to)
@@ -2245,7 +2277,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
                 }))
                 .filter((r) => r.actions.length > 0)
         }
-        await this.executeAutomations(card.key, card.file, matched, card.display.title)
+        return this.executeAutomations(card.key, card.file, matched, card.display.title)
     }
 
     /** Run the note's `archived`-trigger rules, just before the move. */
@@ -2275,14 +2307,19 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         await this.executeAutomations(file.path, file, dedupeRules(matched), title)
     }
 
-    /** Shared executor: re-entry guard, snapshot refresh, move Notice. */
+    /**
+     * Shared executor: re-entry guard, snapshot refresh, move Notice. Returns
+     * the lowercased frontmatter properties the actions wrote (empty when
+     * nothing ran), so a caller can tell what the metadata cache is about to
+     * echo before it does.
+     */
     private async executeAutomations(
         path: string,
         file: TFile,
         matched: ReadonlyArray<AutomationRule>,
         title: string
-    ): Promise<void> {
-        if (matched.length === 0 || this.automationRunning.has(path)) return
+    ): Promise<Set<string>> {
+        if (matched.length === 0 || this.automationRunning.has(path)) return new Set()
         this.automationRunning.add(path)
         try {
             const result = await runAutomationRules(this.app, file, matched)
@@ -2303,6 +2340,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             if (result.moveError) {
                 new Notice(`Automation move failed: ${result.moveError}`)
             }
+            return result.writtenProperties
         } finally {
             this.automationRunning.delete(path)
         }
@@ -2984,7 +3022,8 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
                     await setProperty(this.app, write.file, this.orderProperty, write.order)
                 }
                 if (statusChanged) {
-                    await this.runStatusAutomations(card, previousStatus, newStatus)
+                    const written = await this.runStatusAutomations(card, previousStatus, newStatus)
+                    await this.stampDeferredDoneDate(card, newStatus, written)
                 }
             })
             if (statusChanged && statusProperty && pendingWrite) {
@@ -5711,10 +5750,163 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
      */
     private willAutoArchive(card: KanbanCard, newStatus: string | null): boolean {
         if (newStatus === null || card.statusValue === newStatus) return false
+        // With a grace period and a done-date clock source the transition
+        // does not archive: the card stays until the board-load sweep finds
+        // its done date old enough (`runArchiveSweep`).
+        return this.graceDecisionFor(card, newStatus, new Date()).kind === 'immediate'
+    }
+
+    /** The archive-grace decision for `card` sitting in (or entering) `status`. */
+    private graceDecisionFor(
+        card: KanbanCard,
+        status: string | null,
+        today: Date
+    ): ReturnType<typeof graceDecision> {
+        return graceDecision({
+            archive: this.archiveConfigFor(card),
+            status,
+            graceDays: this.plugin.settings.archiveGraceDays,
+            read: (name) => getFrontmatterValue(this.app, card.file, name),
+            today
+        })
+    }
+
+    /**
+     * A transition into a trigger status whose archive is deferred by the
+     * grace period must leave a done date behind, or the sweep could never
+     * age the note: when the type's automations did not just write one of
+     * the done-date properties (`written` — the cache has not echoed them
+     * yet) and none is set, stamp the first with today.
+     */
+    private async stampDeferredDoneDate(
+        card: KanbanCard,
+        newStatus: string | null,
+        written: ReadonlySet<string>
+    ): Promise<void> {
+        const now = new Date()
+        const decision = this.graceDecisionFor(card, newStatus, now)
+        if (decision.kind !== 'stamp') return
         const archive = this.archiveConfigFor(card)
+        if (archive.doneDateProperties.some((p) => written.has(p.trim().toLowerCase()))) return
+        const property = this.stampPropertyFor(card, newStatus)
+        if (property) await this.stampDoneDate(card, property, now)
+    }
+
+    /**
+     * The done-date property to stamp for `card` in `status`: what its type's
+     * automations would write on that transition, else the first listed.
+     */
+    private stampPropertyFor(card: KanbanCard, status: string | null): string {
         return (
-            archive.triggerStatuses.includes(newStatus) && archive.archiveFolder.trim().length > 0
+            stampProperty(
+                this.archiveConfigFor(card),
+                status,
+                this.automationRulesForPath(card.key),
+                this.doneConfigFor(card)
+            ) ?? ''
         )
+    }
+
+    /** Write `property: YYYY-MM-DD` and keep the automation snapshot in step. */
+    private async stampDoneDate(card: KanbanCard, property: string, now: Date): Promise<void> {
+        const value = isoDate(now)
+        await setProperty(this.app, card.file, property, value)
+        const snapshot = this.automationSnapshot.get(card.key)
+        const name = property.toLowerCase()
+        if (snapshot?.has(name)) snapshot.set(name, value)
+    }
+
+    /**
+     * Archive grace sweep (board load + the "Archive aged done notes"
+     * command): every card in an auto-archive status whose done date is at
+     * least `archiveGraceDays` old is archived; a card there with no done
+     * date gets one stamped (today) so its clock starts. Sweeps serialize
+     * across views, and a card is re-checked against the vault before its
+     * move so a note another board (or anything else) already archived is
+     * simply skipped. Optimistic like bulk archive: the aged cards leave the
+     * model up front, failed moves come back.
+     */
+    async runArchiveSweep(): Promise<void> {
+        if (this.plugin.settings.archiveGraceDays <= 0) return
+        // A failed sweep must not poison the chain for every later one.
+        archiveSweepChain = archiveSweepChain.then(() =>
+            this.sweepAgedNotes().catch((error: unknown) => {
+                log('Archive sweep failed.', 'error', error)
+                if (this.lastArchiveSweep) {
+                    this.lastArchiveSweep.error =
+                        error instanceof Error ? error.message : String(error)
+                }
+            })
+        )
+        return archiveSweepChain
+    }
+
+    private async sweepAgedNotes(): Promise<void> {
+        const now = new Date()
+        const prefixes = this.archiveFolderPrefixes()
+        const aged: KanbanCard[] = []
+        const stamp: Array<{ card: KanbanCard; property: string }> = []
+        for (const card of this.allCards) {
+            if (isArchivedPath(card.key, prefixes)) continue
+            const decision = this.graceDecisionFor(card, card.statusValue, now)
+            if (decision.kind === 'aged') aged.push(card)
+            else if (decision.kind === 'stamp') {
+                stamp.push({ card, property: this.stampPropertyFor(card, card.statusValue) })
+            }
+        }
+        this.lastArchiveSweep = {
+            at: now.toISOString(),
+            cards: this.allCards.length,
+            aged: aged.length,
+            stamp: stamp.length,
+            archived: 0,
+            stamped: 0,
+            failed: 0
+        }
+        if (aged.length === 0 && stamp.length === 0) return
+        const live = (card: KanbanCard): boolean =>
+            this.app.vault.getAbstractFileByPath(card.key) === card.file
+        const dropped = new Set(aged.map((c) => c.key))
+        this.allCards = this.allCards.filter((c) => !dropped.has(c.key))
+        this.applyFilterAndRender()
+        let archived = 0
+        let stamped = 0
+        const failed: KanbanCard[] = []
+        await this.withRebuildsSuppressed(async () => {
+            for (const { card, property } of stamp) {
+                if (!property || !live(card)) continue
+                try {
+                    await this.stampDoneDate(card, property, now)
+                    stamped++
+                } catch (error: unknown) {
+                    log(`Sweep: stamping ${property} failed for "${card.key}".`, 'error', error)
+                }
+            }
+            for (const card of aged) {
+                if (!live(card)) continue // archived out of band meanwhile
+                try {
+                    await this.runArchiveAutomations(card)
+                } catch (error: unknown) {
+                    log('Archive automations failed; archiving anyway.', 'error', error)
+                }
+                const result = await archiveNote(this.app, card.file, this.archiveConfigFor(card))
+                if (result.ok) archived++
+                else failed.push(card)
+            }
+        })
+        if (failed.length > 0) {
+            const have = new Set(this.allCards.map((c) => c.key))
+            this.allCards = [...this.allCards, ...failed.filter((c) => !have.has(c.key))]
+            this.applyFilterAndRender()
+        }
+        Object.assign(this.lastArchiveSweep, { archived, stamped, failed: failed.length })
+        if (archived === 0 && stamped === 0 && failed.length === 0) return
+        const parts: string[] = []
+        if (archived > 0) parts.push(`archived ${String(archived)} aged note(s)`)
+        if (stamped > 0) parts.push(`stamped ${String(stamped)} done date(s)`)
+        if (failed.length > 0) parts.push(`${String(failed.length)} failed`)
+        const summary = parts.join(', ')
+        new Notice(`Archive sweep: ${summary.charAt(0).toUpperCase()}${summary.slice(1)}.`)
     }
 
     private async maybeAutoArchive(card: KanbanCard, newStatus: string | null): Promise<boolean> {

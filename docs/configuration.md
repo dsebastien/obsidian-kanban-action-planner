@@ -170,8 +170,35 @@ board → Archiving**:
   card is archived the moment it **transitions into** any of them. Reordering within such a
   status does nothing.
 
+- **Done-date properties** — comma-separated frontmatter properties, **first present wins**
+  (e.g. `date_completed, date_abandoned`). Only used with a grace period (below); blank means
+  the type archives on the transition itself.
+
 Manual archiving is available from a card's right-click menu (**Archive**). Moves go through
 Obsidian's file manager, so wikilinks to the note are updated and stay valid.
+
+**Folder notes move whole.** A note that is its folder's namesake (`Projects/Foo/Foo.md`, or
+with a parenthesised type suffix: `Projects/Foo/Foo (Project).md`) is archived by moving the
+**folder** — every sibling file goes with it and links keep resolving.
+On a name clash the folder gets the numeric suffix. The same applies to automation
+**Move to folder** actions.
+
+### Archive grace period
+
+By default an auto-archive status archives on the transition. **Settings → Archiving → Archive
+grace period (days)** keeps the card on the board instead, until its **done date** — the type's
+first present done-date property — is that many days old:
+
+- Aged notes are archived when a board **loads** (once per open board), or on demand with the
+  **Archive aged done notes (open boards)** command. A notice summarizes what moved.
+- A note sitting in an auto-archive status with **no** done date gets a done-date property
+  **stamped with today** — the one an automation rule of that type would write on that
+  transition (so Abandoned stamps `date_abandoned`), else the first listed — which starts its
+  clock — whether it got there via the board
+  (when no automation rule stamped a date on that transition) or was marked done in the editor
+  or by a script. An unparseable date is left alone and the note waits.
+- Types without done-date properties ignore the grace period and archive immediately.
+- Notes another board or an external tool archived in the meantime are simply skipped.
 
 ## Calendar mode
 
@@ -288,7 +315,10 @@ order:
 
 Automation writes never trigger other automation rules (no cascades). If a transition
 both auto-archives the note and matches rules, the property/tag actions run first and the
-archive decides the final folder — move actions on that rule are skipped.
+archive decides the final folder — move actions on that rule are skipped. With an
+[archive grace period](#archive-grace-period) the transition does not archive; a rule that
+stamps a done-date property (e.g. `date_completed` = `{{date}}`) is what the later sweep
+reads, and the plugin stamps one itself when no rule did.
 
 ## Card title
 

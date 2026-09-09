@@ -161,7 +161,24 @@ When a new business rule is mentioned:
     status trigger (auto-archive when a card transitions into **any of one or more** chosen
     statuses — issue #32; stored as `triggerStatuses`, migrated from the legacy single
     `triggerStatus`). File moves preserve links; auto-archiving is guarded against accidental
-    mass-archiving and logged.
+    mass-archiving and logged. **Namesake folders move whole:** a note that is its folder's
+    namesake (`Foo/Foo.md`, or `Foo/Foo (Project).md` — one parenthesised suffix allowed;
+    `isNamesake`) is archived by renaming the folder into
+    the destination, siblings included (`planMove` in `services/archive.service.ts`; the folder,
+    not the note, takes the collision suffix). Same for automation `move-to-folder` actions.
+    **Archive grace period:** a global `archiveGraceDays` (default 0 = archive on the trigger
+    transition, as before) plus a per-type `archive.doneDateProperties` list (first present
+    property wins; empty = no clock source → immediate) defer status-triggered archiving: the
+    card stays on the board and the **board-load sweep** (`runArchiveSweep`, once per view
+    instance once the Base has entries; also the "Archive aged done notes" command) archives
+    every trigger-status card whose done date is at least the grace period old. A trigger-status
+    card with **no** done date gets a property **stamped with today** — the one the type's
+    own `status-entered`/`done-entered` rule would `set-property` on that transition, else the
+    first listed (`stampProperty`) — (on the deferred
+    transition when the type's automations did not just write one, and by the sweep for notes
+    marked done outside the board), which starts its clock; an unparseable done date waits. Pure
+    decision in `domain/archive-grace.ts`. Sweeps serialize across views and re-check each note
+    against the vault before moving it, so a note archived out of band meanwhile is skipped.
 12. **Responsiveness (hard invariant).** Every UI works on large desktop, small/narrow
     desktop, and mobile; layouts adapt and never break/overflow. One Pointer-event DnD path
     serves mouse/trackpad/touch, with a non-drag fallback. `isDesktopOnly` stays `false`.

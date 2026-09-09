@@ -9,7 +9,8 @@ describe('archiveConfigSchema (issue #32 migration)', () => {
         })
         expect(parsed).toEqual({
             archiveFolder: 'Archive',
-            triggerStatuses: ['80 - Done', '70 - Abandoned']
+            triggerStatuses: ['80 - Done', '70 - Abandoned'],
+            doneDateProperties: []
         })
     })
 
@@ -25,7 +26,8 @@ describe('archiveConfigSchema (issue #32 migration)', () => {
     it('treats a null/absent legacy trigger as off (empty list)', () => {
         expect(archiveConfigSchema.parse({ archiveFolder: '', triggerStatus: null })).toEqual({
             archiveFolder: '',
-            triggerStatuses: []
+            triggerStatuses: [],
+            doneDateProperties: []
         })
         expect(archiveConfigSchema.parse({ archiveFolder: '' }).triggerStatuses).toEqual([])
     })
@@ -37,6 +39,16 @@ describe('archiveConfigSchema (issue #32 migration)', () => {
             triggerStatus: 'abandoned'
         })
         expect(parsed.triggerStatuses).toEqual(['done'])
+    })
+
+    it('keeps doneDateProperties, defaulting older stored types to none', () => {
+        expect(
+            archiveConfigSchema.parse({
+                archiveFolder: 'A',
+                doneDateProperties: ['date_completed', 'date_abandoned']
+            }).doneDateProperties
+        ).toEqual(['date_completed', 'date_abandoned'])
+        expect(archiveConfigSchema.parse({ archiveFolder: 'A' }).doneDateProperties).toEqual([])
     })
 
     it('dedupes repeated statuses', () => {

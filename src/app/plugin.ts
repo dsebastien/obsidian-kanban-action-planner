@@ -88,6 +88,13 @@ export class KanbanActionPlannerPlugin extends Plugin {
             }
 
         this.addCommand({
+            id: 'archive-aged-notes',
+            name: 'Archive aged done notes (open boards)',
+            callback: () => {
+                for (const view of this.openKanbanViews) void view.runArchiveSweep()
+            }
+        })
+        this.addCommand({
             id: 'toggle-calendar-mode',
             name: 'Toggle board / calendar mode',
             checkCallback: onActiveView((view) => view.toggleMode())

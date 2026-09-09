@@ -90,7 +90,7 @@ export function createDefaultNoteType(
         columns: [],
         laneGrouping: { kind: 'none' },
         colors: { autoAssign: true, overrides: {} },
-        archive: { archiveFolder: '', triggerStatuses: [] },
+        archive: { archiveFolder: '', triggerStatuses: [], doneDateProperties: [] },
         wipLimits: {},
         enumProperties: {},
         automations: [],

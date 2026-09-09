@@ -68,21 +68,32 @@ export type LaneGrouping = z.infer<typeof laneGroupingSchema>
  * `triggerStatuses` lists the statuses that auto-archive a card on entry (issue
  * #32) — empty means off. The legacy single `triggerStatus` field is migrated
  * into the list on load and dropped on the next save.
+ *
+ * `doneDateProperties` feeds the global **archive grace period**: the first
+ * listed frontmatter property holding a date is the note's done date, and a
+ * trigger-status note is archived once that date is `archiveGraceDays` old
+ * (`domain/archive-grace.ts`). Empty (older stored types, no backfill) = no
+ * clock source, so the type archives immediately as before.
  */
 export const archiveConfigSchema = z
     .object({
         archiveFolder: z.string(),
         triggerStatuses: z.array(z.string()).optional(),
-        triggerStatus: z.string().nullable().optional()
+        triggerStatus: z.string().nullable().optional(),
+        doneDateProperties: z.array(z.string()).optional()
     })
-    .transform(({ archiveFolder, triggerStatuses, triggerStatus }) => {
+    .transform(({ archiveFolder, triggerStatuses, triggerStatus, doneDateProperties }) => {
         const list =
             triggerStatuses && triggerStatuses.length > 0
                 ? triggerStatuses
                 : triggerStatus
                   ? [triggerStatus]
                   : []
-        return { archiveFolder, triggerStatuses: [...new Set(list)] }
+        return {
+            archiveFolder,
+            triggerStatuses: [...new Set(list)],
+            doneDateProperties: doneDateProperties ?? []
+        }
     })
 export type ArchiveConfig = z.infer<typeof archiveConfigSchema>
 

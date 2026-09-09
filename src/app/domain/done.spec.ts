@@ -13,7 +13,7 @@ function noteTypeWith(done: NoteType['done'], statusProperty = 'status'): NoteTy
         columns: [],
         laneGrouping: { kind: 'none' },
         colors: { autoAssign: true, overrides: {} },
-        archive: { archiveFolder: '', triggerStatuses: [] },
+        archive: { archiveFolder: '', triggerStatuses: [], doneDateProperties: [] },
         relationships: [],
         calendar: {
             enabled: false,

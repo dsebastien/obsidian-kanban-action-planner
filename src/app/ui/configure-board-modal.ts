@@ -1055,6 +1055,31 @@ export class ConfigureBoardModal extends Modal {
             })
 
         new Setting(this.body)
+            .setName('Done-date properties')
+            .setDesc(
+                'Comma-separated, first present wins (e.g. date_completed, date_abandoned). ' +
+                    'The archive grace period (plugin settings) counts from this date; a note ' +
+                    'reaching an auto-archive status without one gets the first property ' +
+                    'stamped with today. Leave blank to archive on the transition itself.'
+            )
+            .addText((input) =>
+                input
+                    .setPlaceholder('Property names, comma-separated')
+                    .setValue(archive.doneDateProperties.join(', '))
+                    .onChange((value) =>
+                        patch(
+                            {
+                                doneDateProperties: value
+                                    .split(',')
+                                    .map((p) => p.trim())
+                                    .filter((p) => p.length > 0)
+                            },
+                            false
+                        )
+                    )
+            )
+
+        new Setting(this.body)
             .setName('Auto-archive on status')
             .setDesc(
                 'Automatically archive a card when it enters any of the selected statuses. Opt-in.'

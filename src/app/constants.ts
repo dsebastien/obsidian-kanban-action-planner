@@ -52,6 +52,9 @@ export const DEFAULT_REVIEW_INTERVAL_DAYS = 30
 /** Default "soon" threshold (days) for the due-countdown color ramp (issue #62). */
 export const DEFAULT_DUE_SOON_THRESHOLD_DAYS = 7
 
+/** Archive grace period (days); 0 = archive on the trigger transition itself. */
+export const DEFAULT_ARCHIVE_GRACE_DAYS = 0
+
 /**
  * Multi-value GTD contexts list property (e.g. `@work`, `@home`). A single
  * GLOBAL setting, intentionally not per-type — GTD contexts are cross-cutting.

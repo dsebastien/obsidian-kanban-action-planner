@@ -488,6 +488,28 @@ export class KanbanActionPlannerSettingTab extends PluginSettingTab {
                     })
             })
 
+        new Setting(containerEl).setName('Archiving').setHeading()
+
+        new Setting(containerEl)
+            .setName('Archive grace period (days)')
+            .setDesc(
+                'How long a note stays on the board after entering an auto-archive status. ' +
+                    'Counted from its done date (Configure → Archiving → Done-date properties); ' +
+                    'aged notes are archived when a board loads, or via the ' +
+                    '"Archive aged done notes" command. 0 archives on the transition itself.'
+            )
+            .addText((input) => {
+                input.inputEl.type = 'number'
+                input.inputEl.min = '0'
+                input
+                    .setPlaceholder('0')
+                    .setValue(String(this.plugin.settings.archiveGraceDays))
+                    .onChange((value) => {
+                        const n = Number.parseInt(value, 10)
+                        if (Number.isFinite(n) && n >= 0) void this.updateArchiveGraceDays(n)
+                    })
+            })
+
         new Setting(containerEl)
             .setName('Default statuses (columns)')
             .setDesc(
@@ -558,6 +580,14 @@ export class KanbanActionPlannerSettingTab extends PluginSettingTab {
         })
         // Position is baked into card display — `cards` re-renders just the cards (#67).
         await this.plugin.saveSettings('cards')
+    }
+
+    private async updateArchiveGraceDays(days: number): Promise<void> {
+        this.plugin.settings = produce(this.plugin.settings, (draft) => {
+            draft.archiveGraceDays = days
+        })
+        // Read at decision time only — no board re-derivation needed.
+        await this.plugin.saveSettings('chrome')
     }
 
     private async updateSoonThreshold(days: number): Promise<void> {
