@@ -691,7 +691,12 @@ When a new business rule is mentioned:
     rules are replaced in place, and a mirrored rule is **skipped when an enabled user rule
     already stamps the same property on the same `status-entered` status** — `userRuleCovers`
     — so hand-written stamps keep precedence and never get doubled). They render read-only in
-    the Automations section and are edited in the Starter Kit.
+    the Automations section and are edited in the Starter Kit. **One executor per rule:** when
+    the Starter Kit itself runs automation rules (`starterKitRunsAutomations`: its
+    `globalSettings.enableAutomations` is on, Starter Kit ≥ 1.15), `mirroredStampRules` yields
+    nothing and the merge drops the stale `sk-stamp:*` rules — the Starter Kit stamps from every
+    edit source, so mirroring would write the same date twice on the same transition. The
+    done-state and role mirrors are unaffected.
 41. **Render-performance invariants (issue #105).** Three fixed constraints govern every render
     change: (a) **optimistic updates stay** — nothing may wait for the Bases echo for visible
     feedback; (b) **visual stability** — content must not move, resize, or lose scroll position
@@ -896,3 +901,36 @@ When a new business rule is mentioned:
     one-second clock; elapsed time always derives from the persisted epoch start), an early
     stop is recorded with `completed: false` and resets the long-break cadence. The plugin
     never stamps status dates from tracking — the OSK status mirror owns stamping.
+
+48. **Ideal Week mode edits `time_blocks` through the domain, never by hand (issue #172,
+    phase B).** The mode is date-less (an ideal week, revisited rarely): no week navigation,
+    no today marker; a dated note belongs to it while TODAY is inside its start..due window.
+    The rail lists EVERY note of the board carrying the blocks property, whatever its status,
+    grouped by status in column order (`groupByStatus`); a note without a weekly target is
+    asked for one when its first block is planned (Cancel plans nothing). Non-active notes'
+    blocks are drawn dimmed (never hidden — a block planned from the rail must stay visible)
+    and take part in overlap checks; only active notes feed the planned / target totals. `domain/time-blocks.ts` owns the grammar (`<days> HH:MM-HH:MM`, 15-minute grid,
+    Monday-first day indexes, `end <= start` crosses midnight, ranges wrap past Sunday); every
+    write re-serializes the whole list in canonical form (`formatTimeBlocks`) together with the
+    planned-minutes cache (`plannedMinutesPerWeek`) in ONE `setProperties` transaction. Editing
+    one occurrence of a repeat changes that day only (`removeSlot` + `addSlot`, which joins an
+    entry with the same time range). **Overlaps are refused, never written**: a move, resize,
+    copy, or creation is checked against every other shown note's slots and the note's own
+    other slots (`findOverlap`, week-wrap aware); the notice names the conflicting note and
+    time, and the view re-renders to snap the block back. Membership is data-driven, never a
+    type-name literal: a card is in the ideal week when its frontmatter carries the time-blocks
+    property (absent = not part of it; an empty list is); it is ACTIVE when its status has the
+    mirrored `active` role (`activeStatusValues`; without roles, any non-done status); its
+    blocks are drawn when today is inside its type's start..due window (open-ended when blank). Grid geometry
+    (`domain/week-planner.ts`) is pure: a crosser renders as two pieces, pieces are clipped to
+    the visible hours and flagged, columns rotate by `firstDayOfWeek`. Colour is the first
+    context's palette colour; no context = neutral, never a type colour. Every gesture previews
+    with a landing phantom (the block itself stays put, dimmed) and commits once on
+    pointer-up; `pointercancel` writes nothing. A click creates in the 15-minute cell the
+    pointer is IN (floor, never round). Dragging a left / right edge edits the contiguous run
+    of repeat days the occurrence belongs to (`spanRun`; only the gained days are
+    overlap-checked). A marquee on empty grid selects the blocks it touches; the selection is
+    view state (never persisted) and Delete removes it in one write per note; Ctrl+C keeps the
+    selected occurrences in memory and Ctrl+V pastes them at the cell under the pointer,
+    relative to the earliest copied one, skipping (never overwriting) anything that would
+    overlap or leave the week.

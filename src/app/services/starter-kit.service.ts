@@ -50,10 +50,17 @@ interface SkApiLike {
 }
 
 /** One status value of a Starter Kit note type, as its `getNoteTypeStatus` resolves it. */
+export type SkStatusRole = 'backlog' | 'scheduled' | 'active' | 'waiting'
+
 export interface SkStatusValue {
     value: string
     done: boolean
     outcome: 'success' | 'failure' | null
+    /**
+     * Planning meaning of an OPEN status (Starter Kit ≥ 1.14): backlog /
+     * scheduled / active / waiting; null on done states or when unset.
+     */
+    role: SkStatusRole | null
     /** Date property stamped when a note enters this status (null = none). */
     stampsDate: string | null
     stampOnlyIfEmpty: boolean
@@ -132,6 +139,13 @@ export function getNoteTypeStatus(app: App, id: string): SkResolvedStatus | null
                     value: v.value,
                     done: v.done === true,
                     outcome: v.outcome === 'success' || v.outcome === 'failure' ? v.outcome : null,
+                    role:
+                        v.role === 'backlog' ||
+                        v.role === 'scheduled' ||
+                        v.role === 'active' ||
+                        v.role === 'waiting'
+                            ? v.role
+                            : null,
                     stampsDate:
                         typeof v.stampsDate === 'string' && v.stampsDate ? v.stampsDate : null,
                     stampOnlyIfEmpty: v.stampOnlyIfEmpty !== false

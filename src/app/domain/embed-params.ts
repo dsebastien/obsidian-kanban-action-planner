@@ -26,8 +26,16 @@
 
 import type { NameMatcher } from './board-model'
 
-/** The six mutually-exclusive view modes (Board / Calendar / Timeline / WBS / Triage / Agenda). */
-export const VIEW_MODES = ['board', 'calendar', 'timeline', 'triage', 'wbs', 'agenda'] as const
+/** The seven mutually-exclusive view modes (Board / Calendar / Timeline / WBS / Triage / Agenda / Ideal week — id `week`). */
+export const VIEW_MODES = [
+    'board',
+    'calendar',
+    'timeline',
+    'triage',
+    'wbs',
+    'agenda',
+    'week'
+] as const
 export type ViewMode = (typeof VIEW_MODES)[number]
 
 /** Height clamp bounds (px) for the `height=` param. */
@@ -178,7 +186,9 @@ export function parseEmbedParams(alias: string): EmbedParams {
         if (key === 'mode') {
             // `kanban` is the natural word for the board mode — accept it.
             const raw = value.toLowerCase()
-            const mode = raw === 'kanban' ? 'board' : raw
+            // `kanban` and `ideal-week` are the user-facing aliases of the internal ids.
+            const mode =
+                raw === 'kanban' ? 'board' : raw === 'ideal-week' || raw === 'ideal' ? 'week' : raw
             if (isViewMode(mode)) params.mode = mode
         } else if (key === 'height') {
             const px = parseHeight(value)

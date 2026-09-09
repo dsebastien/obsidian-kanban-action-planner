@@ -240,6 +240,22 @@ import { BoardSelection } from './board-selection'
 import { buildCardMenu, buildStatusMenu, isNewTabEvent } from './card-menu'
 import type { CardMenuHost } from './card-menu'
 import { CalendarController } from './calendar-controller'
+import { WeekController } from './week-controller'
+import type { WeekViewState } from './week-controller'
+import { WeekDnd } from '../../ui/week/week-dnd'
+import type { WeekGridConfig } from '../../domain/week-planner'
+import { activeStatusValues } from '../../domain/status-mirror'
+
+/** The week grid used before the controller exists (a drag can't happen then; typing only). */
+const DEFAULT_WEEK_GRID: WeekGridConfig = {
+    gridStart: 0,
+    gridEnd: 1440,
+    pxPerMinute: 0.8,
+    firstDayOfWeek: 1,
+    workStart: 540,
+    workEnd: 1020,
+    workDays: [0, 1, 2, 3, 4]
+}
 import type { ContextLegendItem } from '../../ui/calendar/calendar-renderer'
 import type { CalendarViewState } from './calendar-controller'
 import {
@@ -408,6 +424,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
     private dnd: BoardDnd | null = null
     private columnDnd: ColumnDnd | null = null
     private calendarDnd: CalendarDnd | null = null
+    private weekDnd: WeekDnd | null = null
     private readonly debouncedRebuild: Debouncer<[], void>
     private readonly debouncedFilter: Debouncer<[], void>
 
@@ -602,6 +619,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
     // Calendar mode (Milestone 5) — state + rendering owned by CalendarController.
     private scheduledDateProperty = 'date_scheduled'
     private calendar: CalendarController | null = null
+    private week: WeekController | null = null
     // Timeline mode (issue #77) — state + rendering owned by TimelineController.
     private timeline: TimelineController | null = null
     // WBS mode (issue #76) — state + rendering owned by WbsController.
@@ -777,6 +795,60 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             canDrop: (cardKey, target) =>
                 target.kind !== 'paneGroup' ||
                 this.canDropOnPaneGroup(cardKey, target.typeId, target.status)
+        })
+        this.week = new WeekController({
+            app: this.app,
+            boardEl: () => this.boardEl,
+            refresh: () => this.applyFilterAndRender(),
+            isWeekMode: () => this.weekMode(),
+            openCard: (card, newTab) => this.openCard(card, newTab),
+            showCardMenu: (card, event, extend) => this.showCardMenu(card, event, extend),
+            cardForKey: (key) => this.cardsByKey.get(key),
+            isActiveCard: (card) => this.isActiveCard(card),
+            startPropertyFor: (card) => this.datePropertiesFor(card).start,
+            duePropertyFor: (card) => this.datePropertiesFor(card).due,
+            noteTypeFor: (card) => this.noteTypeByPath.get(card.key) ?? null,
+            statusLabelFor: (card) => this.statusLabelFor(card),
+            statusRankFor: (card) => {
+                const index = this.cardColumns(card).findIndex(
+                    (c) => c.statusValue === card.statusValue
+                )
+                return index < 0 ? Number.MAX_SAFE_INTEGER : index
+            },
+            firstDayOfWeek: () => this.plugin.settings.firstDayOfWeek,
+            minutesPerDay: () => this.plugin.settings.minutesPerDay,
+            settings: () => ({
+                timeBlocksProperty: this.plugin.settings.defaultTimeBlocksProperty,
+                plannedMinutesProperty: this.plugin.settings.defaultPlannedMinutesProperty,
+                targetMinutesProperty: this.plugin.settings.defaultTargetMinutesProperty,
+                gridStartHour: this.plugin.settings.weekGridStartHour,
+                gridEndHour: this.plugin.settings.weekGridEndHour,
+                workStartMinutes: this.plugin.settings.weekWorkStartMinutes,
+                workEndMinutes: this.plugin.settings.weekWorkEndMinutes,
+                workDays: this.plugin.settings.weekWorkDays,
+                blockMinutes: this.plugin.settings.weekBlockMinutes,
+                pixelsPerHour: this.plugin.settings.weekPixelsPerHour
+            }),
+            restoreState: () => this.restoreWeekState(),
+            persistState: (state) => this.persistWeekState(state),
+            contextLegend: () => this.contextLegend(),
+            toggleContext: (value) => this.toggleContextValue(value)
+        })
+        this.weekDnd = new WeekDnd(this.boardEl, {
+            config: () => this.week?.config() ?? DEFAULT_WEEK_GRID,
+            newBlockMinutes: () => this.week?.newBlockMinutes() ?? 60,
+            selectedKeys: () => this.week?.selectedKeys() ?? new Set<string>(),
+            onMove: (path, from, to, copy) => void this.week?.move(path, from, to, copy),
+            onResize: (path, from, to) => void this.week?.resize(path, from, to),
+            onSpan: (path, from, edge, toDay) => void this.week?.span(path, from, edge, toDay),
+            onCreate: (day, start) => this.week?.create(day, start),
+            onRailDrop: (path, day, start) => void this.week?.createFor(path, day, start),
+            onBlockClick: (path, newTab) => this.week?.open(path, newTab),
+            onSelect: (keys) => this.week?.select(keys),
+            onToggleSelect: (key) => this.week?.toggleSelect(key),
+            onDeleteSelection: () => void this.week?.removeSelected(),
+            onCopy: (keys) => this.week?.copy(keys),
+            onPaste: (day, start) => void this.week?.paste(day, start)
         })
         this.timeline = new TimelineController({
             app: this.app,
@@ -996,6 +1068,9 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         this.columnDnd = null
         this.calendarDnd?.destroy()
         this.calendarDnd = null
+        this.weekDnd?.destroy()
+        this.weekDnd = null
+        this.week = null
         this.wbsDnd?.destroy()
         this.wbsDnd = null
         this.wbs = null
@@ -1057,6 +1132,10 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
     /** Toggle agenda mode (returns to board when already in agenda) — issue #39. */
     toggleAgenda(): void {
         this.setViewMode(this.agendaMode() ? 'board' : 'agenda')
+    }
+
+    toggleWeek(): void {
+        this.setViewMode(this.weekMode() ? 'board' : 'week')
     }
 
     /**
@@ -1552,6 +1631,15 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             this.lastRenderSignature = null
             this.renderToolbar(false)
             this.renderAgenda(cards)
+            return
+        }
+
+        if (this.weekMode()) {
+            // Ungated (issue #172): the week's inputs (anchor week, blocks,
+            // status roles) are not covered by the pass signature.
+            this.lastRenderSignature = null
+            this.renderToolbar(false)
+            this.week?.render(cards)
             return
         }
 
@@ -2093,6 +2181,45 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             panelCollapsed: this.viewConfig.get('calendarPanelCollapsed') === true,
             showScheduled: this.viewConfig.get('calendarShowScheduled') !== false,
             showDeadlines: this.viewConfig.get('calendarShowDeadlines') !== false
+        }
+    }
+
+    /** Read the persisted durable week-planner state (issue #172; the anchor week stays transient). */
+    private restoreWeekState(): WeekViewState {
+        return { panelCollapsed: this.viewConfig.get('weekPanelCollapsed') === true }
+    }
+
+    private persistWeekState(state: WeekViewState): void {
+        this.viewConfig.set('weekPanelCollapsed', state.panelCollapsed)
+    }
+
+    /**
+     * Whether a card belongs to the ideal week (issue #172): its status has
+     * the `active` planning role in its type's mirrored status roles, or —
+     * when no role is known — any non-done status. Never a literal.
+     */
+    private isActiveCard(card: KanbanCard): boolean {
+        const typeId = this.noteTypeByPath.get(card.key)?.id
+        const noteType = (typeId ? findNoteType(this.plugin, typeId) : undefined) ?? this.noteType
+        const active = activeStatusValues(noteType)
+        if (active.length === 0) return !this.isCardDone(card)
+        return card.statusValue !== null && active.includes(card.statusValue)
+    }
+
+    /**
+     * The start (scheduled) and due date properties of a card's OWN type —
+     * a project's blocks apply between its `date_started` and `date_due`
+     * while an activity's type may name neither (issue #172).
+     */
+    private datePropertiesFor(card: KanbanCard): { start: string; due: string } {
+        const typeId = this.noteTypeByPath.get(card.key)?.id
+        const noteType = typeId ? findNoteType(this.plugin, typeId) : undefined
+        if (!noteType) return { start: this.scheduledDateProperty, due: this.dueDateProperty }
+        return {
+            start:
+                noteType.calendar.scheduledDateProperty ||
+                this.plugin.settings.defaultScheduledDateProperty,
+            due: noteType.calendar.dueDateProperty || this.plugin.settings.defaultDueDateProperty
         }
     }
 
@@ -4660,6 +4787,10 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         return this.viewMode() === 'agenda'
     }
 
+    private weekMode(): boolean {
+        return this.viewMode() === 'week'
+    }
+
     /** The active view mode (triage wins, else calendar, timeline, WBS, board). */
     private viewMode(): ViewMode {
         // Embed override (issue #103): ephemeral, independent of the flags
@@ -4670,6 +4801,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         if (this.viewConfig.get('timelineMode') === true) return 'timeline'
         if (this.viewConfig.get('wbsMode') === true) return 'wbs'
         if (this.viewConfig.get('agendaMode') === true) return 'agenda'
+        if (this.viewConfig.get('weekMode') === true) return 'week'
         return 'board'
     }
 
@@ -4690,6 +4822,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             this.viewConfig.set('timelineMode', mode === 'timeline')
             this.viewConfig.set('wbsMode', mode === 'wbs')
             this.viewConfig.set('agendaMode', mode === 'agenda')
+            this.viewConfig.set('weekMode', mode === 'week')
         }
         if (mode === 'triage') {
             // Fresh queue snapshot each time triage is (re)entered.

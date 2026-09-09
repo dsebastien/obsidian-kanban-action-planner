@@ -99,3 +99,21 @@ export const TEMPLATER_PLUGIN_ID = 'templater-obsidian'
 
 /** Core "Templates" plugin id — the fallback template engine when Templater is absent. */
 export const CORE_TEMPLATES_PLUGIN_ID = 'templates'
+
+/**
+ * Week Planner mode (issue #172, phase B): the ideal-week properties and
+ * the grid defaults. Property names are the vault's Action System names.
+ */
+export const DEFAULT_TIME_BLOCKS_PROPERTY = 'time_blocks'
+export const DEFAULT_PLANNED_MINUTES_PROPERTY = 'minutes_planned_per_week'
+export const DEFAULT_TARGET_MINUTES_PROPERTY = 'minutes_per_week'
+/** Visible grid hours (0..24) — the full day by default. */
+export const DEFAULT_WEEK_GRID_START_HOUR = 0
+export const DEFAULT_WEEK_GRID_END_HOUR = 24
+/** Work band: 09:00–17:00 on Monday..Friday (Monday-first indexes). */
+export const DEFAULT_WEEK_WORK_START_MINUTES = 540
+export const DEFAULT_WEEK_WORK_END_MINUTES = 1020
+export const DEFAULT_WEEK_WORK_DAYS: readonly number[] = [0, 1, 2, 3, 4]
+/** Length of a block created by a click, and the vertical scale. */
+export const DEFAULT_WEEK_BLOCK_MINUTES = 60
+export const DEFAULT_WEEK_PIXELS_PER_HOUR = 48

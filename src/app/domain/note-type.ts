@@ -289,6 +289,16 @@ export const noteTypeSchema = z.object({
     archive: archiveConfigSchema,
     relationships: z.array(relationshipRuleSchema),
     calendar: calendarConfigSchema,
+    /**
+     * Planning role per open status value (issue #172), mirrored from the
+     * Starter Kit's status configuration (≥ 1.14): backlog / scheduled /
+     * active / waiting. Empty = unknown (older kits, local types); consumers
+     * then treat every non-done status as active. Defaults to `{}` so older
+     * stored types degrade gracefully.
+     */
+    statusRoles: z
+        .record(z.string(), z.enum(['backlog', 'scheduled', 'active', 'waiting']))
+        .default({}),
     /** Soft per-status WIP limits (issue #16): status value → positive limit. */
     wipLimits: z.record(z.string(), z.number().int().positive()).default({}),
     /**
@@ -339,3 +349,4 @@ export const noteTypeSchema = z.object({
         )
 })
 export type NoteType = z.infer<typeof noteTypeSchema>
+export type StatusRole = 'backlog' | 'scheduled' | 'active' | 'waiting'

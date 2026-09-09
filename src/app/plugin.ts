@@ -204,6 +204,11 @@ export class KanbanActionPlannerPlugin extends Plugin {
             checkCallback: onActiveView((view) => view.toggleAgenda())
         })
         this.addCommand({
+            id: 'toggle-week-mode',
+            name: 'Toggle ideal week mode',
+            checkCallback: onActiveView((view) => view.toggleWeek())
+        })
+        this.addCommand({
             id: 'toggle-focus-mode',
             name: 'Toggle focus mode',
             checkCallback: onActiveView((view) => view.toggleFocus())

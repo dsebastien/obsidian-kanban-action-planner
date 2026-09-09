@@ -6,7 +6,9 @@ import {
     mirroredDoneConfig,
     mirroredStampRules,
     reconcileDone,
-    userRuleCovers
+    userRuleCovers,
+    activeStatusValues,
+    mirroredStatusRoles
 } from './status-mirror'
 
 const explicit: SkResolvedStatus = {
@@ -17,6 +19,7 @@ const explicit: SkResolvedStatus = {
             value: '20 - Planned',
             done: false,
             outcome: null,
+            role: 'scheduled',
             stampsDate: 'date_committed',
             stampOnlyIfEmpty: true
         },
@@ -24,6 +27,7 @@ const explicit: SkResolvedStatus = {
             value: '30 - Active',
             done: false,
             outcome: null,
+            role: 'active',
             stampsDate: null,
             stampOnlyIfEmpty: true
         },
@@ -31,6 +35,7 @@ const explicit: SkResolvedStatus = {
             value: '60 - Completed',
             done: true,
             outcome: 'success',
+            role: null,
             stampsDate: 'date_completed',
             stampOnlyIfEmpty: false
         },
@@ -38,6 +43,7 @@ const explicit: SkResolvedStatus = {
             value: '70 - Abandoned',
             done: true,
             outcome: 'failure',
+            role: null,
             stampsDate: 'date_abandoned',
             stampOnlyIfEmpty: true
         }
@@ -161,5 +167,35 @@ describe('userRuleCovers (dedupe by status + property)', () => {
         expect(userRuleCovers(userRule({ id: 'sk-stamp:60 - Completed' }), stampCompleted)).toBe(
             false
         )
+    })
+})
+
+describe('mirroredStatusRoles / activeStatusValues (issue #172)', () => {
+    const columns = explicit.values.map((v) => ({ statusValue: v.value }))
+
+    test('mirrors the roles of an explicit status and skips unset ones', () => {
+        expect(mirroredStatusRoles(explicit)).toEqual({
+            '20 - Planned': 'scheduled',
+            '30 - Active': 'active'
+        })
+        expect(mirroredStatusRoles({ ...explicit, explicit: false })).toEqual({})
+        expect(mirroredStatusRoles(null)).toEqual({})
+    })
+
+    test('active values come from the roles when known', () => {
+        expect(activeStatusValues({ columns, statusRoles: mirroredStatusRoles(explicit) })).toEqual(
+            ['30 - Active']
+        )
+    })
+
+    test('without roles, every non-done value counts as active', () => {
+        expect(
+            activeStatusValues({
+                columns,
+                statusRoles: {},
+                done: { enabled: true, values: ['60 - Completed', '70 - Abandoned'] }
+            })
+        ).toEqual(['20 - Planned', '30 - Active'])
+        expect(activeStatusValues({ columns, statusRoles: {} })).toHaveLength(4)
     })
 })

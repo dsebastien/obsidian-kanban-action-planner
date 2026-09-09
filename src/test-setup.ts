@@ -98,6 +98,13 @@ void bunMock.module('obsidian', () => ({
         onOpen() {}
         onClose() {}
     },
+    SuggestModal: class SuggestModal {
+        inputEl = { value: '' }
+        setPlaceholder(_placeholder: string) {}
+        setInstructions(_instructions: unknown[]) {}
+        open() {}
+        close() {}
+    },
     FuzzySuggestModal: class FuzzySuggestModal {
         setPlaceholder(_placeholder: string) {}
         getItems(): unknown[] {

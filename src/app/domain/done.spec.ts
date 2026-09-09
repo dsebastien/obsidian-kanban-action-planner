@@ -8,6 +8,7 @@ function noteTypeWith(done: NoteType['done'], statusProperty = 'status'): NoteTy
         name: 'Task',
         source: 'local',
         typeRecognition: { mappings: [] },
+        statusRoles: {},
         statusProperty,
         orderProperty: 'order',
         columns: [],

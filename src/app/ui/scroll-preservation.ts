@@ -169,6 +169,9 @@ export const CALENDAR_SCROLLER_SELECTORS: readonly string[] = [
     '.kap-cal-focus-day'
 ]
 
+/** The week planner's scrollers (issue #172): the rail list and the grid body. */
+export const WEEK_SCROLLER_SELECTORS: readonly string[] = ['.kap-week-rail', '.kap-week-scroller']
+
 /** The timeline mode's scrollers: undated panel body and the chart row list (finding 2.2). */
 export const TIMELINE_SCROLLER_SELECTORS: readonly string[] = ['.kap-tl-panel-body', '.kap-tl-body']
 

@@ -133,6 +133,13 @@ column rule.
   Pomodoro records (`{id, taskPath, startTime, endTime, plannedDuration, type, completed,
 activePeriods}`) live in the daily note's `pomodoros` list. Domain: `time-entries.ts`,
   `pomodoro.ts`, `daily-note.ts`; service: `time-tracking.service.ts`, `daily-note.service.ts`.
+- **Ideal week** (issue #172): `time_blocks` (list of `<days> HH:MM-HH:MM` strings, Monday-first
+  day indexes 0..6, 15-minute grid, midnight crossing), `minutes_planned_per_week` (plugin
+  cache, sum of the blocks), `minutes_per_week` (user target; the Needs planning rail). A
+  note's status **role** (`statusRoles` on the note type, mirrored from the Starter Kit:
+  backlog / scheduled / active / waiting) decides membership. Domain: `time-blocks.ts`
+  (grammar, slots, overlaps, list edits), `week-planner.ts` (grid geometry, week window);
+  controller `views/kanban/week-controller.ts`; UI `ui/week/*`.
 
 ## Settings shape
 

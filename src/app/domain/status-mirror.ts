@@ -103,3 +103,34 @@ export function reconcileDone(
     }
     return current
 }
+
+/**
+ * The planning role per status value of an explicit Starter Kit status
+ * (issue #172); `{}` when nothing is declared, so consumers fall back to
+ * "every non-done status is active".
+ */
+export function mirroredStatusRoles(
+    status: SkResolvedStatus | null
+): Record<string, 'backlog' | 'scheduled' | 'active' | 'waiting'> {
+    const roles: Record<string, 'backlog' | 'scheduled' | 'active' | 'waiting'> = {}
+    if (!status?.explicit) return roles
+    for (const value of status.values) if (value.role) roles[value.value] = value.role
+    return roles
+}
+
+/**
+ * The status values whose notes belong to the ideal week (issue #172): the
+ * ones with the `active` role when roles are known, else every value not
+ * declared done (older kits, local types) — never a literal.
+ */
+export function activeStatusValues(noteType: {
+    columns: ReadonlyArray<{ statusValue: string }>
+    statusRoles: Record<string, string>
+    done?: { enabled: boolean; values: string[] } | undefined
+}): string[] {
+    const values = noteType.columns.map((c) => c.statusValue)
+    const roled = Object.keys(noteType.statusRoles)
+    if (roled.length > 0) return values.filter((v) => noteType.statusRoles[v] === 'active')
+    const done = new Set(noteType.done?.enabled ? noteType.done.values : [])
+    return values.filter((v) => !done.has(v))
+}

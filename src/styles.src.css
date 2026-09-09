@@ -1941,6 +1941,290 @@
     }
 
     /* ========================================
+       WEEK PLANNER MODE (issue #172)
+       ======================================== */
+    .kap-week-root {
+        @apply flex h-full min-h-0;
+    }
+
+    .kap-week {
+        @apply flex flex-col flex-1 min-w-0 min-h-0;
+    }
+
+    .kap-week-panel .kap-panel-list {
+        @apply flex flex-col gap-1 p-2 overflow-y-auto;
+    }
+
+    .kap-week-rail-item {
+        @apply flex items-center gap-2 cursor-grab select-none;
+        touch-action: pan-y;
+    }
+
+    .kap-week-rail-title {
+        @apply truncate flex-1;
+    }
+
+    .kap-week-rail-target {
+        @apply shrink-0 text-[0.75em];
+        color: var(--text-muted);
+    }
+
+    .kap-week-rail-under {
+        color: var(--color-orange);
+    }
+
+    .kap-week-rail-unplanned .kap-week-rail-title {
+        color: var(--text-muted);
+    }
+
+    .kap-week-rail-inactive {
+        opacity: 0.7;
+    }
+
+    .kap-week-block-inactive {
+        opacity: 0.55;
+        border-style: dashed;
+    }
+
+    .kap-week-planned {
+        @apply text-[0.8em];
+        color: var(--text-muted);
+    }
+
+    .kap-week-errors {
+        @apply flex flex-wrap items-center gap-2 px-2 py-1 text-[0.8em];
+        color: var(--text-error);
+        border-bottom: 1px solid var(--background-modifier-border);
+    }
+
+    .kap-week-errors-title {
+        @apply font-medium;
+    }
+
+    /* Head row: gutter spacer + 7 day headers, aligned with the grid columns. */
+    .kap-week-head {
+        @apply grid shrink-0;
+        grid-template-columns: 3.25rem repeat(7, minmax(0, 1fr));
+        border-bottom: 1px solid var(--background-modifier-border);
+    }
+
+    .kap-week-dayhead {
+        @apply flex items-baseline justify-center gap-1 py-1 text-[0.85em] whitespace-nowrap overflow-hidden;
+        color: var(--text-muted);
+        border-left: 1px solid var(--background-modifier-border);
+    }
+
+    .kap-week-dayhead.kap-week-today {
+        color: var(--text-normal);
+    }
+
+    .kap-week-dayhead.kap-week-today .kap-week-daynum {
+        @apply inline-flex items-center justify-center rounded-full min-w-[1.5em] h-[1.5em] px-1 font-semibold;
+        background: var(--interactive-accent);
+        color: var(--text-on-accent);
+    }
+
+    .kap-week-daynum {
+        @apply font-medium;
+    }
+
+    .kap-week-scroller {
+        @apply flex-1 min-h-0 overflow-y-auto overflow-x-hidden;
+    }
+
+    .kap-week-grid {
+        @apply grid relative;
+        grid-template-columns: 3.25rem repeat(7, minmax(0, 1fr));
+    }
+
+    .kap-week-gutter {
+        @apply relative;
+    }
+
+    .kap-week-hour {
+        @apply absolute right-1 text-[0.7em] -translate-y-1/2 select-none;
+        color: var(--text-faint);
+    }
+
+    .kap-week-day {
+        @apply relative min-w-0;
+        border-left: 1px solid var(--background-modifier-border);
+    }
+
+    .kap-week-day.kap-week-today {
+        background: color-mix(in srgb, var(--interactive-accent) 5%, transparent);
+    }
+
+    .kap-week-hourline {
+        @apply absolute left-0 right-0 pointer-events-none;
+        border-top: 1px solid var(--background-modifier-border);
+        opacity: 0.6;
+    }
+
+    .kap-week-work {
+        @apply absolute left-0 right-0 pointer-events-none;
+        background: color-mix(in srgb, var(--text-accent) 7%, transparent);
+    }
+
+    .kap-week-now {
+        @apply absolute left-0 right-0 pointer-events-none z-[2];
+        border-top: 2px solid var(--color-red);
+    }
+
+    .kap-week-day.kap-cal-drop {
+        outline: 2px dashed var(--interactive-accent);
+        outline-offset: -2px;
+    }
+
+    /* Blocks: absolutely positioned pieces; the first context tints them. */
+    .kap-week-block {
+        @apply absolute left-[2px] right-[2px] rounded-md px-1.5 py-0.5 overflow-hidden cursor-grab text-[0.78em] leading-tight z-[1];
+        background: var(--background-secondary);
+        border: 1px solid var(--background-modifier-border);
+        box-shadow: 0 1px 2px rgb(0 0 0 / 0.08);
+        touch-action: none;
+        transition:
+            box-shadow var(--kap-transition) var(--kap-ease),
+            opacity var(--kap-transition) var(--kap-ease);
+    }
+
+    .kap-week-block:hover,
+    .kap-week-block:focus-visible {
+        box-shadow: 0 2px 6px rgb(0 0 0 / 0.18);
+        z-index: 3;
+    }
+
+    .kap-week-block-ctx {
+        background: color-mix(in srgb, var(--kap-ctx-color) 28%, var(--background-primary));
+        border-color: color-mix(in srgb, var(--kap-ctx-color) 60%, transparent);
+        border-left: 3px solid var(--kap-ctx-color);
+    }
+
+    .kap-week-block-neutral {
+        background: color-mix(in srgb, var(--text-muted) 14%, var(--background-primary));
+        border-left: 3px solid var(--text-muted);
+    }
+
+    .kap-week-block-continuation,
+    .kap-week-block-clipped-top {
+        @apply rounded-t-none;
+        border-top-style: dashed;
+    }
+
+    .kap-week-block-clipped-bottom {
+        @apply rounded-b-none;
+        border-bottom-style: dashed;
+    }
+
+    .kap-week-block-dragging {
+        opacity: 0.45;
+    }
+
+    .kap-week-block:active {
+        cursor: grabbing;
+    }
+
+    /* Landing preview while a block / rail note is dragged. */
+    .kap-week-phantom {
+        @apply absolute left-[2px] right-[2px] rounded-md pointer-events-none z-[4];
+        border: 2px dashed var(--interactive-accent);
+        background: color-mix(in srgb, var(--interactive-accent) 14%, transparent);
+    }
+
+    .kap-week-block-title {
+        @apply truncate font-medium;
+    }
+
+    .kap-week-block-time {
+        @apply truncate text-[0.9em];
+        color: var(--text-muted);
+    }
+
+    .kap-week-handle {
+        @apply absolute left-0 right-0 h-[6px] cursor-ns-resize opacity-0;
+        background: color-mix(in srgb, var(--interactive-accent) 55%, transparent);
+    }
+
+    .kap-week-handle-top {
+        @apply top-0;
+    }
+
+    .kap-week-handle-bottom {
+        @apply bottom-0;
+    }
+
+    .kap-week-handle-left,
+    .kap-week-handle-right {
+        @apply top-0 bottom-0 h-auto w-[6px] cursor-ew-resize;
+    }
+
+    .kap-week-handle-left {
+        @apply left-0 right-auto;
+    }
+
+    .kap-week-handle-right {
+        @apply right-0 left-auto;
+    }
+
+    .kap-week-block-selected,
+    .kap-week-block-marquee {
+        outline: 2px solid var(--interactive-accent);
+        outline-offset: 1px;
+        z-index: 3;
+    }
+
+    .kap-week-marquee {
+        @apply absolute pointer-events-none z-[5] rounded-sm;
+        background: color-mix(in srgb, var(--interactive-accent) 12%, transparent);
+        border: 1px dashed var(--interactive-accent);
+    }
+
+    .kap-week-grid:focus {
+        outline: none;
+    }
+
+    .kap-week-block:hover .kap-week-handle {
+        @apply opacity-100;
+    }
+
+    /* Floating label following a drag (fixed wrapper, plugin-scoped). */
+    .kap-week-drag-label {
+        @apply fixed left-0 top-0 pointer-events-none rounded px-2 py-1 text-[0.8em] whitespace-nowrap;
+        z-index: var(--layer-dragged, 1000);
+        background: var(--background-primary);
+        border: 1px solid var(--background-modifier-border);
+        box-shadow: var(--shadow-s);
+        color: var(--text-normal);
+        width: max-content;
+        height: auto;
+        overflow: visible;
+    }
+
+    /* Note picker rows (grouped by type on mixed boards). */
+    .kap-week-pick-row {
+        @apply flex items-center gap-2;
+    }
+
+    .kap-week-pick-title {
+        @apply flex-1 truncate;
+    }
+
+    .kap-week-pick-type {
+        @apply shrink-0 rounded px-1.5 text-[0.75em];
+        background: var(--background-modifier-hover);
+        color: var(--text-muted);
+    }
+
+    .kap-week-pick-detail {
+        @apply text-[0.8em] truncate;
+        color: var(--text-muted);
+    }
+
+    .kap-week-pick-first {
+        border-top: 1px solid var(--background-modifier-border);
+    }
+
+    /* ========================================
        TIMELINE MODE (issue #77)
        ======================================== */
     /* Fills the host: toolbar on top, then a flex row — the collapsible

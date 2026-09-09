@@ -82,6 +82,12 @@ every change written straight back into your notes.
 
 ![Agenda mode]({{ '/images/agenda.png' | relative_url }})
 
+- **Ideal week mode.** How you want to spend a week: every active note's recurring time
+  blocks on a date-less weekly grid, dragged, resized, and copied straight into the notes,
+  overlaps refused, every note listed against its weekly target.
+
+![Ideal week mode]({{ '/images/week.png' | relative_url }})
+
 - **Focus mode.** Spotlight a single card full-pane — its properties, subtasks, and related
   notes — with a start/stop timer feeding tracked time into the note, and a Done button that
   goes through the standard write path so your automations fire.

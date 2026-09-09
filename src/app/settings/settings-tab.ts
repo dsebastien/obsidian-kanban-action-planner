@@ -3,7 +3,8 @@ import { produce } from 'immer'
 import { RESERVED_QUALIFIER_NAMES } from '../domain/filter-query'
 import { DEFAULT_CONTEXTS_PROPERTY } from '../constants'
 import type KanbanActionPlannerPlugin from '../../main'
-import type { PluginSettings } from '../types/plugin-settings.intf'
+import type { PluginSettings, SettingsRefreshScope } from '../types/plugin-settings.intf'
+import { formatDays, formatMinutes as minutesLabel, parseTimeBlock } from '../domain/time-blocks'
 import type { NoteType } from '../domain/note-type'
 import { findStatusProperty, listNoteTypes } from '../services/starter-kit.service'
 import {
@@ -37,6 +38,14 @@ type StringSettingKey = {
 type NumberSettingKey = {
     [K in keyof PluginSettings]: number extends PluginSettings[K] ? K : never
 }[keyof PluginSettings]
+
+/** Day tokens (`mon-fri`, `tue,thu`) → Monday-first indexes, via the block grammar; null when invalid. */
+function parseDayTokens(value: string): number[] | null {
+    const trimmed = value.trim()
+    if (trimmed === '') return []
+    const result = parseTimeBlock(`${trimmed} 00:00-01:00`)
+    return result.ok ? result.block.days : null
+}
 
 /** Full weekday names indexed by `Date.getDay()` (0 = Sunday). */
 const WEEKDAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
@@ -450,6 +459,114 @@ export class KanbanActionPlannerSettingTab extends PluginSettingTab {
             'YYYY-MM-DD'
         )
 
+        new Setting(containerEl).setName('Ideal week').setHeading()
+        containerEl.createEl('p', {
+            cls: 'setting-item-description',
+            text:
+                'How you want to spend a week: every active note’s recurring time blocks on a weekly grid. ' +
+                'Blocks are "<days> HH:MM-HH:MM" entries (mon-fri 09:00-12:00) on a 15-minute grid.'
+        })
+        text(
+            'Time blocks property',
+            'List of "<days> HH:MM-HH:MM" entries the week grid reads and writes.',
+            'defaultTimeBlocksProperty',
+            'time_blocks'
+        )
+        text(
+            'Planned minutes property',
+            'Minutes per week reserved by the blocks; recomputed on every edit.',
+            'defaultPlannedMinutesProperty',
+            'minutes_planned_per_week'
+        )
+        text(
+            'Target minutes property',
+            'Weekly time budget in minutes; asked for when a block is first planned for a note without one.',
+            'defaultTargetMinutesProperty',
+            'minutes_per_week'
+        )
+        const hour = (
+            name: string,
+            desc: string,
+            key: NumberSettingKey,
+            placeholder: string,
+            min: number,
+            max: number
+        ): void => {
+            new Setting(containerEl)
+                .setName(name)
+                .setDesc(desc)
+                .addText((input) => {
+                    input.inputEl.type = 'number'
+                    input.inputEl.min = String(min)
+                    input.inputEl.max = String(max)
+                    input
+                        .setPlaceholder(placeholder)
+                        .setValue(String(this.plugin.settings[key]))
+                        .onChange((value) => {
+                            const n = Number.parseInt(value, 10)
+                            if (Number.isFinite(n) && n >= min && n <= max) {
+                                void this.updateNumberSetting(key, n, 'full')
+                            }
+                        })
+                })
+        }
+        hour('Grid starts at (hour)', 'First hour shown, 0–23.', 'weekGridStartHour', '0', 0, 23)
+        hour('Grid ends at (hour)', 'Last hour shown, 1–24.', 'weekGridEndHour', '24', 1, 24)
+        new Setting(containerEl)
+            .setName('Work hours')
+            .setDesc('Highlighted band on work days, written like 09:00-17:00. Empty = no band.')
+            .addText((input) => {
+                const s = this.plugin.settings
+                input
+                    .setPlaceholder('09:00-17:00')
+                    .setValue(
+                        s.weekWorkEndMinutes > s.weekWorkStartMinutes
+                            ? `${minutesLabel(s.weekWorkStartMinutes)}-${minutesLabel(s.weekWorkEndMinutes)}`
+                            : ''
+                    )
+                    .onChange((value) => {
+                        const trimmed = value.trim()
+                        if (trimmed === '') {
+                            void this.updateWorkHours(0, 0)
+                            return
+                        }
+                        const m = /^(\d{1,2}):(\d{2})\s*-\s*(\d{1,2}):(\d{2})$/.exec(trimmed)
+                        if (!m) return
+                        const start = Number(m[1]) * 60 + Number(m[2])
+                        const end = Number(m[3]) * 60 + Number(m[4])
+                        if (start >= 0 && end <= 1440 && end > start)
+                            void this.updateWorkHours(start, end)
+                    })
+            })
+        new Setting(containerEl)
+            .setName('Work days')
+            .setDesc('Days carrying the work band, as day tokens (mon-fri, or mon,tue,thu).')
+            .addText((input) => {
+                input
+                    .setPlaceholder('Day tokens')
+                    .setValue(formatDays(this.plugin.settings.weekWorkDays))
+                    .onChange((value) => {
+                        const days = parseDayTokens(value)
+                        if (days) void this.updateWorkDays(days)
+                    })
+            })
+        hour(
+            'New block length (minutes)',
+            'Length of a block created by clicking the grid or dropping a note on it.',
+            'weekBlockMinutes',
+            '60',
+            15,
+            1440
+        )
+        hour(
+            'Pixels per hour',
+            'Vertical scale of the grid (a 15-minute row is a quarter of it).',
+            'weekPixelsPerHour',
+            '48',
+            12,
+            240
+        )
+
         new Setting(containerEl).setName('Review (triage)').setHeading()
         text(
             'Last-reviewed property',
@@ -677,11 +794,30 @@ export class KanbanActionPlannerSettingTab extends PluginSettingTab {
         await this.plugin.saveSettings('cards')
     }
 
-    private async updateNumberSetting(key: NumberSettingKey, value: number): Promise<void> {
+    private async updateNumberSetting(
+        key: NumberSettingKey,
+        value: number,
+        scope: SettingsRefreshScope = 'cards'
+    ): Promise<void> {
         this.plugin.settings = produce(this.plugin.settings, (draft) => {
             draft[key] = value
         })
-        await this.plugin.saveSettings('cards')
+        await this.plugin.saveSettings(scope)
+    }
+
+    private async updateWorkHours(start: number, end: number): Promise<void> {
+        this.plugin.settings = produce(this.plugin.settings, (draft) => {
+            draft.weekWorkStartMinutes = start
+            draft.weekWorkEndMinutes = end
+        })
+        await this.plugin.saveSettings('full')
+    }
+
+    private async updateWorkDays(days: number[]): Promise<void> {
+        this.plugin.settings = produce(this.plugin.settings, (draft) => {
+            draft.weekWorkDays = days
+        })
+        await this.plugin.saveSettings('full')
     }
 
     private async updateMinutesPerDay(minutes: number): Promise<void> {

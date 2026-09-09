@@ -26,7 +26,12 @@ import {
     type SkNoteType,
     type SkResolvedStatus
 } from './starter-kit.service'
-import { mergeMirroredRules, mirroredStampRules, reconcileDone } from '../domain/status-mirror'
+import {
+    mergeMirroredRules,
+    mirroredStampRules,
+    mirroredStatusRoles,
+    reconcileDone
+} from '../domain/status-mirror'
 import {
     DEFAULT_BLOCKED_BY_PROPERTY,
     DEFAULT_CHILD_PROPERTY,
@@ -89,6 +94,7 @@ export function createDefaultNoteType(
         name,
         source,
         typeRecognition: { mappings: [] },
+        statusRoles: {},
         statusProperty: defaults.statusProperty,
         orderProperty: defaults.orderProperty,
         columns: [],
@@ -655,6 +661,7 @@ function mirrorNoteType(
         if (done) draft.done = done
         else delete draft.done
         draft.automations = mergeMirroredRules(draft.automations, mirroredStampRules(skStatus))
+        draft.statusRoles = mirroredStatusRoles(skStatus)
     })
 }
 

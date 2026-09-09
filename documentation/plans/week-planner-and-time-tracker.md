@@ -1,6 +1,6 @@
 # Week Planner mode and one time tracker for every note type (issue #172)
 
-Status: phase A (tracker rewrite) implemented, released as the version that carries this line's commit; phases B–D planned. Gate: each phase is decided with Sébastien and released on its own. The Obsidian Starter Kit side (schema, templates, backfill, Bases, docs, per-type config re-sync) shipped on 2026-09-09; the plugin reads and writes the properties below. Source of truth for the design: the OSK vault task note "Explore additional activity properties (Task)" (21 decisions + implementation amendments) and the spec comment on issue #172.
+Status: phase A (tracker rewrite) released as 1.24.0; phase B (time_blocks + Ideal week mode) implemented and committed locally (unreleased, Sébastien testing); phases C–E planned. Gate: each phase is decided with Sébastien and released on its own. The Obsidian Starter Kit side (schema, templates, backfill, Bases, docs, per-type config re-sync) shipped on 2026-09-09; the plugin reads and writes the properties below. Source of truth for the design: the OSK vault task note "Explore additional activity properties (Task)" (21 decisions + implementation amendments) and the spec comment on issue #172.
 
 ## Data model (already in the vault, units are the vault's: minutes, ISO datetimes, HH:MM)
 
@@ -22,7 +22,9 @@ Shipped: `domain/time-entries.ts`, `domain/pomodoro.ts`, `domain/daily-note.ts`,
 - Tests: entry append, recompute, midnight-crossing session, last-session date, pomodoro record shape, daily-note resolution.
 - Docs: `docs/usage.md` Time tracking section, `docs/configuration.md` property table, README feature bullet.
 
-## Phase B: time_blocks domain + Week Planner mode
+## Phase B: time_blocks domain + Week Planner mode — DONE
+
+Shipped: `domain/time-blocks.ts` + `domain/week-planner.ts` (pure, tested), `views/kanban/week-controller.ts`, `ui/week/week-renderer.ts` / `week-dnd.ts` / `week-note-picker.ts`, mode `week` (button “Ideal week”, command, `mode=ideal-week` / `mode=week`; date-less — Sébastien: an ideal week is shaped rarely, no week navigation; the rail lists every note and a missing weekly target is asked for on the first block; keyboard editing: arrows move, Shift+↑↓ resize, Delete removes; left/right edge drag stretches the repeat across days; marquee / Ctrl-click selection with Delete; Ctrl+C / Ctrl+V paste at the pointer; landing phantom on every drag; click creates in the cell the pointer is in; rail = Not planned yet / Planned, each by status), status roles mirrored from OSK 1.14 (`statusRoles`, `activeStatusValues`), Week planner settings (properties, grid hours, work band, block length, scale). Decided with Sébastien: one release; full-day grid with a configurable work band (09:00–17:00 mon-fri default); click-to-create through a type-aware picker AND drag from the rail; overlaps refused; 60-minute blocks snapped to 15; neutral grey without context. Business rule 48. Not done: per-type overrides of the three properties (globals only), keyboard editing of blocks.
 
 - `domain/time-blocks.ts`: parse `<days> <start>-<end>` (day tokens `mon`..`sun`, lists, ranges, 15-minute grid, midnight crossing) into `{day 0..6, start, end}` slots and back; `plannedMinutesPerWeek(blocks)`; overlap detection across a set of notes' slots; validation errors that name the offending string.
 - View mode `week` (in-view switch next to Board / Calendar / Timeline / Triage; embeddable with `mode=week`): a Monday-first grid (settings: start hour, end hour, 15-minute rows, `firstDayOfWeek` honoured) rendering every Active activity's blocks and every Active project's blocks whose `date_started`..`date_due` window includes the shown week; drag to move, drag edges to resize, alt-drag to copy, click to create; every edit rewrites the note's `time_blocks` through `setProperty` and recomputes `minutes_planned_per_week`; overlapping edits are refused with the conflicting note named.
@@ -43,6 +45,8 @@ Shipped: `domain/time-entries.ts`, `domain/pomodoro.ts`, `domain/daily-note.ts`,
 - Export: the reverse, from the current ideal week: JSON and Markdown in the app's formats, day ranges and lists expanded to one block per day, 15-minute slots rounded to the app's 30-minute grid with a warning listing what was rounded. Commands: "Export ideal week (JSON)", "Export ideal week (Markdown)", "Import ideal week".
 - Tests: fixture round-trips on both formats, rounding report, name matching.
 
-## After each phase
+## Phase E: deep review of the old week-planner app (before closing the issue)
+
+Read the week-planner app end to end (`$WKS/week-planner`: `src/types.ts`, `src/time-block-manager.ts`, `src/week-planner.ts`, its UI, templates, and export code) and list every feature the Ideal week mode does not have yet — templates / presets, block styling that matters beyond colour, multi-day spans, undo, printing, keyboard shortcuts, anything in its README. Decide each one with Sébastien (adopt, adapt, drop) and file the adopted ones as tasks; the plugin note and issue #172 get the resulting gap list.
 
 `bun run format`, `bun run validate`, `bun run build`, live check in the vault (`bun run dev`, `obsidian dev:errors` clean), docs updated, commit with `bun run cm`, release through the shared plugin workflow, then re-check the OSK per-type config in the vault (`.obsidian/plugins/kanban-action-planner/data.json`) still matches the vault's properties and update the vault-side skills `osk-action-time-budget` / `osk-action-lifecycle` if a property name moved. Post a progress comment on issue #172 per phase.

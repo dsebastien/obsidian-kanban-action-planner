@@ -28,7 +28,17 @@ import {
     DEFAULT_POMODORO_WORK_MINUTES,
     DEFAULT_POMODORO_SHORT_BREAK_MINUTES,
     DEFAULT_POMODORO_LONG_BREAK_MINUTES,
-    DEFAULT_POMODORO_LONG_BREAK_INTERVAL
+    DEFAULT_POMODORO_LONG_BREAK_INTERVAL,
+    DEFAULT_TIME_BLOCKS_PROPERTY,
+    DEFAULT_PLANNED_MINUTES_PROPERTY,
+    DEFAULT_TARGET_MINUTES_PROPERTY,
+    DEFAULT_WEEK_GRID_START_HOUR,
+    DEFAULT_WEEK_GRID_END_HOUR,
+    DEFAULT_WEEK_WORK_START_MINUTES,
+    DEFAULT_WEEK_WORK_END_MINUTES,
+    DEFAULT_WEEK_WORK_DAYS,
+    DEFAULT_WEEK_BLOCK_MINUTES,
+    DEFAULT_WEEK_PIXELS_PER_HOUR
 } from '../constants'
 
 /** Current settings schema version; bump when the shape changes (migrations). */
@@ -138,6 +148,27 @@ export const pluginSettingsSchema = z.object({
         .nullable()
         .default(null),
     pomodoroCompletedWork: z.number().int().min(0).default(0),
+    /**
+     * Week Planner mode (issue #172): the ideal-week properties (blocks list,
+     * planned-minutes cache the plugin writes, weekly target the rail reads),
+     * the visible hours, the work band, the click-created block length, and
+     * the vertical scale. Every field `.default()` so older `data.json` parses.
+     */
+    defaultTimeBlocksProperty: z.string().default(DEFAULT_TIME_BLOCKS_PROPERTY),
+    defaultPlannedMinutesProperty: z.string().default(DEFAULT_PLANNED_MINUTES_PROPERTY),
+    defaultTargetMinutesProperty: z.string().default(DEFAULT_TARGET_MINUTES_PROPERTY),
+    weekGridStartHour: z.number().int().min(0).max(23).default(DEFAULT_WEEK_GRID_START_HOUR),
+    weekGridEndHour: z.number().int().min(1).max(24).default(DEFAULT_WEEK_GRID_END_HOUR),
+    weekWorkStartMinutes: z
+        .number()
+        .int()
+        .min(0)
+        .max(1440)
+        .default(DEFAULT_WEEK_WORK_START_MINUTES),
+    weekWorkEndMinutes: z.number().int().min(0).max(1440).default(DEFAULT_WEEK_WORK_END_MINUTES),
+    weekWorkDays: z.array(z.number().int().min(0).max(6)).default([...DEFAULT_WEEK_WORK_DAYS]),
+    weekBlockMinutes: z.number().int().positive().default(DEFAULT_WEEK_BLOCK_MINUTES),
+    weekPixelsPerHour: z.number().int().positive().default(DEFAULT_WEEK_PIXELS_PER_HOUR),
     /** Review (spaced-repetition) property names (issue #57). */
     reviewedDateProperty: z.string(),
     reviewIntervalProperty: z.string(),
@@ -213,6 +244,16 @@ export const DEFAULT_SETTINGS: PluginSettings = {
     dailyNoteFormat: '',
     activePomodoro: null,
     pomodoroCompletedWork: 0,
+    defaultTimeBlocksProperty: DEFAULT_TIME_BLOCKS_PROPERTY,
+    defaultPlannedMinutesProperty: DEFAULT_PLANNED_MINUTES_PROPERTY,
+    defaultTargetMinutesProperty: DEFAULT_TARGET_MINUTES_PROPERTY,
+    weekGridStartHour: DEFAULT_WEEK_GRID_START_HOUR,
+    weekGridEndHour: DEFAULT_WEEK_GRID_END_HOUR,
+    weekWorkStartMinutes: DEFAULT_WEEK_WORK_START_MINUTES,
+    weekWorkEndMinutes: DEFAULT_WEEK_WORK_END_MINUTES,
+    weekWorkDays: [...DEFAULT_WEEK_WORK_DAYS],
+    weekBlockMinutes: DEFAULT_WEEK_BLOCK_MINUTES,
+    weekPixelsPerHour: DEFAULT_WEEK_PIXELS_PER_HOUR,
     reviewedDateProperty: DEFAULT_REVIEWED_DATE_PROPERTY,
     reviewIntervalProperty: DEFAULT_REVIEW_INTERVAL_PROPERTY,
     reviewCountProperty: DEFAULT_REVIEW_COUNT_PROPERTY,

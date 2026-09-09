@@ -71,6 +71,9 @@ export function renderViewToolbar(
     addModeButton(modeSwitch, 'Agenda', state.mode === 'agenda', () =>
         callbacks.onSetMode('agenda')
     )
+    addModeButton(modeSwitch, 'Ideal week', state.mode === 'week', () =>
+        callbacks.onSetMode('week')
+    )
 
     rightEl.empty()
     if (state.showLaneNav) {

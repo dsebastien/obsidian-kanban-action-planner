@@ -50,7 +50,7 @@ single project with a `filter=parent:…` override:
 
 ![Embedded views in different modes]({{ '/images/embed-modes.png' | relative_url }})
 
-- `mode=` — `board` (or `kanban`), `calendar`, `timeline`, `triage`, `wbs`, or `agenda`.
+- `mode=` — `board` (or `kanban`), `calendar`, `timeline`, `triage`, `wbs`, `agenda`, or `ideal-week` (alias `week`).
   Editing the embed line updates the rendered embed in place.
 - `height=` — the embed's height cap in pixels (kept between 200 and 2000); the embed still
   shrinks below it when the content is smaller. Ignored inside a Canvas, where the canvas
@@ -1109,6 +1109,73 @@ the Base's own result set only.
 The WBS never creates notes — it structures, estimates, and re-parents the ones the Base
 already selects.
 
+## Ideal week mode
+
+The **Ideal week** mode (issue #172) draws how you **want** to spend a week: the recurring time
+blocks of every **active** note on the board, on a date-less weekly grid, one column per
+weekday. It is not a planner for a given week — you shape it once and revisit it now and
+then (yearly, say) — so there is no week-to-week navigation. Switch to it with the
+**Ideal week** button at the end of the mode switch (or the **Toggle ideal week mode**
+command), or embed it with `mode=ideal-week` (`mode=week` works too).
+
+![Ideal week mode: the recurring blocks of the active activities]({{ '/images/week.png' | relative_url }})
+
+- **What is on the grid.** Every note whose status has the **active** planning role in its
+  type's status configuration (mirrored from the Obsidian Starter Kit; without roles, every
+  non-done status counts) **and** that carries the **time blocks** property (`time_blocks`
+  by default; an empty list is enough, an absent property keeps the note out — tasks stay in
+  calendar and agenda modes). A note with a start and a due date (a project's `date_started`
+  and `date_due`) is part of the ideal week only while today lies between them.
+- **The rail** on the left lists **every** note of the board that carries the time blocks
+  property, whatever its status: a **Not planned yet** section and a **Planned** one, each
+  **grouped by status** (collapsible headers in column order), every note with its planned
+  minutes against its weekly **target** (`minutes_per_week`) — orange when under target,
+  dimmed when the note is not active. Drag a note from the rail onto the grid to plan a block
+  for it. Blocks of notes that are not active render **dimmed and dashed** (they are on the
+  grid so nothing you plan disappears, but only active notes count in the planned total); a
+  dated note whose window does not include today keeps its blocks saved but not drawn (a
+  notice says so when you plan one).
+- **Blocks are frontmatter.** Each entry of the list is `<days> HH:MM-HH:MM` on a 15-minute
+  grid: `mon-fri 09:00-12:00`, `tue,thu 14:00-16:00`, `mon-wed,fri 08:00-09:00`. A day list or
+  range **repeats** the block; an end earlier than the start **crosses midnight**
+  (`fri 23:00-01:00` renders as a Friday tail and a Saturday head). Entries the plugin cannot
+  read are listed in a strip above the grid, naming the note and the problem; nothing is
+  rewritten until you edit them.
+- **Editing.** Drag a block to **move** it (day and time, snapped to 15 minutes; a dashed
+  **phantom** shows where it will land), drag its top or bottom edge to **resize**, drag its
+  **left or right edge to stretch it across days** (the run of days it repeats on grows or
+  shrinks: `mon-wed` dragged to Friday becomes `mon-fri`), hold **Alt** while dropping to
+  **copy** it, right-click for the card menu plus **Remove this block**. With a block focused:
+  **arrows** move it by 15 minutes or one day, **Shift+↑/↓** resize its end, **Delete**
+  removes it, **Enter** opens the note. **Select several blocks** by dragging a rectangle on
+  an empty area of the grid (or Ctrl/Cmd-click them), then **Delete** removes them all;
+  Escape or a click on empty space clears the selection. **Ctrl/Cmd+C** copies the selection (or
+  the focused block) and **Ctrl/Cmd+V** pastes it at the grid cell under the mouse pointer —
+  several copied blocks keep their layout relative to the earliest one; a pasted block that
+  would overlap something or fall outside the week is skipped with a notice. Moving one occurrence of a repeat
+  only changes that day (`mon-fri 09:00-10:30` becomes `tue-fri 09:00-10:30` +
+  `mon 11:00-12:30`); the list is re-serialized in its canonical form and the **planned
+  minutes** property (`minutes_planned_per_week`) is recomputed in the same write.
+- **Creating.** Click an empty spot of a day (the block starts at the 15-minute cell you
+  clicked in): a picker lists the notes of the ideal week
+  (grouped by note type on a mixed board, filter as you type) and writes a block of the
+  configured length (60 minutes by default) at that time; or drag a note from the rail. A
+  note that has **no weekly target yet is asked for one** the first time you plan a block
+  for it (minutes, or `5h`); the target is written together with the block, Cancel plans
+  nothing.
+- **No overlaps.** A move, resize, copy, or creation that would overlap another shown note's
+  block (or another block of the same note) snaps back with a notice naming the conflicting
+  note and its time; nothing is written.
+- **Colour** comes from the note's first GTD context (the same palette as the calendar and
+  timeline, with the click-to-filter legend in the toolbar); a note without a context renders
+  neutral grey. A tinted **work band** marks your work hours on work days, and the toolbar
+  sums the planned minutes across the grid against the targets.
+- **Settings.** Under **Ideal week** in the plugin settings: the three property names, the
+  visible hours (the full day by default), the work hours and work days (09:00–17:00,
+  Monday to Friday by default), the new block length, and the vertical scale. The column
+  order follows the global **First day of the week** setting (block strings stay
+  Monday-first: `mon-fri 09:00-12:00` means the same days whatever the setting).
+
 ## Time tracking
 
 Track actual time against your estimates (issue #119, rewritten in #172 to share TaskNotes'
@@ -1244,13 +1311,14 @@ saved into the `.base` file, like the Board/Calendar/Triage mode).
 
 Each Kanban view remembers how you left it, **per view**, across reloads and reopening Obsidian:
 
-- Board vs **Calendar** vs **Timeline** vs **WBS** vs **Triage** vs **Agenda** mode, and the
+- Board vs **Calendar** vs **Timeline** vs **WBS** vs **Triage** vs **Agenda** vs **Ideal week** mode, and the
   calendar **range** (Week/Month/Quarter/Year), **active tab**, **panel collapsed** state, and
   the **Scheduled/Deadlines** legend toggles.
 - The agenda **window** (Today/Week) and its **Available only** toggle.
 - The timeline **range** (Week/Month/Quarter/Year), its **panel collapsed** state, and its
   **hidden types**.
 - The WBS **collapsed nodes** and its **panel collapsed** state.
+- The ideal week's **panel collapsed** state.
 - **Collapsed swimlanes** and **collapsed columns**.
 - **Compact cards** (titles only) on or off.
 - The toolbar **filter** query.
@@ -1527,6 +1595,11 @@ is active, and each can be given a hotkey in **Settings → Hotkeys**):
 - **Toggle WBS mode**
 - **Toggle triage mode** / **Configure triage**
 - **Toggle agenda mode**
+- **Toggle ideal week mode**
+- **Stop time tracking** (only while a session runs)
+- **Start work pomodoro** (on the tracked note when a session runs, else on nothing)
+- **Start pomodoro break** (short, or long after every Nth completed work pomodoro)
+- **Stop pomodoro** (only while one runs)
 - **Focus filter**: jump to the filter box
 - **Clear filter**
 - **Go to next swimlane** / **Go to previous swimlane**
