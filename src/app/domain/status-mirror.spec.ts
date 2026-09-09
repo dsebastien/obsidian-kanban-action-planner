@@ -5,7 +5,8 @@ import {
     mergeMirroredRules,
     mirroredDoneConfig,
     mirroredStampRules,
-    reconcileDone
+    reconcileDone,
+    userRuleCovers
 } from './status-mirror'
 
 const explicit: SkResolvedStatus = {
@@ -111,5 +112,54 @@ describe('mirroredStampRules / mergeMirroredRules', () => {
         ])
         expect(mergeMirroredRules([rule('user-1')], fresh).map((r) => r.id)[0]).toBe('user-1')
         expect(mergeMirroredRules([rule('sk-stamp:old')], []).length).toBe(0)
+    })
+})
+
+describe('userRuleCovers (dedupe by status + property)', () => {
+    const stampCompleted = mirroredStampRules(explicit)[1]!
+    const userRule = (over: Partial<AutomationRule>): AutomationRule => ({
+        id: 'project-completed',
+        name: 'Completed',
+        enabled: true,
+        trigger: { kind: 'status-entered', statuses: ['60 - Completed'] },
+        actions: [
+            { kind: 'set-property', property: 'progress', value: '100' },
+            {
+                kind: 'set-property',
+                property: 'Date_Completed',
+                value: '{{date}}',
+                onlyIfEmpty: true
+            }
+        ],
+        ...over
+    })
+    test('a user status-entered rule stamping the same property covers the mirror', () => {
+        expect(userRuleCovers(userRule({}), stampCompleted)).toBe(true)
+        expect(
+            mergeMirroredRules([userRule({})], mirroredStampRules(explicit)).map((r) => r.id)
+        ).toEqual(['project-completed', 'sk-stamp:20 - Planned', 'sk-stamp:70 - Abandoned'])
+    })
+    test('disabled, other-status, other-property, done-entered or mirrored rules do not cover', () => {
+        expect(userRuleCovers(userRule({ enabled: false }), stampCompleted)).toBe(false)
+        expect(
+            userRuleCovers(
+                userRule({ trigger: { kind: 'status-entered', statuses: ['70 - Abandoned'] } }),
+                stampCompleted
+            )
+        ).toBe(false)
+        expect(
+            userRuleCovers(
+                userRule({
+                    actions: [{ kind: 'set-property', property: 'progress', value: '100' }]
+                }),
+                stampCompleted
+            )
+        ).toBe(false)
+        expect(
+            userRuleCovers(userRule({ trigger: { kind: 'done-entered' } }), stampCompleted)
+        ).toBe(false)
+        expect(userRuleCovers(userRule({ id: 'sk-stamp:60 - Completed' }), stampCompleted)).toBe(
+            false
+        )
     })
 })

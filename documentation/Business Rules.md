@@ -688,8 +688,10 @@ When a new business rule is mentioned:
     `status-entered [value] → set-property <stampsDate> = {{date}}` with `onlyIfEmpty` per the
     Starter Kit's `stampOnlyIfEmpty` — under ids prefixed `sk-stamp:` (`domain/status-mirror.ts`
     `mirroredStampRules` / `mergeMirroredRules`: user rules keep their order, stale mirrored
-    rules are replaced in place). They render read-only in the Automations section and are
-    edited in the Starter Kit.
+    rules are replaced in place, and a mirrored rule is **skipped when an enabled user rule
+    already stamps the same property on the same `status-entered` status** — `userRuleCovers`
+    — so hand-written stamps keep precedence and never get doubled). They render read-only in
+    the Automations section and are edited in the Starter Kit.
 41. **Render-performance invariants (issue #105).** Three fixed constraints govern every render
     change: (a) **optimistic updates stay** — nothing may wait for the Bases echo for visible
     feedback; (b) **visual stability** — content must not move, resize, or lose scroll position

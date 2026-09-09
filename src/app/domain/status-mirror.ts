@@ -52,19 +52,42 @@ export function isMirroredRule(rule: Pick<AutomationRule, 'id'>): boolean {
 }
 
 /**
+ * Whether a user rule already does what a mirrored stamp rule would: an
+ * enabled `status-entered` rule on the same status with a `set-property`
+ * action on the same property. Such a rule keeps precedence (it may carry
+ * extra actions or a different value) and the mirror does not double it.
+ */
+export function userRuleCovers(rule: AutomationRule, mirrored: AutomationRule): boolean {
+    if (isMirroredRule(rule) || !rule.enabled) return false
+    if (rule.trigger.kind !== 'status-entered' || mirrored.trigger.kind !== 'status-entered') {
+        return false
+    }
+    const status = mirrored.trigger.statuses[0]
+    const stamp = mirrored.actions[0]
+    if (status === undefined || stamp?.kind !== 'set-property') return false
+    if (!rule.trigger.statuses.includes(status)) return false
+    const property = stamp.property.toLowerCase()
+    return rule.actions.some(
+        (a) => a.kind === 'set-property' && a.property.trim().toLowerCase() === property
+    )
+}
+
+/**
  * Merge: user rules stay (order kept), mirrored rules are replaced by the
- * fresh set, appended where the first mirrored rule used to be (end if none).
+ * fresh set — minus those a user rule already covers ({@link userRuleCovers})
+ * — appended where the first mirrored rule used to be (end if none).
  */
 export function mergeMirroredRules(
     existing: ReadonlyArray<AutomationRule>,
     mirrored: ReadonlyArray<AutomationRule>
 ): AutomationRule[] {
-    const firstMirrored = existing.findIndex(isMirroredRule)
     const user = existing.filter((r) => !isMirroredRule(r))
-    if (firstMirrored === -1) return [...user, ...mirrored]
+    const fresh = mirrored.filter((m) => !user.some((u) => userRuleCovers(u, m)))
+    const firstMirrored = existing.findIndex(isMirroredRule)
+    if (firstMirrored === -1) return [...user, ...fresh]
     const before = existing.slice(0, firstMirrored).filter((r) => !isMirroredRule(r))
     const after = user.slice(before.length)
-    return [...before, ...mirrored, ...after]
+    return [...before, ...fresh, ...after]
 }
 
 /** Done config to store: the mirror when explicit, else the plugin-owned one un-flagged. */
