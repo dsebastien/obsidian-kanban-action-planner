@@ -1034,3 +1034,19 @@ When a new business rule is mentioned:
     substring) narrows the rail ONLY — the grid is never filtered and the caret survives the
     rail rebuild. Colour stays with the first context. Areas are set directly on activities, projects and goals in the
     vault (no inheritance); the plugin never writes them.
+
+56. **Ideal week fits the day; view modes can be switched off (issue #172, phase G; decided
+    2026-09-10).** The grid's vertical scale is DERIVED: the day window (`weekDayStartMinutes`
+    .. `weekDayEndMinutes`, 06:00–22:00 by default; `end <= start` = the whole grid) fills the
+    pane height (scroller minus its sticky head), never below `weekPixelsPerHour` (now a
+    minimum); when the pane is too short the grid scrolls with the window start at the top.
+    The pane is measured from the rendered scroller, so a render whose scale differs from the
+    one it was drawn with schedules ONE re-render (`scheduleFitCheck`, requestAnimationFrame,
+    guarded against loops), and the view's resize observer calls `onResize` so a window
+    resize re-fits; the grid scrolls to the window start on the first render and whenever the
+    scale changed, never on an ordinary re-render (`scrolledAtPx`). Horizontal columns are
+    fractional, so the grid follows the width by itself. `disabledModes` (plugin settings,
+    global; `board` never listed) hides a mode from the mode switch everywhere; `viewMode()`
+    resolves a remembered or embedded (`mode=`) disabled mode to the board, and `setViewMode`
+    (commands included) refuses it with a notice naming the mode. Nothing is deleted: the
+    view's flags stay, and re-enabling the mode brings the view back where it was.

@@ -1,6 +1,8 @@
 import { App, Notice, PluginSettingTab, Setting } from 'obsidian'
 import { produce } from 'immer'
 import { RESERVED_QUALIFIER_NAMES } from '../domain/filter-query'
+import { VIEW_MODES, VIEW_MODE_LABELS, modeEnabled } from '../domain/embed-params'
+import type { ViewMode } from '../domain/embed-params'
 import { DEFAULT_CONTEXTS_PROPERTY } from '../constants'
 import type KanbanActionPlannerPlugin from '../../main'
 import type { PluginSettings, SettingsRefreshScope } from '../types/plugin-settings.intf'
@@ -603,14 +605,56 @@ export class KanbanActionPlannerSettingTab extends PluginSettingTab {
             15,
             1440
         )
+        new Setting(containerEl)
+            .setName('Day window')
+            .setDesc(
+                'The hours that fill the ideal week pane, written like 06:00-22:00; the scale follows the pane height and the rest of the day scrolls. Empty = the whole grid.'
+            )
+            .addText((input) => {
+                const s = this.plugin.settings
+                input
+                    .setPlaceholder('06:00-22:00')
+                    .setValue(
+                        s.weekDayEndMinutes > s.weekDayStartMinutes
+                            ? `${minutesLabel(s.weekDayStartMinutes)}-${minutesLabel(s.weekDayEndMinutes)}`
+                            : ''
+                    )
+                    .onChange((value) => {
+                        const trimmed = value.trim()
+                        if (trimmed === '') {
+                            void this.updateDayWindow(0, 0)
+                            return
+                        }
+                        const m = /^(\d{1,2}):(\d{2})\s*-\s*(\d{1,2}):(\d{2})$/.exec(trimmed)
+                        if (!m) return
+                        const start = Number(m[1]) * 60 + Number(m[2])
+                        const end = Number(m[3]) * 60 + Number(m[4])
+                        if (start >= 0 && end <= 1440 && end > start)
+                            void this.updateDayWindow(start, end)
+                    })
+            })
         hour(
-            'Pixels per hour',
-            'Vertical scale of the grid (a 15-minute row is a quarter of it).',
+            'Minimum pixels per hour',
+            'The grid never gets denser than this: when the day window would not fit the pane at this scale, the grid scrolls instead.',
             'weekPixelsPerHour',
-            '48',
+            '24',
             12,
             240
         )
+
+        new Setting(containerEl).setName('View modes').setHeading()
+        containerEl.createEl('p', {
+            cls: 'setting-item-description',
+            text: 'Switch off the modes you do not use: they leave the mode switch, their commands do nothing, and embeds or views remembered in them open the board instead. The board itself cannot be switched off.'
+        })
+        for (const mode of VIEW_MODES) {
+            if (mode === 'board') continue
+            new Setting(containerEl).setName(VIEW_MODE_LABELS[mode]).addToggle((toggle) => {
+                toggle
+                    .setValue(modeEnabled(mode, this.plugin.settings.disabledModes))
+                    .onChange((enabled) => void this.updateModeEnabled(mode, enabled))
+            })
+        }
 
         new Setting(containerEl).setName('Review (triage)').setHeading()
         text(
@@ -868,6 +912,22 @@ export class KanbanActionPlannerSettingTab extends PluginSettingTab {
         this.plugin.settings = produce(this.plugin.settings, (draft) => {
             draft.weekWorkStartMinutes = start
             draft.weekWorkEndMinutes = end
+        })
+        await this.plugin.saveSettings('full')
+    }
+
+    private async updateDayWindow(start: number, end: number): Promise<void> {
+        this.plugin.settings = produce(this.plugin.settings, (draft) => {
+            draft.weekDayStartMinutes = start
+            draft.weekDayEndMinutes = end
+        })
+        await this.plugin.saveSettings('full')
+    }
+
+    private async updateModeEnabled(mode: ViewMode, enabled: boolean): Promise<void> {
+        this.plugin.settings = produce(this.plugin.settings, (draft) => {
+            const without = draft.disabledModes.filter((m) => m !== mode)
+            draft.disabledModes = enabled ? without : [...without, mode]
         })
         await this.plugin.saveSettings('full')
     }

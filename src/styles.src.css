@@ -2026,6 +2026,18 @@
         @apply flex flex-col h-full min-h-0;
     }
 
+    /* In an embed the board host has no definite height for `h-full` to
+       resolve against, and the week root grew with its grid: make the host a
+       column and let the root take the remaining height instead. */
+    .kap-board-host:has(> .kap-week-root) {
+        @apply flex flex-col min-h-0;
+    }
+
+    .kap-board-host > .kap-week-root {
+        @apply flex-1 min-h-0;
+        height: auto;
+    }
+
     /* Rail + pane row under the full-width toolbar. */
     .kap-week-body {
         @apply flex flex-1 min-h-0;

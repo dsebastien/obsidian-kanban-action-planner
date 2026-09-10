@@ -120,6 +120,9 @@ export const DEFAULT_WEEK_GRID_END_HOUR = 24
 export const DEFAULT_WEEK_WORK_START_MINUTES = 540
 export const DEFAULT_WEEK_WORK_END_MINUTES = 1020
 export const DEFAULT_WEEK_WORK_DAYS: readonly number[] = [0, 1, 2, 3, 4]
-/** Length of a block created by a click, and the vertical scale. */
+/** Length of a block created by a click, and the MINIMUM vertical scale (phase G: the day window fits the pane). */
 export const DEFAULT_WEEK_BLOCK_MINUTES = 60
-export const DEFAULT_WEEK_PIXELS_PER_HOUR = 48
+export const DEFAULT_WEEK_PIXELS_PER_HOUR = 24
+/** Day window (phase G): 06:00–22:00 fills the pane; the rest of the grid scrolls. */
+export const DEFAULT_WEEK_DAY_START_MINUTES = 360
+export const DEFAULT_WEEK_DAY_END_MINUTES = 1320

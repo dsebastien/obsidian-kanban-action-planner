@@ -90,6 +90,9 @@ export interface WeekSettings {
     pixelsPerHour: number
     /** Available hours per week (null = grid hours × 7); phase G. */
     availableHours: number | null
+    /** The day window that fills the pane (`end <= start` = the whole grid); phase G. */
+    dayStartMinutes: number
+    dayEndMinutes: number
     /** Raise a note's target to its planned minutes when an edit overshoots it; phase G. */
     targetFollowsPlanned: boolean
 }
@@ -176,7 +179,9 @@ export class WeekController {
     private selected = new Set<string>()
     /** A block to focus after the next render (keyboard edits keep the focus). */
     private pendingFocus: { path: string; slot: Slot } | null = null
-    private scrolledOnce = false
+    /** The scale of the last scroll-to-day-start (a new scale re-scrolls). */
+    private scrolledAtPx: number | null = null
+    private fitCheckPending = false
 
     constructor(host: WeekHost) {
         this.host = host
@@ -253,15 +258,56 @@ export class WeekController {
         })
     }
 
-    /** The grid config from the settings. */
+    /**
+     * The day window (minutes) that fills the pane, clipped to the grid;
+     * an empty setting means the whole grid.
+     */
+    dayWindow(gridStart: number, gridEnd: number): { start: number; end: number } {
+        const s = this.host.settings()
+        let start = s.dayStartMinutes
+        let end = s.dayEndMinutes
+        if (end <= start) {
+            start = gridStart
+            end = gridEnd
+        }
+        start = Math.max(gridStart, Math.min(gridEnd - GRID_MINUTES * 4, start))
+        end = Math.max(start + GRID_MINUTES * 4, Math.min(gridEnd, end))
+        return { start, end }
+    }
+
+    /**
+     * The pane height the grid can fill: the scroller minus its sticky head
+     * (0 before the first render; the fit check re-renders once it exists).
+     */
+    private paneHeight(): number {
+        const boardEl = this.host.boardEl()
+        const scroller = boardEl?.querySelector<HTMLElement>('.kap-week-scroller')
+        if (!boardEl || !scroller) return 0
+        const head = scroller.querySelector<HTMLElement>('.kap-week-head')
+        // Never taller than the board itself: an unbounded scroller (an embed
+        // whose height did not resolve) would otherwise grow with its own grid.
+        const pane = Math.min(scroller.clientHeight, boardEl.clientHeight)
+        return Math.max(0, pane - (head?.offsetHeight ?? 0))
+    }
+
+    /**
+     * The grid config from the settings. The vertical scale FITS the day
+     * window to the pane (phase G, decided 2026-09-10: the day is visible
+     * whatever the window size), never below the minimum pixels per hour;
+     * below it the grid scrolls, with the window start at the top.
+     */
     config(): WeekGridConfig {
         const s = this.host.settings()
         const gridStart = Math.max(0, Math.min(23, s.gridStartHour)) * 60
         const gridEnd = Math.max(gridStart + 60, Math.min(24, s.gridEndHour) * 60)
+        const minPx = Math.max(12, s.pixelsPerHour) / 60
+        const window = this.dayWindow(gridStart, gridEnd)
+        const pane = this.paneHeight()
+        const fitted = pane > 0 ? pane / (window.end - window.start) : 0
         return {
             gridStart,
             gridEnd,
-            pxPerMinute: Math.max(12, s.pixelsPerHour) / 60,
+            pxPerMinute: Math.max(minPx, fitted),
             firstDayOfWeek: this.host.firstDayOfWeek(),
             workStart: s.workStartMinutes,
             workEnd: s.workEndMinutes,
@@ -450,18 +496,46 @@ export class WeekController {
             onCommitTarget: (path, raw) => this.commitTarget(path, raw)
         })
         restoreScrollBySelector(boardEl, scrolls)
-        this.scrollToWorkStart(boardEl, cfg)
+        this.scrollToDayStart(boardEl, cfg)
         this.restoreFocus(boardEl)
+        this.scheduleFitCheck(cfg)
     }
 
-    /** On the first render, scroll the grid so the work band starts near the top. */
-    private scrollToWorkStart(boardEl: HTMLElement, cfg: WeekGridConfig): void {
-        if (this.scrolledOnce) return
-        this.scrolledOnce = true
+    /**
+     * On the first render, and whenever the scale changed (a fit after a
+     * resize), scroll the grid so the day window starts at the top.
+     */
+    private scrollToDayStart(boardEl: HTMLElement, cfg: WeekGridConfig): void {
+        if (this.scrolledAtPx === cfg.pxPerMinute) return
         const scroller = boardEl.querySelector<HTMLElement>('.kap-week-scroller')
         if (!scroller) return
-        const target = cfg.workEnd > cfg.workStart ? cfg.workStart : cfg.gridStart
-        scroller.scrollTop = Math.max(0, (target - cfg.gridStart - 60) * cfg.pxPerMinute)
+        this.scrolledAtPx = cfg.pxPerMinute
+        const { start } = this.dayWindow(cfg.gridStart, cfg.gridEnd)
+        scroller.scrollTop = Math.max(0, (start - cfg.gridStart) * cfg.pxPerMinute)
+    }
+
+    /**
+     * The pane is only measurable once the scroller exists: after a render,
+     * recompute the fitted scale and re-render once when it differs (the
+     * first render, a resize, a sub-mode switch back to the grid).
+     */
+    private scheduleFitCheck(rendered: WeekGridConfig): void {
+        if (this.fitCheckPending || this.subMode !== 'grid') return
+        this.fitCheckPending = true
+        const win = this.host.boardEl()?.ownerDocument.defaultView ?? window
+        win.requestAnimationFrame(() => {
+            this.fitCheckPending = false
+            if (!this.host.isWeekMode()) return
+            if (Math.abs(this.config().pxPerMinute - rendered.pxPerMinute) > 0.001) {
+                this.host.refresh()
+            }
+        })
+    }
+
+    /** The pane was resized: re-fit the day window when the scale changed. */
+    onResize(): void {
+        if (!this.host.isWeekMode() || !this.lastModel) return
+        this.scheduleFitCheck(this.lastModel.cfg)
     }
 
     /** After a keyboard edit the re-rendered block gets the focus back. */

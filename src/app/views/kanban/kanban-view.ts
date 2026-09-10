@@ -179,6 +179,7 @@ import type { CardSearchRecord, FilterContext, FilterQuery } from '../../domain/
 import { resolvePendingWrite } from '../../domain/pending-write'
 import type { PendingWrite } from '../../domain/pending-write'
 import { parseEmbedParams } from '../../domain/embed-params'
+import { VIEW_MODE_LABELS, modeEnabled } from '../../domain/embed-params'
 import type { EmbedParams } from '../../domain/embed-params'
 import { CalendarDnd } from '../../ui/calendar/calendar-dnd'
 import { formatDate } from '../../utils/momentjs'
@@ -836,6 +837,8 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
                 blockMinutes: this.plugin.settings.weekBlockMinutes,
                 pixelsPerHour: this.plugin.settings.weekPixelsPerHour,
                 availableHours: this.plugin.settings.weekAvailableHoursPerWeek,
+                dayStartMinutes: this.plugin.settings.weekDayStartMinutes,
+                dayEndMinutes: this.plugin.settings.weekDayEndMinutes,
                 targetFollowsPlanned: this.plugin.settings.weekTargetFollowsPlanned
             }),
             restoreState: () => this.restoreWeekState(),
@@ -4960,6 +4963,12 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
 
     /** The active view mode (triage wins, else calendar, timeline, WBS, board). */
     private viewMode(): ViewMode {
+        const mode = this.rememberedMode()
+        // A mode switched off in the settings (phase G) falls back to the board.
+        return modeEnabled(mode, this.plugin.settings.disabledModes) ? mode : 'board'
+    }
+
+    private rememberedMode(): ViewMode {
         // Embed override (issue #103): ephemeral, independent of the flags
         // saved in the shared .base view config.
         if (this.ephemeralMode !== null) return this.ephemeralMode
@@ -4974,6 +4983,10 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
 
     /** Switch the view mode, persisting the mode flags and rebuilding. */
     private setViewMode(mode: ViewMode): void {
+        if (!modeEnabled(mode, this.plugin.settings.disabledModes)) {
+            new Notice(`${VIEW_MODE_LABELS[mode]} mode is switched off in the plugin settings.`)
+            mode = 'board'
+        }
         if (this.viewMode() === mode) return
         // Selection is board-only: leaving board mode must end the select
         // session, or the reserved bar (issue #105, finding 5.4) would sit
@@ -5708,7 +5721,8 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
                 selectionMode: this.selection?.active ?? false,
                 compactMode: this.compactMode(),
                 contextsAvailable: this.hasAnyContextValue(),
-                contextCount: getContextTerms(this.filterQuery, this.contextsProperty()).length
+                contextCount: getContextTerms(this.filterQuery, this.contextsProperty()).length,
+                disabledModes: this.plugin.settings.disabledModes
             },
             {
                 onSetMode: (mode) => this.setViewMode(mode),
@@ -6038,6 +6052,8 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         this.calendar?.evaluatePanelAutoCollapse()
         this.timeline?.evaluatePanelAutoCollapse()
         this.wbs?.evaluatePanelAutoCollapse()
+        // Ideal week: the day window re-fits the pane height (phase G).
+        this.week?.onResize()
         // Height-only resizes (selection bar, empty-state toggles) cannot
         // change card wrapping — re-equalize only when the width changed
         // since the last pass (finding 5.5).

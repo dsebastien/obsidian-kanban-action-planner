@@ -1133,10 +1133,13 @@ command), or embed it with `mode=ideal-week` (`mode=week` works too).
   dimmed when the note is not active. A **filter box** at the top of the rail narrows this
   list only (title, type, status, area or context; Escape clears it) while the grid keeps
   every block, so you can find a note to drag without losing sight of the week. Drag a note
-  from the rail onto the grid to plan a block for it. Blocks of notes that are not active render **dimmed and dashed** (they are on the
-  grid so nothing you plan disappears, but only active notes count in the planned total); a
-  dated note whose window does not include today keeps its blocks saved but not drawn (a
-  notice says so when you plan one).
+  from the rail onto the grid to plan a block for it.
+
+    ![The rail filtered and grouped by area]({{ '/images/week-rail-filter.png' | relative_url }}) Blocks of notes that are not active render **dimmed and dashed** (they are on the
+    grid so nothing you plan disappears, but only active notes count in the planned total); a
+    dated note whose window does not include today keeps its blocks saved but not drawn (a
+    notice says so when you plan one).
+
 - **Blocks are frontmatter.** Each entry of the list is `<days> HH:MM-HH:MM` on a 15-minute
   grid: `mon-fri 09:00-12:00`, `tue,thu 14:00-16:00`, `mon-wed,fri 08:00-09:00`. A day list or
   range **repeats** the block; an end earlier than the start **crosses midnight**
@@ -1205,6 +1208,14 @@ command), or embed it with `mode=ideal-week` (`mode=week` works too).
   planned yet. The toolbar summary (`Targets 32h · planned 30h · available 168h`) is shown
   on both faces and opens the table; the command **Toggle the ideal week targets table**
   does the same from anywhere. The choice of face and grouping is remembered per view.
+
+    ![The targets table grouped by area]({{ '/images/week-targets.png' | relative_url }})
+
+- **Fits the day.** The grid's scale follows the height of the pane: the **day window** (06:00
+  to 22:00 by default, a setting) fills it exactly, on any window size, and the rest of the
+  day scrolls above and below (the grid opens scrolled to the window start). Make the pane
+  taller and the hours get taller with it; make it very short and the grid stops shrinking
+  at the **minimum pixels per hour** setting and scrolls instead.
 - **Available time.** Every share is measured against the **Available hours per week**
   setting (a number of hours, `37.5` say). Leave it empty and the plugin uses the visible
   grid hours times seven days — the whole week, 168 hours, by default. That default is on
@@ -1236,7 +1247,8 @@ command), or embed it with `mode=ideal-week` (`mode=week` works too).
   blocks, planned, target and alarm minutes, areas), the committed date property used by the WBS
   lifecycle chip, **Target follows planned**, **Available hours per week**, the
   visible hours (the full day by default), the work hours and work days (09:00–17:00,
-  Monday to Friday by default), the new block length, and the vertical scale. The column
+  Monday to Friday by default), the new block length, the day window that fills the pane
+  (06:00–22:00) and the minimum vertical scale. The column
   order follows the global **First day of the week** setting (block strings stay
   Monday-first: `mon-fri 09:00-12:00` means the same days whatever the setting). A note type
   can map its own five properties in **Configure board → Ideal week** (blank = the global

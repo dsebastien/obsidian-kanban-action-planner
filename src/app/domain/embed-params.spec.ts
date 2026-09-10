@@ -1,3 +1,4 @@
+import { modeEnabled } from './embed-params'
 import { describe, expect, it } from 'bun:test'
 import { parseEmbedParams } from './embed-params'
 import type { EmbedParams } from './embed-params'
@@ -226,5 +227,14 @@ describe('parseEmbedParams', () => {
             filter: null
         })
         expect(parseEmbedParams('\tfilter=  title:foo  ').filter).toBe('title:foo') // outer trim only
+    })
+})
+
+describe('modeEnabled (issue #172, phase G)', () => {
+    it('the board is always enabled; listed modes are off', () => {
+        expect(modeEnabled('board', ['board', 'triage'])).toBe(true)
+        expect(modeEnabled('triage', ['triage'])).toBe(false)
+        expect(modeEnabled('week', ['triage'])).toBe(true)
+        expect(modeEnabled('week', [])).toBe(true)
     })
 })

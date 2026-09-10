@@ -1,6 +1,7 @@
 import { setIcon } from 'obsidian'
 import { renderGearButton } from './gear-button'
 import type { ViewMode } from '../domain/embed-params'
+import { VIEW_MODES, VIEW_MODE_LABELS, modeEnabled } from '../domain/embed-params'
 
 // ViewMode lives in the domain layer (embed-params, issue #103) so pure
 // domain code never imports from ui/; re-exported here for existing users.
@@ -19,6 +20,8 @@ export interface ViewToolbarState {
     contextsAvailable: boolean
     /** Number of GTD contexts currently selected (0 = inactive/no count badge). */
     contextCount: number
+    /** Modes switched off in the plugin settings (their buttons are not rendered). */
+    disabledModes: readonly string[]
 }
 
 export interface ViewToolbarCallbacks {
@@ -57,23 +60,12 @@ export function renderViewToolbar(
         cls: 'kap-mode-switch',
         attr: { 'role': 'tablist', 'aria-label': 'View mode' }
     })
-    addModeButton(modeSwitch, 'Board', state.mode === 'board', () => callbacks.onSetMode('board'))
-    addModeButton(modeSwitch, 'Calendar', state.mode === 'calendar', () =>
-        callbacks.onSetMode('calendar')
-    )
-    addModeButton(modeSwitch, 'Timeline', state.mode === 'timeline', () =>
-        callbacks.onSetMode('timeline')
-    )
-    addModeButton(modeSwitch, 'WBS', state.mode === 'wbs', () => callbacks.onSetMode('wbs'))
-    addModeButton(modeSwitch, 'Triage', state.mode === 'triage', () =>
-        callbacks.onSetMode('triage')
-    )
-    addModeButton(modeSwitch, 'Agenda', state.mode === 'agenda', () =>
-        callbacks.onSetMode('agenda')
-    )
-    addModeButton(modeSwitch, 'Ideal week', state.mode === 'week', () =>
-        callbacks.onSetMode('week')
-    )
+    for (const mode of VIEW_MODES) {
+        if (!modeEnabled(mode, state.disabledModes)) continue
+        addModeButton(modeSwitch, VIEW_MODE_LABELS[mode], state.mode === mode, () =>
+            callbacks.onSetMode(mode)
+        )
+    }
 
     rightEl.empty()
     if (state.showLaneNav) {

@@ -274,9 +274,19 @@ every share in the targets table; empty = the visible grid hours × 7, the whole
 default), **Grid starts at** /
 **Grid ends at** (hours, the full day by default), **Work hours** (`09:00-17:00` by default;
 empty = no band) and **Work days** (`mon-fri` by default; the band's days), **New block
-length** (60 minutes), and **Pixels per hour** (the vertical scale). There are no per-view
+length** (60 minutes), **Day window** (`06:00-22:00` by default: the hours that fill the pane,
+the scale follows the pane height; empty = the whole grid) and **Minimum pixels per hour**
+(the grid never gets denser than this and scrolls instead). There are no per-view
 options; the panel state, the grid / targets face and the two grouping choices are remembered
 per view.
+
+## View modes
+
+Under **View modes** in the plugin settings, switch off the modes you do not use (Calendar,
+Timeline, WBS, Triage, Agenda, Ideal week; the board itself stays). A switched-off mode leaves
+the mode switch of every board, its commands only show a notice, and an embed asking for it
+(`mode=triage`) or a view remembered in it opens the board instead. Nothing is lost: switch
+it back on and the views come back where they were.
 
 ### Done state
 

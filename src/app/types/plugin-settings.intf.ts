@@ -34,6 +34,8 @@ import {
     DEFAULT_TARGET_MINUTES_PROPERTY,
     DEFAULT_ALARM_MINUTES_PROPERTY,
     DEFAULT_AREAS_PROPERTY,
+    DEFAULT_WEEK_DAY_END_MINUTES,
+    DEFAULT_WEEK_DAY_START_MINUTES,
     DEFAULT_COMMITTED_DATE_PROPERTY,
     DEFAULT_WEEK_GRID_START_HOUR,
     DEFAULT_WEEK_GRID_END_HOUR,
@@ -194,6 +196,19 @@ export const pluginSettingsSchema = z.object({
     weekWorkDays: z.array(z.number().int().min(0).max(6)).default([...DEFAULT_WEEK_WORK_DAYS]),
     weekBlockMinutes: z.number().int().positive().default(DEFAULT_WEEK_BLOCK_MINUTES),
     weekPixelsPerHour: z.number().int().positive().default(DEFAULT_WEEK_PIXELS_PER_HOUR),
+    /**
+     * Day window (issue #172, phase G): the hours that fill the ideal week
+     * pane (the scale is derived from the pane height, `weekPixelsPerHour`
+     * is the floor); `end <= start` = the whole grid.
+     */
+    weekDayStartMinutes: z.number().int().min(0).max(1440).default(DEFAULT_WEEK_DAY_START_MINUTES),
+    weekDayEndMinutes: z.number().int().min(0).max(1440).default(DEFAULT_WEEK_DAY_END_MINUTES),
+    /**
+     * View modes switched off globally (phase G): hidden from the mode
+     * switch, their commands notice, embeds and remembered views fall back
+     * to the board. `board` is never listed.
+     */
+    disabledModes: z.array(z.string()).default([]),
     /** Review (spaced-repetition) property names (issue #57). */
     reviewedDateProperty: z.string(),
     reviewIntervalProperty: z.string(),
@@ -285,6 +300,9 @@ export const DEFAULT_SETTINGS: PluginSettings = {
     weekWorkDays: [...DEFAULT_WEEK_WORK_DAYS],
     weekBlockMinutes: DEFAULT_WEEK_BLOCK_MINUTES,
     weekPixelsPerHour: DEFAULT_WEEK_PIXELS_PER_HOUR,
+    weekDayStartMinutes: DEFAULT_WEEK_DAY_START_MINUTES,
+    weekDayEndMinutes: DEFAULT_WEEK_DAY_END_MINUTES,
+    disabledModes: [],
     reviewedDateProperty: DEFAULT_REVIEWED_DATE_PROPERTY,
     reviewIntervalProperty: DEFAULT_REVIEW_INTERVAL_PROPERTY,
     reviewCountProperty: DEFAULT_REVIEW_COUNT_PROPERTY,

@@ -38,6 +38,22 @@ export const VIEW_MODES = [
 ] as const
 export type ViewMode = (typeof VIEW_MODES)[number]
 
+/** User-facing names of the modes (mode switch, settings, notices). */
+export const VIEW_MODE_LABELS: Record<ViewMode, string> = {
+    board: 'Board',
+    calendar: 'Calendar',
+    timeline: 'Timeline',
+    triage: 'Triage',
+    wbs: 'WBS',
+    agenda: 'Agenda',
+    week: 'Ideal week'
+}
+
+/** Whether a mode is usable given the global `disabledModes` setting (the board always is). */
+export function modeEnabled(mode: ViewMode, disabledModes: readonly string[]): boolean {
+    return mode === 'board' || !disabledModes.includes(mode)
+}
+
 /** Height clamp bounds (px) for the `height=` param. */
 export const EMBED_MIN_HEIGHT_PX = 200
 export const EMBED_MAX_HEIGHT_PX = 2000
