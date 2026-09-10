@@ -127,16 +127,18 @@ export function renderWeek(
     rootEl.empty()
     const root = rootEl.createDiv({ cls: 'kap-week-root' })
     root.dataset['structure'] = structure
+    // The toolbar spans the whole width above the rail and the pane, so the
+    // Grid / Targets switch stays put when the rail comes and goes.
+    renderToolbar(root, model, callbacks)
+    const body = root.createDiv({ cls: 'kap-week-body' })
     // The targets table (phase G) takes the whole pane: no rail, no grid.
     if (model.subMode === 'targets') {
-        const main = root.createDiv({ cls: 'kap-week' })
-        renderToolbar(main, model, callbacks)
+        const main = body.createDiv({ cls: 'kap-week' })
         renderTargets(main, model, callbacks)
         return
     }
-    renderRail(root, model, callbacks)
-    const main = root.createDiv({ cls: 'kap-week' })
-    renderToolbar(main, model, callbacks)
+    renderRail(body, model, callbacks)
+    const main = body.createDiv({ cls: 'kap-week' })
     if (model.errors.length > 0) renderErrors(main, model)
     // The head lives INSIDE the scroller (sticky) so it shares the grid's
     // width: outside it, the scroller's scrollbar narrowed the day columns
@@ -210,9 +212,10 @@ function errorsKey(model: WeekViewModel): string {
  * change; false when the previous DOM is not patchable (full build instead).
  */
 function patchWeek(root: HTMLElement, model: WeekViewModel, callbacks: WeekCallbacks): boolean {
-    const main = root.querySelector<HTMLElement>(':scope > .kap-week')
-    const toolbar = main?.querySelector<HTMLElement>(':scope > .kap-week-toolbar')
-    if (!main || !toolbar) return false
+    const toolbar = root.querySelector<HTMLElement>(':scope > .kap-week-toolbar')
+    const body = root.querySelector<HTMLElement>(':scope > .kap-week-body')
+    const main = body?.querySelector<HTMLElement>(':scope > .kap-week')
+    if (!body || !main || !toolbar) return false
     if (model.subMode === 'targets') {
         const table = main.querySelector<HTMLElement>(':scope > .kap-week-targets')
         if (!table) return false
@@ -238,12 +241,12 @@ function patchWeek(root: HTMLElement, model: WeekViewModel, callbacks: WeekCallb
     if (!scroller || !grid) return false
     // Rail: rebuilt as a whole when its content changed (it is small and
     // its scroll position is captured / restored by the controller).
-    const panel = root.querySelector<HTMLElement>(':scope > .kap-week-panel')
+    const panel = body.querySelector<HTMLElement>(':scope > .kap-week-panel')
     const rail = railKey(model)
     if (!panel || panel.dataset['rail'] !== rail) {
         panel?.remove()
-        const next = renderRail(root, model, callbacks)
-        root.insertBefore(next, main)
+        const next = renderRail(body, model, callbacks)
+        body.insertBefore(next, main)
     }
     patchToolbar(toolbar, model, callbacks)
     // Errors strip: rebuilt when it changed, kept between toolbar and grid.

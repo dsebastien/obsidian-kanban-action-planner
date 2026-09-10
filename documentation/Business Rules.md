@@ -995,7 +995,7 @@ When a new business rule is mentioned:
     style clipboard, quick templates, text editing, lunch band, corner handles (#184).
 
 53. **Ideal week targets table (issue #172, phase G; decided 2026-09-09).** The ideal week has two
-    faces, switched in its toolbar and remembered per view (`weekSubMode`): the GRID (when the
+    faces, switched in its toolbar (a full-width row above the rail and the pane, so the switch never moves) and remembered per view (`weekSubMode`): the GRID (when the
     blocks fall) and the TARGETS table (how much each note gets), which takes the whole pane
     (no rail). The table lists every note of the rail, active or not (inactive rows are dimmed
     and marked "not counted"), with its weekly target editable in place (minutes or a duration
