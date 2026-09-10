@@ -1,6 +1,6 @@
 # Week Planner mode and one time tracker for every note type (issue #172)
 
-Status: phases A–E shipped (A in 1.24.0; B follow-ups, C, D, E in 1.25.0); phase G (targets table, areas, time repartition, target follows planned) implemented on branch `phase-g` for 1.26.0; phase F (voice pass on the docs) still planned. **Hand-off: see the last two sections.**
+Status: phases A–E shipped (A in 1.24.0; B follow-ups, C, D, E in 1.25.0); phase G and phase F shipped in 1.26.0. The plan is complete. **Hand-off: see the last two sections.**
 
 ## Data model (already in the vault, units are the vault's: minutes, ISO datetimes, HH:MM)
 
@@ -111,14 +111,12 @@ Decided with Sébastien on 2026-09-09 (AskUserQuestion, one decision per questio
 4. **Time repartition** → **available hours per week** = `weekAvailableHoursPerWeek` (decimal hours; blank = visible grid hours × 7 = 168h by default) in the plugin settings, never in the base view; **sleep is a regular activity** (no sleep model): the default covers the whole week and the remainder is free time. Shown as **bars per group + a totals row** in the table and a **one-line summary in the toolbar of both faces** (`Targets 32h · planned 30h · available 168h`, click opens the table).
 5. Docs: `docs/usage.md` (Targets table, Available time, Target follows planned, Areas bullets), `docs/configuration.md` (Areas row, Ideal week settings), README, Domain Model; the vault skill `osk-action-time-budget` got per-area totals, `osk-action-lifecycle` unchanged.
 
-## Current state (hand-off, 2026-09-09 night)
+## Current state (2026-09-10, plan complete)
 
-- **Shipped**: 1.24.0 = phase A. **1.25.0** = phases B–E. **1.26.0** = phase G (branch `phase-g`, to merge into `main` and release through the shared plugin workflow after Sébastien's go), plus issue #187 filed for the tracked-this-week column.
-- **Vault side of phase G** (done, uncommitted in the vault repo at hand-off): `areas` on activities / projects / goals, templates, Actions Base, OSK user guide, `osk-action-time-budget`. One pre-existing validation failure on `Run (Activity).md` (`time_entries` declared as a list of strings while the tracker writes objects) is an OSK-side schema fix, not this plugin's.
-- **Branches**: `main` = 1.25.0; `phase-g` = phase G. Older phase branches and `$WKS/kap-*` worktrees can be removed.
-- **Open issues**: #172 (close after 1.26.0 or when Sébastien says so), #184 (corner handles, explore), #185 (status change by dragging a rail entry), #187 (tracked-this-week column in the targets table). #186 done in 1.25.0, close.
-- **Known limits**: unchanged from 1.25.0 (linked tasks count in the ring only on the board; lifecycle follows the type's calendar mapping; print zoom 0.55; controllers have no unit harness); the targets table rebuilds as a whole when its content changes (the focused cell is found again by path); a target raised by an edit is not undone with the edit.
-- **Vault consumers to keep in step**: `osk-action-time-budget` (now area-aware) / `osk-action-lifecycle`; the Actions Base _Time Budget_ and _Time Budget by Area_ views; the OSK user guide (Action System, Note Properties, Note Types); the public note `Kanban Action Planner plugin for Obsidian`.
-- **Next**: release 1.26.0, then phase F (voice pass on `docs/`), screenshots of the targets table, the ring, the lifecycle chip and the import dialog for `docs/images/`.
+- **Shipped**: 1.24.0 = phase A. 1.25.0 = phases B–E. **1.26.0** = phase G (targets table, areas, target follows planned, available hours), the testing follow-ups (toolbar row, rail quick filter, day-window fit with re-fit on resize, global view-mode toggles, bounded embed root), the renamed import / export commands, and phase F (voice pass on `docs/`, six new screenshots). Deployed in the vault; `main` is the only branch.
+- **Vault side**: `areas` on activities / projects / goals, templates, Actions Base (column + _Time Budget by Area_ view), OSK user guide, `osk-action-time-budget` (area-aware); the plugin's `weekPixelsPerHour` lowered to 24 so the day window fits. Known OSK-side schema mismatch: `time_entries` declared as a list of strings while the tracker writes objects (`Run (Activity).md` fails validation).
+- **Open issues**: #184 (corner handles, explore), #185 (status change by dragging a rail entry), #187 (tracked-this-week column in the targets table), #189 (serialize a view to Markdown in a note, Dataview-Serializer modes), #190 (export to / append to a note, import from a vault file or note). #172 and #186 closed.
+- **Known limits**: linked tasks count in the ring only on the board; lifecycle follows the type's calendar mapping; print zoom 0.55; controllers have no unit harness; the targets table rebuilds whole on a content change (focused cell found again by path); a target raised by an edit is not undone with the edit; the ideal week's import dialog did not open through the command after a modal had been removed from the DOM by hand during testing (a test artefact, not reproduced in normal use).
+- **Vault consumers to keep in step**: `osk-action-time-budget` / `osk-action-lifecycle`; the Actions Base _Time Budget_ and _Time Budget by Area_ views; the OSK user guide (Action System, Note Properties, Note Types); the public note `Kanban Action Planner plugin for Obsidian`.
 
-**To continue**: "Continue [[Kanban Action Planner - week planner mode and time tracker (Task)]]: read `documentation/plans/week-planner-and-time-tracker.md` (Current state), release 1.26.0 if not done, then phase F."
+**To continue**: pick one of the open issues above; #187 is the natural next step for the targets table.
