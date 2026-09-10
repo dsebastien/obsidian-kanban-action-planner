@@ -1,5 +1,17 @@
 # Release Notes
 
+## 1.26.0 (2026-09-10)
+
+### Features
+
+- **plugin:** fit the ideal week day window to the pane, and global view-mode toggles
+- **plugin:** quick filter on the ideal week rail
+- **plugin:** targets table, areas grouping and target-follows-planned in the ideal week
+
+### Bug Fixes
+
+- **plugin:** keep the ideal week toolbar in place across the grid and targets faces
+
 ## 1.25.0 (2026-09-09)
 
 ### Features

@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.26.0](https://github.com/dsebastien/obsidian-kanban-action-planner/compare/1.25.0...1.26.0) (2026-09-10)
+
+### Features
+
+* **plugin:** fit the ideal week day window to the pane, and global view-mode toggles ([cbf8339](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/cbf8339c3dc6034a4758d3a20e5c73d922bd3213))
+* **plugin:** quick filter on the ideal week rail ([d6fc6bd](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/d6fc6bd4a307738eaa25570af7a641760a16bfe3))
+* **plugin:** targets table, areas grouping and target-follows-planned in the ideal week ([f37b32e](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/f37b32e3d14cbaa816e4e6486a1e93a7e552b4a5)), closes [#187](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/187)
+
+### Bug Fixes
+
+* **plugin:** keep the ideal week toolbar in place across the grid and targets faces ([3d142d7](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/3d142d73616ca55f5c83643d95160b4559d88bce))
+
 ## [1.25.0](https://github.com/dsebastien/obsidian-kanban-action-planner/compare/1.24.0...1.25.0) (2026-09-09)
 
 ### Features
@@ -565,6 +577,7 @@ All notable changes to this project will be documented in this file.
 
 * **plugin:** match Starter Kit's {{quarter}} placeholder format (Q2, not 2) ([4fde618](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/4fde6185c5956e3f6fd2ca3a9b03e70cf5e16840))
 * **plugin:** persist discovered statuses so Show empty columns works ([cf91b81](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/cf91b81a1b0786e35c73f4885882e2dc33564c62))
+
 
 
 
