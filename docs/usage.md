@@ -7,7 +7,7 @@ nav_order: 2
 
 ## Video tour
 
-Prefer watching? Here's a complete walkthrough of the plugin (~25 minutes), covering the boards, calendar, timeline, triage, WBS, and embeds:
+Prefer watching? Here's a full walkthrough of the plugin (~25 minutes), covering the boards, calendar, timeline, triage, WBS, and embeds:
 
 <iframe style="width: 100%; aspect-ratio: 16 / 9;" src="https://www.youtube.com/embed/umCB9CQire4" title="Kanban Action Planner - complete video tour" frameborder="0" allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
 
@@ -35,8 +35,8 @@ Any Kanban view can be embedded in a regular markdown note with a standard embed
 
 - The `.base` extension is **required** in the link, and the part after `#` is the **view name**
   inside that Base.
-- The embed sizes to its content up to a height cap and scrolls internally past it — in every
-  mode — instead of stretching the note. A small result set only takes the space it needs.
+- The embed sizes to its content up to a height cap, then scrolls inside itself, in every
+  mode, instead of stretching the note. A small result set only takes the space it needs.
 
 **Per-embed overrides.** The wikilink alias (the text after `|`) can override how that one embed
 renders, without changing the saved view:
@@ -45,52 +45,52 @@ renders, without changing the saved view:
 ![[Tasks.base#Kanban|mode=wbs height=400 filter=status:active OR due:overdue]]
 ```
 
-The same view embedded twice in one note — as a board and as a calendar, both narrowed to a
+The same view embedded twice in one note, as a board and as a calendar, both narrowed to a
 single project with a `filter=parent:…` override:
 
 ![Embedded views in different modes]({{ '/images/embed-modes.png' | relative_url }})
 
-- `mode=` — `board` (or `kanban`), `calendar`, `timeline`, `triage`, `wbs`, `agenda`, or `ideal-week` (alias `week`).
+- `mode=`: `board` (or `kanban`), `calendar`, `timeline`, `triage`, `wbs`, `agenda`, or `ideal-week` (alias `week`).
   Editing the embed line updates the rendered embed in place.
-- `height=` — the embed's height cap in pixels (kept between 200 and 2000); the embed still
+- `height=`: the embed's height cap in pixels (kept between 200 and 2000). The embed still
   shrinks below it when the content is smaller. Ignored inside a Canvas, where the canvas
   card's own size controls the board (see below).
-- `context=` — pin the embed to one or more [contexts](#contexts-work-home-) (comma-separated,
+- `context=`: pin the embed to one or more [contexts](#contexts-work-home-) (comma-separated,
   no spaces), e.g. `context=@work` or `context=@work,@home`. Put it **before** `filter=` (which
   swallows the rest of the alias).
-- `columns=` — show only the named board column(s), e.g. a single Doing column or a
+- `columns=`: show only the named board column(s), e.g. a single Doing column or a
   Todo + Doing subset. Comma-separated; quote names containing spaces:
   `columns="20 Doing"` or `columns=todo,doing`. Each name matches case-insensitively as a
   substring of the column's status value or label (`todo` matches a `10 TODO` column;
   `unmapped` matches the Unmapped bucket). Prefix a name with `=` to require the **whole**
-  status value or label instead — `columns==done` keeps only `Done`, where `columns=done`
+  status value or label instead: `columns==done` keeps only `Done`, where `columns=done`
   would also keep a `Done (archived)` column. The prefix is per name, so a list can mix both
   (`columns==todo,doing`), and it may sit inside or outside the quotes
   (`columns=="20 Doing"` and `columns="=20 Doing"` are the same). Board mode only. The card
-  menu still offers every status, so a card moved to a hidden column simply leaves the embed.
+  menu still offers every status, so a card moved to a hidden column just leaves the embed.
   Put it **before** `filter=`.
-- `lanes=` — show only the named [swimlane(s)](#swimlanes-grouping),
+- `lanes=`: show only the named [swimlane(s)](#swimlanes-grouping),
   same list syntax as `columns=`, `=` prefix included (`lanes="10 Must"`, `lanes=work,home`,
   `lanes==work`; `ungrouped` matches the catch-all lane). Names match case-insensitively
-  against the lane label, as a substring or — with the prefix — whole. A
+  against the lane label, as a substring or (with the prefix) whole. A
   restriction leaving a single lane renders it chrome-free, like a naturally single-lane
   board. Combines with `columns=`. Board mode only; put it **before** `filter=`.
 
 Both lists **filter** the board rather than re-order it: the columns and lanes you keep are
 rendered in the board's own configured order, whatever order you listed them in.
 
-- `filter=` — everything after `filter=` is the initial [filter query](#filtering-search-bar),
+- `filter=`: everything after `filter=` is the initial [filter query](#filtering-search-bar),
   exactly as you'd type it in the filter box (the match count shows in the toolbar as usual).
   One caveat: a wikilink alias can't contain `|`, so write `OR` instead of `|` in embed filters.
 
-All parts are optional, in that `key=value` form; anything unrecognized is simply ignored, so a
+All parts are optional, in that `key=value` form. Anything unrecognized is ignored, so a
 plain alias like `|My tasks` works as a normal alias.
 
-**Embeds never change the saved view.** An embed is a projection: switching the mode, editing
-the filter, collapsing panels or lanes, toggling compact cards, reordering columns — any view
+**Embeds never change the saved view.** An embed is a projection. Switching the mode, editing
+the filter, collapsing panels or lanes, toggling compact cards, reordering columns: any view
 setting changed _inside_ the embed applies to that embed only and is forgotten when the note
 re-renders. The view saved in the `.base` file (and shown everywhere else it is open) is never
-touched by an embed. Card edits are real, though: dragging a card to another column, scheduling
+touched by an embed. Card edits are real, though. Dragging a card to another column, scheduling
 it, and so on write to the note's frontmatter as usual.
 
 **Embedding in a Canvas.** The same embed link works inside an
@@ -101,7 +101,7 @@ above. Two things differ from a note embed:
   resizing the card resizes the board (each column keeps its own scroller, like a full-leaf
   view). Below ~160&nbsp;px the board stops shrinking and scrolls inside the card instead.
 - **Dragging works as usual.** Cards, columns, calendar chips, WBS rows, and timeline bars drag
-  inside the board without moving the canvas card. To move the canvas card itself, drag it by
+  inside the board without moving the canvas card. To move the canvas card itself, grab it by
   its edge or by any empty spot on the board (the toolbar background, an empty column area).
 
 ![A board embedded in a Canvas card]({{ '/images/embed-canvas.png' | relative_url }})
@@ -128,7 +128,7 @@ until you define your statuses.
   default, hidden when empty).
 - **Collapse a column** with the chevron in its header. It shrinks to a slim labelled bar so you
   can focus on the rest. Collapsing applies to that status across **every** swimlane. Click the
-  chevron again to expand.
+  chevron again to bring it back.
 
 ## Moving and reordering cards
 
@@ -136,7 +136,7 @@ until you define your statuses.
 - **Drag a card within a column** to reorder it. The new position is saved to a
   `manual_order` property on the note.
 - **Right-click a card → Send to top / Send to bottom** to jump it to either end of its column
-  without dragging. The column stays where you are scrolled — the card leaves and the others
+  without dragging. The column stays where you are scrolled. The card leaves and the others
   close the gap.
 - **Drag a card to the Unmapped column** to clear its status.
 - **Drag a column header left or right** to reorder the columns. The new order is saved to _this
@@ -145,7 +145,7 @@ until you define your statuses.
 
 Manual ordering is stored in your notes, not in plugin data, so it travels with the vault.
 
-**Touch screens.** Swiping vertically over cards scrolls the column as usual; to drag a card by
+**Touch screens.** Swiping vertically over cards scrolls the column as usual. To drag a card by
 touch, start the gesture **sideways** (for a column header, start **downwards**). A plain swipe
 never moves a card or writes to a note. The same rule applies in the calendar and WBS panels.
 Drag-and-drop also works in popped-out (separate) Obsidian windows.
@@ -155,13 +155,13 @@ cards inside every column by **name** or by any **property** (priority, due date
 on), ascending or descending. Set **Card sort**, **Card sort property**, and **Card sort
 direction** in **Configure view → Columns**. Missing values sort last. While a non-manual sort is
 active, dragging a card within a column (plus the keyboard reorder and the menu's **Send to
-top/bottom**) is turned off, since sorting owns the order, but you can still drag between columns
+top/bottom**) is turned off, since sorting owns the order. You can still drag between columns
 to change status. Switch **Card sort** back to **Manual order** to restore your saved
 `manual_order` and re-enable reordering.
 
 ## Creating cards from the board (quick capture)
 
-Every status column offers two ways in — a **+** in its header, always in reach at the top,
+Every status column offers two ways in. A **+** in its header, always in reach at the top,
 and a labelled **Add card** button under the cards. Click either, type a name, press Enter,
 and a new note is created that appears as a card **in that column**.
 
@@ -177,19 +177,19 @@ goal, in the goals folder, landing in the column you clicked:
 
 ### What the new note gets
 
-- **The column's status.** Written last, so it is authoritative — see "Templates" below.
+- **The column's status.** Written last, so it wins. See "Templates" below.
 - **The swimlane's value**, when the board groups by a property and you added the card inside a
   lane (not the Ungrouped one).
 - **The note type's recognition tag**, so the board recognizes it as that type.
-- **Whatever the Base filters on** — folder, tag, property value, list membership — so the note
-  really does match the view. Only filters combined with **and** are used: an **or** / **not**
+- **Whatever the Base filters on**: folder, tag, property value, list membership, so the note
+  really does match the view. Only filters combined with **and** are used. An **or** / **not**
   branch has no single right answer, so nothing is guessed from it.
 - **A manual order** placing it after the last card in the column (manual sort only). No other
   note is rewritten.
 
 ### Where the note goes, and with which template
 
-Settings are layered — the first one that is filled in wins:
+Settings are layered. The first one that is filled in wins:
 
 1. The note type's own settings, in **Configure board → Creating notes**.
 2. The **Obsidian Starter Kit** note type, when you use it: its folder, template, and name
@@ -199,7 +199,7 @@ Settings are layered — the first one that is filled in wins:
 
 Folders and name prefixes/suffixes accept placeholders: `{{year}}`, `{{month}}`, `{{week}}`,
 `{{quarter}}`, `{{day}}`, `{{date}}`, `{{datetime}}`, `{{uuid}}`. A prefix or suffix already
-present in the name you typed is not added twice — typing `Ship it (Task)` stays `Ship it (Task)`.
+present in the name you typed is not added twice, so typing `Ship it (Task)` stays `Ship it (Task)`.
 
 ### Templates
 
@@ -207,7 +207,7 @@ present in the name you typed is not added twice — typing `Ship it (Task)` sta
   and a template's own rename / move all work exactly as they do anywhere else.
 - **The template is applied before the card's properties are written.** That order matters: if
   your template asks for a status, your answer is applied first and then replaced by the column
-  you clicked — the column always wins. Everything else your template sets is kept.
+  you clicked. The column always wins. Everything else your template sets is kept.
 - Templater's own **"Trigger Templater on new file creation"** does not fire a second time: the
   plugin claims the file, so the template is applied exactly once and the plugin waits for it.
 - If the note type has **no template**, the template your Templater folder / file rules would
@@ -222,7 +222,7 @@ present in the name you typed is not added twice — typing `Ship it (Task)` sta
 
 ### Notes
 
-- The **Unmapped** column has no Add button — it has no status value to write.
+- The **Unmapped** column has no Add button, since it has no status value to write.
 - The header **+** does not start a column-reorder drag, and it is hidden while the column is
   collapsed.
 - If a template **moves** the note somewhere the view's filters exclude, you get a notice saying
@@ -233,9 +233,9 @@ present in the name you typed is not added twice — typing `Ship it (Task)` sta
 ## Filtering (search bar)
 
 The **filter box** in the toolbar (right after the **Board / Calendar** buttons) narrows the
-visible cards as you type, in **both** board and calendar mode. It supports a compact,
+visible cards as you type, in **both** board and calendar mode. It speaks a compact,
 Jira-like query language. The count of matches shows next to the box, and the **×** (or **Esc**)
-clears it. Your filter is **saved with the view**, so it persists when you reopen the board
+clears it. Your filter is **saved with the view**, so it survives reopening the board
 (except inside a [note embed](#embed-a-board-in-a-note), where it stays local to the embed).
 Click the **?** for an in-app cheat-sheet.
 
@@ -259,15 +259,15 @@ The **?** cheat-sheet, always one click away:
 - Quote values with spaces: `parent:"PKM Library"`.
 - **Comma = OR** within one property: `status:active,done`.
 - Recognized names: `title`, `status` (matches the value or its column label), `parent`,
-  `ancestor` (any **transitive** parent — the parent, its parent, and so on), `child`,
+  `ancestor` (any **transitive** parent: the parent, its parent, and so on), `child`,
   `sibling`, `blocked`, `tag`, `due`, `defer`, `scheduled`, `is`, `estimate`, `progress`,
-  `order`, `context` / `contexts` (your GTD contexts — see below), **or any frontmatter
+  `order`, `context` / `contexts` (your GTD contexts, see below), **or any frontmatter
   property** (e.g. `urgency:now`, `effort:large`), even properties not shown on the card.
 - **`context:` / `contexts:` always target your configured contexts property**, whatever
   it is called: `context:@work`, `context:@home,@errands` (comma = OR). You never need to
   remember the property's actual name.
 - **`:` matches substrings; `:=` matches the whole value.** `parent:app` matches children of
-  both `App` and `App Backend`; `parent:="App"` matches only `App` (still case-insensitive).
+  both `App` and `App Backend`, while `parent:="App"` matches only `App` (still case-insensitive).
   Works for every qualifier (`status:=done`, `tag:=work`, …).
 
 **`due:` dates**
@@ -279,15 +279,15 @@ The **?** cheat-sheet, always one click away:
 
 **Configured-property aliases (scheduled, estimate, progress, order)**
 
-Like `context:`, these qualifiers always target the **configured** property — whatever it is
-actually called in your frontmatter — so you never need to remember its real name:
+Like `context:`, these qualifiers always target the **configured** property, whatever it is
+actually called in your frontmatter, so you never need to remember its real name:
 
 - `scheduled:` takes the same keywords and comparisons as `due:`, evaluated against your
   scheduled-date property: `scheduled:today`, `scheduled:none`, `scheduled:week`,
   `scheduled:>2026-09-01`.
 - `estimate:` compares the resolved estimate **unit-aware**: a plain number is days
-  (`estimate:>=2`), or add a `d` / `h` / `m` suffix — `estimate:>4h`, `estimate:<=30m`,
-  `estimate:2d`. Minute-based note types (per-type estimate overrides) convert through
+  (`estimate:>=2`), or add a `d` / `h` / `m` suffix (`estimate:>4h`, `estimate:<=30m`,
+  `estimate:2d`). Minute-based note types (per-type estimate overrides) convert through
   your **minutes per day** setting, so a 240-minute task matches both `estimate:4h` and
   `estimate:0.5`.
 - `progress:` and `order:` compare numbers against the configured progress and manual-order
@@ -297,14 +297,14 @@ actually called in your frontmatter — so you never need to remember its real n
 **Defer dates and availability (Next actions)**
 
 A **defer date** ("can't start until") marks a card as not-yet-actionable until that day.
-The property is `date_defer` by default — change it globally in the plugin settings, or per
+The property is `date_defer` by default. Change it globally in the plugin settings, or per
 note type via the type's calendar config. Cards deferred to the future render **muted** on
 the board (hover to read them normally).
 
 - `defer:` takes the same keywords and comparisons as `due:` (`defer:none`,
   `defer:>2026-09-01`, …).
 - `is:` matches availability states: **`is:available`** (not deferred, not blocked, not
-  done — GTD's "next actions"), `is:deferred`, `is:blocked`, `is:done`. All negatable
+  done, GTD's "next actions"), `is:deferred`, `is:blocked`, `is:done`. All negatable
   (`-is:done`).
 
 Typing **`is:available`** in the filter box (or saving it with the view, or pinning it in an
@@ -315,12 +315,12 @@ Example: `book parent:"PKM" status:active OR due:overdue`.
 
 ## Contexts (@work, @home, …)
 
-If your notes carry GTD-style **contexts** in a list property (`contexts:` by default — change
+If your notes carry GTD-style **contexts** in a list property (`contexts:` by default, change
 it under **Contexts property** in settings), the **@ button** in the toolbar (next to the
 mode buttons) lets you filter to one or more contexts without typing. Click it for a checklist
-of every context found on the current board; pick any combination and the board shows cards in
-**any** of them (OR). Selected contexts appear as chips next to the filter box — click a chip's
-**×** to drop just that one — and the button shows how many are active.
+of every context found on the current board, then pick any combination and the board shows cards in
+**any** of them (OR). Selected contexts appear as chips next to the filter box (click a chip's
+**×** to drop just that one), and the button shows how many are active.
 
 ![Filtering a board by a context]({{ '/images/contexts.png' | relative_url }})
 
@@ -328,7 +328,7 @@ You can also just type it: `context:@work` in the filter box targets your config
 contexts property directly (so does `contexts:`), and composes with everything else
 (`context:@work is:available`).
 
-It's built on the filter box, so it's just a convenient way to write a `contexts:` query: the
+It's built on the filter box, so it's a handy way to write a `contexts:` query. The
 selection is **saved with the view**, composes with anything else you've typed, and works in
 every mode (board, calendar, timeline, WBS, triage).
 
@@ -339,13 +339,13 @@ overwriting the rest).
 
 **Colors on the calendar and timeline.** Each context gets a stable color. Calendar chips show a
 colored dot and timeline bars/squares are tinted by the card's first context, so you can scan by
-context at a glance. A small **color legend** sits in the calendar/timeline toolbar; click a
+context at a glance. A small **color legend** sits in the calendar/timeline toolbar. Click a
 context there to pin or unpin it as a filter (the same as the **@** switcher).
 
 ## Triage mode
 
 When a backlog feels overwhelming, **Triage** mode replaces the board with a **focused,
-one-card-at-a-time queue**, so you clarify items in short passes instead of facing the whole wall
+one-card-at-a-time queue**. You clarify items in short passes instead of facing the whole wall
 at once. Switch to it with the **Triage** button at the end of the mode switch (or the **Toggle
 triage mode** command).
 
@@ -356,24 +356,24 @@ triage mode** command).
 - **→** next (or **Reviewed** in the review scope) · **←** skip · **O** open the note
   (**Ctrl/Cmd+O** in a new tab).
 - **↑ / ↓** bump the card's priority-like enum one step (the first configured enum named
-  _priority_, else _urgency_, else the first one) — up moves toward the list's start.
+  _priority_, else _urgency_, else the first one). Up moves toward the list's start.
 - **⇧↑ / ⇧↓** send the card to the top / bottom of its column (manual card sort only).
 - **1–9** set the status to the card's own type's nth column.
 - Or **drag the card** Tinder-style: right = next, left = skip, up/down = priority bump.
   While you drag, a **badge fades in showing exactly what releasing will do** (Next / Skip /
-  Priority ↑ / Priority ↓); release below the threshold and the card snaps back, doing
+  Priority ↑ / Priority ↓). Release below the threshold and the card snaps back, doing
   nothing.
 
 The card scrolls on its own when it's tall (or the UI is zoomed), and the scope tabs and the
-**Skip** / **Next** actions stay pinned so they're always reachable.
+**Skip** / **Next** actions stay pinned so they're always in reach.
 
 A **queue pane on the left** lists every card in the current scope, **grouped by note type
 then status** (the type level only appears on multi-type boards). **Click any card to jump
-straight to it** on the right — the current one is highlighted. The pane only ever shows what is
+straight to it** on the right, where the current one is highlighted. The pane only ever shows what is
 **left**: a card **leaves the queue** (and the count) as soon as it no longer needs triage in this
-scope and you've moved on from it — the card you're working on stays put until you do, even once
+scope and you've moved on from it. The card you're working on stays put until you do, even once
 it's fully handled. Collapse a group with its header, or the whole pane with the **«** toggle
-(remembered per view). It's the same panel used by the calendar and timeline.
+(remembered per view). It's the same panel the calendar and timeline use.
 
 Each card shows:
 
@@ -390,7 +390,7 @@ Each card shows:
 - **Skip** / **Next** to move through the queue, with a **remaining count**. Both **scroll the card
   back to the top** so the next one starts at its title. While a card still has values left to set,
   picking one **stays put** (the view re-renders in place, keeping your scroll) so you can see the
-  recomputed score; the moment you fill the **last** one, triage **jumps straight to the next card**.
+  recomputed score. The moment you fill the **last** one, triage **jumps straight to the next card**.
 
 When a card's triage is **completed** (its last gating property filled, or a review marked done), a
 short **confetti** burst celebrates it before advancing. Turn this off with **Celebrate completed
@@ -406,7 +406,7 @@ Once the **whole queue** is sorted, an **"All done! 🎉"** message takes over.
 - **All cards**: every card, **worst-first** (most unset properties first), for a re-prioritization
   pass even when nothing is strictly missing.
 - **Due for review**: cards whose **review is overdue**, most-overdue first (see **Reviews** below).
-  Here the action button is **Reviewed**, which stamps the review fields and advances.
+  Here the action button is **Reviewed**. It stamps the review fields and advances.
 
 Configure triage with the **gear** in the triage header (or the **Configure triage** command),
 which opens a dialog with proper **property pickers**. Type to search, click to add, and each
@@ -415,8 +415,8 @@ selection shows as a removable chip:
 - **Editable properties**: the enum props triage lets you set, picked from your **note types'**
   properties (the Starter Kit definitions, or the properties you've given allowed values).
 - **Gating properties**: what decides "unclarified". Leave empty to use the editable set.
-- **Context properties**: read-only info to show. Here you can also pick the base's **formulas**
-  (e.g. `priority_score`). Leave empty to use the view's displayed properties.
+- **Context properties**: read-only info to show. You can also pick the base's **formulas**
+  here (e.g. `priority_score`). Leave empty to use the view's displayed properties.
 - **Needs-triage values**: values that count as unset (e.g. `TBD`), added as free-text chips.
 - **Scope**: the default scope (also switchable live in the header).
 
@@ -429,15 +429,15 @@ and review keep working, resolving each card against **its own note type**:
 - Editable controls and their values come from the card's type. A control only appears for a card
   whose type defines that property.
 - **Gating is type-aware**: a gating property only flags a card when that card's type actually
-  defines it. So a task-only property (e.g. `time_estimate`) never marks goals/plans/projects as
+  defines it. A task-only property (e.g. `time_estimate`) never marks goals/plans/projects as
   needing a value, and vice-versa. (This is why a board of _shared_ planning properties like
   priority/urgency/effort triages cleanly across every type.)
-- Review uses the global review properties, so it's the same on every card regardless of type.
+- Review uses the global review properties, so it's the same on every card whatever its type.
 
 ### Reviews (spaced repetition)
 
 The **Due for review** triage scope turns the queue into a periodic review ritual, so the backlog
-never silently rots. It uses three note properties:
+never quietly rots. It uses three note properties:
 
 - **last reviewed** (a date): when you last reviewed the note,
 - **review interval** (a number of days): how often it should be reviewed,
@@ -447,7 +447,7 @@ A card is **due** when `last reviewed + review interval` is on or before today, 
 **never reviewed** (which sorts first). The queue is ordered **most-overdue first**, and each card
 shows its review status (last reviewed, count, how overdue) on top. Clicking **Reviewed** sets
 **last reviewed = today** and **increments review count**, then advances, so the card drops out
-until it's next due. You can still adjust the enum values while reviewing.
+until it's next due. You can still adjust the enum values while you review.
 
 The property names are **configurable** in **Settings → Community plugins → Kanban Action Planner**
 under **Review (triage)**. They default to `last_reviewed`, `review_interval`, and `review_count`.
@@ -457,7 +457,7 @@ interval. Review works on **any** Kanban view via the scope switch, with no per-
 ### Column triage (board mode)
 
 Triage also comes to the board itself (issue #170): every column header carries a small
-**triage** button that starts a **Tinder-style one-card pass over that column** — the cards
+**triage** button that starts a **Tinder-style one-card pass over that column**. The cards
 of that specific status, in the column's current order, one at a time, as a card **stack**
 (the next cards peek behind the current one). The header keeps the **column name front and
 center** (with the progress count on the left and a progress bar underneath), so the pass
@@ -467,31 +467,31 @@ never loses track of which column it is working through.
 
 Under the card sits a **stationary status tray**: every status of the card's own type as a
 color-dotted chip (the current one highlighted), plus **Keep in <status>**. Full-height
-**rails** hug the pane edges, labelled with the previous/next status (a carousel — the ends
+**rails** hug the pane edges, labelled with the previous/next status (a carousel: the ends
 wrap, and the rail always names its destination).
 
-Every decision path triggers the same **stamp + fly-out animation** — the destination
+Every decision path triggers the same **stamp + fly-out animation**. The destination
 status slams onto the card as a tinted passport stamp, then the card flies off toward its
 new column:
 
 - **Click a chip** to move the card straight to that status (keys `1`–`9` do the same).
 - **Click a rail** (or **←** / **→**, or **swipe** the card left/right) for the carousel
   move.
-- **Drag the card onto a chip, the Keep button, or a rail** — targets light up as the drag
+- **Drag the card onto a chip, the Keep button, or a rail**. Targets light up as the drag
   passes over them, and releasing commits that exact status.
 - **Keep** (or **↓** / **Space**, or swipe down) leaves the card and advances.
-- **↑** steps back to the card you just decided, **cancelling that decision** — a move is
-  written back to the status the card had before, a keep simply rewinds. Works all the way
+- **↑** steps back to the card you just decided, **cancelling that decision**: a move is
+  written back to the status the card had before, a keep just rewinds. Works all the way
   back through the pass, including on the very last decision while the completion
   celebration plays.
 - **Esc** exits; **O** opens the note (**Ctrl/Cmd-click** the Open button for a new tab);
-  right-click shows the full card menu. Leaving the board tab — to read or edit the note
-  in another tab, say — keeps the pass alive: coming back returns keyboard control to it,
-  and a card archived or otherwise removed in the meantime simply leaves the queue.
+  right-click shows the full card menu. Leaving the board tab (to read or edit the note
+  in another tab, say) keeps the pass alive: coming back returns keyboard control to it,
+  and a card archived or otherwise removed in the meantime just leaves the queue.
 
 Decisions are **optimistic**: the next card is on screen the instant you decide, and the
-status write settles in the background — a failed write puts the card back into the pass.
-The pass also stays fast on big columns: the board behind the overlay is left alone until
+status write settles in the background. A failed write puts the card back into the pass.
+The pass also stays fast on big columns. The board behind the overlay is left alone until
 you exit, so a decision takes a couple of milliseconds where a 200-card column used to
 freeze for up to a second (1.19.2).
 
@@ -503,26 +503,26 @@ dragged the card on the board.
 ## Agenda mode
 
 Where the board answers "what state is everything in", **Agenda** answers "what's on my plate
-right now": a flat, prioritized list of **Overdue**, **Today** (due or scheduled today), and
+right now". A flat, prioritized list of **Overdue**, **Today** (due or scheduled today), and
 **Upcoming** (due or scheduled in the next 7 days). Switch to it with the **Agenda** button at
 the end of the mode switch (or the **Toggle agenda mode** command).
 
 ![Agenda mode, listing overdue items first]({{ '/images/agenda.png' | relative_url }})
 
 - The **Today / Week** switch controls the look-ahead: **Today** shows only overdue and
-  today's items; **Week** adds the Upcoming section.
-- **Available only** (on by default) hides cards that can't be started right now — deferred,
+  today's items, **Week** adds the Upcoming section.
+- **Available only** (on by default) hides cards that can't be started right now: deferred,
   blocked, or done (see [Defer dates and availability](#defer-dates-and-availability-next-actions)).
   The bar shows how many were hidden, and switching it off shows them muted in place.
 - Rows are sorted by date, then manual order, then title. **Click** to open the note
-  (Ctrl/Cmd-click for a new tab), **right-click** for the usual card menu — set the status,
+  (Ctrl/Cmd-click for a new tab), **right-click** for the usual card menu: set the status,
   reschedule, archive, and so on without leaving the list.
 - The agenda respects the active **filter** (and the Base's own filters), like every mode.
-- A past _scheduled_ date alone never lists a card — a slipped schedule is not an overdue
+- A past _scheduled_ date alone never lists a card. A slipped schedule is not an overdue
   deadline. Reschedule it from the calendar, or give it a due date.
 
-The agenda is the "do" end of the workflow: triage clarifies, the board organizes, the
-calendar plans — the agenda tells you what's next **now**.
+The agenda is the "do" end of the workflow. Triage clarifies, the board organizes, the
+calendar plans, and the agenda tells you what's next **now**.
 
 ## Swimlanes (grouping)
 
@@ -538,7 +538,7 @@ options):
 
 **Mixed boards group by note type automatically.** When a Base's results contain **more than one
 recognized note type** (e.g. an "All actions" view with goals, projects, and tasks) and you
-haven't chosen a grouping, the board auto-groups **by note type** — each type gets its own lane
+haven't chosen a grouping, the board auto-groups **by note type**. Each type gets its own lane
 **with its own columns** (see below). Set the per-view Swimlanes option to **None** to keep a
 flat board instead.
 
@@ -547,12 +547,12 @@ flat board instead.
 Different note types often have different status vocabularies (a task's `Backlog → Done` vs a
 project's `Idea → Abandoned`). On a mixed board:
 
-- **Each note-type lane shows its own type's columns**, colors, and WIP limits — a project card
+- **Each note-type lane shows its own type's columns**, colors, and WIP limits, so a project card
   sits in _Active_ in the Projects lane while tasks flow through their own columns below.
-- **A card's own note type is authoritative for its status.** Dragging, the card menu's **Set
-  status**, and keyboard moves only ever offer/write values from the card's own type — a project
+- **A card's own note type owns its status.** Dragging, the card menu's **Set
+  status**, and keyboard moves only ever offer or write values from the card's own type. A project
   can't be given a task status.
-- **Bulk set status** (multi-select) works when the selection is a single type; a mixed
+- **Bulk set status** (multi-select) works when the selection is a single type. A mixed
   selection shows a notice instead (Archive / Open / Clear still work).
 - **Column drag-reorder is off on mixed boards** (order comes from each note type's definition);
   it still works on single-type boards. Setting an explicit per-view **Statuses (columns)** list
@@ -570,7 +570,7 @@ lanes don't push each other off-screen). When there's more than one lane, **up a
 appear next to the gear to jump to the previous or next lane.
 
 - **Drag a card to another lane** to reassign it. For property grouping, the grouping property
-  is rewritten to the target lane's value (or cleared when dropping into Ungrouped). You can
+  is rewritten to the target lane's value (or cleared when you drop into Ungrouped). You can
   cross lanes and columns in one drag, updating both the lane property and the status.
 - Note-type lanes can't be reassigned by dragging (a note's type comes from its tags or folder),
   so a cross-lane drop there is ignored. Moving within the lane still works.
@@ -587,7 +587,7 @@ are mutual). Configure which property feeds each role in the note type's **Relat
 You can also detect children by tag: a note carrying one of the chosen tags that links back to
 a card is treated as its child.
 
-**Each note resolves relationships with its own type's properties** — on a mixed board, a
+**Each note resolves relationships with its own type's properties.** On a mixed board, a
 task can point at its project via `related_projects` while that project points at its goal
 via `related_goals`, and the whole chain resolves (badges, WBS tree, zoom). Edits work the
 same way: adding, removing, or drag-re-parenting always writes the owning note's own
@@ -601,26 +601,26 @@ On each card:
   siblings), so a note with three children shows **▼ 3**, and hovering lists the names.
   **Click a badge** to open the related note. When there are several, you get a menu to pick
   one. **Ctrl/Cmd-click** (on the badge or a menu item) opens in a new tab. The **▼ children**
-  and **▲ parents** badges always open a menu — on top of it, **Focus on children on this
+  and **▲ parents** badges always open a menu. On top of it, **Focus on children on this
   board** (▼) / **Focus on children of X** (▲) zoom the board (see
   [Focus on a card's children](#focus-on-a-cards-children-zoom)).
 - A note with a non-empty **blocked by** gets a red **⛔** badge (counted the same way, **⛔ 2**
   when blocked by two) and a red edge. Click it to jump to the blocker, or pick from the menu
   when there are several (Ctrl/Cmd-click for a new tab). Blocking never changes a card's status
-  automatically.
+  on its own.
 - The card's right-click menu also lists related notes to open.
 - **Edit relationships from the board.** The right-click menu's **Relationships** submenu lets you
   **Add** a parent/sibling/child/blocked-by (pick a note from the fuzzy list) or **Remove** one.
   This writes the link to the note's frontmatter property for that role, so it shows up everywhere,
   and the blocked badge and filter update live. You can only add a role that has a property
   configured (a role set to **None** has nowhere to store the link), and you can only remove links
-  stored **on this note** (a relationship the plugin _infers_, e.g. a child shown because the other
-  note names this one as its parent, is edited from that other note).
+  stored **on this note**. A relationship the plugin _infers_, e.g. a child shown because the other
+  note names this one as its parent, is edited from that other note.
 
 **Blockers can live on another board, and archiving a blocker clears it.** A blocker counts wherever
 it lives: a **task** blocked by a **project** stays blocked even though the project sits on a
 different board. A blocker stops counting only when it's **archived** (moved into a note type's
-archive folder): the **⛔** count drops, and the card unblocks once its last non-archived blocker is
+archive folder). The **⛔** count drops, and the card unblocks once its last non-archived blocker is
 gone. (Parent/sibling/child badges aren't affected by archiving.) Edits apply **live**: change or
 remove a `blocked by` link, or archive a blocker, and the board updates without a reload.
 
@@ -639,17 +639,17 @@ Three ways to trigger it:
 - The **▼ children badge** menu → **Focus on children on this board** (top item).
 - **From a child, going up**: the **▲ parents badge** menu → **Focus on children of X**. On a
   mixed board (e.g. an "All actions" view), click a task's ▲ badge and focus its project to see
-  **all of that project's children** — the task itself and its siblings — in one move.
+  **all of that project's children** (the task itself and its siblings) in one move.
 
 Each entry point also offers **Focus on all descendants**: instead of the direct children only,
-the board shows the **whole subtree** — children, grandchildren, and so on. Focus all descendants
+the board shows the **whole subtree**, children, grandchildren, and so on. Focus all descendants
 of a goal and you see its projects **and** their tasks at once. Under the hood this writes an
 `ancestor:="Title"` term (a card matches when the focused note is **any** of its transitive
-parents); the chain is climbed through the notes on the board, so a hierarchy that passes through
+parents). The chain is climbed through the notes on the board, so a hierarchy that passes through
 a note the Base excludes stops there.
 
-Under the hood, zooming simply writes a `parent:="Card Title"` (children) or
-`ancestor:="Card Title"` (descendants) term into the [filter box](#filtering-search-bar) — there
+Under the hood, zooming writes a `parent:="Card Title"` (children) or
+`ancestor:="Card Title"` (descendants) term into the [filter box](#filtering-search-bar). There
 is no separate mode. That means:
 
 - It **ANDs with whatever you already typed** (e.g. `status:active` stays applied).
@@ -660,16 +660,16 @@ is no separate mode. That means:
 
 While focused, a **chip** (`▼ Website Redesign ✕`) shows next to the filter box:
 
-- Click the **✕** to remove **only** the zoom term — the rest of your query survives.
+- Click the **✕** to remove **only** the zoom term. The rest of your query survives.
 - Click the **label** to open the focused parent note.
 
 **Focus on children** matches direct children only (the same parent/child links the ▼ badge
 counts, including inferred ones); **Focus on all descendants** matches the whole subtree. The
-focused card itself is not shown — the chip is the context.
+focused card itself is not shown. The chip is the context.
 
 **Heads-up:** zoom filters **within the notes this view's Base already selects**. If the Base's
 own filters exclude the children (e.g. you focus a project on a **projects-only** view, and its
-children are tasks), the board comes up empty — use a view whose Base includes the children, like
+children are tasks), the board comes up empty. Use a view whose Base includes the children, like
 a mixed "All actions" view.
 
 ## Archiving
@@ -680,7 +680,7 @@ dedicated folder while keeping all links intact.
 **Archiving is per note type.** Each note type has its own archive folder, set in its
 **Archiving** section under **Settings → Note types**. So on a board mixing e.g. Tasks and
 Projects, each card is archived to the folder that belongs to _its_ type (`Archive/Tasks/{{year}}`
-vs `Archive/Projects/{{year}}`). A card whose type has no folder set simply can't be archived (the
+vs `Archive/Projects/{{year}}`). A card whose type has no folder set can't be archived at all (the
 menu item is hidden).
 
 Set this up in each type's **Archiving** section:
@@ -689,10 +689,10 @@ Set this up in each type's **Archiving** section:
   autocomplete**, and any `{{…}}` placeholder you've added is kept. The path supports placeholders
   that resolve at archive time: `{{year}}`, `{{month}}`, `{{week}}`, `{{quarter}}`, `{{day}}`,
   `{{date}}`, `{{datetime}}`, `{{uuid}}`. For example, `Archive/{{year}}` files into `Archive/2026`.
-  Leave it blank to disable archiving. Intermediate folders are created automatically, and a name
+  Leave it blank to turn archiving off. Intermediate folders are created for you, and a name
   clash is resolved with a numeric suffix (`Task 1.md`) so nothing is ever overwritten.
 - **Auto-archive on status**: optional and off by default. Tick **one or more** statuses and a
-  card is archived automatically the moment it **transitions into** any of them (by drag or
+  card is archived on its own the moment it **transitions into** any of them (by drag or
   menu). Reordering a card that's already in such a status does nothing. Only the transition
   triggers it.
 - **Done-date properties**: comma-separated frontmatter properties, **first present wins**
@@ -706,8 +706,8 @@ longer match the Base's filter.
 
 ### Folder notes move with their folder
 
-A note that is the **namesake of its folder** — `Projects/Foo/Foo.md`, or with a
-parenthesised type suffix like `Projects/Foo/Foo (Project).md` — is archived by moving the
+A note that is the **namesake of its folder** (`Projects/Foo/Foo.md`, or with a
+parenthesised type suffix like `Projects/Foo/Foo (Project).md`) is archived by moving the
 **whole folder**: every sibling file (sub-notes, attachments, plans) goes along and wikilinks
 keep resolving. On a name clash in the destination the folder gets the numeric suffix, not
 the note. Any other note moves alone. The same applies to the **Move to folder** automation
@@ -720,19 +720,19 @@ column is always empty. If you'd rather see finished work linger for a week, set
 Archiving → Archive grace period (days)**. From then on:
 
 - A card entering an auto-archive status **stays on the board**. It is archived once its
-  **done date** — the first present of the type's **Done-date properties** — is at least that
+  **done date** (the first present of the type's **Done-date properties**) is at least that
   many days old.
 - Aged cards are archived when a board **loads** (once per open board), or on demand with the
   **Archive aged done notes (open boards)** command. A notice tells you what moved.
 - A card in an auto-archive status with **no done date** gets one **stamped with today**: the
   property an automation rule of its type would write on that transition (so an Abandoned
   project gets `date_abandoned`, a Done task `date_completed`), else the first listed one. That
-  starts its clock — and it also catches notes you marked done in the editor or with a script,
-  which never went through the board. A date the plugin can't parse is left alone; the note
+  starts its clock, and it also catches notes you marked done in the editor or with a script,
+  which never went through the board. A date the plugin can't parse is left alone. The note
   just waits.
 - Types with no done-date properties ignore the grace period and archive at once, as before.
 - Two boards showing the same note don't race: sweeps run one at a time, and a note something
-  else already archived in the meantime is simply skipped.
+  else already archived in the meantime is skipped.
 
 Tip: pair it with an automation that stamps the done date on the transition (**enters a done
 state → set `date_completed` to `{{date}}`**) so the clock starts from the exact day you
@@ -741,30 +741,30 @@ finished, whatever write path you used.
 ## Automation rules
 
 Let the board do the bookkeeping: per note type, **Configure board → Automations** runs
-actions whenever a note hits a trigger. The classic example — one rule on your Tasks type,
+actions whenever a note hits a trigger. Take the classic example, one rule on your Tasks type:
 **When the note enters a done state → set `progress` to `100`, remove `date_due`, set
-`date_completed` to `{{date}}`** — and every way of completing a task (dragging it to Done,
-the card menu, the WBS status dot, a bulk edit, triage) stamps the note for you.
+`date_completed` to `{{date}}`**. Every way of completing a task (dragging it to Done,
+the card menu, the WBS status dot, a bulk edit, triage) then stamps the note for you.
 
 ![Automation rules on a note type]({{ '/images/automations.png' | relative_url }})
 
 Each rule is a **trigger** plus a list of **actions** that run in order:
 
 - Triggers: **enters a status**, **leaves a status** (toggle any of the type's statuses),
-  **enters a done state** (any of the done values you configured — Completed, Abandoned,
-  Superseded… — in one rule), **is archived**, or **a property matches a condition**
-  (`progress ≥ 100`, `priority = 10 - Top`, `date_due is set`, …) — condition rules fire
+  **enters a done state** (any of the done values you configured, Completed, Abandoned,
+  Superseded…, in one rule), **is archived**, or **a property matches a condition**
+  (`progress ≥ 100`, `priority = 10 - Top`, `date_due is set`, …). Condition rules fire
   when the condition _becomes_ true, from any edit source, as long as a board showing the
   note is open.
 - Actions: **set a property** (values expand `{{date}}`, `{{year}}` and the other archive
   placeholders; numbers and true/false are written natively; **only if empty** never
   overwrites a value that is already set), **remove a property**, **add or remove a tag**,
-  and **move the note to a folder** (placeholders, auto-created folders, links preserved —
+  and **move the note to a folder** (placeholders, auto-created folders, links preserved:
   the archive machinery).
 
 With the Obsidian Starter Kit (1.13+), a note type whose **Status** section declares done
 states and stamped dates gets its **Done state** and one `Stamp … on …` rule per stamping
-status **mirrored** here, read-only and re-synced on every board load — configure them once
+status **mirrored** here, read-only and re-synced on every board load. Configure them once
 in the Starter Kit and every board, the `osk-cli` and your AI skills agree on what "done"
 means.
 
@@ -773,7 +773,7 @@ so you can't build an accidental loop. When a transition both auto-archives the 
 matches rules, the property/tag actions land first and the archive owns the final folder (a
 rule's move on that transition is skipped); with a [grace period](#grace-period-keep-done-cards-around-for-a-while)
 the archive waits and a rule's done-date stamp is what the later sweep reads. Rules live on the note type, so they apply on every
-board showing that type — and they work the same for types mirrored from the Obsidian
+board showing that type, and they work the same for types mirrored from the Obsidian
 Starter Kit.
 
 ## Calendar mode
@@ -792,7 +792,7 @@ see what's planned _and_ what's due in one view. Chips are color-coded by their 
 - **Orange**: a deadline.
 - **Split blue/orange**: both fall on the same day.
 - **Red**: an overdue deadline (its day is already in the past).
-- **Dimmed, dashed edge**: the continuation of a **multi-day span** — a card with a scheduled
+- **Dimmed, dashed edge**: the continuation of a **multi-day span**. A card with a scheduled
   date and an **estimate** appears on every day it covers (hover shows `day 2 of 5`). Only the
   first day's chip is draggable; moving it moves the whole span.
 
@@ -808,12 +808,12 @@ a _panel drag_ sets:
 - **No deadline**: cards with no deadline.
 
 Each tab count is the size of that backlog. Within a tab, the cards are **grouped by note
-type, then by status** — the type level shows as full-width tab-style headers on multi-type
+type, then by status**. The type level shows as full-width tab-style headers on multi-type
 boards (single-type boards skip it), and **all groups start collapsed** (click a header to
 expand). Collapse the panel itself with the **«** toggle (the "Scheduling" title stays
 visible, turned vertical). When the calendar gets too narrow, for
-example in a split pane, the panel **collapses automatically** and re-opens when there's room
-again. Your own manual collapse or expand always takes precedence.
+example in a split pane, the panel **collapses on its own** and re-opens when there's room
+again. Your own manual collapse or expand always wins.
 
 The calendar toolbar switches range (**Day**, **Week**, **Month**, **Quarter**, **Year**) and
 navigates with **‹ / › / Today**. Quarter and year show compact month grids with a per-day
@@ -824,7 +824,7 @@ in the plugin settings (default Monday).
 single-day view, or click any **day number** (or empty cell space) to zoom into that specific
 day. Grid days show a pointer (hand) cursor to signal they're clickable. The day view lists all of
 that day's cards and has its own **‹ / Today / ›** day navigation (plus **‹ Back** to return to
-the previous range). This is especially handy from Quarter or Year, where days only show a count:
+the previous range). Handy from Quarter or Year, where days only show a count:
 click one to see what's on it. You can still drag a card from the panel onto the focused day to
 schedule it, or drag one out to the panel to clear its date.
 
@@ -837,7 +837,7 @@ schedule it, or drag one out to the panel to clear its date.
   (Unplanned → scheduled date, No deadline → deadline).
 - **Drag a chip back onto the panel** to clear the date it represents.
 - **Drag a panel card onto another status group** (its header or its cards) to change its
-  status without leaving the panel — same effect as the menu's **Set status**. Groups belong
+  status without leaving the panel, the same effect as the menu's **Set status**. Groups belong
   to a note type, so only same-type groups accept the drop (others highlight red).
 
 **Schedule from the right-click menu (any card, board or calendar).** Right-click a card for
@@ -845,9 +845,9 @@ schedule it, or drag one out to the panel to clear its date.
 **Set deadline**. "On a date…" opens a small date picker that also understands **dates typed in
 words**: `tomorrow`, `fri`, `next mon`, `next week`, `in 3 days`, `2w`, `in 1 mo`… A live hint
 shows the day that will be written (e.g. `→ Mon 2026-08-03 · in 5 days`) as you type, and the
-picker below stays in sync — use either. `next week` and `next <weekday>` follow your **First
+picker below stays in sync, so use either. `next week` and `next <weekday>` follow your **First
 day of week** setting. This is the quickest way to set or change a date without dragging, and
-it works on the board too, not just the calendar.
+it works on the board too, not only the calendar.
 
 **Sort the panel** (view options): order the cards by **Manual order**, **Name**, or **a
 property** (e.g. a priority or estimate). To narrow the panel, use the toolbar
@@ -865,50 +865,50 @@ command).
 **A card is placed by its start date plus an estimate.** There is no end-date property. The
 properties are **global plugin settings** (no per-view overrides):
 
-- **Start date** — your scheduled-date property (`date_scheduled` by default).
-- **Estimate property** — a plain **number of days** (default `estimate`). A note type can
-  override both the **property and the unit** (days or **minutes** — e.g. a
-  tasknotes-compatible `time_estimate`) in its Configure dialog; minute estimates convert to
+- **Start date**: your scheduled-date property (`date_scheduled` by default).
+- **Estimate property**: a plain **number of days** (default `estimate`). A note type can
+  override both the **property and the unit** (days or **minutes**, e.g. a
+  tasknotes-compatible `time_estimate`) in its Configure dialog. Minute estimates convert to
   days via the **Minutes per day** setting (default 480 = an 8-hour workday) and always span
   at least one whole day on the timeline.
-- **Milestones property** — the list property holding milestone entries (default `milestones`).
+- **Milestones property**: the list property holding milestone entries (default `milestones`).
 
 So a board already set up for calendar mode gets a working timeline with zero configuration.
 
 > **Migrating from the start/end model?** Boards that used the end-date property now show a
-> **square** for cards with a start date — the stored end date is ignored; set an **estimate**
+> **square** for cards with a start date. The stored end date is ignored; set an **estimate**
 > to get a bar back. Cards that only had an **end** date move to the **Unplanned** panel until
 > you give them a start.
 
 **What a row shows:**
 
 - **Start + estimate** → a **rectangle** spanning from the start to the derived end
-  (start + estimate − 1, inclusive — a 1-day estimate covers just the start day). The
-  rectangle carries no text except a small **duration badge** (e.g. `5d`) at its right edge —
-  the row label on the left already names the card, and the tooltip repeats the badge for bars
+  (start + estimate − 1, inclusive, so a 1-day estimate covers just the start day). The
+  rectangle carries no text except a small **duration badge** (e.g. `5d`) at its right edge.
+  The row label on the left already names the card, and the tooltip repeats the badge for bars
   too narrow to fit it. When the start or the derived end lies outside
   the visible window, that edge is squared and dashed (the bar continues off-screen). A
   rectangle whose derived end is in the past gets a red **overdue** wash.
 - **Start only** (no estimate) → a **square** on the start day. Squares are **never marked
-  overdue** — a past start is just work in progress, not an error.
+  overdue**: a past start is work in progress, not an error.
 - A vertical **today line** crosses every row.
 - A card with a **deadline** (your due-date property) shows a vertical **red deadline line** in
-  its own lane — hover the row for the date, which also sits in the tooltip when the line falls
+  its own lane. Hover the row for the date, which also sits in the tooltip when the line falls
   outside the window.
 - Cards whose dates all fall outside the window show a small _Out of view_ hint.
 
 **The Unplanned panel.** Cards with **no start date** collect in the collapsible **Unplanned**
-panel on the left — named like the calendar's **Unplanned** tab and styled like its **Scheduling** panel — as **fixed-size
-cards** (kanban-like), **grouped by note type, then by status** — the type level renders as
+panel on the left, named like the calendar's **Unplanned** tab and styled like its **Scheduling** panel, as **fixed-size
+cards** (kanban-like), **grouped by note type, then by status**. The type level renders as
 full-width **tab-style headers** (count badge, accent tint when expanded), all groups
 **collapsed by default** (single-type boards skip the type level). Drag a card to
 schedule it, click to open, right-click for the menu. You can also **drag a card onto
-another status group** (its header or its card area) to change its status right there —
-same effect as the menu's **Set status**; groups belong to a note type, so only same-type
+another status group** (its header or its card area) to change its status right there,
+the same effect as the menu's **Set status**; groups belong to a note type, so only same-type
 groups accept the drop (others highlight red). The panel scrolls on its own, so a big
 backlog never squeezes out the rows. Collapse it with the **«** toggle (the "Unplanned"
-title stays visible, turned vertical); on a narrow pane it **collapses automatically** and
-re-opens when there's room, with your manual choice always taking precedence. The collapse is
+title stays visible, turned vertical); on a narrow pane it **collapses on its own** and
+re-opens when there's room, with your manual choice always winning. The collapse is
 remembered per view.
 
 ![The Unplanned panel grouped by note type, then status]({{ '/images/unplanned-panel.png' | relative_url }})
@@ -917,13 +917,13 @@ remembered per view.
 over the timeline: its **start date** is set to the day under the pointer and it jumps onto its
 own row. A card without an estimate gets **an estimate of 1 day** as it lands, so every new
 entry starts as a one-day rectangle you can resize (an existing estimate is kept). While you
-drag, the timeline highlights and a striped **New entry** lane appears at the top — the drop
-creates a new row there (it never lands "inside" an existing card's line) — with a guide line
+drag, the timeline highlights and a striped **New entry** lane appears at the top. The drop
+creates a new row there (it never lands "inside" an existing card's line), with a guide line
 marking the snapped day and a floating label showing the exact date that will be written.
 
-**Drag to reschedule:** drag a square or rectangle horizontally — it snaps to whole days, and on
+**Drag to reschedule:** drag a square or rectangle horizontally. It snaps to whole days, and on
 release **only the start date** is written (the estimate travels with the card, so the span is
-preserved). The floating label shows the new start date the whole time. Click a card or the row
+kept). The floating label shows the new start date the whole time. Click a card or the row
 label to open the note; right-click anywhere on the row for the usual card menu (set status,
 schedule, relationships, …).
 
@@ -935,20 +935,20 @@ schedule, relationships, …).
   `5d → ends 2026-07-18` as you drag.
 
 While you resize, the to-be-written date also appears **inside the rectangle** at the dragged
-edge, larger for readability — when the bar is too narrow to fit it, the floating label near
+edge, larger for readability. When the bar is too narrow to fit it, the floating label near
 the pointer takes over.
 
-Handles are hidden on a clipped (dashed) edge — the real date is off-screen — and on very
+Handles are hidden on a clipped (dashed) edge, where the real date is off-screen, and on very
 narrow rectangles; squares have no handles. Use the right-click menu for those.
 
 **Unschedule by dragging off:** drag a square or rectangle **onto the Unplanned panel** (or
-use the menu's **Clear start date**) and **only the start date** is cleared — the **estimate
+use the menu's **Clear start date**) and **only the start date** is cleared. The **estimate
 and milestones are kept**. By default the start is your shared scheduled date, so the card also
 leaves the calendar. A card that has milestones stays on the timeline as a milestone-only row;
 one without them drops into the **Unplanned** panel until you set a start again.
 
 **Mixed note types.** When the board's cards span more than one note type, timeline rows are
-**grouped by type** — collapsible header rows with a name and count, alphabetical, **No type**
+**grouped by type**: collapsible header rows with a name and count, alphabetical, **No type**
 last.
 
 ![Timeline rows grouped by note type]({{ '/images/timeline-groups.png' | relative_url }}) A **Types** toolbar button lets you **show or hide** individual types (hiding a type also
@@ -973,49 +973,49 @@ into **diamond markers** on the card's row (hover for the label and date). Entri
 `<date> <optional label>`; wikilink brackets around the date are tolerated, and anything that
 doesn't start with a date is skipped.
 
-**Navigate** with the same range switcher as the calendar — **Week / Month / Quarter / Year**
-(default set per view, your choice is remembered) — and **‹ / Today / ›**. Or zoom with the
+**Navigate** with the same range switcher as the calendar, **Week / Month / Quarter / Year**
+(default set per view, your choice is remembered), and **‹ / Today / ›**. Or zoom with the
 mouse: **Ctrl/Cmd + scroll** over the timeline steps through **Week ↔ Month ↔ Quarter ↔ Year**,
 choosing the new window around the date under your cursor. The zoom level is remembered exactly
 like the range buttons. Rows are sorted by start date.
 
 **More from the right-click menu:** timeline rows and unplanned cards add **Add milestone…**,
-**Set estimate…** (a number in the note's own unit, or any duration like `2h`, `90m`, `0.5d`
-— converted for you, with a live preview; **Clear estimate** removes the property), and
+**Set estimate…** (a number in the note's own unit, or any duration like `2h`, `90m`, `0.5d`,
+converted for you, with a live preview; **Clear estimate** removes the property), and
 **Clear start date** (same effect as dragging off, shown only when a start exists) to the usual
-card menu. When the timeline uses a **custom start property**, **Set start date…** appears too —
-with the default scheduled property, the existing **Schedule** items already write that date.
+card menu. When the timeline uses a **custom start property**, **Set start date…** appears too.
+With the default scheduled property, the existing **Schedule** items already write that date.
 
 The toolbar [filter](#filtering-search-bar) and
-[zoom](#focus-on-a-cards-children-zoom) narrow the timeline like every other mode — zoom into a
+[zoom](#focus-on-a-cards-children-zoom) narrow the timeline like every other mode. Zoom into a
 project and the timeline becomes that project's plan.
 
 ## WBS mode
 
 Where the board answers "what state is everything in", the **WBS** (work breakdown structure)
-answers "**how does the work decompose**": your parent/child relationships rendered as a
-collapsible tree — goal → projects → tasks — with estimates, progress bars, and dates rolled
+answers "**how does the work decompose**". Your parent/child relationships rendered as a
+collapsible tree, goal → projects → tasks, with estimates, progress bars, and dates rolled
 up the hierarchy. Switch to it with the **WBS** button in the mode switch (or the **Toggle WBS
 mode** command).
 
 ![The WBS tree with rolled-up estimates, progress, and tracked time]({{ '/images/wbs.png' | relative_url }})
 
 **What's in the tree: every note in this view's result set.** Notes link into trees through
-their parent/child relationships; a note with no relationships still shows as a standalone
-row, so a flat board stays workable — drag rows onto each other to grow the breakdown. When
+their parent/child relationships. A note with no relationships still shows as a standalone
+row, so a flat board stays workable: drag rows onto each other to grow the breakdown. When
 a note's **parent is excluded by the view's filters** (say the view shows only tasks, but
 tasks belong to projects), the out-of-view ancestors still appear as muted **context rows**
-(italic, dashed border, an "outside view" badge) so the hierarchy keeps its shape — ancestor
+(italic, dashed border, an "outside view" badge) so the hierarchy keeps its shape. Ancestor
 chains are followed through each note's own type configuration (tasks → projects → goals).
 Context rows are display-only (no chips to edit, no dragging them), but they show the
 rollups derived from their in-view descendants, you can click them to open the note, and
 you can **drop rows onto them** to set a parent. Their chips render **ghosted** to signal
-they are read-only — to set an estimate, a date, or progress on such a note, open the note
+they are read-only. To set an estimate, a date, or progress on such a note, open the note
 itself, or widen the view's filters so it becomes a regular row. Out-of-view _children_
 are not shown.
 A note with **several parents** shows under each of them (marked ⧉). Fold
 and unfold any node with the chevron (**←/→** on a focused row also work, and **↑/↓** move
-between rows) — collapse state is remembered per view, and the two buttons above the tree
+between rows). Collapse state is remembered per view, and the two buttons above the tree
 **expand or collapse everything** at once. Click a row to open the note (Ctrl/Cmd-click for
 a new tab).
 
@@ -1023,35 +1023,35 @@ a new tab).
 date** come first, chronologically; undated siblings follow, ordered by the view's **Card
 sort** (name, any property, or title as the fallback).
 
-**One rollup model — own value wins, else derived from the children.** Estimates and progress
+**One rollup model: own value wins, else derived from the children.** Estimates and progress
 work the same way, so you can plan **top-down** (estimate the goal, split it later),
 **bottom-up** (estimate the tasks, let the parents derive), or mix both:
 
-- **Estimate** — every estimate shows in one uniform duration format (`45m`, `1h 30m`,
-  `1d 2h`, `5d` — the day component sized by **Minutes per day**), so day-based and
+- **Estimate**: every estimate shows in one uniform duration format (`45m`, `1h 30m`,
+  `1d 2h`, `5d`, the day component sized by **Minutes per day**), so day-based and
   minute-based notes read the same at a glance. A parent without its own estimate shows the
-  children's rollup instead (_`Σ 4h 30m`_, italic = derived — three 90-minute tasks under a
-  project). A parent with its own estimate also shows the rollup when it differs — an
+  children's rollup instead (_`Σ 4h 30m`_, italic = derived, three 90-minute tasks under a
+  project). A parent with its own estimate also shows the rollup when it differs, an
   at-a-glance "does my budget match the breakdown?" signal. Long values cap at the two
   largest units (`1d 1h 30m` displays as `1d 2h`) to keep the columns tight, and each unit
   renders in its own fixed slot, so days, hours, and minutes line up vertically as you scan
   down the tree (a plain `–` marks notes with no estimate). Editing, **Save rolled-up estimate**, and
   **Distribute estimate to children** all read and write each note's **own** property and
   unit.
-- **Progress** — every row has a progress bar, driven by a **0–100 number** in the progress
+- **Progress**: every row has a progress bar, driven by a **0–100 number** in the progress
   property (`progress` by default, configurable in settings). A note without its own progress
-  (or at 0) derives the weighted combination of its children — an explicit `0` on a child
-  counts, so a parent of all-0% children shows a derived `0%` rather than a blank — and
+  (or at 0) derives the weighted combination of its children (an explicit `0` on a child
+  counts, so a parent of all-0% children shows a derived `0%` rather than a blank), and
   derived bars render dimmed with a dashed outline. If the note's type has a **done state**
-  (**Configure board → Done state**), a done note counts as **100%** — no progress numbers
+  (**Configure board → Done state**), a done note counts as **100%**, no progress numbers
   needed: mark 2 of a goal's 4 tasks done and the goal derives 50%.
-- **Dates** — a row with a start date shows its span (start → start + estimate − 1). A parent
+- **Dates**: a row with a start date shows its span (start → start + estimate − 1). A parent
   without one shows the span its subtree covers, in italics.
-- **Due dates** — every row also shows a due chip with the countdown (`In 3d`, `2d overdue`,
+- **Due dates**: every row also shows a due chip with the countdown (`In 3d`, `2d overdue`,
   color-coded by urgency like the board's due countdown). Click it to set or change the due
   date; the dates chip does the same for the planned date.
 
-**Rollups are displayed by default — persist them when you want.** Right-click a node and use
+**Rollups are displayed by default, and you can persist them when you want.** Right-click a node and use
 **Save rolled-up estimate (Nd)** or **Save rolled-up progress (N%)** to write the derived
 value into the note. The estimate chip's inline editor and the **Set estimate…** /
 **Set progress…** dialogs pre-fill the derived value too, so adopting a rollup is
@@ -1059,62 +1059,62 @@ click → **Enter** (or open → **Set**). Because an own value _replaces_ its
 subtree's contribution (it never adds to it), saving a rollup never double-counts.
 
 **Top-down estimating:** right-click a node that has an estimate and children and choose
-**Distribute estimate to children** — what remains of the estimate (after the children's own
+**Distribute estimate to children**. What remains of the estimate (after the children's own
 coverage) is split equally, whole days, across the children that have no estimate yet.
 Existing values are never overwritten.
 
 **Editing per node:** click the estimate chip, the dates chip, the due chip, or the progress
 bar on any row to set that value directly. The **estimate chip edits inline**: clicking it
-turns the chip into a small input right in the row — type a plain number in the note's own
-unit **or any duration** — `2h`, `90m`, `0.5d`, `1d 4h` — converted for you (days ↔ minutes
+turns the chip into a small input right in the row. Type a plain number in the note's own
+unit **or any duration** (`2h`, `90m`, `0.5d`, `1d 4h`), converted for you (days ↔ minutes
 via the **Minutes per day** setting). **Enter** saves (an empty input clears the note's own
 estimate), **Esc** cancels, and clicking away saves a valid change. The input pre-fills the
-current value — or the derived rollup when the note has none, so persisting a bottom-up
+current value, or the derived rollup when the note has none, so persisting a bottom-up
 total is click → Enter. The context menu offers the same (**Set
 estimate…**, **Set progress…**, **Set parent…**), plus everything the card menu has
-elsewhere — including **Set status**, so you can move work through its workflow without
+elsewhere, including **Set status**, so you can move work through its workflow without
 leaving the tree (the status dot updates instantly). Even faster: **click a row's status
-dot** to open a compact status menu — the note's own status values with the current one
-checked, plus **Clear status** — no right-click needed.
+dot** to open a compact status menu with the note's own status values, the current one
+checked, plus **Clear status**. No right-click needed.
 
-**Re-parenting by drag and drop:** drag a row onto another row to move it under a new parent
-— the wikilink in the relationship property is rewritten for you (whether the link lives on
-the child's `parent` property, the old parent's `children` list, or both). Invalid targets —
-the node itself, its current parent, anything inside its own subtree — highlight red and
+**Re-parenting by drag and drop:** drag a row onto another row to move it under a new parent.
+The wikilink in the relationship property is rewritten for you (whether the link lives on
+the child's `parent` property, the old parent's `children` list, or both). Invalid targets,
+the node itself, its current parent, anything inside its own subtree, highlight red and
 refuse the drop. While dragging, the tree **auto-scrolls** when you near its top or bottom
 edge, and **hovering a collapsed node expands it** so you can drop deeper. Relationships
-detected from the tag+link **heuristic** can't be un-linked automatically; the new parent
+detected from the tag+link **heuristic** can't be un-linked for you; the new parent
 link is added and a notice explains. Prefer menus? **Set parent…** and the **Relationships**
 submenu do the same without dragging.
 
 **Detach by drag:** drop a row onto the left panel ("Drop here to detach from parent") to
-remove it from its parent — the stored link is deleted, nothing else changes. The note then
+remove it from its parent. The stored link is deleted, nothing else changes. The note then
 roots its own tree: with its children if it has any, as a standalone row otherwise.
 
 **The "Needs planning" panel** on the left lists every card missing a **start date or an
-estimate**, grouped by note type → status and sorted by the view's card sort — your
+estimate**, grouped by note type → status and sorted by the view's card sort. Your
 estimation backlog. Drag a card from the
 panel onto a tree node to give it a parent (and grow the breakdown), or **onto another
-status group** (its header or its card list) to change its status right there — same effect
+status group** (its header or its card list) to change its status right there, the same effect
 as the menu's **Set status**; only same-type groups accept the drop (others highlight red).
 The panel collapses to a
 slim rail with **«** (remembered per view, auto-collapses on narrow panes).
 
 The toolbar [filter](#filtering-search-bar) and [zoom](#focus-on-a-cards-children-zoom) apply
-here too — zoom into a goal and the WBS shows just that subtree's breakdown. Notes excluded
-by the Base's filters never appear as regular rows — only as the muted context ancestors
-described above — and persisted numbers (saved rollups, distribution) always compute over
+here too. Zoom into a goal and the WBS shows just that subtree's breakdown. Notes excluded
+by the Base's filters never appear as regular rows, only as the muted context ancestors
+described above, and persisted numbers (saved rollups, distribution) always compute over
 the Base's own result set only.
 
-The WBS never creates notes — it structures, estimates, and re-parents the ones the Base
+The WBS never creates notes. It structures, estimates, and re-parents the ones the Base
 already selects.
 
 ## Ideal week mode
 
 The **Ideal week** mode (issue #172) draws how you **want** to spend a week: the recurring time
 blocks of every **active** note on the board, on a date-less weekly grid, one column per
-weekday. It is not a planner for a given week — you shape it once and revisit it now and
-then (yearly, say) — so there is no week-to-week navigation. Switch to it with the
+weekday. It is not a planner for a given week. You shape it once and revisit it now and
+then (yearly, say), so there is no week-to-week navigation. Switch to it with the
 **Ideal week** button at the end of the mode switch (or the **Toggle ideal week mode**
 command), or embed it with `mode=ideal-week` (`mode=week` works too).
 
@@ -1123,13 +1123,13 @@ command), or embed it with `mode=ideal-week` (`mode=week` works too).
 - **What is on the grid.** Every note whose status has the **active** planning role in its
   type's status configuration (mirrored from the Obsidian Starter Kit; without roles, every
   non-done status counts) **and** that carries the **time blocks** property (`time_blocks`
-  by default; an empty list is enough, an absent property keeps the note out — tasks stay in
+  by default; an empty list is enough, an absent property keeps the note out, and tasks stay in
   calendar and agenda modes). A note with a start and a due date (a project's `date_started`
   and `date_due`) is part of the ideal week only while today lies between them.
 - **The rail** on the left lists **every** note of the board that carries the time blocks
   property, whatever its status: a **Not planned yet** section and a **Planned** one, each
   **grouped by status** (collapsible headers in column order), every note with its planned
-  minutes against its weekly **target** (`minutes_per_week`) — orange when under target,
+  minutes against its weekly **target** (`minutes_per_week`), orange when under target,
   dimmed when the note is not active. A **filter box** at the top of the rail narrows this
   list only (title, type, status, area or context; Escape clears it) while the grid keeps
   every block, so you can find a note to drag without losing sight of the week. Drag a note
@@ -1146,9 +1146,9 @@ command), or embed it with `mode=ideal-week` (`mode=week` works too).
   (`fri 23:00-01:00` renders as a Friday tail and a Saturday head). Entries the plugin cannot
   read are listed in a strip above the grid, naming the note and the problem; nothing is
   rewritten until you edit them.
-- **Opening.** Click a block, or a note in the rail, to open the note; **Ctrl/Cmd-click** opens it
+- **Opening.** Click a block, or a note in the rail, to open the note. **Ctrl/Cmd-click** opens it
   in a new tab. Hovering a block outlines its resize edges.
-- **Editing.** Every edit shows at once; the note is written in the background, and the grid
+- **Editing.** Every edit shows at once. The note is written in the background, and the grid
   does not flicker when the Base picks the change up. Drag a block to **move** it (day and time, snapped to 15 minutes; a dashed
   **phantom** shows where it will land), drag its top or bottom edge to **resize**, drag its
   **left or right edge to stretch it across days** (the run of days it repeats on grows or
@@ -1156,10 +1156,10 @@ command), or embed it with `mode=ideal-week` (`mode=week` works too).
   **copy** it, right-click for the card menu plus **Remove this block**. With a block focused:
   **arrows** move it by 15 minutes or one day, **Shift+↑/↓** resize its end, **Delete**
   removes it, **Enter** opens the note. **Select several blocks** by Shift-dragging a rectangle on
-  an empty area of the grid (or Shift-click them), then **Delete** removes them all;
+  an empty area of the grid (or Shift-click them), then **Delete** removes them all.
   Escape or a click on empty space clears the selection. **Ctrl/Cmd+C** copies the selection (or
-  the focused block) and **Ctrl/Cmd+V** pastes it at the grid cell under the mouse pointer —
-  several copied blocks keep their layout relative to the earliest one; a pasted block that
+  the focused block) and **Ctrl/Cmd+V** pastes it at the grid cell under the mouse pointer.
+  Several copied blocks keep their layout relative to the earliest one, and a pasted block that
   would overlap something or fall outside the week is skipped with a notice. Moving one occurrence of a repeat
   only changes that day (`mon-fri 09:00-10:30` becomes `tue-fri 09:00-10:30` +
   `mon 11:00-12:30`); the list is re-serialized in its canonical form and the **planned
@@ -1175,7 +1175,7 @@ command), or embed it with `mode=ideal-week` (`mode=week` works too).
   block (or another block of the same note) snaps back with a notice naming the conflicting
   note and its time; nothing is written.
 - **Colour** comes from the note's first GTD context (the same palette as the calendar and
-  timeline, with the click-to-filter legend in the toolbar); a note without a context renders
+  timeline, with the click-to-filter legend in the toolbar). A note without a context renders
   neutral grey. A tinted **work band** marks your work hours on work days, and the toolbar
   sums the planned minutes across the grid against the targets.
 - **Undo and redo.** **Ctrl/Cmd+Z** undoes the last ideal-week edit and **Ctrl/Cmd+Shift+Z**
@@ -1183,8 +1183,8 @@ command), or embed it with `mode=ideal-week` (`mode=week` works too).
   edit** / **Redo the last undone ideal week edit** do the same from anywhere. A paste, a
   selection move or delete, and an import are one step each. The history lives in memory and
   ends with the view.
-- **More gestures.** **Drag** on the empty grid to draw a new block over the cells you cover —
-  down for the length, sideways for the days (`mon-wed 09:00-10:30` in one gesture); the picker
+- **More gestures.** **Drag** on the empty grid to draw a new block over the cells you cover:
+  down for the length, sideways for the days (`mon-wed 09:00-10:30` in one gesture). The picker
   then asks which note. **Shift-drag** on the empty grid is the marquee selection. Dragging a **selected** block moves (or Alt-copies) the
   whole selection at once, all-or-nothing when something would overlap or leave the week.
   **Ctrl/Cmd+A** selects every block. **Right-click an empty cell** to plan a block there or paste
@@ -1218,31 +1218,34 @@ command), or embed it with `mode=ideal-week` (`mode=week` works too).
   at the **minimum pixels per hour** setting and scrolls instead.
 - **Available time.** Every share is measured against the **Available hours per week**
   setting (a number of hours, `37.5` say). Leave it empty and the plugin uses the visible
-  grid hours times seven days — the whole week, 168 hours, by default. That default is on
-  purpose: sleep, meals and rest are activities like any other, with their own blocks and
+  grid hours times seven days: the whole week, 168 hours, by default. That default is on
+  purpose. Sleep, meals and rest are activities like any other, with their own blocks and
   targets, and whatever the table shows as left is your free time.
 - **Target follows planned.** When an edit plans more minutes for a note than its weekly
   target allows, the target is raised to the planned minutes in the same write and a notice
   says so (one notice for a paste, a group move or an import). A target is never lowered, and
   a note without a target is left alone. Turn it off with the **Target follows planned**
   setting.
-- **Areas.** Notes can carry a list of **areas** — the life domains they belong to (Health,
+- **Areas.** Notes can carry a list of **areas**, the life domains they belong to (Health,
   Exercise, Work…), in the `areas` property by default (**Areas property** setting, or a
   per-type property in **Configure board → Ideal week**). The rail's grouping switch (next to
   its title) groups the Not planned yet / Planned sections **by status**, **by area** or **by
   context**; the targets table groups by area or context too. Colour stays with the first
-  context; areas are grouping only, and the plugin never writes them.
-- **Import and export.** The commands **Import ideal week from the week-planner app** and
-  **Export ideal week (JSON / Markdown, week-planner app)** move the ideal week to and from
-  [the week-planner app](https://github.com/dsebastien/week-planner). Importing reads the app's
-  JSON or Markdown export (pasted or picked as a file): each block's text names the note it
-  belongs to (exact title first, then case-insensitive, with or without the ` (Activity)` style
-  suffix); you are asked about anything else (Escape skips it). A note's imported blocks replace
-  its current ones (or join them, with the toggle off); a note whose result would overlap
-  another is refused and named; styling is not imported (contexts colour the blocks). Exporting
-  writes `Ideal week <date>.json` or `.md` into the attachment folder: day lists and ranges
-  become one app block per run of consecutive days, and 15-minute times are rounded outwards
-  to the app's 30-minute grid, each rounding listed in the notice.
+  context. Areas are grouping only, and the plugin never writes them.
+- **Import and export.** The commands **Import ideal week (JSON or Markdown)**, **Export ideal
+  week (JSON)** and **Export ideal week (Markdown)** move the whole ideal week in and out of a
+  file. Importing reads a JSON file or a Markdown one (`## Monday` sections with
+  `- 09:00 - 10:30: Note title` lines), pasted or picked as a file: each block's text names the
+  note it belongs to (exact title first, then case-insensitive, with or without the
+  ` (Activity)` style suffix); you are asked about anything else (Escape skips it). A note's
+  imported blocks replace its current ones (or join them, with the toggle off). A note whose
+  result would overlap another is refused and named, and styling is not imported (contexts
+  colour the blocks). Exporting writes `Ideal week <date>.json` or `.md` into the attachment
+  folder: day lists and ranges become one block per run of consecutive days, and 15-minute
+  times are rounded outwards to a 30-minute grid, each rounding listed in the notice.
+
+    ![Importing an ideal week from Markdown]({{ '/images/week-import.png' | relative_url }})
+
 - **Settings.** Under **Ideal week** in the plugin settings: the five property names (time
   blocks, planned, target and alarm minutes, areas), the committed date property used by the WBS
   lifecycle chip, **Target follows planned**, **Available hours per week**, the
@@ -1257,38 +1260,38 @@ command), or embed it with `mode=ideal-week` (`mode=week` works too).
 ## Time tracking
 
 Track actual time against your estimates (issue #119, rewritten in #172 to share TaskNotes'
-records), straight from the cards — on **any note type**:
+records), straight from the cards, on **any note type**:
 
 - **Start / Stop time tracking** in a card's right-click menu starts (or stops) a session
-  for that note. Only **one session runs at a time** — starting another card stops the
+  for that note. Only **one session runs at a time**: starting another card stops the
   previous session first, writing its entry. A global **Stop time tracking** command stops
   the active session from anywhere, and a **status-bar readout** (`⏱ 12m · Note`) shows what
-  runs; click it for stop / pomodoro actions.
+  runs. Click it for stop / pomodoro actions.
 
     ![The status-bar readout while a session runs]({{ '/images/time-tracking-status-bar.png' | relative_url }})
 
-- Stopping appends a **time entry** — a `{startTime, endTime, description}` object with local
-  ISO datetimes, exactly TaskNotes' shape — to the note's **time entries** list property
+- Stopping appends a **time entry**, a `{startTime, endTime, description}` object with local
+  ISO datetimes, exactly TaskNotes' shape, to the note's **time entries** list property
   (`time_entries` by default), then **recomputes** the note's **duration** property from the
   whole list (minutes; an entry you edited or deleted by hand is honoured, nothing accumulates
   blindly) and stamps the **last session** date property (`date_last_session`). A session that
   crosses midnight is one entry with its real start and end. The session survives an Obsidian
-  restart — elapsed time derives from the stored start, not a running timer.
+  restart, since elapsed time derives from the stored start, not a running timer.
 - **Property names per note type.** Each type can map the four tracking properties (duration,
   total duration, time entries, last session) in **Configure → Time tracking**; blanks fall
   back to the global settings. Notes that only carry a legacy `duration` number from an older
   version keep reading correctly (it is used when both the entries list and the duration
-  property are absent); nothing migrates data.
+  property are absent). Nothing migrates data.
 - **Pomodoro mode.** **Start pomodoro** in the card menu runs a timed work pomodoro on the
   card (25 minutes by default) and opens its time session at the same time, so the entry
   ledger stays complete. The status bar counts down (`🍅 24:31 work pomodoro · Note`); when
   the time is up the pomodoro completes, the session stops, and one record in TaskNotes' shape
   (`{id, taskPath, startTime, endTime, plannedDuration, type, completed, activePeriods}`) is
-  appended to the **pomodoros** list of today's **daily note** — resolved through the Periodic
+  appended to the **pomodoros** list of today's **daily note**, resolved through the Periodic
   Notes plugin, else the core Daily Notes plugin, else the folder and format in the plugin
   settings (the note is created empty when missing). Breaks come from the **Start pomodoro
   break** command or the status-bar menu: a short break (5 min), or a long one (15 min) after
-  every 4th completed work pomodoro; a break stops any running session. **Stop pomodoro** ends
+  every 4th completed work pomodoro. A break stops any running session. **Stop pomodoro** ends
   one early (recorded as not completed). Durations and the cadence are settings.
 
     ![Start time tracking and Start pomodoro in the card menu]({{ '/images/card-menu-pomodoro.png' | relative_url }})
@@ -1300,11 +1303,17 @@ records), straight from the cards — on **any note type**:
   **red above the alarm** (`minutes_alarm_per_week`), with one notice per note per week. In the
   WBS, goals and plans without a budget of their own show one rolled up from their subtree
   (target and planned own-wins-else-children, tracked adds; styled derived).
+
+    ![The budget ring on activity cards]({{ '/images/budget-ring.png' | relative_url }})
+
 - Every WBS row also carries a **lifecycle chip**: ⏳ lead (started − committed), then ⟳ cycle
   (done − started) and the lateness (+2d late, -3d early, done − due) once the item is done, or
   ▶ the days active for an open one. A missing date leaves its slot blank, never guessed. The
   done date is the property the done status stamps; the committed date is a global setting.
-- The **WBS** shows a **⏱ tracked** chip per row: the subtree's total tracked time — own
+
+    ![The lifecycle chip on a WBS row: days active for an open project]({{ '/images/wbs-lifecycle.png' | relative_url }})
+
+- The **WBS** shows a **⏱ tracked** chip per row: the subtree's total tracked time, own
   minutes plus every distinct descendant's (actuals **add**; unlike estimates, an own value
   never replaces the children's contribution). A total the children contributed to is styled
   derived, and the row menu offers **Save total tracked time** to persist it (in minutes) to
@@ -1316,8 +1325,8 @@ records), straight from the cards — on **any note type**:
 
 ## Focus mode
 
-When it's time to actually do the work, spotlight a single card full-pane (issue #160):
-right-click any card — on the board, agenda, triage, timeline, or WBS — and pick **Enter
+When it's time to actually do the work, spotlight a single card full-pane (issue #160).
+Right-click any card, on the board, agenda, triage, timeline, or WBS, and pick **Enter
 focus mode** (or run the **Toggle focus mode** command, which spotlights the first card of
 the current view).
 
@@ -1325,13 +1334,13 @@ the current view).
 
 The spotlight shows the note's title and status, the properties from your Bases view, its
 **subtasks** (children, checked off as they reach their done state), and its **related
-notes** (parent, blockers, siblings) — click any of them to open the note. A **timer**
+notes** (parent, blockers, siblings). Click any of them to open the note. A **timer**
 button starts or stops a time-tracking session for the card ([Time
 tracking](#time-tracking)): the elapsed time ticks live next to the estimate, and stopping
 writes the minutes to the duration property.
 
-- **Done** marks the card done per its note type's done definition — through the same
-  write path as the board, so automations fire — and offers the **next card** from the
+- **Done** marks the card done per its note type's done definition, through the same
+  write path as the board so automations fire, and offers the **next card** from the
   same queue (the view's current filtered order).
 - **Next** (or **→**) advances without changing anything; **Esc** exits; **D** marks done;
   **T** toggles the timer; **O** opens the note. Right-click anywhere for the full card
@@ -1359,9 +1368,9 @@ Press the **Select** button (the checklist icon next to the gear) to enter **sel
 - An action bar appears under the toolbar for the whole select session, showing how many cards
   are selected, with bulk actions: **Set status** (pick a column, or clear), **Archive**,
   **Open** (each in a new tab), and **Clear**. The actions are disabled until at least one card
-  is selected; the bar keeps its place so the board never jumps as you select.
+  is selected, and the bar keeps its place so the board never jumps as you select.
 - **Right-click** a selected card (or press the **menu key** / **Shift+F10** on a focused one)
-  to get the same bulk actions at the pointer — with two or more cards selected, the context
+  to get the same bulk actions at the pointer. With two or more cards selected, the context
   menu acts on the **whole selection** (set status, archive, open, clear selection).
   Right-clicking an unselected card still opens the regular single-card menu.
 - Press **Select** again to leave select mode.
@@ -1380,9 +1389,9 @@ saved into the `.base` file, like the Board/Calendar/Triage mode).
 ## Other interactions
 
 - **Hover a card to preview its note.** Obsidian's native page-preview popover, the same as
-  hovering a link — and it works in **every mode**: board cards, calendar chips, timeline rows
+  hovering a link, and it works in **every mode**: board cards, calendar chips, timeline rows
   and undated-panel cards, WBS tree rows and "Needs planning" cards. By default it's
-  **Ctrl/Cmd-gated** (hold the key while hovering); change that under
+  **Ctrl/Cmd-gated** (hold the key while hovering). Change that under
   **Settings → Core plugins → Page preview** (the source is listed as "Kanban Action Planner").
 - **Click** a card to open the note. **Ctrl/Cmd-click** opens it in a new tab.
 - **Right-click** (or long-press on touch) a card for a menu: open the note (or in a new
@@ -1412,12 +1421,12 @@ Each Kanban view remembers how you left it, **per view**, across reloads and reo
 - **Compact cards** (titles only) on or off.
 - The toolbar **filter** query.
 
-A few bits are deliberately **not** remembered, and reset every time you reopen the view: the
+A few bits are **not** remembered on purpose, and reset every time you reopen the view: the
 calendar/timeline **anchor** (both jump back to today) and the calendar's **focused day** zoom
 (cleared).
 
 A board [embedded in a note](#embed-a-board-in-a-note) never saves **anything** back to the
-view — mode, filter, collapse states, compact cards, column order and the rest all stay local
+view. Mode, filter, collapse states, compact cards, column order and the rest all stay local
 to the embed.
 
 ## View options (Configure view)
@@ -1444,12 +1453,12 @@ changing your notes. They're grouped:
 - **Show "Add card" in columns**: show the per-column quick-capture button (on by default). See
   [Creating cards from the board](#creating-cards-from-the-board-quick-capture).
 - **Column aggregate** / **Column aggregate property**: roll one numeric property up per column
-  and show it next to the card count — `Σ 13` for a sum, or an average, minimum, or maximum.
+  and show it next to the card count: `Σ 13` for a sum, or an average, minimum, or maximum.
   Non-numeric and empty values are skipped (they are not counted as zero), so a column with
   nothing numeric in it shows no badge at all. The property can be a **base formula**
   (`formula.…`) or a `file.…` column, since the aggregate only reads. Picking your **estimate**
   property rolls estimates up in the usual `1d 2h` grammar, converting each note type's own unit
-  (days or minutes) first — so a board mixing both still sums correctly. Aggregates hide on a
+  (days or minutes) first, so a board mixing both still sums correctly. Aggregates hide on a
   collapsed column.
 
 **Cards**
@@ -1458,11 +1467,11 @@ changing your notes. They're grouped:
   to the note name when it is missing or empty). Formulas allowed.
 - **Show due countdown**: show the `In 3d` / `2d overdue` badge on cards. Its position and the
   "soon" threshold are global plugin settings.
-- **Countdown counts down to**: whether that badge tracks the **deadline** (the due date — the
+- **Countdown counts down to**: whether that badge tracks the **deadline** (the due date, the
   default) or the **scheduled date** (when you plan to start). Pick `scheduled` on a board you
   triage by when work lands rather than by when it is owed: `In 2d` then means "planned to start
   in 2 days". The overdue / due-today card emphasis always follows the deadline, whichever the
-  badge tracks — a card with no value for the chosen date simply shows no badge.
+  badge tracks, and a card with no value for the chosen date shows no badge.
 
 **Swimlanes**
 
@@ -1471,7 +1480,7 @@ changing your notes. They're grouped:
   **By property**. (The per-type default is set in Settings.)
 - **Grouping property**: when grouping **By property**, the property whose values become lanes.
   This can also be a **base formula** (`formula.…`) or `file.…` column. Grouping by a computed
-  column is **read-only**, so cross-lane drag is disabled for those lanes (there's no property to
+  column is **read-only**, so cross-lane drag is off for those lanes (there's no property to
   write back).
 
 **Filters**
@@ -1494,7 +1503,7 @@ date **property names** are set globally in plugin settings.)
 
 **Triage**
 
-- **Triage scope**: which cards the queue offers by default — **Needs clarification**, **All
+- **Triage scope**: which cards the queue offers by default. **Needs clarification**, **All
   cards (re-prioritize)**, or **Due for review**. The property lists and needs-triage tokens are
   edited in the **Configure triage** modal, not here.
 
@@ -1523,13 +1532,13 @@ tracking effort in a tasknotes-compatible `time_estimate` (**minutes**) while pr
 goals keep the global day-based property. Leave the property empty to keep the global name
 and only change the unit. Minute estimates convert to days everywhere (rollups, timeline,
 spans) via the global **Minutes per day** setting (default 480 = an 8-hour workday), and all
-edits are written back in the note's own unit. This works for Starter Kit–loaded types too —
-the estimate association is owned by this plugin, not the Starter Kit.
+edits are written back in the note's own unit. This works for Starter Kit–loaded types too,
+since the estimate association is owned by this plugin, not the Starter Kit.
 
 In the **WIP limits** section, set a soft per-column limit for any status (leave blank for no
 limit). The column header then shows **`count / limit`**, and a column over its limit turns its
 count **red**, a gentle nudge toward classic Kanban flow. Limits are a warning only. They
-**never block** moving a card into a full column.
+**never block** moving a card into a full column. Trust me, that's the right default.
 
 In the **Colors** section:
 
@@ -1542,7 +1551,7 @@ Card accents and column shades follow the status color and adapt to your light o
 In the **Enums** section, define the **allowed values** for any property (e.g. `priority`,
 `urgency`, `effort`), one per line, in order. These power the card menu's **Set <property>**
 quick-set and the triage flow. When the **Obsidian Starter Kit** is installed, a type's enum
-properties are detected automatically and listed as a hint. Entries here **override** them and
+properties are detected for you and listed as a hint. Entries here **override** them and
 are the only source for **local** note types. Leave a property out to fall back to the Starter
 Kit (or to a free-text value when neither knows it).
 
@@ -1561,8 +1570,8 @@ way you would for any Bases view: change the view's properties and every card up
 
 **Card title.** By default the card heading is the **note name**. If your filenames aren't meant
 to be read (date-prefixed slugs like `2026-07-07-technical-meeting`, ID-based names), pick a
-**Title property** in the view options (**Configure view → Cards → Title property**) — for
-example a `title` or `name` property — and the card heading shows that property's value instead.
+**Title property** in the view options (**Configure view → Cards → Title property**), for
+example a `title` or `name` property, and the card heading shows that property's value instead.
 Base formulas work too. A card whose note doesn't have the property (or has it empty) falls back
 to the note name, so cards never go blank. The chosen property is not repeated as a body field,
 and clicking the card still opens the underlying note. The title applies everywhere the card
@@ -1573,7 +1582,7 @@ Field rendering is tuned for **scanning the whole board at a glance**:
 - **Enum values are color-coded** by where they rank, a warm (red/orange) signal for the
   top or most-urgent values down to cool (blue/muted) for the bottom ones, so the board reads at a
   glance. Ranking uses the numeric `NN -` prefix, so it doesn't matter what order the allowed
-  values come in; a `99 - …` "not decided" value lands coolest. Note properties rank against their
+  values come in, and a `99 - …` "not decided" value lands coolest. Note properties rank against their
   allowed values, and **base-formula** values rank against the distinct values present on the board.
   A value with no rankable scale stays neutral.
 - The **`NN -` sort prefix is stripped** from display: `30 - High` shows as **High**,
@@ -1618,11 +1627,11 @@ board:
   **7**. This changes the **color**, not whether the badge shows.
 
 The dialog also has **Swimlanes** (group the board into lanes) and **Archiving** (move
-finished cards into a folder) sections, see Swimlanes and Archiving above.
+finished cards into a folder) sections. See Swimlanes and Archiving above.
 
 ## Using this plugin with the Obsidian Starter Kit
 
-**The plugin is fully standalone.** Nothing below is required — you can define your own note
+**The plugin is fully standalone.** Nothing below is required. You can define your own note
 types by tag, folder, or regex and never think about this again.
 
 That said, this plugin was built alongside the
@@ -1631,7 +1640,7 @@ are designed to fit together. The Starter Kit is a complete, opinionated knowled
 system for Obsidian: a folder structure that scales, a set of **note types** (goals, projects,
 tasks, plans, literature notes, people, periodic notes, …) each with its own properties,
 statuses, templates, and naming conventions, plus the workflows to keep it all coherent. If you
-have it, this plugin becomes the board on top of that system — with **no configuration at all**.
+have it, this plugin becomes the board on top of that system, with **no configuration at all**.
 
 ### What the board picks up automatically
 
@@ -1639,13 +1648,13 @@ When the Starter Kit plugin is installed and recognizes a note's type:
 
 | It provides                                                                       | What the board does with it                                                                                                                                                                                                                       |
 | --------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| The type's **status property** and its **allowed values**                         | Builds the columns, in the type's defined order, including the empty ones — so a board of Tasks shows every task status, not just the ones in use                                                                                                 |
-| The type's **recognition rules** (tag / folder / regex)                           | Recognizes each card's type, so a mixed board can give **each type its own lane with its own columns** — a project can never be given a task status                                                                                               |
+| The type's **status property** and its **allowed values**                         | Builds the columns, in the type's defined order, including the empty ones, so a board of Tasks shows every task status, not only the ones in use                                                                                                  |
+| The type's **recognition rules** (tag / folder / regex)                           | Recognizes each card's type, so a mixed board can give **each type its own lane with its own columns**. A project can never be given a task status                                                                                                |
 | The type's **allowed values** for any other property                              | Powers the card right-click **"Set …"** quick-set menu and the one-click controls in triage mode                                                                                                                                                  |
 | The type's **associated folder**, **template**, and **note name prefix / suffix** | Drives [quick capture](#creating-cards-from-the-board-quick-capture): the **Add card** button creates a note exactly where a note of that type belongs, with the same template you would get from the Starter Kit's own "Create new note" command |
 
 In short: point a Base at your tasks, add a Kanban view, and you already have the right columns
-in the right order, the right template on new notes, and the right lanes on a mixed board —
+in the right order, the right template on new notes, and the right lanes on a mixed board,
 without configuring anything.
 
 ### What stays yours
@@ -1658,8 +1667,8 @@ the source of truth for how they are shown and acted on.
 
 ### Without the Starter Kit
 
-Everything still works. Define columns per view (**Statuses (columns)**) or globally, and — if
-you want per-type behaviour — create your own note types in **Settings → Note types → Add note
+Everything still works. Define columns per view (**Statuses (columns)**) or globally, and, if
+you want per-type behaviour, create your own note types in **Settings → Note types → Add note
 type**, recognized by tag, folder, or path regex. Quick capture then falls back to the folder
 your Base filters on and to Obsidian's default new-note location, plus any Templater folder
 template you already use.
@@ -1669,7 +1678,7 @@ template you already use.
 > ### 💡 Want the whole system?
 >
 > The [**Obsidian Starter Kit**](https://store.dsebastien.net/product/obsidian-starter-kit) gives
-> you the structure, note types, templates, and workflows this plugin was designed around — a
+> you the structure, note types, templates, and workflows this plugin was designed around: a
 > complete PKM system you can start using today instead of building from scratch.
 >
 > [**Get the Obsidian Starter Kit →**](https://store.dsebastien.net/product/obsidian-starter-kit)
@@ -1687,8 +1696,8 @@ is active, and each can be given a hotkey in **Settings → Hotkeys**):
 - **Toggle ideal week mode**
 - **Undo the last ideal week edit** / **Redo the last undone ideal week edit**
 - **Print the ideal week**
-- **Import ideal week from the week-planner app**
-- **Export ideal week (JSON, week-planner app)** / **Export ideal week (Markdown, week-planner app)**
+- **Import ideal week (JSON or Markdown)**
+- **Export ideal week (JSON)** / **Export ideal week (Markdown)**
 - **Stop time tracking** (only while a session runs)
 - **Start work pomodoro** (on the tracked note when a session runs, else on nothing)
 - **Start pomodoro break** (short, or long after every Nth completed work pomodoro)

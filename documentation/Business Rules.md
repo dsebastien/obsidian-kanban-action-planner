@@ -973,7 +973,11 @@ When a new business rule is mentioned:
     a conflicting note rather than writing it. The export covers the notes drawn on the grid,
     turns a run of consecutive days sharing a time into one app block with a `daySpan`, rounds
     15-minute times outwards to the app's 30-minute grid and reports every rounding; it writes
-    a new file next to the attachments and never overwrites one.
+    a new file next to the attachments and never overwrites one. Since 2026-09-10 the command
+    names and the dialog no longer name the week-planner app (`Import ideal week (JSON or
+Markdown)`, `Export ideal week (JSON)`, `Export ideal week (Markdown)`); the formats are
+    unchanged and stay compatible with it. Export to a note, append to a note, import from a
+    vault file or note: #190.
 
 52. **Ideal week parity with the week-planner app (issue #172, phase E; decided 2026-09-09).**
     Undo / redo is an in-memory stack of `{path, before, after}` block-list steps recorded by

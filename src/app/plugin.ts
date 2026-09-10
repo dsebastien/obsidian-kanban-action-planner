@@ -230,17 +230,17 @@ export class KanbanActionPlannerPlugin extends Plugin {
         })
         this.addCommand({
             id: 'import-ideal-week',
-            name: 'Import ideal week from the week-planner app',
+            name: 'Import ideal week (JSON or Markdown)',
             checkCallback: onActiveView((view) => view.importIdealWeek())
         })
         this.addCommand({
             id: 'export-ideal-week-json',
-            name: 'Export ideal week (JSON, week-planner app)',
+            name: 'Export ideal week (JSON)',
             checkCallback: onActiveView((view) => void view.exportIdealWeek('json'))
         })
         this.addCommand({
             id: 'export-ideal-week-markdown',
-            name: 'Export ideal week (Markdown, week-planner app)',
+            name: 'Export ideal week (Markdown)',
             checkCallback: onActiveView((view) => void view.exportIdealWeek('markdown'))
         })
         this.addCommand({

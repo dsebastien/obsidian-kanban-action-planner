@@ -2,9 +2,10 @@ import { Modal, Setting } from 'obsidian'
 import type { App } from 'obsidian'
 
 /**
- * "Import ideal week" dialog (issue #172, phase D): paste the week-planner
- * app's JSON or Markdown export, or pick the file; choose whether the
- * imported blocks replace the matched notes' current blocks or join them.
+ * "Import ideal week" dialog (issue #172, phase D): paste an ideal week as
+ * JSON or Markdown (the formats the export writes), or pick the file; choose
+ * whether the imported blocks replace the matched notes' current blocks or
+ * join them.
  */
 export class WeekImportModal extends Modal {
     private text = ''
@@ -23,9 +24,8 @@ export class WeekImportModal extends Modal {
         contentEl.createEl('p', {
             cls: 'kap-modal-subtitle',
             text:
-                'Paste the week-planner app’s JSON or Markdown export, or choose the file. ' +
-                'Each block’s text names the note it belongs to (exact, then case-insensitive); ' +
-                'you are asked about the rest. Styling is not imported: contexts colour the blocks.'
+                'Paste an ideal week as JSON or Markdown (the formats the export writes), or choose the file. ' +
+                'Each block’s text names its note (exact, then case-insensitive); you are asked about the rest.'
         })
         const area = contentEl.createEl('textarea', {
             cls: 'kap-week-import-text',
@@ -39,7 +39,7 @@ export class WeekImportModal extends Modal {
         })
         new Setting(contentEl)
             .setName('Choose a file')
-            .setDesc('A .json or .md export of the app.')
+            .setDesc('A .json or .md file holding an ideal week.')
             .addButton((btn) =>
                 btn.setButtonText('Browse…').onClick(() => {
                     const input = contentEl.createEl('input', {

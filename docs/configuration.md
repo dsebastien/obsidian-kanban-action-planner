@@ -9,72 +9,72 @@ nav_order: 3
 
 Settings live in three places, by scope:
 
-- **Plugin settings** (**Settings → Community plugins → Kanban Action Planner**) — vault-wide
+- **Plugin settings** (**Settings → Community plugins → Kanban Action Planner**). Vault-wide
   **defaults** (property names, default statuses, date format) **plus a central "Note types"
   list**. Each note type's shared config (statuses, colors, cards, relationships, estimate
   property + unit, archiving)
-  is defined here once and applied by **every** board to its recognized notes — no need to
-  reconfigure a type per board. When the Obsidian Starter Kit is present, its note types are
+  is defined here once, and **every** board applies it to the notes it recognizes. You never
+  reconfigure a type board by board. When the Obsidian Starter Kit is present, its note types are
   synchronized into this list automatically; the **Default** entry covers notes with no
   recognized type. Click **Configure** next to a type to edit it.
-- **Per-board configuration** (**Configure view** — the Bases view options for the Kanban view)
-  — settings for **this board only**, grouped into **Columns**, **Cards**, **Swimlanes**,
+- **Per-board configuration** (**Configure view**, the Bases view options for the Kanban view).
+  Settings for **this board only**, grouped into **Columns**, **Cards**, **Swimlanes**,
   **Filters**, and **Calendar**. Pickers for properties the board **writes** (status, order,
   grouping) list only your notes' **frontmatter** properties; read-only pickers (card sort,
-  panel sort, title) also offer `formula.*` and `file.*` columns. When the Obsidian Starter Kit
-  is enabled, frontmatter pickers are further limited to your note types' known properties.
+  panel sort, title) also offer `formula.*` and `file.*` columns. With the Obsidian Starter Kit
+  enabled, frontmatter pickers are further limited to your note types' known properties.
 
-The **gear** in the board's top-right is a shortcut that opens the plugin's **Note types**
-settings (note-type config — colors, cards, relationships, estimate, archiving, default swimlane
-grouping — lives there, not on the board).
+The **gear** in the board's top-right is a shortcut to the plugin's **Note types** settings.
+Note-type config lives there, not on the board: colors, cards, relationships, estimate,
+archiving, default swimlane grouping.
 
-Precedence (most specific wins): a **view's** Configure-view setting → the **note type's** shared
-config (Settings → Note types) → the **global** default. For example, swimlane grouping has a
-shared default per note type, and any single view can override it in **Configure view →
+Precedence, most specific wins: a **view's** Configure-view setting → the **note type's** shared
+config (Settings → Note types) → the **global** default. Swimlane grouping is a good example. It
+has a shared default per note type, and any single view can override it in **Configure view →
 Swimlanes** (which defaults to "Use note type default").
 
 ## Property names
 
-The plugin reads and writes ordinary note properties (frontmatter). The defaults below are
-used today; per-view overrides may arrive in later releases.
+The plugin reads and writes ordinary note properties (frontmatter). Nothing exotic, nothing
+hidden. The defaults below are used today; per-view overrides may arrive in later releases.
 
-| Property        | Default                    | What it does                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
-| --------------- | -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Status          | `status`                   | Its value places a card in a column. Auto-detected: a property named `status`, else any property whose name contains `status`.                                                                                                                                                                                                                                                                                                                                                         |
-| Manual order    | `manual_order`             | Stores a card's position within its column (a number). Written when you drag to reorder.                                                                                                                                                                                                                                                                                                                                                                                               |
-| Estimate        | `estimate`                 | The time a note is expected to take — a number of **days** by default. A note type can associate its **own property and unit** (days or **minutes**, e.g. a tasknotes-compatible `time_estimate`) in **Configure → Estimate**; minute values convert to days everywhere via **Minutes per day** (default 480 = an 8-hour workday). With a start date it gives a card its span on the timeline. Written when you resize a bar or via **Set estimate…** — always in the note's own unit. |
-| Milestones      | `milestones`               | List of `<date> <label>` entries rendered as diamond markers on the timeline. Set globally with **Milestones property**.                                                                                                                                                                                                                                                                                                                                                               |
-| Contexts        | `contexts`                 | Optional list of GTD-style contexts (`@work`, `@home`, …). Powers the **@** context switcher in the toolbar (filter only — the plugin never writes it). Set globally with **Contexts property**; must not be a reserved filter word (`parent`, `status`, `due`, …).                                                                                                                                                                                                                    |
-| Duration        | `duration`                 | The note's own tracked time in **minutes**: recomputed from its time-entries list every time a session stops (an edited or deleted entry is honoured). Set globally with **Duration property**; a note type can map its own in **Configure → Time tracking**. A legacy number left by an older version is still read when neither the entries list nor this property is set.                                                                                                           |
-| Total duration  | `total_duration`           | The persisted tracked-time rollup (minutes): the WBS row menu's **Save total tracked time** writes the subtree total (own + descendants) here. Set globally with **Total duration property**, per type in **Configure → Time tracking**.                                                                                                                                                                                                                                               |
-| Time entries    | `time_entries`             | List of `{startTime, endTime, description}` objects (local ISO datetimes) — one per tracked session, TaskNotes' format, never compacted. The ledger the duration is recomputed from. Set globally with **Time entries property**, per type in **Configure → Time tracking**.                                                                                                                                                                                                           |
-| Last session    | `date_last_session`        | Date of the latest time entry, stamped on every stop. Set globally with **Last session property**, per type in **Configure → Time tracking**.                                                                                                                                                                                                                                                                                                                                          |
-| Pomodoros       | `pomodoros`                | **Daily-note** list property receiving one record per pomodoro (`{id, taskPath, startTime, endTime, plannedDuration, type, completed, activePeriods}`, TaskNotes' shape). The daily note is resolved through Periodic Notes, else the core Daily Notes plugin, else the **Daily note folder / format (fallback)** settings. Pomodoro lengths and the long-break interval are settings too.                                                                                             |
-| Time blocks     | `time_blocks`              | The ideal week: a list of `<days> HH:MM-HH:MM` entries on a 15-minute grid (`mon-fri 09:00-12:00`; a day list or range repeats, an end before the start crosses midnight). Read and written by **Ideal week** mode. Set globally with **Time blocks property**.                                                                                                                                                                                                                        |
-| Planned minutes | `minutes_planned_per_week` | Minutes per week reserved by the note's time blocks; recomputed by the plugin on every block edit, do not edit by hand. Set globally with **Planned minutes property**.                                                                                                                                                                                                                                                                                                                |
-| Target minutes  | `minutes_per_week`         | The weekly time budget you intend to give a note, in minutes. Shown in the ideal week's rail against the planned minutes; a note without one is asked for it the first time a block is planned for it. Set globally with **Target minutes property**.                                                                                                                                                                                                                                  |
-| Alarm minutes   | `minutes_alarm_per_week`   | Optional weekly alarm in minutes: when the minutes tracked this ISO week (the note's own entries plus its linked tasks') exceed it, the budget ring turns red and one notice fires per note per week. Set globally with **Alarm minutes property**. The four ideal-week properties can be mapped per note type in **Configure → Ideal week**.                                                                                                                                          |
-| Committed date  | `date_committed`           | When you committed to the note. The WBS lifecycle chip shows the **lead** (started − committed) next to the **cycle** (done − started) and the **lateness** (done − due) of done items, or the days **active** for open ones; a missing date leaves its slot blank. Set globally with **Committed date property**.                                                                                                                                                                     |
-| Areas           | `areas`                    | List of the areas (life domains) a note belongs to: Health, Exercise, Work… Read only: the ideal week's rail and targets table can **group by area** (a note files under its first value). Set globally with **Areas property**, per type in **Configure → Ideal week**.                                                                                                                                                                                                               |
+| Property        | Default                    | What it does                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| --------------- | -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Status          | `status`                   | Its value places a card in a column. Auto-detected: a property named `status`, else any property whose name contains `status`.                                                                                                                                                                                                                                                                                                                                                      |
+| Manual order    | `manual_order`             | Stores a card's position within its column (a number). Written when you drag to reorder.                                                                                                                                                                                                                                                                                                                                                                                            |
+| Estimate        | `estimate`                 | How long you expect a note to take. A number of **days** by default. A note type can associate its **own property and unit** (days or **minutes**, e.g. a tasknotes-compatible `time_estimate`) in **Configure → Estimate**; minute values convert to days everywhere via **Minutes per day** (default 480 = an 8-hour workday). With a start date it gives a card its span on the timeline. Written when you resize a bar or via **Set estimate…**, always in the note's own unit. |
+| Milestones      | `milestones`               | List of `<date> <label>` entries rendered as diamond markers on the timeline. Set globally with **Milestones property**.                                                                                                                                                                                                                                                                                                                                                            |
+| Contexts        | `contexts`                 | Optional list of GTD-style contexts (`@work`, `@home`, …). Drives the **@** context switcher in the toolbar; it filters only, the plugin never writes it. Set globally with **Contexts property**; must not be a reserved filter word (`parent`, `status`, `due`, …).                                                                                                                                                                                                               |
+| Duration        | `duration`                 | The note's own tracked time in **minutes**: recomputed from its time-entries list every time a session stops (an edited or deleted entry is honoured). Set globally with **Duration property**; a note type can map its own in **Configure → Time tracking**. A legacy number left by an older version is still read when neither the entries list nor this property is set.                                                                                                        |
+| Total duration  | `total_duration`           | The persisted tracked-time rollup (minutes): the WBS row menu's **Save total tracked time** writes the subtree total (own + descendants) here. Set globally with **Total duration property**, per type in **Configure → Time tracking**.                                                                                                                                                                                                                                            |
+| Time entries    | `time_entries`             | List of `{startTime, endTime, description}` objects (local ISO datetimes), one per tracked session, TaskNotes' format, never compacted. The ledger the duration is recomputed from. Set globally with **Time entries property**, per type in **Configure → Time tracking**.                                                                                                                                                                                                         |
+| Last session    | `date_last_session`        | Date of the latest time entry, stamped on every stop. Set globally with **Last session property**, per type in **Configure → Time tracking**.                                                                                                                                                                                                                                                                                                                                       |
+| Pomodoros       | `pomodoros`                | **Daily-note** list property receiving one record per pomodoro (`{id, taskPath, startTime, endTime, plannedDuration, type, completed, activePeriods}`, TaskNotes' shape). The daily note is resolved through Periodic Notes, else the core Daily Notes plugin, else the **Daily note folder / format (fallback)** settings. Pomodoro lengths and the long-break interval are settings too.                                                                                          |
+| Time blocks     | `time_blocks`              | The ideal week: a list of `<days> HH:MM-HH:MM` entries on a 15-minute grid (`mon-fri 09:00-12:00`; a day list or range repeats, an end before the start crosses midnight). Read and written by **Ideal week** mode. Set globally with **Time blocks property**.                                                                                                                                                                                                                     |
+| Planned minutes | `minutes_planned_per_week` | Minutes per week reserved by the note's time blocks; recomputed by the plugin on every block edit, do not edit by hand. Set globally with **Planned minutes property**.                                                                                                                                                                                                                                                                                                             |
+| Target minutes  | `minutes_per_week`         | The weekly time budget you intend to give a note, in minutes. Shown in the ideal week's rail against the planned minutes; a note without one is asked for it the first time a block is planned for it. Set globally with **Target minutes property**.                                                                                                                                                                                                                               |
+| Alarm minutes   | `minutes_alarm_per_week`   | Optional weekly alarm in minutes: when the minutes tracked this ISO week (the note's own entries plus its linked tasks') exceed it, the budget ring turns red and one notice fires per note per week. Set globally with **Alarm minutes property**. The four ideal-week properties can be mapped per note type in **Configure → Ideal week**.                                                                                                                                       |
+| Committed date  | `date_committed`           | When you committed to the note. The WBS lifecycle chip shows the **lead** (started − committed) next to the **cycle** (done − started) and the **lateness** (done − due) of done items, or the days **active** for open ones; a missing date leaves its slot blank. Set globally with **Committed date property**.                                                                                                                                                                  |
+| Areas           | `areas`                    | List of the areas (life domains) a note belongs to: Health, Exercise, Work… Read only: the ideal week's rail and targets table can **group by area** (a note files under its first value). Set globally with **Areas property**, per type in **Configure → Ideal week**.                                                                                                                                                                                                            |
 
-The status property is auto-detected, but the **columns are defined explicitly** (see below),
-not inferred from your notes' values.
+The status property is auto-detected, but the **columns are defined explicitly** (see below).
+They are never inferred from the values your notes happen to carry.
 
-One related global setting is not a property name: **Minutes per day** (default 480 = an
-8-hour workday) defines how many minutes one day of work represents — it converts
-minute-based estimates into days for rollups, timeline bars, and calendar spans, and sizes
+One related global setting is not a property name. **Minutes per day** (default 480 = an
+8-hour workday) says how many minutes one day of work represents. It converts
+minute-based estimates into days for rollups, timeline bars, and calendar spans, and it sizes
 the day component of every displayed duration (`1d 2h`).
 
 ## Defining columns
 
-Columns are **defined**, never guessed from the values present in notes (so a typo can't
-create a stray column). A board takes its columns, in order of preference, from:
+Columns are **defined**, never guessed from the values present in notes. A typo in a note can
+never create a stray column. A board takes its columns, in order of preference, from:
 
 1. the per-view **Statuses (columns)** list (view settings), then
 2. the **Obsidian Starter Kit** note type's allowed status values (if installed), then
 3. the global **Default statuses** list (plugin settings, one per line).
 
-A leading number sets order and is hidden in the header — e.g. `10 Todo`, `20 Doing`,
+A leading number sets the order and is hidden in the header: `10 Todo`, `20 Doing`,
 `30 Done`. Notes whose status isn't a defined column go to the **Unmapped** column (shown
 first by default; a view option can move it last; hidden when empty). With no definition at
 all, every card sits in Unmapped.
@@ -82,24 +82,24 @@ all, every card sits in Unmapped.
 ## Manual order
 
 When you reorder cards, the plugin assigns a numeric `manual_order`. It uses fractional
-midpoints so a single move usually rewrites only the card you moved; a column is renumbered
-to whole numbers only when needed (e.g. when some cards have no order yet).
+midpoints, so a single move usually rewrites only the card you moved. A column is renumbered
+to whole numbers only when it has to be (e.g. when some cards have no order yet).
 
 ## Note types and the Obsidian Starter Kit
 
 > The [**Obsidian Starter Kit**](https://store.dsebastien.net/product/obsidian-starter-kit) is optional. If you use it, everything below configures
-> itself — see [Using this plugin with the Obsidian Starter Kit]({{ '/usage.html#using-this-plugin-with-the-obsidian-starter-kit' | relative_url }}).
+> itself. See [Using this plugin with the Obsidian Starter Kit]({{ '/usage.html#using-this-plugin-with-the-obsidian-starter-kit' | relative_url }}).
 
 Board configuration (currently: colors) is grouped into a **note type**. When the Obsidian
 Starter Kit plugin is installed and recognizes your notes as a note type, the board uses that
-type as its note type — taking the status property and its allowed values from the Starter Kit
-and building columns in the defined order, including empty ones. The Starter Kit remains the
+type as its note type. It takes the status property and its allowed values from the Starter Kit
+and builds columns in the defined order, including empty ones. The Starter Kit remains the
 source of truth for those facts; your color choices are stored locally in this plugin and
 keep working even if the Starter Kit is disabled.
 
 You can also **define your own note types** without the Starter Kit (**Settings → Note types →
 Add note type**): give the type a name and **recognition rules** (by tag, folder, or path regex).
-The plugin recognizes notes from those rules — Starter Kit recognition is tried first when it's
+The plugin recognizes notes from those rules. Starter Kit recognition is tried first when it's
 installed, then your local rules. A note that matches no type (and notes when nothing is defined)
 uses the **Default** note type.
 
@@ -107,23 +107,23 @@ uses the **Default** note type.
 
 Colors are saved per note type, so all boards of the same note type share them. Each status can
 use an auto-assigned palette color, a chosen palette color, or a custom hex value. Column
-backgrounds are a translucent blend of the card color over your theme background, so they look
-right in both light and dark themes.
+backgrounds are a translucent blend of the card color over your theme background. That way they
+look right in both light and dark themes.
 
 ## Swimlanes
 
 A board can be split into horizontal **lanes**. The grouping is saved per note type (and can be
 overridden per view):
 
-- **None** — one plain board.
-- **By note type** — one lane per recognized Starter Kit note type.
-- **By property** — one lane per distinct value of a chosen property; lanes order by a numeric
+- **None**: one plain board.
+- **By note type**: one lane per recognized Starter Kit note type.
+- **By property**: one lane per distinct value of a chosen property; lanes order by a numeric
   prefix the same way columns do. Cards missing the value collect in an **Ungrouped** lane
   (hidden when empty).
 
 Dragging a card to another lane rewrites the grouping property to the target lane's value (or
-clears it for Ungrouped). Note-type lanes are read-only — a note's type comes from its
-tags/folder — so cross-lane drags there are ignored.
+clears it for Ungrouped). Note-type lanes are read-only, because a note's type comes from its
+tags/folder, so cross-lane drags there are ignored.
 
 ## Relationships
 
@@ -139,19 +139,19 @@ Each relationship role reads a link-property (frontmatter wikilinks), configured
 
 Inverse relations are derived automatically (a declared child gives the target a parent, and so
 on). Setting a role's property to **None** turns that role **fully off**: its badge never
-appears — no direct links, no inverse of an active opposite role, no heuristic. The **Detect
+appears, no direct links, no inverse of an active opposite role, no heuristic. The **Detect
 children by tag** option adds a heuristic: a note carrying one of the listed tags that links to
 a card counts as that card's child (this also keeps the child role active).
 
 **Every note resolves with its own type's properties.** On a mixed board, a task can name its
 parent in `related_projects` while a project names its goal in `related_goals`, and the whole
-chain resolves — badges, WBS tree, zoom, and filters included. Notes without a recognized type
-fall back to the board's active note type.
+chain still resolves, badges, WBS tree, zoom, and filters included. Notes without a recognized
+type fall back to the board's active note type.
 
 Relationships are **editable from the board**: the card menu's **Relationships** submenu adds
-and removes direct links, and the WBS re-parents by drag — every write lands in the owning
+and removes direct links, and the WBS re-parents by drag. Every write lands in the owning
 note's own role property. Inverse-derived and heuristic relations stay read-only (they live on
-the other note). A non-empty **blocked by** flags the card (red badge + edge) and powers the
+the other note). A non-empty **blocked by** flags the card (red badge + edge) and drives the
 **Blocked cards** view filter and badge navigation; it never changes status on its own.
 
 ## Archiving
@@ -159,7 +159,7 @@ the other note). A non-empty **blocked by** flags the card (red badge + edge) an
 Archiving **moves** a note out of the board into a folder, saved per note type in **Configure
 board → Archiving**:
 
-- **Archive folder** — destination path. Supports placeholders resolved at archive time:
+- **Archive folder**: the destination path. It supports placeholders resolved at archive time:
 
     | Placeholder    | Resolves to         | Example             |
     | -------------- | ------------------- | ------------------- |
@@ -173,41 +173,41 @@ board → Archiving**:
     | `{{uuid}}`     | a fresh unique id   | `a1b2c3…`           |
 
     Placeholders are case-insensitive. Leaving the folder blank disables archiving. Missing
-    folders are created; a name clash gets a numeric suffix so nothing is overwritten.
+    folders are created; a name clash gets a numeric suffix, so nothing is overwritten.
 
-- **Auto-archive on status** — optional (off by default). Select **one or more** statuses; a
+- **Auto-archive on status**: optional (off by default). Select **one or more** statuses; a
   card is archived the moment it **transitions into** any of them. Reordering within such a
   status does nothing.
 
-- **Done-date properties** — comma-separated frontmatter properties, **first present wins**
+- **Done-date properties**: comma-separated frontmatter properties, **first present wins**
   (e.g. `date_completed, date_abandoned`). Only used with a grace period (below); blank means
   the type archives on the transition itself.
 
-Manual archiving is available from a card's right-click menu (**Archive**). Moves go through
+You can also archive by hand, from a card's right-click menu (**Archive**). Moves go through
 Obsidian's file manager, so wikilinks to the note are updated and stay valid.
 
 **Folder notes move whole.** A note that is its folder's namesake (`Projects/Foo/Foo.md`, or
 with a parenthesised type suffix: `Projects/Foo/Foo (Project).md`) is archived by moving the
-**folder** — every sibling file goes with it and links keep resolving.
+**folder**. Every sibling file goes with it and links keep resolving.
 On a name clash the folder gets the numeric suffix. The same applies to automation
 **Move to folder** actions.
 
 ### Archive grace period
 
 By default an auto-archive status archives on the transition. **Settings → Archiving → Archive
-grace period (days)** keeps the card on the board instead, until its **done date** — the type's
-first present done-date property — is that many days old:
+grace period (days)** keeps the card on the board instead, until its **done date** (the type's
+first present done-date property) is that many days old:
 
 - Aged notes are archived when a board **loads** (once per open board), or on demand with the
   **Archive aged done notes (open boards)** command. A notice summarizes what moved.
 - A note sitting in an auto-archive status with **no** done date gets a done-date property
-  **stamped with today** — the one an automation rule of that type would write on that
-  transition (so Abandoned stamps `date_abandoned`), else the first listed — which starts its
-  clock — whether it got there via the board
+  **stamped with today**, which starts its clock. The property picked is the one an automation
+  rule of that type would write on that transition (so Abandoned stamps `date_abandoned`), else
+  the first listed. This happens whether the note got there via the board
   (when no automation rule stamped a date on that transition) or was marked done in the editor
   or by a script. An unparseable date is left alone and the note waits.
 - Types without done-date properties ignore the grace period and archive immediately.
-- Notes another board or an external tool archived in the meantime are simply skipped.
+- Notes another board or an external tool archived in the meantime are skipped.
 
 ## Calendar mode
 
@@ -223,15 +223,15 @@ Dates are parsed leniently (a `YYYY-MM-DD` or full date string, or a real date v
 written with the note type's momentjs **date format** (default `YYYY-MM-DD`). The calendar's
 default **range** (week/month/quarter/year) and the **panel sort** (manual order / name /
 a property) are view options. To narrow the calendar (grid and panel together), use the
-toolbar **filter box** — see the usage guide's "Filtering" section.
+toolbar **filter box**. See the usage guide's "Filtering" section.
 
 The week the calendar grid starts on is set by **First day of the week** in the plugin settings
-(default **Monday**). This only affects the calendar display; the `{{week}}` archive placeholder
-stays ISO week numbering.
+(default **Monday**). Keep in mind that this only affects the calendar display; the `{{week}}`
+archive placeholder stays ISO week numbering.
 
 ## Timeline mode
 
-Timeline mode places each card by a **start date plus an estimate** — there is no
+Timeline mode places each card by a **start date plus an estimate**. There is no
 end-date property. The start is your scheduled-date property and the milestone list defaults
 to `milestones` (**Milestones property**), both global settings. The estimate defaults to the
 global **Estimate property** (`estimate`, days), and each note type can override the
@@ -240,7 +240,7 @@ estimates convert to days via the global **Minutes per day** setting and always 
 one whole day on the chart. Per view, **Configure view → Timeline** only sets the **Default
 range** (Quarter by default). Estimates are written as plain numbers in the note's own unit;
 fractional day values round up to whole days, minimum 1. Old per-view
-start/estimate/end/milestone keys in a `.base` file are simply ignored.
+start/estimate/end/milestone keys in a `.base` file are ignored.
 
 ## WBS mode
 
@@ -249,35 +249,36 @@ property, the **estimate** the same per-type estimate configuration the timeline
 days-based default, or the note type's own property + unit), and the tree comes from
 your **parent/children** relationship link properties (each note resolved with its **own**
 type's properties, so cross-type chains work on mixed boards). One new global setting: **Progress
-property** (default `progress`) — a **number from 0 to 100** driving the per-node progress
+property** (default `progress`), a **number from 0 to 100** driving the per-node progress
 bars and their rollups. Progress and estimates are always written as plain numbers. There are
 no per-view WBS options; the collapsed nodes and panel state are remembered per view
 automatically.
 
 ## Ideal week mode
 
-Ideal week mode draws the recurring **time blocks** of the board's **active** notes — how you
-want to spend a week, not a plan for one particular week. Which statuses are active comes from
+Ideal week mode draws the recurring **time blocks** of the board's **active** notes. It shows how
+you want to spend a week, not a plan for one particular week. Which statuses are active comes from
 the note type's status configuration mirrored from the Obsidian Starter Kit (the per-value
 planning **role**); without roles, every status not declared done counts. A note also has to
 carry the time blocks property to appear (tasks do not), and a dated note (a project with a
 start and a due date, as configured for its type in **Calendar**) only while today lies
 between them.
 
-Global settings under **Ideal week**: **Time blocks property**, **Planned minutes
-property**, **Target minutes property**, **Alarm minutes property**, **Areas property** and
-**Committed date property** (see the property table; the five ideal-week properties can be
-overridden per note type in **Configure board → Ideal week**), **Target follows planned**
+Global settings under **Ideal week** start with the property names: **Time blocks property**,
+**Planned minutes property**, **Target minutes property**, **Alarm minutes property**,
+**Areas property** and **Committed date property** (see the property table; the five
+ideal-week properties can be overridden per note type in **Configure board → Ideal week**).
+Then come the two that decide how targets behave: **Target follows planned**
 (on by default: an edit that plans more than a note's weekly target raises the target to the
-planned minutes, with a notice; never lowered), **Available hours per week** (the base of
+planned minutes, with a notice; never lowered) and **Available hours per week** (the base of
 every share in the targets table; empty = the visible grid hours × 7, the whole week by
-default), **Grid starts at** /
+default). The rest shape the grid: **Grid starts at** /
 **Grid ends at** (hours, the full day by default), **Work hours** (`09:00-17:00` by default;
 empty = no band) and **Work days** (`mon-fri` by default; the band's days), **New block
 length** (60 minutes), **Day window** (`06:00-22:00` by default: the hours that fill the pane,
 the scale follows the pane height; empty = the whole grid) and **Minimum pixels per hour**
 (the grid never gets denser than this and scrolls instead). There are no per-view
-options; the panel state, the grid / targets face and the two grouping choices are remembered
+options. The panel state, the grid / targets face and the two grouping choices are remembered
 per view.
 
 ## View modes
@@ -285,7 +286,7 @@ per view.
 Under **View modes** in the plugin settings, switch off the modes you do not use (Calendar,
 Timeline, WBS, Triage, Agenda, Ideal week; the board itself stays). A switched-off mode leaves
 the mode switch of every board, its commands only show a notice, and an embed asking for it
-(`mode=triage`) or a view remembered in it opens the board instead. Nothing is lost: switch
+(`mode=triage`) or a view remembered in it opens the board instead. Nothing is lost. Switch
 it back on and the views come back where they were.
 
 ### Done state
@@ -295,11 +296,11 @@ done state**, then pick the property and value(s) that mark a note of that type 
 default the property is the type's **status property**, and you toggle the statuses that count
 (e.g. **Completed** and **Done**). Point it at another property to match its values instead
 (one per line, case-insensitive); with no values listed, a checkbox `true` counts as done. A
-done note reads as **100% complete** in the WBS progress rollups — even without a `progress`
-number — so parents show real momentum as their children complete.
+done note reads as **100% complete** in the WBS progress rollups, even without a `progress`
+number, so parents show real momentum as their children complete.
 
 **With the Obsidian Starter Kit (1.13+)**: when a note type's **Status** section there
-declares its status property and done states, this plugin **mirrors** them — the done state
+declares its status property and done states, this plugin **mirrors** them. The done state
 becomes read-only here ("Mirrored from the Obsidian Starter Kit"), the status property and
 columns follow the declaration, and one **stamping rule** per status that stamps a date
 (Planned → `date_committed`, Completed → `date_completed`, …) appears under Automations
@@ -308,8 +309,8 @@ by hand is never overwritten). Edit all of it in the Starter Kit. A type whose S
 status is not configured keeps its plugin-owned done state exactly as before.
 
 **Starter Kit 1.15+ with its own automation engine**: when **Run automation rules** is on in the
-Starter Kit, it stamps those dates itself — from the editor, scripts, other plugins, not only
-from this board — so this plugin stops generating its mirrored stamping rules (existing
+Starter Kit, it stamps those dates itself, from the editor, scripts, other plugins, not only
+from this board. This plugin then stops generating its mirrored stamping rules (existing
 `sk-stamp:*` rules are dropped on the next sync). One executor per rule: no date is written
 twice. Your own rules here keep running on board writes as before.
 
@@ -330,8 +331,8 @@ Every field is **empty = inherit**, so a Starter Kit note type usually needs not
 The folder and the name prefix/suffix accept `{{year}}`, `{{month}}`, `{{week}}`, `{{quarter}}`,
 `{{day}}`, `{{date}}`, `{{datetime}}`, `{{uuid}}`.
 
-Prefixes and suffixes keep their spaces (` (Task)` is not the same as `(Task)`) — the Starter
-Kit recognizes note types by exactly that spelling — and are never added twice.
+Prefixes and suffixes keep their spaces (` (Task)` is not the same as `(Task)`), because the
+Starter Kit recognizes note types by exactly that spelling. They are never added twice.
 
 The template is applied **before** the card's status, swimlane value, tags, and order are
 written, so the column you clicked always wins over a status a template asks for.
@@ -344,46 +345,46 @@ order:
 
 **Triggers**
 
-- **Enters a status** / **Leaves a status** — toggle any of the type's status values; the
+- **Enters a status** / **Leaves a status**: toggle any of the type's status values; the
   rule fires when a note transitions into (or out of) one of them, whether by drag, the
   card menu, the WBS status dot, a pane drop, a bulk edit, or triage. It fires once per
-  actual transition — dropping a card back on its own column does nothing.
-- **Enters a done state** — fires when the note enters any of the type's done values (see
-  [Done state](#done-state)) from a non-done one. Completed, Abandoned, Superseded — one
+  actual transition. Dropping a card back on its own column does nothing.
+- **Enters a done state**: fires when the note enters any of the type's done values (see
+  [Done state](#done-state)) from a non-done one. Completed, Abandoned, Superseded: one
   rule covers them all, and moving between two done states does not re-fire it.
-- **Is archived** — fires just before the note moves to its archive folder (manual, bulk,
+- **Is archived**: fires just before the note moves to its archive folder (manual, bulk,
   or status-triggered), so property changes land on the archived note.
-- **Property matches a condition** — `property = / ≠ / > / ≥ / < / ≤ value`, or `is set` /
+- **Property matches a condition**: `property = / ≠ / > / ≥ / < / ≤ value`, or `is set` /
   `is unset`. Numbers compare numerically, everything else as case-insensitive text (ISO
-  dates order correctly). The rule fires when the condition **becomes** true — editing
+  dates order correctly). The rule fires when the condition **becomes** true. Editing
   `progress` from 40 to 100 fires a `progress ≥ 100` rule once; nudging it from 100 to 110
-  doesn't. Any edit source counts, including typing in the editor — as long as a board
+  doesn't. Any edit source counts, including typing in the editor, as long as a board
   showing the note is open.
 
 **Actions**
 
-- **Set property** — the value supports the archive placeholders (`{{date}}`,
+- **Set property**: the value supports the archive placeholders (`{{date}}`,
   `{{year}}`, `{{month}}`, `{{day}}`, `{{week}}`, `{{quarter}}`, `{{datetime}}`,
   `{{uuid}}`); plain numbers and `true`/`false` are written as numbers and booleans. The
-  **only if empty** toggle skips the write when the property already has a value — the
+  **only if empty** toggle skips the write when the property already has a value. That is the
   right choice for date stamps (`date_completed` = `{{date}}`), so a date set by hand wins.
-- **Remove property** — deletes the property (e.g. clear `date_due` when a task is done).
-- **Add tag / Remove tag** — edits the frontmatter `tags` list (case-insensitive, `#`
+- **Remove property**: deletes the property (e.g. clear `date_due` when a task is done).
+- **Add tag / Remove tag**: edits the frontmatter `tags` list (case-insensitive, `#`
   optional).
-- **Move to folder** — the same placeholder-driven move archiving uses: folders are
+- **Move to folder**: the same placeholder-driven move archiving uses. Folders are
   created on demand, name collisions get a numeric suffix, links are preserved.
 
 Automation writes never trigger other automation rules (no cascades). If a transition
 both auto-archives the note and matches rules, the property/tag actions run first and the
-archive decides the final folder — move actions on that rule are skipped. With an
-[archive grace period](#archive-grace-period) the transition does not archive; a rule that
+archive decides the final folder; move actions on that rule are skipped. With an
+[archive grace period](#archive-grace-period) the transition does not archive. A rule that
 stamps a done-date property (e.g. `date_completed` = `{{date}}`) is what the later sweep
 reads, and the plugin stamps one itself when no rule did.
 
 ## Card title
 
 The card heading is the **note name** by default. Per board, **Configure view → Cards →
-Title property** picks a property (or base formula) to show as the heading instead — useful when
+Title property** picks a property (or base formula) to show as the heading instead. Handy when
 filenames are IDs or date-prefixed slugs and a `title`/`name` property carries the readable label.
 Cards whose note is missing the property (or has it empty) fall back to the note name. The chosen
 property is not repeated as a body field, and clicking the card still opens the note.
@@ -395,9 +396,9 @@ property is not repeated as a body field, and clicking the card still opens the 
 ## Due countdown
 
 A card can show a compact **countdown to its due date** (`Today`, `In 3d`, `2d overdue`,
-`in 2w`, `in 3mo` — the unit auto-scales from days to weeks to months), color-coded by urgency
+`in 2w`, `in 3mo`; the unit auto-scales from days to weeks to months), color-coded by urgency
 (red overdue, amber today, orange soon, muted further out). It reuses the same **Due date**
-property as the overdue emphasis — no extra property to configure.
+property as the overdue emphasis, so there is no extra property to configure.
 
 | Setting                         | Scope     | Default   | What it does                                                                                                       |
 | ------------------------------- | --------- | --------- | ------------------------------------------------------------------------------------------------------------------ |
