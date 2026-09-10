@@ -1029,6 +1029,8 @@ When a new business rule is mentioned:
     list property holding the life domains a note belongs to (Health, Work, …); the plugin
     only READS it. The rail keeps its two sections (Not planned yet / Planned) and gets a
     grouping switch for the second level — by status (default, column order), by area, or by
-    context — remembered per view (`weekRailGroupBy`); nothing nests three deep. Colour stays
-    with the first context. Areas are set directly on activities, projects and goals in the
+    context — remembered per view (`weekRailGroupBy`); nothing nests three deep, and a quick
+    filter box (in memory, `matchesRailFilter`: title / type / status / area / context
+    substring) narrows the rail ONLY — the grid is never filtered and the caret survives the
+    rail rebuild. Colour stays with the first context. Areas are set directly on activities, projects and goals in the
     vault (no inheritance); the plugin never writes them.

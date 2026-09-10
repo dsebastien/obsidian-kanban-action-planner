@@ -21,6 +21,7 @@ import {
     columnDays,
     groupByStatus,
     inWeekWindow,
+    matchesRailFilter,
     newBlockSlot,
     slotKey,
     slotPieces
@@ -138,6 +139,8 @@ export class WeekController {
     private subMode: WeekSubMode = 'grid'
     private railGroupBy: WeekGroupBy = 'status'
     private targetsGroupBy: TargetsGroupBy = 'none'
+    /** The rail's quick filter (in memory; the grid is never filtered). */
+    private railFilter = ''
     private loaded = false
     /** Targets raised inside the current batch (one notice at its end). */
     private raisedInBatch: string[] | null = null
@@ -222,6 +225,13 @@ export class WeekController {
         if (this.railGroupBy === by) return
         this.railGroupBy = by
         this.persist()
+        this.host.refresh()
+    }
+
+    /** Filter the rail's list (not the grid) by a substring of title, type, status, area or context. */
+    setRailFilter(text: string): void {
+        if (this.railFilter === text) return
+        this.railFilter = text
         this.host.refresh()
     }
 
@@ -368,6 +378,7 @@ export class WeekController {
                 ? groupByStatus(list)
                 : groupByValue(list, this.railGroupBy)
         const available = this.availableMinutes()
+        const railEntries = entries.filter((e) => matchesRailFilter(e, this.railFilter))
         const model: WeekViewModel = {
             cfg,
             columnDays: columnDays(cfg.firstDayOfWeek),
@@ -376,14 +387,16 @@ export class WeekController {
                 {
                     key: 'unplanned',
                     label: 'Not planned yet',
-                    groups: group(entries.filter((e) => e.blocks.length === 0))
+                    groups: group(railEntries.filter((e) => e.blocks.length === 0))
                 },
                 {
                     key: 'planned',
                     label: 'Planned',
-                    groups: group(entries.filter((e) => e.blocks.length > 0))
+                    groups: group(railEntries.filter((e) => e.blocks.length > 0))
                 }
             ].filter((sec) => sec.groups.length > 0),
+            railFilter: this.railFilter,
+            railTotal: entries.length,
             collapsedGroups: this.collapsedGroups,
             selectedKeys: this.selected,
             panelCollapsed: this.panelCollapsed,
@@ -432,6 +445,7 @@ export class WeekController {
             onToggleContext: (value) => this.host.toggleContext(value),
             onSetSubMode: (subMode) => this.setSubMode(subMode),
             onSetRailGroupBy: (by) => this.setRailGroupBy(by),
+            onRailFilter: (text) => this.setRailFilter(text),
             onSetTargetsGroupBy: (by) => this.setTargetsGroupBy(by),
             onCommitTarget: (path, raw) => this.commitTarget(path, raw)
         })

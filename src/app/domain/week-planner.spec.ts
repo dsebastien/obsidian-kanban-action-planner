@@ -8,6 +8,7 @@ import {
     isoWeekNumber,
     minutesAtOffset,
     groupByStatus,
+    matchesRailFilter,
     needsPlanning,
     newBlockSlot,
     slotPieces,
@@ -200,5 +201,33 @@ describe('groupByStatus (issue #172)', () => {
             ['Back Burner', ['Zed']],
             ['No status', ['Unmapped']]
         ])
+    })
+})
+
+describe('matchesRailFilter (issue #172, phase G)', () => {
+    const entry: WeekEntry = {
+        path: 'Run.md',
+        title: 'Run (Activity)',
+        contexts: ['@home'],
+        areas: ['Exercise'],
+        blocks: [],
+        errors: [],
+        targetMinutes: null,
+        typeName: 'Activities',
+        active: true,
+        onGrid: true,
+        statusLabel: 'Active',
+        statusRank: 0
+    }
+
+    test('empty matches; title, type, status, area and context match case-insensitively', () => {
+        expect(matchesRailFilter(entry, '')).toBe(true)
+        expect(matchesRailFilter(entry, '  ')).toBe(true)
+        expect(matchesRailFilter(entry, 'RUN')).toBe(true)
+        expect(matchesRailFilter(entry, 'activit')).toBe(true)
+        expect(matchesRailFilter(entry, 'active')).toBe(true)
+        expect(matchesRailFilter(entry, 'exerc')).toBe(true)
+        expect(matchesRailFilter(entry, '@home')).toBe(true)
+        expect(matchesRailFilter(entry, 'walk')).toBe(false)
     })
 })

@@ -61,6 +61,9 @@ export interface WeekViewModel {
         label: string
         groups: { label: string; rank: number; entries: WeekEntry[] }[]
     }[]
+    /** The rail's quick filter text and the unfiltered note count (phase G). */
+    railFilter: string
+    railTotal: number
     /** Folded rail headers, keyed `section` or `section|status`. */
     collapsedGroups: ReadonlySet<string>
     /** Selected block keys (marquee / Ctrl-click). */
@@ -100,6 +103,7 @@ export interface WeekCallbacks {
     onToggleContext: (value: string) => void
     onSetSubMode: (subMode: WeekSubMode) => void
     onSetRailGroupBy: (by: WeekGroupBy) => void
+    onRailFilter: (text: string) => void
     onSetTargetsGroupBy: (by: TargetsGroupBy) => void
     /** A target typed in the table; false = unreadable (nothing written). */
     onCommitTarget: (path: string, raw: string) => boolean
@@ -173,7 +177,9 @@ function railKey(model: WeekViewModel): string {
             ])
         ]),
         [...model.collapsedGroups].sort(),
-        model.railGroupBy
+        model.railGroupBy,
+        model.railFilter,
+        model.railTotal
     ])
 }
 
@@ -244,9 +250,20 @@ function patchWeek(root: HTMLElement, model: WeekViewModel, callbacks: WeekCallb
     const panel = body.querySelector<HTMLElement>(':scope > .kap-week-panel')
     const rail = railKey(model)
     if (!panel || panel.dataset['rail'] !== rail) {
+        // Typing in the filter rebuilds the rail: keep the caret in the box.
+        const filterFocused =
+            panel?.querySelector<HTMLInputElement>('.kap-week-rail-filter') ===
+            panel?.ownerDocument.activeElement
         panel?.remove()
         const next = renderRail(body, model, callbacks)
         body.insertBefore(next, main)
+        if (filterFocused) {
+            const input = next.querySelector<HTMLInputElement>('.kap-week-rail-filter')
+            if (input) {
+                input.focus()
+                input.setSelectionRange(input.value.length, input.value.length)
+            }
+        }
     }
     patchToolbar(toolbar, model, callbacks)
     // Errors strip: rebuilt when it changed, kept between toolbar and grid.
@@ -373,7 +390,11 @@ function renderRail(
         (n, sec) => n + sec.groups.reduce((m, g) => m + g.entries.length, 0),
         0
     )
-    header.createSpan({ cls: 'kap-panel-title', text: `Notes (${total})` })
+    const filtered = model.railFilter.trim() !== ''
+    header.createSpan({
+        cls: 'kap-panel-title',
+        text: filtered ? `Notes (${total} of ${model.railTotal})` : `Notes (${model.railTotal})`
+    })
     const groupBy = header.createEl('select', {
         cls: 'dropdown kap-week-rail-groupby',
         attr: { 'aria-label': 'Group the rail by' }
@@ -393,11 +414,34 @@ function renderRail(
             callbacks.onSetRailGroupBy(value)
         }
     })
+    // Quick filter (phase G): narrows this list only; the grid keeps every block.
+    const tools = panel.createDiv({ cls: 'kap-week-rail-tools' })
+    const filter = tools.createEl('input', {
+        cls: 'kap-week-rail-filter',
+        attr: {
+            'type': 'search',
+            'placeholder': 'Filter this list',
+            'aria-label': 'Filter the rail (the grid is not filtered)',
+            'autocomplete': 'off',
+            'spellcheck': 'false'
+        }
+    })
+    filter.value = model.railFilter
+    filter.addEventListener('input', () => callbacks.onRailFilter(filter.value))
+    filter.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            e.preventDefault()
+            filter.value = ''
+            callbacks.onRailFilter('')
+        }
+    })
     const list = panel.createDiv({ cls: 'kap-panel-list kap-week-rail', attr: { role: 'list' } })
     if (total === 0) {
         list.createDiv({
             cls: 'kap-panel-empty',
-            text: 'Nothing here: the rail lists the notes of this board that carry the time blocks property.'
+            text: filtered
+                ? `No note matches “${model.railFilter.trim()}”. The grid still shows every block.`
+                : 'Nothing here: the rail lists the notes of this board that carry the time blocks property.'
         })
         return panel
     }
@@ -941,6 +985,7 @@ export function renderWeekPrint(doc: Document, model: WeekViewModel, title: stri
         onToggleContext: () => undefined,
         onSetSubMode: () => undefined,
         onSetRailGroupBy: () => undefined,
+        onRailFilter: () => undefined,
         onSetTargetsGroupBy: () => undefined,
         onCommitTarget: () => true
     }

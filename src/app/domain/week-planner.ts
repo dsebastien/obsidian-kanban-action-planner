@@ -240,6 +240,24 @@ export function groupByStatus(
         .sort((a, b) => a.rank - b.rank || a.label.localeCompare(b.label))
 }
 
+/**
+ * Whether a rail entry matches the rail's quick filter (issue #172, phase
+ * G): a case-insensitive substring of its title, type, status, areas or
+ * contexts; an empty query matches everything. The grid is never filtered.
+ */
+export function matchesRailFilter(entry: WeekEntry, query: string): boolean {
+    const q = query.trim().toLowerCase()
+    if (q === '') return true
+    const haystack = [
+        entry.title,
+        entry.typeName ?? '',
+        entry.statusLabel,
+        ...entry.areas,
+        ...entry.contexts
+    ]
+    return haystack.some((v) => v.toLowerCase().includes(q))
+}
+
 /** A stable key for a rendered piece (`path|day|start|end`). */
 export function slotKey(path: string, slot: Slot): string {
     return `${path}|${slot.day}|${slot.start}|${slot.end}`

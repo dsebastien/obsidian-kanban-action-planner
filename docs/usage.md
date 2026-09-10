@@ -1130,8 +1130,10 @@ command), or embed it with `mode=ideal-week` (`mode=week` works too).
   property, whatever its status: a **Not planned yet** section and a **Planned** one, each
   **grouped by status** (collapsible headers in column order), every note with its planned
   minutes against its weekly **target** (`minutes_per_week`) — orange when under target,
-  dimmed when the note is not active. Drag a note from the rail onto the grid to plan a block
-  for it. Blocks of notes that are not active render **dimmed and dashed** (they are on the
+  dimmed when the note is not active. A **filter box** at the top of the rail narrows this
+  list only (title, type, status, area or context; Escape clears it) while the grid keeps
+  every block, so you can find a note to drag without losing sight of the week. Drag a note
+  from the rail onto the grid to plan a block for it. Blocks of notes that are not active render **dimmed and dashed** (they are on the
   grid so nothing you plan disappears, but only active notes count in the planned total); a
   dated note whose window does not include today keeps its blocks saved but not drawn (a
   notice says so when you plan one).

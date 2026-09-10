@@ -2070,6 +2070,15 @@
         @apply ml-auto shrink-0 text-[0.8em] h-6 py-0;
     }
 
+    /* Rail quick filter (phase G): its own row under the header. */
+    .kap-week-rail-tools {
+        @apply px-2 pt-2;
+    }
+
+    .kap-week-rail-filter {
+        @apply w-full h-7 text-[0.85em];
+    }
+
     /* Grid / Targets switch (phase G) in the toolbar. */
     .kap-week-submode {
         @apply shrink-0;
