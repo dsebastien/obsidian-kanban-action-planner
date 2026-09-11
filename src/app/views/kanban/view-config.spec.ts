@@ -10,7 +10,8 @@ import {
     readSortMode,
     readStringArray,
     readTriageConfig,
-    resolveEffectiveLaneGrouping
+    resolveEffectiveLaneGrouping,
+    ViewIdentity
 } from './view-config'
 
 /** A config whose `get` returns values from a plain record. */
@@ -287,5 +288,27 @@ describe('basesPropToName', () => {
         expect(basesPropToName('')).toBeNull()
         expect(basesPropToName(undefined)).toBeNull()
         expect(basesPropToName(42)).toBeNull()
+    })
+})
+
+describe('ViewIdentity', () => {
+    it('reports the first config as a change, then stays quiet', () => {
+        const identity = new ViewIdentity()
+        const tasksView = { name: 'Kanban: Tasks' }
+        expect(identity.changed(tasksView)).toBe(true)
+        expect(identity.changed(tasksView)).toBe(false)
+        expect(identity.changed(tasksView)).toBe(false)
+    })
+
+    it('reports a switch to another view of the same instance', () => {
+        const identity = new ViewIdentity()
+        // Two views of one base: same shape, different objects — Bases swaps the
+        // config on the SAME view instance when you pick another view.
+        const tasksView = { name: 'Kanban: Tasks' }
+        const projectsView = { name: 'Kanban: Projects' }
+        identity.changed(tasksView)
+        expect(identity.changed(projectsView)).toBe(true)
+        expect(identity.changed(projectsView)).toBe(false)
+        expect(identity.changed(tasksView)).toBe(true)
     })
 })

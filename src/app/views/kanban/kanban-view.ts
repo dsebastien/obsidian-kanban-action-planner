@@ -270,7 +270,8 @@ import {
     readSortMode,
     readStringArray,
     readTriageConfig,
-    resolveEffectiveLaneGrouping
+    resolveEffectiveLaneGrouping,
+    ViewIdentity
 } from './view-config'
 import type { TriageConfig } from './view-config'
 import { parsePropertyRef, unwrapValue } from './property-access'
@@ -600,6 +601,13 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
     private filterQuery = ''
     private parsedQuery: FilterQuery = { groups: [] }
     private filterInitialized = false
+    /**
+     * Keys the per-view "load once" latches below (filter query, collapsed
+     * lanes/columns) on the view config rather than on this instance — Bases
+     * reuses one instance across every view of this type in the leaf. See
+     * {@link ViewIdentity}.
+     */
+    private readonly viewIdentity = new ViewIdentity()
 
     // Markdown-note embed (issue #103). Non-null params = this instance renders
     // inside an `![[….base#View|…]]` embed and is a PROJECTION: NO interaction
@@ -1421,6 +1429,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             }
         )
         this.detectEmbed()
+        this.syncViewIdentity()
         this.loadFilterQuery()
         this.loadCollapseState()
 
@@ -5736,6 +5745,23 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         )
     }
 
+    // ── Per-view state latches ──────────────────────────
+
+    /**
+     * Re-arm the "load once" latches whenever Bases points this instance at a
+     * different view config (see {@link ViewIdentity}), so the filter query and
+     * the collapsed lanes/columns are re-read from the view being rendered now
+     * instead of carrying over from the previous one.
+     */
+    private syncViewIdentity(): void {
+        if (!this.viewIdentity.changed(this.config)) return
+        // A keystroke still in flight belongs to the view we just left; letting
+        // it land would write that text into THIS view's `.base` entry.
+        this.debouncedFilter.cancel()
+        this.filterInitialized = false
+        this.collapseInitialized = false
+    }
+
     // ── Filter bar (issue #34) ────────────────────────────────
 
     /** Load the persisted filter query on first rebuild and sync the input. */
@@ -5746,7 +5772,8 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         // persisted query; it rides the normal parse path so the match count
         // shows in the toolbar, and later edits stay ephemeral (the viewConfig
         // funnel keeps every embed write in memory). This only runs before any
-        // in-embed edit: filterInitialized is reset solely by detectEmbed().
+        // in-embed edit: filterInitialized is only re-armed by an embed-line
+        // edit (applyEmbedParams) or a view switch (syncViewIdentity).
         const stored = this.embedParams?.filter ?? this.viewConfig.get('filterQuery')
         let query = typeof stored === 'string' ? stored : ''
         // An embed's `context=` param (fast-follow) pins contexts by folding a

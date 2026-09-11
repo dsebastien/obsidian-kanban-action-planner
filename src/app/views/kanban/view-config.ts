@@ -48,6 +48,35 @@ export class EmbedAwareConfig implements ConfigReader {
     }
 }
 
+/**
+ * Tracks WHICH view config the per-view "load once" state was last read from.
+ *
+ * Bases reuses ONE view instance per leaf for every view of a given type:
+ * picking another view in the view switcher swaps the view's `config` in place
+ * and keeps the instance alive (verified live). So an instance-scoped
+ * "initialized" flag never re-fires — the previous view's filter query and
+ * collapsed lanes/columns stay live under the new view, and the next config
+ * write persists them into the NEW view's entry in the `.base` file.
+ *
+ * The config object is stable per base + view name (our own `set()` + save
+ * does not replace it), which makes its identity the right key for those
+ * latches.
+ */
+export class ViewIdentity {
+    private loaded: unknown = null
+
+    /**
+     * Whether `config` is a different view than the last one seen. Accepts the
+     * new config as the current one, so consecutive calls report `false` until
+     * the view changes again.
+     */
+    changed(config: unknown): boolean {
+        if (this.loaded === config) return false
+        this.loaded = config
+        return true
+    }
+}
+
 /** Read the scheduling-panel sort mode, defaulting to manual order. */
 export function readSortMode(value: unknown): TabSortMode {
     return value === 'name' || value === 'property' ? value : 'order'
