@@ -1,5 +1,11 @@
 # Release Notes
 
+## 1.28.0 (2026-09-11)
+
+### Features
+
+- **plugin:** seed a missing weekly target from the planned blocks
+
 ## 1.27.1 (2026-09-11)
 
 ### Bug Fixes
