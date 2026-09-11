@@ -1,5 +1,11 @@
 # Release Notes
 
+## 1.27.0 (2026-09-11)
+
+### Features
+
+- **plugin:** mirror the Starter Kit's archive configuration
+
 ## 1.26.1 (2026-09-11)
 
 ### Bug Fixes
