@@ -2,6 +2,28 @@ import { describe, expect, it } from 'bun:test'
 import { archiveConfigSchema, noteTypeSchema } from './note-type'
 import { createDefaultNoteType } from '../services/note-type.service'
 
+describe('archiveConfigSchema (Starter Kit mirror fields)', () => {
+    it('carries graceDays and mirrored only when set, so plugin-owned configs stay as before', () => {
+        expect(
+            archiveConfigSchema.parse({
+                archiveFolder: 'A',
+                triggerStatuses: ['d'],
+                graceDays: 7,
+                mirrored: true
+            })
+        ).toEqual({
+            archiveFolder: 'A',
+            triggerStatuses: ['d'],
+            doneDateProperties: [],
+            graceDays: 7,
+            mirrored: true
+        })
+        const plain = archiveConfigSchema.parse({ archiveFolder: 'A', mirrored: false })
+        expect('mirrored' in plain).toBe(false)
+        expect('graceDays' in plain).toBe(false)
+    })
+})
+
 describe('archiveConfigSchema (issue #32 migration)', () => {
     it('keeps an explicit triggerStatuses list', () => {
         const parsed = archiveConfigSchema.parse({

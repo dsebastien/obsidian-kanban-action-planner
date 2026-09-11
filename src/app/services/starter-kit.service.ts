@@ -47,6 +47,8 @@ interface SkApiLike {
     recognizeNoteType?: (file: unknown) => Promise<unknown>
     /** Starter Kit ≥ 1.13: the type's status property + done states. */
     getNoteTypeStatus?: (ref: string) => unknown
+    /** Starter Kit ≥ 1.19: the type's archive (folder template, delay, archiving statuses). */
+    getNoteTypeArchive?: (ref: string) => unknown
     /** Starter Kit: the plugin settings (`globalSettings.enableAutomations` ≥ 1.15). */
     getSettings?: () => unknown
 }
@@ -146,6 +148,37 @@ export function getNoteTypeById(app: App, id: string): SkNoteType | null {
  * Starter Kit predates the API, the type is unknown, or it has no status
  * property. Shapes are normalized defensively like every other SK result.
  */
+/**
+ * A Starter Kit note type's archive as `getNoteTypeArchive` (≥ 1.19) returns
+ * it: where finished notes go, how many days after the date each status
+ * stamps, and which status values archive. `null` when unavailable or not
+ * configured.
+ */
+export interface SkArchive {
+    folder: string
+    afterDays: number
+    statuses: string[]
+}
+
+export function getNoteTypeArchive(app: App, id: string): SkArchive | null {
+    const api = getStarterKitApi(app)
+    if (!api?.getNoteTypeArchive) return null
+    try {
+        const raw = unwrap<Partial<SkArchive> | null>(api.getNoteTypeArchive(id))
+        if (!raw || typeof raw.folder !== 'string' || !Array.isArray(raw.statuses)) return null
+        const folder = raw.folder.trim()
+        const statuses = raw.statuses.filter(
+            (v): v is string => typeof v === 'string' && v.trim().length > 0
+        )
+        if (!folder || statuses.length === 0) return null
+        const afterDays =
+            typeof raw.afterDays === 'number' && raw.afterDays >= 0 ? Math.floor(raw.afterDays) : 0
+        return { folder, afterDays, statuses }
+    } catch {
+        return null
+    }
+}
+
 export function getNoteTypeStatus(app: App, id: string): SkResolvedStatus | null {
     const api = getStarterKitApi(app)
     if (!api?.getNoteTypeStatus) return null

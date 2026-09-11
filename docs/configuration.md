@@ -183,6 +183,8 @@ board → Archiving**:
   (e.g. `date_completed, date_abandoned`). Only used with a grace period (below); blank means
   the type archives on the transition itself.
 
+**Mirrored from the Obsidian Starter Kit.** When the Starter Kit (1.19+) declares a type's archive (Settings → Obsidian Starter Kit → Note types → Edit → Archive), this panel shows that declaration read-only instead: its folder, its archiving statuses, the dates they stamp as the done-date properties, and its per-type delay — which replaces the global grace period below for that type. Edit it there; boards re-sync on every load. Both plugins may keep archiving the same type: a note already under the archive folder is never moved again by either.
+
 You can also archive by hand, from a card's right-click menu (**Archive**). Moves go through
 Obsidian's file manager, so wikilinks to the note are updated and stay valid.
 

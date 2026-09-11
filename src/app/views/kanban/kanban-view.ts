@@ -6097,10 +6097,13 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         status: string | null,
         today: Date
     ): ReturnType<typeof graceDecision> {
+        const archive = this.archiveConfigFor(card)
         return graceDecision({
-            archive: this.archiveConfigFor(card),
+            archive,
             status,
-            graceDays: this.plugin.settings.archiveGraceDays,
+            // A Starter Kit–mirrored type carries its own delay; the global
+            // grace period applies to plugin-owned types.
+            graceDays: archive.graceDays ?? this.plugin.settings.archiveGraceDays,
             read: (name) => getFrontmatterValue(this.app, card.file, name),
             today
         })
@@ -6162,7 +6165,10 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
      * model up front, failed moves come back.
      */
     async runArchiveSweep(): Promise<void> {
-        if (this.plugin.settings.archiveGraceDays <= 0) return
+        const anyTypeDelay = this.plugin.settings.noteTypes.some(
+            (t) => (t.archive.graceDays ?? 0) > 0
+        )
+        if (this.plugin.settings.archiveGraceDays <= 0 && !anyTypeDelay) return
         // A failed sweep must not poison the chain for every later one.
         archiveSweepChain = archiveSweepChain.then(() =>
             this.sweepAgedNotes().catch((error: unknown) => {

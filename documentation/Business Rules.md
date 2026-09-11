@@ -651,6 +651,18 @@ When a new business rule is mentioned:
     done signal is the card's OWN value and beats a stale `progress` number — so a goal
     with 2 of 4 done children derives 50% without per-task progress numbers.
 
+    The same hand-off applies to **archiving** (Starter Kit ≥ 1.19): when `getNoteTypeArchive`
+    returns a configuration, the type's `archive` is **mirrored** from it (`mirrored: true`,
+    read-only in Configure board → Archiving, re-synced on every `resolveActiveNoteType`;
+    `domain/status-mirror.ts` `reconcileArchive`): the Starter Kit's folder template is the
+    `archiveFolder`, its archiving statuses the `triggerStatuses`, the dates those statuses
+    stamp the `doneDateProperties`, and its per-type delay the `graceDays`, which **overrides the
+    global `archiveGraceDays`** for that type (`graceDecisionFor`; the sweep also runs when any
+    mirrored type carries a delay). A Starter Kit that stops declaring it hands back a blank,
+    editable config. Unlike stamps there is no exactly-one-executor rule: both plugins may
+    archive the same type, because a move is a no-op for a note already under the archive
+    folder on both sides.
+
 40. **Per-type automation rules (owner).** A note type carries an ordered list of
     **automation rules** (`automations`, plugin-owned `automationRuleSchema`; Configure
     board → **Automations**; survives the SK mirror): each rule = enabled flag + trigger +

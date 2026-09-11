@@ -86,27 +86,46 @@ export type LaneGrouping = z.infer<typeof laneGroupingSchema>
  * trigger-status note is archived once that date is `archiveGraceDays` old
  * (`domain/archive-grace.ts`). Empty (older stored types, no backfill) = no
  * clock source, so the type archives immediately as before.
+ *
+ * `mirrored` + `graceDays`: when the Obsidian Starter Kit (≥ 1.19) declares
+ * the type's archive, this block is a read-only mirror of it (`domain/
+ * status-mirror.ts` `reconcileArchive`, re-synced on every board load) and
+ * `graceDays` is the Starter Kit's per-type delay, which overrides the global
+ * `archiveGraceDays` for that type. Absent on plugin-owned configs.
  */
 export const archiveConfigSchema = z
     .object({
         archiveFolder: z.string(),
         triggerStatuses: z.array(z.string()).optional(),
         triggerStatus: z.string().nullable().optional(),
-        doneDateProperties: z.array(z.string()).optional()
+        doneDateProperties: z.array(z.string()).optional(),
+        graceDays: z.number().int().min(0).optional(),
+        mirrored: z.boolean().optional()
     })
-    .transform(({ archiveFolder, triggerStatuses, triggerStatus, doneDateProperties }) => {
-        const list =
-            triggerStatuses && triggerStatuses.length > 0
-                ? triggerStatuses
-                : triggerStatus
-                  ? [triggerStatus]
-                  : []
-        return {
+    .transform(
+        ({
             archiveFolder,
-            triggerStatuses: [...new Set(list)],
-            doneDateProperties: doneDateProperties ?? []
+            triggerStatuses,
+            triggerStatus,
+            doneDateProperties,
+            graceDays,
+            mirrored
+        }) => {
+            const list =
+                triggerStatuses && triggerStatuses.length > 0
+                    ? triggerStatuses
+                    : triggerStatus
+                      ? [triggerStatus]
+                      : []
+            return {
+                archiveFolder,
+                triggerStatuses: [...new Set(list)],
+                doneDateProperties: doneDateProperties ?? [],
+                ...(graceDays !== undefined ? { graceDays } : {}),
+                ...(mirrored ? { mirrored: true } : {})
+            }
         }
-    })
+    )
 export type ArchiveConfig = z.infer<typeof archiveConfigSchema>
 
 /**

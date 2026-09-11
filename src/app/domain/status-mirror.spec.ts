@@ -8,7 +8,9 @@ import {
     reconcileDone,
     userRuleCovers,
     activeStatusValues,
-    mirroredStatusRoles
+    mirroredStatusRoles,
+    mirroredArchiveConfig,
+    reconcileArchive
 } from './status-mirror'
 
 const explicit: SkResolvedStatus = {
@@ -202,5 +204,45 @@ describe('mirroredStatusRoles / activeStatusValues (issue #172)', () => {
             })
         ).toEqual(['20 - Planned', '30 - Active'])
         expect(activeStatusValues({ columns, statusRoles: {} })).toHaveLength(4)
+    })
+})
+
+describe('archive mirror (Starter Kit ≥ 1.19)', () => {
+    const skArchive = {
+        folder: '60 Archives/Projects/{{year}}',
+        afterDays: 7,
+        statuses: ['60 - Completed', '70 - Abandoned']
+    }
+
+    test('mirrors folder, statuses, the dates those statuses stamp, and the per-type delay', () => {
+        expect(mirroredArchiveConfig(skArchive, explicit)).toEqual({
+            archiveFolder: '60 Archives/Projects/{{year}}',
+            triggerStatuses: ['60 - Completed', '70 - Abandoned'],
+            doneDateProperties: ['date_completed', 'date_abandoned'],
+            graceDays: 7,
+            mirrored: true
+        })
+    })
+
+    test('a status that stamps no date contributes no done-date property', () => {
+        const only = { ...skArchive, statuses: ['30 - Active'] }
+        expect(mirroredArchiveConfig(only, explicit)?.doneDateProperties).toEqual([])
+    })
+
+    test('nothing to mirror without a Starter Kit archive', () => {
+        expect(mirroredArchiveConfig(null, explicit)).toBeNull()
+    })
+
+    test('reconcile: the mirror wins; a plugin-owned config is kept; a stale mirror is handed back blank', () => {
+        const local = { archiveFolder: 'Local', triggerStatuses: ['x'], doneDateProperties: [] }
+        expect(reconcileArchive(local, skArchive, explicit).mirrored).toBe(true)
+        expect(reconcileArchive(local, null, explicit)).toBe(local)
+        expect(
+            reconcileArchive({ ...local, mirrored: true, graceDays: 7 }, null, explicit)
+        ).toEqual({
+            archiveFolder: '',
+            triggerStatuses: [],
+            doneDateProperties: []
+        })
     })
 })

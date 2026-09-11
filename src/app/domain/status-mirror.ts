@@ -1,5 +1,5 @@
-import type { AutomationRule, DoneConfig } from './note-type'
-import type { SkResolvedStatus } from '../services/starter-kit.service'
+import type { ArchiveConfig, AutomationRule, DoneConfig } from './note-type'
+import type { SkArchive, SkResolvedStatus } from '../services/starter-kit.service'
 import { splitStatusValue } from './status'
 
 /**
@@ -143,4 +143,54 @@ export function activeStatusValues(noteType: {
     if (roled.length > 0) return values.filter((v) => noteType.statusRoles[v] === 'active')
     const done = new Set(noteType.done?.enabled ? noteType.done.values : [])
     return values.filter((v) => !done.has(v))
+}
+
+/**
+ * The archive config the Starter Kit's archive declaration implies (≥ 1.19):
+ * its folder template, its archiving statuses as the trigger statuses, the
+ * date each of those statuses stamps as the done-date properties (status
+ * order, first present wins as before), and its per-type delay as
+ * `graceDays`. `null` when the Starter Kit declares none.
+ *
+ * Mirrored, not copied: the Starter Kit is the one place the archive is
+ * declared (its Archive section generates its own `osk-archive:*` rules),
+ * this plugin reads it so a board archives to the same folder on the same
+ * statuses after the same delay. Both may keep archiving — moves on both
+ * sides are no-ops for a note already under the archive folder.
+ */
+export function mirroredArchiveConfig(
+    archive: SkArchive | null,
+    status: SkResolvedStatus | null
+): ArchiveConfig | null {
+    if (!archive) return null
+    const stamps: string[] = []
+    for (const value of status?.values ?? []) {
+        if (!archive.statuses.includes(value.value) || !value.stampsDate) continue
+        if (!stamps.includes(value.stampsDate)) stamps.push(value.stampsDate)
+    }
+    return {
+        archiveFolder: archive.folder,
+        triggerStatuses: [...new Set(archive.statuses)],
+        doneDateProperties: stamps,
+        graceDays: archive.afterDays,
+        mirrored: true
+    }
+}
+
+/**
+ * The archive config to store: the Starter Kit's when it declares one; the
+ * plugin-owned one otherwise — and when the Starter Kit stopped declaring
+ * it, a blank editable config rather than a stale mirror.
+ */
+export function reconcileArchive(
+    current: ArchiveConfig,
+    archive: SkArchive | null,
+    status: SkResolvedStatus | null
+): ArchiveConfig {
+    const mirrored = mirroredArchiveConfig(archive, status)
+    if (mirrored) return mirrored
+    if (current.mirrored) {
+        return { archiveFolder: '', triggerStatuses: [], doneDateProperties: [] }
+    }
+    return current
 }

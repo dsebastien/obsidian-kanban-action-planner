@@ -1245,6 +1245,23 @@ export class ConfigureBoardModal extends Modal {
         statusValues: string[],
         patch: (patch: Partial<ArchiveConfig>, rerender: boolean) => void
     ): void {
+        if (archive.mirrored) {
+            const statuses = archive.triggerStatuses
+                .map((v) => splitStatusValue(v).label)
+                .join(', ')
+            const delay =
+                (archive.graceDays ?? 0) > 0
+                    ? `${String(archive.graceDays)} day(s) after ${archive.doneDateProperties.join(' / ') || 'the stamped date'}`
+                    : 'on the transition'
+            new Setting(this.body)
+                .setName('Mirrored from the Obsidian Starter Kit')
+                .setDesc(
+                    `The Starter Kit declares where these notes archive (Settings → Obsidian Starter Kit → Note types → Edit → Archive): ` +
+                        `folder "${archive.archiveFolder}", on ${statuses || 'no status'}, ${delay}. ` +
+                        'Edit it there; this plugin re-syncs on every board load. Both plugins may archive: a note already under the folder is never moved again.'
+                )
+            return
+        }
         new Setting(this.body)
             .setName('Archive folder')
             .setDesc('Destination folder for archived notes. Leave blank to disable archiving.')
@@ -1322,7 +1339,7 @@ export class ConfigureBoardModal extends Modal {
      */
     private async patchArchive(patch: Partial<ArchiveConfig>, rerender: boolean): Promise<void> {
         const current = this.noteType()?.archive
-        if (!current) return
+        if (!current || current.mirrored) return
         await setArchiveConfig(this.plugin, this.noteTypeId, { ...current, ...patch })
         this.onChange()
         if (rerender) this.render()

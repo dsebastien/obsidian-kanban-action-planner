@@ -18,7 +18,9 @@ import { matchesAnyMapping } from '../domain/note-type-recognition'
 import type { RecognitionFile } from '../domain/note-type-recognition'
 import { autoAssignColor } from './colors.service'
 import { log } from '../../utils/log'
+import type { SkArchive } from './starter-kit.service'
 import {
+    getNoteTypeArchive,
     findStatusProperty,
     getNoteTypeStatus,
     isStarterKitAvailable,
@@ -32,6 +34,7 @@ import {
     mergeMirroredRules,
     mirroredStampRules,
     mirroredStatusRoles,
+    reconcileArchive,
     reconcileDone
 } from '../domain/status-mirror'
 import {
@@ -545,13 +548,22 @@ export async function resolveActiveNoteType(
         // status property + done states, issue #56 follow-up); else the
         // historical detection over its properties.
         const skStatus = getNoteTypeStatus(app, skType.id)
+        const skArchive = getNoteTypeArchive(app, skType.id)
         const skRunsAutomations = starterKitRunsAutomations(app)
         const status = skStatus?.explicit
             ? { name: skStatus.property, allowedValues: skStatus.values.map((v) => v.value) }
             : findStatusProperty(skType, defaults.statusProperty)
         const base =
             (await getOrCreateNoteType(plugin, skType.id, skType.name, 'starter-kit')) ?? null
-        const merged = mirrorNoteType(base, skType, status, defaults, skStatus, skRunsAutomations)
+        const merged = mirrorNoteType(
+            base,
+            skType,
+            status,
+            defaults,
+            skStatus,
+            skRunsAutomations,
+            skArchive
+        )
         if (!noteTypesEqual(base, merged)) await upsertNoteType(plugin, merged)
         return {
             noteType: merged,
@@ -672,7 +684,8 @@ function mirrorNoteType(
     status: { name: string; allowedValues: string[] } | null,
     defaults: NoteTypeDefaults,
     skStatus: SkResolvedStatus | null = null,
-    skRunsAutomations = false
+    skRunsAutomations = false,
+    skArchive: SkArchive | null = null
 ): NoteType {
     return produce(base, (draft) => {
         draft.name = noteType.name
@@ -691,6 +704,9 @@ function mirrorNoteType(
             mirroredStampRules(skStatus, skRunsAutomations)
         )
         draft.statusRoles = mirroredStatusRoles(skStatus)
+        // The Starter Kit's Archive section (≥ 1.19) is the one declaration of
+        // where this type archives; mirror it (read-only) when present.
+        draft.archive = reconcileArchive(draft.archive, skArchive, skStatus)
     })
 }
 
