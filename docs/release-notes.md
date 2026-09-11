@@ -1,5 +1,11 @@
 # Release Notes
 
+## 1.27.1 (2026-09-11)
+
+### Bug Fixes
+
+- **plugin:** keep the filter and collapse state per Base view
+
 ## 1.27.0 (2026-09-11)
 
 ### Features
