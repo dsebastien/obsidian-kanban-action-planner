@@ -1,5 +1,11 @@
 # Release Notes
 
+## 1.26.1 (2026-09-11)
+
+### Bug Fixes
+
+- **plugin:** refuse an archive move on name collision instead of suffixing
+
 ## 1.26.0 (2026-09-10)
 
 ### Features
