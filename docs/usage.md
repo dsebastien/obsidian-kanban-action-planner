@@ -1168,9 +1168,10 @@ command), or embed it with `mode=ideal-week` (`mode=week` works too).
   clicked in): a picker lists the notes of the ideal week
   (grouped by note type on a mixed board, filter as you type) and writes a block of the
   configured length (60 minutes by default) at that time; or drag a note from the rail. A
-  note that has **no weekly target yet is asked for one** the first time you plan a block
-  for it (minutes, or `5h`); the target is written together with the block, Cancel plans
-  nothing.
+  note that has **no weekly target yet gets one from its planned minutes** in the same
+  write (a notice says so; adjust it with **Set weekly target…**), or, with **Target follows
+  planned** off, is **asked for one** the first time you plan a block for it (minutes, or
+  `5h`; the target is written together with the block, Cancel plans nothing).
 - **No overlaps.** A move, resize, copy, or creation that would overlap another shown note's
   block (or another block of the same note) snaps back with a notice naming the conflicting
   note and its time; nothing is written.
@@ -1223,9 +1224,11 @@ command), or embed it with `mode=ideal-week` (`mode=week` works too).
   targets, and whatever the table shows as left is your free time.
 - **Target follows planned.** When an edit plans more minutes for a note than its weekly
   target allows, the target is raised to the planned minutes in the same write and a notice
-  says so (one notice for a paste, a group move or an import). A target is never lowered, and
-  a note without a target is left alone. Turn it off with the **Target follows planned**
-  setting.
+  says so (one notice for a paste, a group move or an import). A note without a target gets
+  one from whatever is planned for it on the grid (the whole note, not just the block you
+  just added) on its first edit, again with a notice. A target is never lowered. Turn it off
+  with the **Target follows planned** setting: the grid then never writes a target, and a
+  note without one is asked for it when its first block is planned.
 - **Areas.** Notes can carry a list of **areas**, the life domains they belong to (Health,
   Exercise, Work…), in the `areas` property by default (**Areas property** setting, or a
   per-type property in **Configure board → Ideal week**). The rail's grouping switch (next to

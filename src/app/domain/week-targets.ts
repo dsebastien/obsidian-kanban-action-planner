@@ -59,13 +59,24 @@ export function formatShare(minutes: number, available: number): string {
 /**
  * The target a note should carry after planning `planned` minutes when the
  * target follows the plan: the planned minutes when they exceed the current
- * target, else null (nothing to raise). A missing target is left alone: the
- * user is asked for one when the first block is planned, and a refusal is
- * a choice. A target is NEVER lowered.
+ * target, else null (nothing to raise). A missing target is not a raise —
+ * see {@link seededTarget}. A target is NEVER lowered.
  */
 export function raisedTarget(target: number | null, planned: number): number | null {
     if (target === null || target <= 0) return null
     return planned > target ? planned : null
+}
+
+/**
+ * The target a note WITHOUT one should be seeded with when the target
+ * follows the plan: what is now planned on the grid (the whole note, not
+ * just the block that triggered the edit), or null when the note already
+ * has a target or nothing is planned. The first block on a target-less note
+ * thus sets the target instead of asking for it.
+ */
+export function seededTarget(target: number | null, planned: number): number | null {
+    if (target !== null && target > 0) return null
+    return planned > 0 ? planned : null
 }
 
 /** One grouped run of the rail or the table. */

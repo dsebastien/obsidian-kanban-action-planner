@@ -508,7 +508,7 @@ export class KanbanActionPlannerSettingTab extends PluginSettingTab {
         new Setting(containerEl)
             .setName('Target follows planned')
             .setDesc(
-                'When an ideal-week edit plans more minutes than a note’s weekly target, raise the target to the planned minutes (a notice says so). A target is never lowered.'
+                'When an ideal-week edit plans more minutes than a note’s weekly target, raise the target to the planned minutes, and give a note that has no target yet one from its planned minutes instead of asking (a notice says so). A target is never lowered. Off: a note without a target is asked for one when its first block is planned.'
             )
             .addToggle((toggle) => {
                 toggle

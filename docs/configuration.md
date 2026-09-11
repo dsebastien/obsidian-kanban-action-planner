@@ -272,7 +272,8 @@ Global settings under **Ideal week** start with the property names: **Time block
 ideal-week properties can be overridden per note type in **Configure board → Ideal week**).
 Then come the two that decide how targets behave: **Target follows planned**
 (on by default: an edit that plans more than a note's weekly target raises the target to the
-planned minutes, with a notice; never lowered) and **Available hours per week** (the base of
+planned minutes, and a note without a target gets one from its planned minutes instead of a
+prompt, with a notice; never lowered) and **Available hours per week** (the base of
 every share in the targets table; empty = the visible grid hours × 7, the whole week by
 default). The rest shape the grid: **Grid starts at** /
 **Grid ends at** (hours, the full day by default), **Work hours** (`09:00-17:00` by default;

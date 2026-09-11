@@ -31,6 +31,7 @@ import {
     availableMinutesPerWeek,
     groupByValue,
     raisedTarget,
+    seededTarget,
     targetsGroups,
     totalsOf
 } from '../../domain/week-targets'
@@ -133,8 +134,10 @@ export interface WeekHost {
  * keyboard, click (create via a picker) and rail drag (create for a note).
  * Every edit rewrites the note's list and its planned-minutes cache in one
  * transaction, after refusing any overlap with another shown note (the
- * conflict is named). A note without a weekly target is asked for one the
- * first time a block is planned for it.
+ * conflict is named). A note without a weekly target gets one from its
+ * planned minutes on the first edit (target follows planned, the default),
+ * or is asked for one the first time a block is planned for it (setting
+ * off).
  */
 export class WeekController {
     private readonly host: WeekHost
@@ -147,6 +150,8 @@ export class WeekController {
     private loaded = false
     /** Targets raised inside the current batch (one notice at its end). */
     private raisedInBatch: string[] | null = null
+    /** Same, for the targets seeded on notes that had none. */
+    private seededInBatch: string[] | null = null
     private lastScrollContentKeys = new Map<string, string>()
     /** The entries of the last render, by path (the edit paths read them). */
     private entries = new Map<string, WeekEntry>()
@@ -654,13 +659,21 @@ export class WeekController {
         }
         // Target follows planned (issue #172, phase G): an edit that plans
         // more than the note's target raises the target to the planned
-        // minutes (never lowers it); one notice, or one per batch.
+        // minutes (never lowers it), and a note without a target gets one
+        // from its planned minutes instead of a prompt; one notice, or one
+        // per batch.
         if (entry && this.host.settings().targetFollowsPlanned && !(p.targetMinutes in extra)) {
-            const raised = raisedTarget(entry.targetMinutes, plannedMinutesPerWeek(blocks))
-            if (raised !== null) {
-                extra = { ...extra, [p.targetMinutes]: raised }
-                const label = `${entry.title} (${formatHoursMinutes(raised)})`
-                if (this.raisedInBatch) this.raisedInBatch.push(label)
+            const planned = plannedMinutesPerWeek(blocks)
+            const seeded = seededTarget(entry.targetMinutes, planned)
+            const raised = seeded === null ? raisedTarget(entry.targetMinutes, planned) : null
+            const next = seeded ?? raised
+            if (next !== null) {
+                extra = { ...extra, [p.targetMinutes]: next }
+                const label = `${entry.title} (${formatHoursMinutes(next)})`
+                if (seeded !== null) {
+                    if (this.seededInBatch) this.seededInBatch.push(label)
+                    else new Notice(`Weekly target set from the planned blocks: ${label}`)
+                } else if (this.raisedInBatch) this.raisedInBatch.push(label)
                 else new Notice(`Weekly target raised to match the planned blocks: ${label}`)
             }
         }
@@ -746,14 +759,20 @@ export class WeekController {
         if (this.batch) return fn()
         this.batch = []
         this.raisedInBatch = []
+        this.seededInBatch = []
         try {
             await fn()
         } finally {
             const steps = this.batch
             const raised = this.raisedInBatch
+            const seeded = this.seededInBatch
             this.batch = null
             this.raisedInBatch = null
+            this.seededInBatch = null
             if (!this.replaying) this.record(steps)
+            if (seeded && seeded.length > 0) {
+                new Notice(`Weekly targets set from the planned blocks: ${seeded.join(', ')}`, 8000)
+            }
             if (raised && raised.length > 0) {
                 new Notice(
                     `Weekly targets raised to match the planned blocks: ${raised.join(', ')}`,
@@ -1347,8 +1366,7 @@ export class WeekController {
 
     /**
      * A block for `path` at `day`/`start` with the default length (rail
-     * drop, picker). A note without a weekly target is asked for one first;
-     * the answer is written with the block (Cancel plans nothing).
+     * drop, picker). See {@link planSlots} for a note without a weekly target.
      */
     async createFor(
         path: string,
@@ -1361,8 +1379,10 @@ export class WeekController {
 
     /**
      * Plan `slots` on a note in one write: every slot is checked for overlaps
-     * (a conflict refuses the whole plan, named); a note without a weekly
-     * target is asked for one first (Cancel plans nothing).
+     * (a conflict refuses the whole plan, named). A note without a weekly
+     * target gets one from its planned minutes in the same write when the
+     * target follows planned (the default; {@link write} seeds it), else it
+     * is asked for one first (Cancel plans nothing).
      */
     async planSlots(path: string, slots: Slot[]): Promise<void> {
         const entry = this.entries.get(path)
@@ -1388,7 +1408,7 @@ export class WeekController {
                 `${entry.title} is not current (its start and due dates do not include today), so its blocks are saved but not drawn.`
             )
         }
-        if (entry.targetMinutes !== null) {
+        if (entry.targetMinutes !== null || this.host.settings().targetFollowsPlanned) {
             await this.write(path, blocks)
             return
         }

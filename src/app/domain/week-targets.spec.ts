@@ -8,6 +8,7 @@ import {
     parseAvailableHours,
     raisedTarget,
     repartitionBar,
+    seededTarget,
     subtotalOf,
     targetsGroups,
     totalsOf
@@ -73,6 +74,17 @@ describe('target follows planned (issue #172, phase G)', () => {
         expect(raisedTarget(120, 60)).toBeNull()
         expect(raisedTarget(null, 180)).toBeNull()
         expect(raisedTarget(0, 180)).toBeNull()
+    })
+
+    test('seeds a missing target from the planned minutes; never touches an existing one', () => {
+        expect(seededTarget(null, 90)).toBe(90)
+        expect(seededTarget(0, 90)).toBe(90)
+        // The whole note's plan, so a note planned by hand before it had a
+        // target gets the sum, not the last block.
+        expect(seededTarget(null, 210)).toBe(210)
+        expect(seededTarget(null, 0)).toBeNull()
+        expect(seededTarget(120, 180)).toBeNull()
+        expect(seededTarget(120, 60)).toBeNull()
     })
 })
 
