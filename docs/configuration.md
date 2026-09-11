@@ -173,7 +173,7 @@ board → Archiving**:
     | `{{uuid}}`     | a fresh unique id   | `a1b2c3…`           |
 
     Placeholders are case-insensitive. Leaving the folder blank disables archiving. Missing
-    folders are created; a name clash gets a numeric suffix, so nothing is overwritten.
+    folders are created; a name clash is refused and logged, so nothing is overwritten or silently renamed.
 
 - **Auto-archive on status**: optional (off by default). Select **one or more** statuses; a
   card is archived the moment it **transitions into** any of them. Reordering within such a
@@ -189,7 +189,7 @@ Obsidian's file manager, so wikilinks to the note are updated and stay valid.
 **Folder notes move whole.** A note that is its folder's namesake (`Projects/Foo/Foo.md`, or
 with a parenthesised type suffix: `Projects/Foo/Foo (Project).md`) is archived by moving the
 **folder**. Every sibling file goes with it and links keep resolving.
-On a name clash the folder gets the numeric suffix. The same applies to automation
+On a name clash the move is refused and logged. The same applies to automation
 **Move to folder** actions.
 
 ### Archive grace period
@@ -372,7 +372,7 @@ order:
 - **Add tag / Remove tag**: edits the frontmatter `tags` list (case-insensitive, `#`
   optional).
 - **Move to folder**: the same placeholder-driven move archiving uses. Folders are
-  created on demand, name collisions get a numeric suffix, links are preserved.
+  created on demand, a name collision refuses the move (logged), links are preserved.
 
 Automation writes never trigger other automation rules (no cascades). If a transition
 both auto-archives the note and matches rules, the property/tag actions run first and the

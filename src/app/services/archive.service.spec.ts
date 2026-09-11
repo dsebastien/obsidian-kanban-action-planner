@@ -95,14 +95,15 @@ describe('planMove', () => {
         })
     })
 
-    test('collisions suffix the file, or the folder when it moves', () => {
-        expect(planMove(note, 'Archive', taken(['Archive/Write docs.md']))).toMatchObject({
-            kind: 'file',
-            destPath: 'Archive/Write docs 1.md'
+    test('a collision at the destination is reported and nothing moves, file or folder', () => {
+        expect(planMove(note, 'Archive', taken(['Archive/Write docs.md']))).toEqual({
+            kind: 'collision',
+            path: 'Archive/Write docs.md'
         })
-        expect(
-            planMove(namesake, 'Archive', taken(['Archive/Foo', 'Archive/Foo 1']))
-        ).toMatchObject({ folderDest: 'Archive/Foo 2', destPath: 'Archive/Foo 2/Foo.md' })
+        expect(planMove(namesake, 'Archive', taken(['Archive/Foo']))).toEqual({
+            kind: 'collision',
+            path: 'Archive/Foo'
+        })
     })
 
     test('already in place is a no-op (file and folder forms)', () => {

@@ -690,7 +690,7 @@ Set this up in each type's **Archiving** section:
   that resolve at archive time: `{{year}}`, `{{month}}`, `{{week}}`, `{{quarter}}`, `{{day}}`,
   `{{date}}`, `{{datetime}}`, `{{uuid}}`. For example, `Archive/{{year}}` files into `Archive/2026`.
   Leave it blank to turn archiving off. Intermediate folders are created for you, and a name
-  clash is resolved with a numeric suffix (`Task 1.md`) so nothing is ever overwritten.
+  clash refuses the move and logs it, so nothing is ever overwritten or silently renamed.
 - **Auto-archive on status**: optional and off by default. Tick **one or more** statuses and a
   card is archived on its own the moment it **transitions into** any of them (by drag or
   menu). Reordering a card that's already in such a status does nothing. Only the transition
@@ -709,7 +709,7 @@ longer match the Base's filter.
 A note that is the **namesake of its folder** (`Projects/Foo/Foo.md`, or with a
 parenthesised type suffix like `Projects/Foo/Foo (Project).md`) is archived by moving the
 **whole folder**: every sibling file (sub-notes, attachments, plans) goes along and wikilinks
-keep resolving. On a name clash in the destination the folder gets the numeric suffix, not
+keep resolving. On a name clash in the destination the move is refused and logged, for the folder as for
 the note. Any other note moves alone. The same applies to the **Move to folder** automation
 action.
 

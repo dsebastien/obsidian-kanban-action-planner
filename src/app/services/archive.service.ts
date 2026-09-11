@@ -101,6 +101,11 @@ export async function moveNoteToFolder(
         (path) => app.vault.getAbstractFileByPath(path) !== null
     )
     if (plan.kind === 'noop') return { ok: true, destPath: file.path }
+    if (plan.kind === 'collision') {
+        const message = `"${plan.path}" already exists at the destination; nothing moved`
+        log(`Move refused for "${file.path}": ${message}`, 'warn')
+        return { ok: false, reason: 'collision', message }
+    }
 
     try {
         await ensureFolder(app, folder)
@@ -138,13 +143,17 @@ export type MovePlan =
     | { kind: 'file'; destPath: string }
     /** Move the note's namesake folder whole; `destPath` is the note's path after. */
     | { kind: 'folder'; folderFrom: string; folderDest: string; destPath: string }
+    /** Something already exists at the destination; nothing may move. */
+    | { kind: 'collision'; path: string }
 
 /**
  * Plan a move into `folder` (already resolved + normalized). A note that is
  * its folder's namesake moves as that folder (siblings included); otherwise
- * the file moves alone. Name collisions get a numeric suffix (` 1`, ` 2`, …)
- * on whatever moves, so nothing is overwritten. `exists` answers whether a
- * vault path is taken.
+ * the file moves alone. A name collision at the destination — file or folder —
+ * is reported and nothing moves: a silently renamed archive entry is worse
+ * than a logged one still in place (same contract as the Obsidian Starter
+ * Kit's automation moves, so both plugins behave alike). `exists` answers
+ * whether a vault path is taken.
  */
 export function planMove(
     subject: MoveSubject,
@@ -155,7 +164,8 @@ export function planMove(
     if (parent && isNamesake(subject.basename, parent.name)) {
         // Namesake folder: a self-move would suffix the folder onto itself.
         if (parent.parentPath === folder) return { kind: 'noop' }
-        const folderDest = uniquePath(`${folder}/${parent.name}`, '', exists)
+        const folderDest = `${folder}/${parent.name}`
+        if (exists(folderDest)) return { kind: 'collision', path: folderDest }
         return {
             kind: 'folder',
             folderFrom: parent.path,
@@ -166,8 +176,8 @@ export function planMove(
     // Already in the destination folder — a self-collision would otherwise
     // rename the note onto a " 1" suffix of itself.
     if (`${folder}/${subject.name}` === subject.path) return { kind: 'noop' }
-    const ext = subject.name.slice(subject.basename.length)
-    const destPath = uniquePath(`${folder}/${subject.basename}`, ext, exists)
+    const destPath = `${folder}/${subject.name}`
+    if (exists(destPath)) return { kind: 'collision', path: destPath }
     return { kind: 'file', destPath }
 }
 
@@ -179,20 +189,6 @@ export function planMove(
 export function isNamesake(basename: string, folderName: string): boolean {
     if (basename === folderName) return true
     return basename.startsWith(`${folderName} (`) && basename.endsWith(')')
-}
-
-/**
- * `<base><ext>`, suffixing the base (`base 1`, `base 2`, …) while the path is
- * taken, so a move never overwrites.
- */
-function uniquePath(base: string, ext: string, exists: (path: string) => boolean): string {
-    let candidate = `${base}${ext}`
-    let n = 1
-    while (exists(candidate)) {
-        candidate = `${base} ${String(n)}${ext}`
-        n += 1
-    }
-    return candidate
 }
 
 /** Create every segment of `folder` that doesn't already exist. */

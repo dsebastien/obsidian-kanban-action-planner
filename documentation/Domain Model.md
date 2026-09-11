@@ -60,7 +60,7 @@ column rule.
   (`fileManager.renameFile`, links preserved); manual via the card menu (shown only when the
   card's type has a folder), or auto when a card **transitions into** its type's `triggerStatus`
   (opt-in, guarded). Blank `archiveFolder` disables archiving for that type; name clashes get a
-  numeric suffix. `doneDateProperties` (first present wins) plus the global `archiveGraceDays`
+  refused move (logged). `doneDateProperties` (first present wins) plus the global `archiveGraceDays`
   defer status-triggered archiving to a board-load sweep (`domain/archive-grace.ts`:
   `graceDecision` → `none` / `immediate` / `aged` / `stamp` / `wait`; rule 11). A namesake
   folder note moves with its folder (`planMove` in `services/archive.service.ts`).

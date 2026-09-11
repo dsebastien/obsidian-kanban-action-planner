@@ -165,7 +165,7 @@ When a new business rule is mentioned:
     namesake (`Foo/Foo.md`, or `Foo/Foo (Project).md` — one parenthesised suffix allowed;
     `isNamesake`) is archived by renaming the folder into
     the destination, siblings included (`planMove` in `services/archive.service.ts`; the folder,
-    not the note, takes the collision suffix). Same for automation `move-to-folder` actions.
+    not the note, is what collides). A collision at the destination refuses the move with a logged reason — never a numeric suffix, same contract as the Starter Kit's automation moves. Same for automation `move-to-folder` actions.
     **Archive grace period:** a global `archiveGraceDays` (default 0 = archive on the trigger
     transition, as before) plus a per-type `archive.doneDateProperties` list (first present
     property wins; empty = no clock source → immediate) defer status-triggered archiving: the
@@ -665,7 +665,7 @@ When a new business rule is mentioned:
     string; optional `onlyIfEmpty` skips the write when the property holds a non-empty
     value, list or string — a set date is never overwritten), remove property, add/remove tag (frontmatter `tags` list only,
     case-insensitive `#`-agnostic matching), move to folder (the archive machinery:
-    placeholders, mkdir-p, collision suffix, `renameFile`; self-move is a no-op).
+    placeholders, mkdir-p, collision = refused + logged, `renameFile`; self-move is a no-op).
     **Firing:** status/done triggers fire from EVERY plugin status-write path — applyMove
     (incl. the auto-archive branch, now fully inside `withRebuildsSuppressed`), bulk
     multi-select, triage/property writes — exactly once per ACTUAL transition (from ≠
