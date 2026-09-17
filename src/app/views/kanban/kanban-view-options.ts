@@ -82,14 +82,14 @@ export function getKanbanViewOptions(app: App, settings: PluginSettings): BasesA
                 {
                     type: 'property',
                     key: 'statusProperty',
-                    displayName: 'Status property',
+                    displayName: 'Column property',
                     placeholder: settings.defaultStatusProperty,
                     filter: propertyFilter
                 },
                 {
                     type: 'multitext',
                     key: 'statuses',
-                    displayName: 'Statuses (columns)',
+                    displayName: 'Column values',
                     default: []
                 },
                 {

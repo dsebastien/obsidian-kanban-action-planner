@@ -66,7 +66,12 @@ import {
 import { compareTabCards, coerceSortValue } from '../../domain/calendar-tabs'
 import type { SortDirection, TabSortKey, TabSortMode } from '../../domain/calendar-tabs'
 import type { Board, UnmappedPosition } from '../../domain/board-model'
-import { detectStatusProperty, normalizeStatusValue, splitStatusValue } from '../../domain/status'
+import {
+    detectStatusProperty,
+    normalizeStatusValue,
+    resolveWriteStatusProperty,
+    splitStatusValue
+} from '../../domain/status'
 import { passesFilter } from '../../domain/filtering'
 import type { BlockedFilter, RelationalFilter } from '../../domain/filtering'
 import type { RelationshipSet } from '../../domain/relationships'
@@ -2836,14 +2841,13 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
      * write for the card goes through this.
      */
     private statusPropertyForFile(file: TFile): string | null {
-        const configured = basesPropToName(this.viewConfig.get('statusProperty'))
-        if (configured) return configured
         const type = this.noteTypeByPath.get(file.path)
-        if (type) {
-            const own = findNoteType(this.plugin, type.id)?.statusProperty
-            if (own) return own
-        }
-        return this.statusProperty
+        return resolveWriteStatusProperty({
+            viewOverride: basesPropToName(this.viewConfig.get('statusProperty')),
+            typeProperty: type ? findNoteType(this.plugin, type.id)?.statusProperty : null,
+            isDefaultType: type?.id === DEFAULT_NOTE_TYPE_ID,
+            boardProperty: this.statusProperty
+        })
     }
 
     private statusPropertyFor(card: KanbanCard): string | null {
@@ -3627,10 +3631,12 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         // property), then the board-wide one. Blank names fall through — an empty
         // configured property must not become a `''` frontmatter key.
         const statusValue = this.columnStatusValue(columnId, laneId)
-        const statusProperty =
-            basesPropToName(this.viewConfig.get('statusProperty')) ||
-            noteType.statusProperty ||
-            this.statusProperty
+        const statusProperty = resolveWriteStatusProperty({
+            viewOverride: basesPropToName(this.viewConfig.get('statusProperty')),
+            typeProperty: noteType.statusProperty,
+            isDefaultType: noteType.id === DEFAULT_NOTE_TYPE_ID,
+            boardProperty: this.statusProperty
+        })
         if (statusValue !== null && statusProperty) properties[statusProperty] = statusValue
 
         const laneValue = this.laneValueForNewCard(laneId)

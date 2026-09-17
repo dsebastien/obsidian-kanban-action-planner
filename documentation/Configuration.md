@@ -66,7 +66,7 @@ Defined in `src/app/types/plugin-settings.intf.ts`, seeded from `src/app/constan
 
 | Setting                        | Default          | Purpose                                                                 |
 | ------------------------------ | ---------------- | ----------------------------------------------------------------------- |
-| `defaultStatusProperty`        | `status`         | Status property used to build columns                                   |
+| `defaultStatusProperty`        | `status`         | Column property used to build columns (UI: "Default column property")   |
 | `defaultOrderProperty`         | `manual_order`   | Property storing per-column manual order                                |
 | `defaultBlockedByProperty`     | `blocked_by`     | Property listing blockers                                               |
 | `defaultScheduledDateProperty` | `date_scheduled` | "Unplanned" tab / scheduling date                                       |

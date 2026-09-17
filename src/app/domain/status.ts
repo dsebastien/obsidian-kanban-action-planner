@@ -9,6 +9,28 @@ import { UNMAPPED_COLUMN_ID } from '../constants'
  */
 
 /**
+ * The status property a write for a note of a given type must target (issue #188).
+ * Precedence mirrors the board's read path so a created card lands in the column
+ * it was added to: the per-view override, then a RECOGNIZED type's own property,
+ * then the board-wide detected property. The shared Default note type is never
+ * authoritative — its stored `statusProperty` is a snapshot of the global default
+ * taken when it was first created, and goes stale when that setting changes.
+ * Blank names fall through (never a `''` frontmatter key).
+ */
+export function resolveWriteStatusProperty(input: {
+    viewOverride: string | null | undefined
+    typeProperty: string | null | undefined
+    isDefaultType: boolean
+    boardProperty: string | null
+}): string | null {
+    const override = input.viewOverride?.trim()
+    if (override) return override
+    const own = input.isDefaultType ? '' : input.typeProperty?.trim()
+    if (own) return own
+    return input.boardProperty?.trim() || null
+}
+
+/**
  * Pick the status property name. Preference order:
  * 1. an explicitly configured name, if present in `propertyNames`;
  * 2. a property named exactly `status` (case-insensitive);

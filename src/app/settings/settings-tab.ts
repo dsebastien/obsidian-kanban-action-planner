@@ -270,8 +270,9 @@ export class KanbanActionPlannerSettingTab extends PluginSettingTab {
         }
 
         text(
-            'Status property',
-            'Property whose value places a note in a column. A board can override this.',
+            'Default column property',
+            'Property whose value places a note in a column (its "status"). Any property ' +
+                'works, e.g. "priority". A board can override this.',
             'defaultStatusProperty',
             'status'
         )
@@ -797,10 +798,10 @@ export class KanbanActionPlannerSettingTab extends PluginSettingTab {
             })
 
         new Setting(containerEl)
-            .setName('Default statuses (columns)')
+            .setName('Default column values')
             .setDesc(
-                'One status value per line, in column order. Used when a board does not define ' +
-                    'its own statuses and no Starter Kit note type applies. Number prefixes ' +
+                'One column property value per line, in column order. Used when a board does not define ' +
+                    'its own column values and no Starter Kit note type applies. Number prefixes ' +
                     '(e.g. "10 Todo") set order and are hidden on the column header.'
             )
             .addTextArea((area) => {

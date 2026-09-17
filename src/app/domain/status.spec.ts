@@ -4,6 +4,7 @@ import {
     detectStatusProperty,
     normalizeStatusValue,
     resolveColumnId,
+    resolveWriteStatusProperty,
     splitStatusValue
 } from './status'
 import { UNMAPPED_COLUMN_ID } from '../constants'
@@ -80,5 +81,54 @@ describe('resolveColumnId', () => {
     it('maps unknown or null status to Unmapped', () => {
         expect(resolveColumnId('Other', known)).toBe(UNMAPPED_COLUMN_ID)
         expect(resolveColumnId(null, known)).toBe(UNMAPPED_COLUMN_ID)
+    })
+})
+
+describe('resolveWriteStatusProperty (issue #188)', () => {
+    const base = {
+        viewOverride: null,
+        typeProperty: null,
+        isDefaultType: false,
+        boardProperty: null
+    }
+
+    it('prefers the per-view override over everything', () => {
+        expect(
+            resolveWriteStatusProperty({
+                ...base,
+                viewOverride: 'phase',
+                typeProperty: 'status',
+                boardProperty: 'urgency'
+            })
+        ).toBe('phase')
+    })
+
+    it("uses a recognized type's own property over the board property", () => {
+        expect(
+            resolveWriteStatusProperty({ ...base, typeProperty: 'stage', boardProperty: 'urgency' })
+        ).toBe('stage')
+    })
+
+    it("ignores the Default type's stale snapshot and writes the board property", () => {
+        expect(
+            resolveWriteStatusProperty({
+                ...base,
+                typeProperty: 'status',
+                isDefaultType: true,
+                boardProperty: 'urgency'
+            })
+        ).toBe('urgency')
+    })
+
+    it('treats blank names as unset', () => {
+        expect(
+            resolveWriteStatusProperty({
+                ...base,
+                viewOverride: '  ',
+                typeProperty: '',
+                boardProperty: 'status'
+            })
+        ).toBe('status')
+        expect(resolveWriteStatusProperty(base)).toBeNull()
     })
 })

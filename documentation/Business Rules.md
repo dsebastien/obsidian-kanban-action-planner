@@ -37,7 +37,12 @@ When a new business rule is mentioned:
    **A card's own recognized note type is authoritative for every status write** (owner-approved):
    a card is never assigned a status outside its own type's vocabulary, and every status
    read/write uses the card's own type's status property (per-view `statusProperty` override
-   still wins for all cards). Consequences: the card menu's Set status lists the card's own
+   still wins for all cards). The shared **Default** note type is never authoritative: its stored
+   `statusProperty` is a stale snapshot of the global default, so unrecognized notes (and cards
+   created in a Default lane) use the board's detected property (issue #188, `resolveWriteStatusProperty`).
+   In the UI the status property is labelled **Column property** (values: **Column values**); the
+   stored keys (`statusProperty`, `statuses`, `defaultStatusProperty`, `defaultStatuses`) are
+   unchanged for backward compatibility. Consequences: the card menu's Set status lists the card's own
    type's values; bulk multi-select Set status requires a single-type selection (mixed
    selections get a Notice); drops resolve the value from the target lane's own column set.
 3. **No state machine (for now).** All status transitions are allowed (drag or right-click).

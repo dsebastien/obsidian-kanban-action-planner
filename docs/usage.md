@@ -115,9 +115,9 @@ The **columns themselves are defined explicitly**. They are not guessed from the
 your notes, so a typo never creates a stray column. A board takes its columns, in order of
 preference, from:
 
-1. the **Statuses (columns)** list in the view settings, or
+1. the **Column values** list in the view settings, or
 2. the note type's allowed status values from the **Obsidian Starter Kit** (if installed), or
-3. the **Default statuses** list in the plugin settings.
+3. the **Default column values** list in the plugin settings.
 
 If none are defined, every card sits in the **Unmapped** column. That's the starting point
 until you define your statuses.
@@ -1439,9 +1439,11 @@ changing your notes. They're grouped:
 
 **Columns**
 
-- **Status property**: choose which property drives the columns (overrides auto-detection).
-- **Statuses (columns)**: the list of status values to show as columns, in order (one per
-  entry). This is the per-view column definition.
+- **Column property**: choose which property drives the columns (overrides auto-detection).
+  It doesn't have to be a status: pick `priority` or `urgency` to build a priority board.
+  New cards added to a column get that column's value on this property.
+- **Column values**: the list of values to show as columns, in order (one per entry). This is
+  the per-view column definition.
 - **Manual order property**: choose where card order is stored.
 - **Card sort**: how cards are ordered inside each column. **Manual order** (default, drag to
   arrange), **Name (A–Z)**, or **By property**. **Card sort property** picks the property for the
