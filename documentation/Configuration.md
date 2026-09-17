@@ -39,8 +39,11 @@ Three places, by scope:
    `plugin.settings.noteTypes`, keyed by note-type id, and is editable here once — boards apply it
    by recognition (no per-board duplication). The tab merges Starter Kit types (`listNoteTypes`)
    with stored local note types and a Default; **Configure** opens `ui/configure-board-modal.ts` for
-   that type's note type (status values from the type, property names from the SK type +
-   note-type-referenced props, a single archive section). Starter Kit types stay synced via
+   that type's note type. Local type **Colors** controls use an ordered, duplicate-free union of
+   global default statuses, saved local columns, and saved color-override keys, so overrides stay
+   editable without a Base cache; Starter Kit types use their own status values and Default keeps
+   the global defaults. Property names come from the SK type + note-type-referenced props, with a
+   single archive section. Starter Kit types stay synced via
    `resolveActiveProfile`/`mirrorNoteType`.
 2. **Bases "Configure view"** (`views/kanban/kanban-view-options.ts`) — **per-view**
    (`this.config`) board-only settings (Bases option types can't render rich controls), grouped

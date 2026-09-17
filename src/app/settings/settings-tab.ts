@@ -30,6 +30,24 @@ interface NoteTypeRow {
     statusValues: string[]
 }
 
+/**
+ * Statuses offered by a stored local type's color controls. Defaults keep the
+ * global vocabulary editable, cached columns retain prior local choices, and
+ * override keys never become unreachable after reopening the modal.
+ */
+export function localColorStatusValues(
+    defaultStatuses: ReadonlyArray<string>,
+    noteType: Pick<NoteType, 'columns' | 'colors'>
+): string[] {
+    return [
+        ...new Set([
+            ...defaultStatuses,
+            ...noteType.columns.map((column) => column.statusValue),
+            ...Object.keys(noteType.colors.overrides)
+        ])
+    ]
+}
+
 /** Settings keys whose value is a plain string (editable as text). */
 // Keys whose value is a *plain* string (accepts any string) — excludes literal
 // unions like `cardChipStyle`, which have their own dedicated updater.
@@ -169,7 +187,10 @@ export class KanbanActionPlannerSettingTab extends PluginSettingTab {
                 id: noteType.id,
                 name: noteType.name,
                 source: noteType.source,
-                statusValues: noteType.columns.map((c) => c.statusValue)
+                statusValues:
+                    noteType.source === 'local'
+                        ? localColorStatusValues(this.plugin.settings.defaultStatuses, noteType)
+                        : noteType.columns.map((column) => column.statusValue)
             })
         }
         return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name))
