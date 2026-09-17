@@ -1,5 +1,11 @@
 # Release Notes
 
+## 1.28.1 (2026-09-17)
+
+### Bug Fixes
+
+- **plugin:** write new cards to the board's column property
+
 ## 1.28.0 (2026-09-11)
 
 ### Features
