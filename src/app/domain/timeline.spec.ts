@@ -15,6 +15,7 @@ import {
     pointPct,
     resizeEstimate,
     resizeFromStart,
+    resolveTimelineDateProperties,
     totalDays,
     zoomRange
 } from './timeline'
@@ -47,6 +48,17 @@ describe('day math', () => {
         expect(totalDays(TEN_DAYS)).toBe(inclusiveDays(TEN_DAYS.start, TEN_DAYS.end))
         // A degenerate reversed range still yields the 1-day minimum.
         expect(totalDays({ start: TEN_DAYS.end, end: TEN_DAYS.start })).toBe(1)
+    })
+})
+
+describe('resolveTimelineDateProperties', () => {
+    it('uses global names rather than legacy note-type date properties', () => {
+        expect(
+            resolveTimelineDateProperties({
+                defaultScheduledDateProperty: 'planned_on',
+                defaultDueDateProperty: 'deadline_on'
+            })
+        ).toEqual({ start: 'planned_on', deadline: 'deadline_on' })
     })
 })
 

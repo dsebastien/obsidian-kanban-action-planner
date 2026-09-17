@@ -52,7 +52,11 @@ import { buildBoard, restrictBoardColumns, restrictBoardLanes } from '../../doma
 import { buildAgenda } from '../../domain/agenda'
 import type { AgendaWindow } from '../../domain/agenda'
 import { renderAgendaView } from '../../ui/agenda/agenda-view'
-import { NO_TYPE_ID, groupByTypeAndStatus } from '../../domain/timeline'
+import {
+    NO_TYPE_ID,
+    groupByTypeAndStatus,
+    resolveTimelineDateProperties
+} from '../../domain/timeline'
 import { resolvePaneGroupDrop } from '../../domain/pane-drop'
 import type { EstimateConfig } from '../../domain/estimate'
 import { formatDuration, readEstimate } from '../../domain/estimate'
@@ -892,12 +896,12 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             isTimelineMode: () => this.timelineMode(),
             openCard: (card, newTab) => this.openCard(card, newTab),
             showCardMenu: (card, event, extend) => this.showCardMenu(card, event, extend),
-            startProperty: () => this.resolveTimelineStartProperty(),
+            startProperty: () => resolveTimelineDateProperties(this.plugin.settings).start,
             estimateConfigFor: (card) => this.estimateConfigFor(card),
             minutesPerDay: () => this.plugin.settings.minutesPerDay,
             milestoneProperty: () => this.resolveTimelineMilestoneProperty(),
-            scheduledProperty: () => this.scheduledDateProperty,
-            deadlineProperty: () => this.dueDateProperty,
+            scheduledProperty: () => resolveTimelineDateProperties(this.plugin.settings).start,
+            deadlineProperty: () => resolveTimelineDateProperties(this.plugin.settings).deadline,
             dateFormat: () =>
                 this.noteType.calendar.dateFormat || this.plugin.settings.defaultDateFormat,
             firstDayOfWeek: () => this.plugin.settings.firstDayOfWeek,

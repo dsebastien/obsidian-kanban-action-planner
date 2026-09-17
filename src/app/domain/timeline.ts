@@ -15,6 +15,20 @@ export interface TimelineRange {
     end: Date
 }
 
+/**
+ * The Timeline deliberately uses the plugin-wide date property names. Unlike
+ * the calendar, it does not inherit a Base or note-type date override.
+ */
+export function resolveTimelineDateProperties(settings: {
+    defaultScheduledDateProperty: string
+    defaultDueDateProperty: string
+}): { start: string; deadline: string } {
+    return {
+        start: settings.defaultScheduledDateProperty,
+        deadline: settings.defaultDueDateProperty
+    }
+}
+
 /** One parsed milestone: a date plus an optional label. */
 export interface TimelineMilestone {
     date: Date
