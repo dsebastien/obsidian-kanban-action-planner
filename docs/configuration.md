@@ -366,11 +366,17 @@ Every field is **empty = inherit**, so a Starter Kit note type usually needs not
 | ----------------------------------- | -------------------------------------------------------------------------------------------------------------- |
 | **Target folder**                   | The Starter Kit type's associated folder → the folder the Base filters on → Obsidian's default new-note folder |
 | **Template**                        | The Starter Kit type's template → the template your Templater folder/file rules resolve → none                 |
-| **Name prefix** / **Name suffix**   | The Starter Kit type's note name prefix / suffix                                                               |
+| **Name prefix** / **Name suffix**   | The Starter Kit type's note name prefix / suffix, unless the Starter Kit marks it optional                     |
 | **Open the note after creating it** | On                                                                                                             |
 
 The folder and the name prefix/suffix accept `{{year}}`, `{{month}}`, `{{week}}`, `{{quarter}}`,
 `{{day}}`, `{{date}}`, `{{datetime}}`, `{{uuid}}`.
+
+When the Starter Kit (1.22 and later) marks a type's name prefix or suffix as **optional**, it
+is not inherited: notes created from the board get the bare name, and the field shows
+**None (optional in the Starter Kit)**. Type one here when you still want this board to
+decorate the notes it creates — your value always wins. Cards keep
+[stripping](#filtering-the-note-types-name-decoration) an optional affix from notes that carry it.
 
 Prefixes and suffixes keep their spaces (` (Task)` is not the same as `(Task)`), because the
 Starter Kit recognizes note types by exactly that spelling. They are never added twice.
@@ -445,8 +451,8 @@ same type, that decoration is noise, so cards show **Ship the plugin**, not
 
 | Setting                   | Default | What it does                                                        |
 | ------------------------- | ------- | ------------------------------------------------------------------- |
-| **Strip the name prefix** | On      | Removes the type's name prefix from card titles.                    |
-| **Strip the name suffix** | On      | Removes the type's name suffix from card titles.                    |
+| **Strip the name prefix** | On      | Removes the type's name prefix from card titles, optional or not.   |
+| **Strip the name suffix** | On      | Removes the type's name suffix from card titles, optional or not.   |
 | **Extra prefixes**        | Empty   | More prefixes to remove, one per line (a `Draft - ` convention, …). |
 | **Extra suffixes**        | Empty   | More suffixes to remove, one per line.                              |
 
@@ -459,6 +465,11 @@ Starter Kit type's own prefix/suffix. Each side is applied at most once, and onl
 start or end of the title. Leading and trailing spaces count, so list ` (Draft)`, not
 `(Draft)`. Extras accept the same `{{year}}`, `{{date}}`, … placeholders as note creation, and
 match any value they can produce (`{{date}} - ` strips `2026-09-22 - `).
+
+An affix the Starter Kit marks as **optional** is still stripped — the setting says
+`(optional in the Starter Kit)` next to it. Optional only decides what note
+[creation](#creating-notes-quick-capture) ADDS, so older notes that carry the affix and newer
+ones without it read the same on the board.
 
 This is **presentational only**, and applies in every view mode (board, calendar, timeline,
 triage, WBS, agenda, ideal week). File names, search, links, and every write path keep the

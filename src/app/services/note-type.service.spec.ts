@@ -3,8 +3,11 @@ import {
     colorForStatus,
     columnsFromValues,
     createDefaultNoteType,
-    DEFAULT_NOTE_TYPE_ID
+    DEFAULT_NOTE_TYPE_ID,
+    resolveNaming
 } from './note-type.service'
+import type { SkNoteType } from './starter-kit.service'
+import { defaultNamingConfig } from '../domain/card-title'
 import { noteTypeSchema } from '../domain/note-type'
 import { autoAssignColor } from './colors.service'
 
@@ -66,5 +69,34 @@ describe('columnsFromValues', () => {
         expect(cols.find((c) => c.statusValue === '10 Todo')?.wipLimit).toBe(3)
         expect(cols.find((c) => c.statusValue === '20 Doing')?.wipLimit).toBeUndefined()
         expect(cols.find((c) => c.statusValue === '30 Done')?.wipLimit).toBeUndefined()
+    })
+})
+
+describe('resolveNaming (mirror refresh, Starter Kit >= 1.22)', () => {
+    const live: SkNoteType = {
+        id: 'task',
+        name: 'Task',
+        noteNameSuffix: ' (Task)',
+        noteNameSuffixOptional: true
+    }
+
+    it('prefers the live Starter Kit decoration and carries its optional flags', () => {
+        expect(resolveNaming(live, defaultNamingConfig())).toEqual({
+            prefix: '',
+            suffix: ' (Task)',
+            prefixOptional: false,
+            suffixOptional: true
+        })
+    })
+
+    it('falls back to the stored mirror when the Starter Kit is unavailable', () => {
+        const stored = { ...defaultNamingConfig(), suffix: ' (Task)', suffixOptional: true }
+        expect(resolveNaming(null, stored)).toEqual(stored)
+    })
+
+    it('leaves a type with no decoration untouched', () => {
+        expect(resolveNaming({ id: 'a', name: 'A' }, defaultNamingConfig())).toEqual(
+            defaultNamingConfig()
+        )
     })
 })

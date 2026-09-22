@@ -3,8 +3,10 @@ import {
     cardTitleAffixes,
     defaultNamingConfig,
     defaultTitleDisplayConfig,
+    namingConfigSchema,
     stripTitleAffixes,
     titleDisplaySchema,
+    type NamingConfig,
     type TitleDisplayConfig
 } from './card-title'
 
@@ -28,12 +30,41 @@ describe('titleDisplaySchema', () => {
     })
 })
 
+/** A naming config with the Starter Kit's optional flags off unless asked. */
+function naming(
+    prefix: string,
+    suffix: string,
+    optional?: { prefixOptional?: boolean; suffixOptional?: boolean }
+): NamingConfig {
+    return {
+        prefix,
+        suffix,
+        prefixOptional: optional?.prefixOptional ?? false,
+        suffixOptional: optional?.suffixOptional ?? false
+    }
+}
+
+describe('namingConfigSchema', () => {
+    it('defaults the optional flags to FALSE, so a stored type behaves as before', () => {
+        expect(namingConfigSchema.parse({ prefix: '', suffix: ' (Task)' })).toEqual({
+            prefix: '',
+            suffix: ' (Task)',
+            prefixOptional: false,
+            suffixOptional: false
+        })
+    })
+
+    it('keeps the flags the Starter Kit declares', () => {
+        expect(namingConfigSchema.parse({ suffixOptional: true }).suffixOptional).toBe(true)
+    })
+})
+
 describe('cardTitleAffixes', () => {
     it('uses the type naming when there is no creation override', () => {
         expect(
             cardTitleAffixes({
                 titleDisplay: display(),
-                naming: { prefix: 'AI Wiki - ', suffix: '' }
+                naming: naming('AI Wiki - ', '')
             })
         ).toEqual({ prefixes: ['AI Wiki - '], suffixes: [] })
     })
@@ -42,7 +73,7 @@ describe('cardTitleAffixes', () => {
         expect(
             cardTitleAffixes({
                 titleDisplay: display(),
-                naming: { prefix: '', suffix: ' (Task)' },
+                naming: naming('', ' (Task)'),
                 creation: { namePrefix: '', nameSuffix: ' (Chore)' }
             }).suffixes
         ).toEqual([' (Chore)'])
@@ -52,7 +83,7 @@ describe('cardTitleAffixes', () => {
         expect(
             cardTitleAffixes({
                 titleDisplay: display({ extraSuffixes: [' (Draft)', ' (X)'] }),
-                naming: { prefix: '', suffix: ' (Task)' }
+                naming: naming('', ' (Task)')
             }).suffixes
         ).toEqual([' (Draft)', ' (Task)', ' (X)'])
     })
@@ -61,7 +92,7 @@ describe('cardTitleAffixes', () => {
         expect(
             cardTitleAffixes({
                 titleDisplay: display({ stripSuffix: false, extraSuffixes: [' (Draft)'] }),
-                naming: { prefix: '', suffix: ' (Task)' }
+                naming: naming('', ' (Task)')
             }).suffixes
         ).toEqual([])
     })
@@ -70,7 +101,16 @@ describe('cardTitleAffixes', () => {
         expect(
             cardTitleAffixes({
                 titleDisplay: display({ extraSuffixes: [' (Task)'] }),
-                naming: { prefix: '', suffix: ' (Task)' }
+                naming: naming('', ' (Task)')
+            }).suffixes
+        ).toEqual([' (Task)'])
+    })
+
+    it('still strips an affix the Starter Kit marks optional', () => {
+        expect(
+            cardTitleAffixes({
+                titleDisplay: display(),
+                naming: naming('', ' (Task)', { suffixOptional: true })
             }).suffixes
         ).toEqual([' (Task)'])
     })

@@ -48,6 +48,7 @@ import {
     setRelationships,
     setTitleDisplayConfig,
     setWipLimit,
+    namingFor,
     titleAffixesFor
 } from '../services/note-type.service'
 import { listEnumProperties, resolveAllowedValues } from '../services/enum.service'
@@ -1426,12 +1427,21 @@ export class ConfigureBoardModal extends Modal {
                 )
             })
 
+        // An affix the Starter Kit (≥ 1.22) marks OPTIONAL is not inherited —
+        // nothing adds it unless asked — so say so where the inherited value
+        // would otherwise be shown. Typing one here still decorates this board.
+        const optionalHint = 'None (optional in the Starter Kit)'
+
         new Setting(this.body)
             .setName('Name prefix')
             .setDesc('Prepended to the typed name (skipped when the name already starts with it).')
             .addText((input) =>
                 input
-                    .setPlaceholder(inherited.namePrefix || 'None')
+                    .setPlaceholder(
+                        skType?.noteNamePrefixOptional === true
+                            ? optionalHint
+                            : inherited.namePrefix || 'None'
+                    )
                     .setValue(creation.namePrefix)
                     // NOT trimmed: a prefix's trailing space is part of it.
                     .onChange((value) => void this.patchCreation({ namePrefix: value }, false))
@@ -1444,7 +1454,11 @@ export class ConfigureBoardModal extends Modal {
             )
             .addText((input) =>
                 input
-                    .setPlaceholder(inherited.nameSuffix || 'None')
+                    .setPlaceholder(
+                        skType?.noteNameSuffixOptional === true
+                            ? optionalHint
+                            : inherited.nameSuffix || 'None'
+                    )
                     .setValue(creation.nameSuffix)
                     // NOT trimmed: a suffix's leading space is part of it, and the
                     // Starter Kit's regex recognition expects exactly that spacing.
@@ -1554,6 +1568,13 @@ export class ConfigureBoardModal extends Modal {
     private renderTitles(noteType: NoteType): void {
         const config = noteType.titleDisplay
         const affixes = titleAffixesFor(this.app, noteType)
+        const naming = namingFor(this.app, noteType)
+        // An optional affix is still STRIPPED from cards — it is only note
+        // creation that stops adding it. Spelling that out here is what keeps a
+        // board from looking broken when new cards carry no suffix and old ones do.
+        const removed = (values: readonly string[], optional: boolean): string =>
+            `Removed from card titles: ${values.map(quoted).join(', ')}` +
+            (optional ? ' (optional in the Starter Kit)' : '')
 
         new Setting(this.body).setName('Card titles').setHeading()
         this.body.createEl('p', {
@@ -1567,7 +1588,7 @@ export class ConfigureBoardModal extends Modal {
             .setName('Strip the name prefix')
             .setDesc(
                 affixes.prefixes.length > 0
-                    ? `Removed from card titles: ${affixes.prefixes.map(quoted).join(', ')}`
+                    ? removed(affixes.prefixes, naming.prefixOptional)
                     : 'This note type declares no name prefix, so nothing is removed.'
             )
             .addToggle((toggle) =>
@@ -1580,7 +1601,7 @@ export class ConfigureBoardModal extends Modal {
             .setName('Strip the name suffix')
             .setDesc(
                 affixes.suffixes.length > 0
-                    ? `Removed from card titles: ${affixes.suffixes.map(quoted).join(', ')}`
+                    ? removed(affixes.suffixes, naming.suffixOptional)
                     : 'This note type declares no name suffix, so nothing is removed.'
             )
             .addToggle((toggle) =>

@@ -44,12 +44,19 @@ export function defaultTitleDisplayConfig(): TitleDisplayConfig {
  */
 export const namingConfigSchema = z.object({
     prefix: z.string().default(''),
-    suffix: z.string().default('')
+    suffix: z.string().default(''),
+    /**
+     * The Starter Kit (≥ 1.22) marks the affix OPTIONAL: notes created from the
+     * board do not get it, while cards still strip it when a note carries it.
+     * Absent in older Starter Kits and in every stored note type = required.
+     */
+    prefixOptional: z.boolean().default(false),
+    suffixOptional: z.boolean().default(false)
 })
 export type NamingConfig = z.infer<typeof namingConfigSchema>
 
 export function defaultNamingConfig(): NamingConfig {
-    return { prefix: '', suffix: '' }
+    return { prefix: '', suffix: '', prefixOptional: false, suffixOptional: false }
 }
 
 /** The affixes to strip from a card title, longest-first. */

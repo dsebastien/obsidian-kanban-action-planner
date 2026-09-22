@@ -853,6 +853,11 @@ When a new business rule is mentioned:
       `noteNameSuffix`) → the Base's filter-implied folder → Obsidian's default new-note
       folder. Name prefixes/suffixes are never trimmed (` (Task)`'s space is part of the
       Starter Kit's own regex recognition) and never doubled.
+    - **An affix the Starter Kit marks OPTIONAL is not inherited**
+      (`noteNamePrefixOptional` / `noteNameSuffixOptional`, Starter Kit >= 1.22,
+      feature-detected — an absent flag means required, i.e. the
+      historical behaviour): `creationDefaults` yields `''` for it, so creation adds nothing
+      unless the note type's own `creation` override names one, which still wins.
     - **Only `and`-reachable Base filters are facts.** Folder / tag / property-equality /
       `contains` filters ANDed at the top level are written onto the new note so it matches
       the view; `or` and `not` branches contribute nothing (a guess would write bogus
@@ -1080,9 +1085,13 @@ Markdown)`, `Export ideal week (JSON)`, `Export ideal week (Markdown)`); the for
     with `extraPrefixes` / `extraSuffixes` for affixes the type does not declare. What gets
     stripped is the type's `creation` name prefix/suffix when set, else its own naming — the
     Starter Kit's, asked live when it owns the type and mirrored into `naming` on every board
-    resolution as the offline fallback. At most ONE prefix and ONE suffix come off, only at the
-    very ends, longest match first; a placeholder affix matches by shape (`{{date}} - ` strips
-    `2026-09-22 - `); and a title that would end up empty (a note literally named `(Task)`) is
+    resolution as the offline fallback (with its `prefixOptional` / `suffixOptional` flags,
+    which default to false for every type stored before they existed). **An OPTIONAL affix is
+    still stripped**: optional decides what note CREATION adds, not what a card shows, so
+    notes written before the flag and ones written after read the same on a board. At most
+    ONE prefix and ONE suffix come off, only at the very ends, longest match first; a
+    placeholder affix matches by shape (`{{date}} - ` strips `2026-09-22 - `); and a title
+    that would end up empty (a note literally named `(Task)`) is
     kept whole — a card never goes blank. Strictly presentational and applied once, in
     `buildCardDisplay`, so every mode inherits it through `display.title`: the file name,
     search, links, recognition, and every frontmatter write keep the full name.

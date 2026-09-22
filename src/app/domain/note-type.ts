@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { creationConfigSchema } from './note-creation'
-import { namingConfigSchema, titleDisplaySchema } from './card-title'
+import { defaultNamingConfig, namingConfigSchema, titleDisplaySchema } from './card-title'
 
 /**
  * NoteType configuration model + Zod schemas.
@@ -381,7 +381,7 @@ export const noteTypeSchema = z.object({
      * decorate through `creation` instead. Defaults to blank so older stored
      * types parse.
      */
-    naming: namingConfigSchema.default({ prefix: '', suffix: '' }),
+    naming: namingConfigSchema.default(defaultNamingConfig()),
     /**
      * Card-title filtering (`domain/card-title.ts`): strip the type's name
      * prefix/suffix from what cards show. Defaults to BOTH ON, so a type stored

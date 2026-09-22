@@ -1,5 +1,6 @@
 import type { App, TFile } from 'obsidian'
 import { STARTER_KIT_PLUGIN_ID } from '../constants'
+import type { NamingConfig } from '../domain/card-title'
 import type { InheritedCreationDefaults } from '../domain/note-creation'
 
 /**
@@ -36,6 +37,12 @@ export interface SkNoteType {
     /** Name decoration; the suffix often doubles as a regex recognition mapping. */
     noteNamePrefix?: string | null
     noteNameSuffix?: string | null
+    /**
+     * Starter Kit ≥ 1.22: the affix is OPTIONAL — nothing adds it unless a
+     * person asks. Absent (older Starter Kit) = required, today's behaviour.
+     */
+    noteNamePrefixOptional?: boolean
+    noteNameSuffixOptional?: boolean
     /** Tags the Starter Kit associates with this type. */
     tags?: string[]
 }
@@ -220,8 +227,25 @@ export function creationDefaults(noteType: SkNoteType): InheritedCreationDefault
     return {
         folder: noteType.associatedFolder ?? '',
         templatePath: noteType.templatePath ?? '',
-        namePrefix: noteType.noteNamePrefix ?? '',
-        nameSuffix: noteType.noteNameSuffix ?? ''
+        // An OPTIONAL affix (Starter Kit ≥ 1.22) is not inherited: the Kit's own
+        // rule is "nothing adds it unless a person asks". The board's own name
+        // prefix/suffix override still wins, so one board can keep decorating.
+        namePrefix: noteType.noteNamePrefixOptional === true ? '' : (noteType.noteNamePrefix ?? ''),
+        nameSuffix: noteType.noteNameSuffixOptional === true ? '' : (noteType.noteNameSuffix ?? '')
+    }
+}
+
+/**
+ * The type's name decoration as the Starter Kit declares it, flags included
+ * (absent flag = required). Mirrored onto the note type so an offline board
+ * knows what is optional too.
+ */
+export function namingOf(noteType: SkNoteType): NamingConfig {
+    return {
+        prefix: noteType.noteNamePrefix ?? '',
+        suffix: noteType.noteNameSuffix ?? '',
+        prefixOptional: noteType.noteNamePrefixOptional === true,
+        suffixOptional: noteType.noteNameSuffixOptional === true
     }
 }
 

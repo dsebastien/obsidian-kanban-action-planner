@@ -10,6 +10,8 @@ import {
     sanitizeNoteName
 } from './note-creation'
 import type { ExpressionContext } from '../utils/expressions'
+import { creationDefaults } from '../services/starter-kit.service'
+import type { SkNoteType } from '../services/starter-kit.service'
 
 const ctx: ExpressionContext = {
     now: new Date(2026, 6, 30, 14, 5, 9),
@@ -167,5 +169,35 @@ describe('applyCoreTemplatePlaceholders', () => {
 
     test('leaves unknown placeholders untouched', () => {
         expect(applyCoreTemplatePlaceholders('{{foo}}', values)).toBe('{{foo}}')
+    })
+})
+
+describe('an affix the Starter Kit marks optional (>= 1.22)', () => {
+    const skType: SkNoteType = {
+        id: 'task',
+        name: 'Task',
+        noteNameSuffix: ' (Task)',
+        noteNameSuffixOptional: true
+    }
+
+    test('is not inherited, so a new note gets the bare name', () => {
+        const resolved = resolveCreationConfig(undefined, creationDefaults(skType), null, '')
+        expect(buildNoteBasename('Ship it', resolved, ctx)).toBe('Ship it')
+    })
+
+    test("the board's own name suffix still wins over it", () => {
+        const resolved = resolveCreationConfig(
+            { ...defaultCreationConfig(), nameSuffix: ' (Chore)' },
+            creationDefaults(skType),
+            null,
+            ''
+        )
+        expect(buildNoteBasename('Ship it', resolved, ctx)).toBe('Ship it (Chore)')
+    })
+
+    test('a REQUIRED suffix is still inherited and appended', () => {
+        const required: SkNoteType = { id: 'task', name: 'Task', noteNameSuffix: ' (Task)' }
+        const resolved = resolveCreationConfig(undefined, creationDefaults(required), null, '')
+        expect(buildNoteBasename('Ship it', resolved, ctx)).toBe('Ship it (Task)')
     })
 })

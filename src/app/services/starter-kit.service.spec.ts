@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'bun:test'
 import {
+    creationDefaults,
     enumPropertyDefs,
     findProperty,
     findStatusProperty,
+    namingOf,
     recognitionMappings
 } from './starter-kit.service'
 import type { SkNoteType } from './starter-kit.service'
@@ -108,5 +110,71 @@ describe('recognitionMappings', () => {
             { type: 'tag', value: 'project', enabled: true },
             { type: 'folder', value: 'Projects', enabled: true }
         ])
+    })
+})
+
+describe('creationDefaults (optional affixes, Starter Kit >= 1.22)', () => {
+    it('inherits a REQUIRED prefix and suffix', () => {
+        const nt = noteType({ noteNamePrefix: 'AI Wiki - ', noteNameSuffix: ' (Task)' })
+        expect(creationDefaults(nt)).toEqual({
+            folder: '',
+            templatePath: '',
+            namePrefix: 'AI Wiki - ',
+            nameSuffix: ' (Task)'
+        })
+    })
+
+    it('inherits NOTHING for an affix the Starter Kit marks optional', () => {
+        const nt = noteType({
+            noteNamePrefix: 'AI Wiki - ',
+            noteNamePrefixOptional: true,
+            noteNameSuffix: ' (Task)',
+            noteNameSuffixOptional: true
+        })
+        expect(creationDefaults(nt).namePrefix).toBe('')
+        expect(creationDefaults(nt).nameSuffix).toBe('')
+    })
+
+    it('leaves an optional prefix alone when only the suffix is optional', () => {
+        const nt = noteType({
+            noteNamePrefix: 'AI Wiki - ',
+            noteNameSuffix: ' (Task)',
+            noteNameSuffixOptional: true
+        })
+        expect(creationDefaults(nt).namePrefix).toBe('AI Wiki - ')
+        expect(creationDefaults(nt).nameSuffix).toBe('')
+    })
+
+    it('inherits as before when the flags are absent (older Starter Kit)', () => {
+        const nt = noteType({ noteNameSuffix: ' (Task)' })
+        expect(creationDefaults(nt).nameSuffix).toBe(' (Task)')
+    })
+})
+
+describe('namingOf', () => {
+    it('mirrors the decoration with the flags OFF when absent', () => {
+        expect(namingOf(noteType({ noteNameSuffix: ' (Task)' }))).toEqual({
+            prefix: '',
+            suffix: ' (Task)',
+            prefixOptional: false,
+            suffixOptional: false
+        })
+    })
+
+    it('carries the optional flags the Starter Kit declares', () => {
+        expect(
+            namingOf(
+                noteType({
+                    noteNamePrefix: 'AI Wiki - ',
+                    noteNamePrefixOptional: true,
+                    noteNameSuffix: ' (Task)'
+                })
+            )
+        ).toEqual({
+            prefix: 'AI Wiki - ',
+            suffix: ' (Task)',
+            prefixOptional: true,
+            suffixOptional: false
+        })
     })
 })

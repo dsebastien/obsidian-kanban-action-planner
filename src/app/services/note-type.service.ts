@@ -18,6 +18,7 @@ import {
     defaultNamingConfig,
     defaultTitleDisplayConfig,
     type CardTitleAffixes,
+    type NamingConfig,
     type TitleDisplayConfig
 } from '../domain/card-title'
 import { compareStatusValues, splitStatusValue } from '../domain/status'
@@ -32,6 +33,7 @@ import {
     findStatusProperty,
     getNoteTypeStatus,
     isStarterKitAvailable,
+    namingOf,
     recognitionMappings,
     recognizeNoteType,
     type SkNoteType,
@@ -375,15 +377,28 @@ export async function setTitleDisplayConfig(
  * correctly; the stored mirror is the offline fallback.
  */
 export function titleAffixesFor(app: App, noteType: NoteType): CardTitleAffixes {
-    const live = noteType.source === 'starter-kit' ? getNoteTypeById(app, noteType.id) : null
-    const naming = live
-        ? { prefix: live.noteNamePrefix ?? '', suffix: live.noteNameSuffix ?? '' }
-        : noteType.naming
     return cardTitleAffixes({
         titleDisplay: noteType.titleDisplay,
-        naming,
+        naming: namingFor(app, noteType),
         creation: noteType.creation
     })
+}
+
+/**
+ * The note type's name decoration, Starter Kit first (with its optional flags,
+ * ≥ 1.22) and the stored mirror as the offline fallback.
+ */
+export function namingFor(app: App, noteType: NoteType): NamingConfig {
+    const live = noteType.source === 'starter-kit' ? getNoteTypeById(app, noteType.id) : null
+    return resolveNaming(live, noteType.naming)
+}
+
+/**
+ * Live Starter Kit decoration when there is one (flags included), else the
+ * stored mirror. Pure, so the precedence is unit-testable without an `App`.
+ */
+export function resolveNaming(live: SkNoteType | null, stored: NamingConfig): NamingConfig {
+    return live ? namingOf(live) : stored
 }
 
 /**
@@ -763,10 +778,7 @@ function mirrorNoteType(
         draft.typeRecognition.mappings = recognitionMappings(noteType)
         // Read-only mirror of the Starter Kit's name decoration, so card-title
         // filtering knows what to strip without asking the Kit per card.
-        draft.naming = {
-            prefix: noteType.noteNamePrefix ?? '',
-            suffix: noteType.noteNameSuffix ?? ''
-        }
+        draft.naming = namingOf(noteType)
         if (status) {
             draft.statusProperty = status.name
             draft.columns = columnsFromValues(status.allowedValues, base, true)
