@@ -1,5 +1,15 @@
 # Release Notes
 
+## 1.30.0 (2026-09-22)
+
+### Features
+
+- new notes skip a name prefix or suffix the Starter Kit marks optional
+
+### Bug Fixes
+
+- **deps:** pin js-yaml to a version without the CPU-use advisory
+
 ## 1.29.0 (2026-09-22)
 
 ### Features

@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.30.0](https://github.com/dsebastien/obsidian-kanban-action-planner/compare/1.29.0...1.30.0) (2026-09-22)
+
+### Features
+
+* new notes skip a name prefix or suffix the Starter Kit marks optional ([2916395](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/2916395ed0e3ecf699f983850b9130ed37bec988))
+
+### Bug Fixes
+
+* **deps:** pin js-yaml to a version without the CPU-use advisory ([7d18ea2](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/7d18ea2405bcba8e8850b4ff51302a09f43bdc27))
+
 ## [1.29.0](https://github.com/dsebastien/obsidian-kanban-action-planner/compare/1.28.1...1.29.0) (2026-09-22)
 
 ### Features
@@ -622,6 +632,7 @@ All notable changes to this project will be documented in this file.
 
 * **plugin:** match Starter Kit's {{quarter}} placeholder format (Q2, not 2) ([4fde618](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/4fde6185c5956e3f6fd2ca3a9b03e70cf5e16840))
 * **plugin:** persist discovered statuses so Show empty columns works ([cf91b81](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/cf91b81a1b0786e35c73f4885882e2dc33564c62))
+
 
 
 
