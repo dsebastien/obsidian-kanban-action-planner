@@ -1110,3 +1110,13 @@ Markdown)`, `Export ideal week (JSON)`, `Export ideal week (Markdown)`); the for
     blanks only values still EXACTLY equal to the built-in constants — anything else is a hand
     edit and survives. Settings migrations run on VALIDATED settings and persist immediately
     when they change anything.
+
+60. **A collapsed column is a full drop target (issue #183).** Parking a card in a lane you are
+    not looking at is a legitimate gesture, so a collapsed column accepts drops and SAYS SO: the
+    bar gets `kap-column-drop-target` (accent outline + translucent overlay, mirroring the
+    timeline's `kap-tl-drop-target`) while the pointer is over it, and the card lands at the END
+    of that column — its card list is `display: none`, so there is no visible order to aim
+    within and the insertion line would be invisible. The tint is an overlay pseudo-element, not
+    a `background`: the column's background is an inline per-status shade that a stylesheet rule
+    cannot override. Dragging off any column clears BOTH affordances and the pending target, so
+    a release outside never lands the card in a column the pointer has left.

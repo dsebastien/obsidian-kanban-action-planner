@@ -128,7 +128,9 @@ until you define your statuses.
   default, hidden when empty).
 - **Collapse a column** with the chevron in its header. It shrinks to a slim labelled bar so you
   can focus on the rest. Collapsing applies to that status across **every** swimlane. Click the
-  chevron again to bring it back.
+  chevron again to bring it back. A collapsed column is still a **drop target** — drag a card
+  onto the bar to park it there; the bar highlights while the card is over it, and the card
+  lands at the bottom of that column.
 
 ## Moving and reordering cards
 

@@ -29,6 +29,8 @@ const DRAG_THRESHOLD_PX = 5
 const PLACEHOLDER_THICKNESS_PX = 2
 /** Empty-list fallback offset ≈ the `.kap-column-cards` padding (0.5rem). */
 const PLACEHOLDER_FALLBACK_PX = 8
+/** Highlight class on a COLLAPSED column under the drag (issue #183). */
+const COLLAPSED_DROP_CLASS = 'kap-column-drop-target'
 
 export interface DropTarget {
     /** Destination swimlane id (`''` for a single-lane board). */
@@ -58,6 +60,8 @@ export class BoardDnd {
     private ghostEl: HTMLElement | null = null
     private placeholderEl: HTMLElement | null = null
     private currentTarget: DropTarget | null = null
+    /** The collapsed column currently highlighted as the drop target (#183). */
+    private highlightedColumnEl: HTMLElement | null = null
 
     private readonly onPointerDown = (e: PointerEvent): void => this.handlePointerDown(e)
     private readonly onPointerMove = (e: PointerEvent): void => this.handlePointerMove(e)
@@ -154,18 +158,39 @@ export class BoardDnd {
     private updateDropTarget(e: PointerEvent): void {
         const columnEl = this.columnElementAt(e.clientX, e.clientY)
         if (!columnEl || !this.placeholderEl) {
+            this.clearDropFeedback()
             this.currentTarget = null
-            this.placeholderEl?.remove()
             return
         }
         const columnId = columnEl.dataset['columnId'] ?? ''
         const laneId = columnEl.dataset['laneId'] ?? ''
         const listEl = columnEl.querySelector<HTMLElement>('.kap-column-cards')
-        if (!listEl) return
+        if (!listEl) {
+            // No card list to aim at: drop nowhere rather than keeping the
+            // previous target, which would land the card in a column the
+            // pointer has already left.
+            this.clearDropFeedback()
+            this.currentTarget = null
+            return
+        }
 
         const cardEls = Array.from(
             listEl.querySelectorAll<HTMLElement>('.kap-card:not(.kap-card-dragging)')
         )
+
+        // A COLLAPSED column still accepts a drop (park a card in a lane you
+        // are not looking at), but its card list is `display: none`, so the
+        // insertion line lands inside a hidden box and the column reads as
+        // inert. Highlight the whole bar instead and append at the end — there
+        // is no visible order to aim within (issue #183).
+        if (columnEl.hasClass('kap-column-collapsed')) {
+            this.setHighlightedColumn(columnEl)
+            this.placeholderEl.remove()
+            this.currentTarget = { laneId, columnId, index: cardEls.length }
+            return
+        }
+        this.setHighlightedColumn(null)
+
         let index = cardEls.length
         for (let i = 0; i < cardEls.length; i++) {
             const rect = cardEls[i]?.getBoundingClientRect()
@@ -191,6 +216,20 @@ export class BoardDnd {
             )
         )}px`
         this.currentTarget = { laneId, columnId, index }
+    }
+
+    /** Move the collapsed-column highlight, or clear it when passed null. */
+    private setHighlightedColumn(columnEl: HTMLElement | null): void {
+        if (this.highlightedColumnEl === columnEl) return
+        this.highlightedColumnEl?.removeClass(COLLAPSED_DROP_CLASS)
+        columnEl?.addClass(COLLAPSED_DROP_CLASS)
+        this.highlightedColumnEl = columnEl
+    }
+
+    /** Drop every visual drop affordance (highlight + insertion line). */
+    private clearDropFeedback(): void {
+        this.setHighlightedColumn(null)
+        this.placeholderEl?.remove()
     }
 
     private columnElementAt(x: number, y: number): HTMLElement | null {
@@ -235,7 +274,7 @@ export class BoardDnd {
         this.dragWin.removeEventListener('pointercancel', this.onPointerCancel)
         this.sourceCardEl?.removeClass('kap-card-dragging')
         this.ghostEl?.remove()
-        this.placeholderEl?.remove()
+        this.clearDropFeedback()
         this.ghostEl = null
         this.placeholderEl = null
         this.sourceCardEl = null

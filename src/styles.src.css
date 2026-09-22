@@ -633,6 +633,29 @@
         @apply hidden;
     }
 
+    /* A collapsed column accepts drops like any other, but its card list is
+       hidden, so the insertion line cannot show where the card lands. Highlight
+       the whole bar instead, matching the timeline's drop treatment (#183).
+       Not colour alone: the outline carries the same message.
+
+       The tint is an overlay, not a `background`: the column's background is an
+       INLINE style (its per-status shade), which a stylesheet rule cannot win
+       against. `position: relative` is safe here — the drop placeholder's
+       containing block is `.kap-column-cards`, which positions itself. */
+    .kap-root .kap-column.kap-column-drop-target {
+        position: relative;
+        outline: 2px solid var(--interactive-accent);
+        outline-offset: -2px;
+    }
+
+    .kap-root .kap-column.kap-column-drop-target::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        background: color-mix(in srgb, var(--interactive-accent) 14%, transparent);
+    }
+
     .kap-column-collapsed .kap-column-header {
         @apply flex-col h-full gap-2 py-2;
         border-bottom: none;
