@@ -29,15 +29,33 @@ export interface PomodoroConfig {
     longBreakInterval: number
 }
 
-/** The running pomodoro, persisted in settings so a restart loses nothing. */
+/** A closed run segment of a paused-and-resumed pomodoro (epoch ms). */
+export interface PomodoroPeriod {
+    start: number
+    end: number
+}
+
+/**
+ * The running pomodoro, persisted in settings so a restart loses nothing.
+ *
+ * Pause (issue #199): `pausedAt` is set while paused; `periods` holds the
+ * closed run segments BEFORE the current one, so elapsed time is the sum of
+ * the closed segments plus the open one — still derived from stored instants,
+ * never from a ticking counter, so the visual is right after a reload. Both
+ * are optional so a pomodoro stored by an older version keeps parsing.
+ */
 export interface ActivePomodoro {
     id: string
     /** Vault path of the tracked note; null for a pomodoro on nothing. */
     path: string | null
     type: PomodoroType
-    /** Epoch ms. */
+    /** Epoch ms of the current run segment's start (the pomodoro's start when never paused). */
     startedAt: number
     plannedMinutes: number
+    /** Epoch ms when the pomodoro was paused; null / absent = running. */
+    pausedAt?: number | null
+    /** Closed run segments before the current one (empty when never paused). */
+    periods?: PomodoroPeriod[]
 }
 
 /** One record as written to the daily note's `pomodoros` list. */
@@ -72,10 +90,62 @@ export function breakTypeAfter(completedWork: number, config: PomodoroConfig): P
     return completedWork > 0 && completedWork % interval === 0 ? 'long-break' : 'short-break'
 }
 
-/** Whole seconds left before the pomodoro ends (0 once elapsed). */
+/** Whether the pomodoro is paused (issue #199). */
+export function isPaused(active: ActivePomodoro): boolean {
+    return typeof active.pausedAt === 'number'
+}
+
+/**
+ * Milliseconds the pomodoro has actually RUN by `now`: every closed segment
+ * plus the open one (frozen at `pausedAt` while paused).
+ */
+export function elapsedMs(active: ActivePomodoro, now: number): number {
+    let total = 0
+    for (const period of active.periods ?? []) total += Math.max(0, period.end - period.start)
+    const openEnd = typeof active.pausedAt === 'number' ? active.pausedAt : now
+    return total + Math.max(0, openEnd - active.startedAt)
+}
+
+/** Whole seconds left before the pomodoro ends (0 once elapsed); frozen while paused. */
 export function remainingSeconds(active: ActivePomodoro, now: number): number {
-    const end = active.startedAt + active.plannedMinutes * 60000
-    return Math.max(0, Math.round((end - now) / 1000))
+    const left = active.plannedMinutes * 60000 - elapsedMs(active, now)
+    return Math.max(0, Math.round(left / 1000))
+}
+
+/** Fraction of the planned time already run, 0..1 (the ring's drain). */
+export function progressFraction(active: ActivePomodoro, now: number): number {
+    const planned = active.plannedMinutes * 60000
+    if (planned <= 0) return 1
+    return Math.min(1, Math.max(0, elapsedMs(active, now) / planned))
+}
+
+/** The pomodoro paused at `now` (a no-op when already paused). */
+export function pausePomodoro(active: ActivePomodoro, now: number): ActivePomodoro {
+    if (isPaused(active)) return active
+    return { ...active, pausedAt: Math.max(active.startedAt, now) }
+}
+
+/**
+ * The pomodoro resumed at `now`: the segment that ran up to the pause is
+ * closed into `periods` and a fresh segment opens. A no-op when not paused.
+ */
+export function resumePomodoro(active: ActivePomodoro, now: number): ActivePomodoro {
+    if (typeof active.pausedAt !== 'number') return active
+    const periods = [...(active.periods ?? []), { start: active.startedAt, end: active.pausedAt }]
+    return { ...active, periods, startedAt: Math.max(active.pausedAt, now), pausedAt: null }
+}
+
+/**
+ * The phase that follows `active` when it completes and chaining is on
+ * (issue #197): a work pomodoro is followed by the cadence's break, a break
+ * by work. `completedWork` is the count AFTER this pomodoro was accounted for.
+ */
+export function nextPhaseAfter(
+    active: Pick<ActivePomodoro, 'type'>,
+    completedWork: number,
+    config: PomodoroConfig
+): PomodoroType {
+    return active.type === 'work' ? breakTypeAfter(completedWork, config) : 'work'
 }
 
 /** `m:ss` countdown label. */
@@ -94,20 +164,32 @@ export function formatCountdown(seconds: number): string {
  * written late (the plugin noticed after the fact) is not inflated.
  */
 export function buildPomodoroRecord(active: ActivePomodoro, endedAt: number): PomodoroRecord {
-    const plannedEnd = active.startedAt + active.plannedMinutes * 60000
-    const completed = endedAt >= plannedEnd
-    const end = completed ? plannedEnd : Math.max(active.startedAt, endedAt)
-    const startTime = formatEntryDateTime(new Date(active.startedAt))
-    const endTime = formatEntryDateTime(new Date(end))
+    const planned = active.plannedMinutes * 60000
+    const closed = active.periods ?? []
+    const before = closed.reduce((sum, p) => sum + Math.max(0, p.end - p.start), 0)
+    // The open segment ends when the pomodoro was paused, else at `endedAt`;
+    // a completed pomodoro is clamped to the instant its planned time ran out.
+    const openStart = active.startedAt
+    const rawOpenEnd = typeof active.pausedAt === 'number' ? active.pausedAt : endedAt
+    const plannedOpenEnd = openStart + Math.max(0, planned - before)
+    const completed = before + (rawOpenEnd - openStart) >= planned
+    const openEnd = completed
+        ? Math.min(rawOpenEnd, plannedOpenEnd)
+        : Math.max(openStart, rawOpenEnd)
+    const first = closed[0]?.start ?? openStart
+    const activePeriods = [...closed, { start: openStart, end: openEnd }].map((p) => ({
+        startTime: formatEntryDateTime(new Date(p.start)),
+        endTime: formatEntryDateTime(new Date(p.end))
+    }))
     return {
         id: active.id,
         taskPath: active.path ?? '',
-        startTime,
-        endTime,
+        startTime: formatEntryDateTime(new Date(first)),
+        endTime: formatEntryDateTime(new Date(openEnd)),
         plannedDuration: active.plannedMinutes,
         type: active.type,
         completed,
-        activePeriods: [{ startTime, endTime }]
+        activePeriods
     }
 }
 

@@ -155,3 +155,30 @@ export function readTrackedMinutes(raw: {
     const legacy = coerceOrder(raw.legacy)
     return legacy !== null && legacy > 0 ? legacy : null
 }
+
+/**
+ * The entries list with the description of the entry that starts at
+ * `startTime` replaced (issue #197: the description typed after the stop).
+ * Items the parser does not recognise are kept verbatim; when several entries
+ * share the start time (a hand-edited ledger), the LAST one is the one the
+ * tracker just wrote. Returns the same array when nothing matched.
+ */
+export function withEntryDescription(
+    raw: unknown,
+    startTime: string,
+    description: string
+): unknown[] {
+    if (!Array.isArray(raw)) return []
+    let index = -1
+    raw.forEach((item, i) => {
+        if (typeof item === 'object' && item !== null) {
+            const record = item as Record<string, unknown>
+            if (record['startTime'] === startTime) index = i
+        }
+    })
+    if (index < 0) return raw
+    const next = [...raw]
+    const target = next[index] as Record<string, unknown>
+    next[index] = { ...target, description }
+    return next
+}

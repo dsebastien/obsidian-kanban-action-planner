@@ -58,6 +58,20 @@ hidden. The defaults below are used today; per-view overrides may arrive in late
 | Areas           | `areas`                    | List of the areas (life domains) a note belongs to: Health, Exercise, Work… Read only: the ideal week's rail and targets table can **group by area** (a note files under its first value). Set globally with **Areas property**, per type in **Configure → Ideal week**.                                                                                                                                                                                                            |
 
 The status property is auto-detected, but the **columns are defined explicitly** (see below).
+
+### Time tracking and pomodoro settings
+
+| Setting                                        | Default | What it does                                                                                                                                                                        |
+| ---------------------------------------------- | ------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Ask for a description when a session stops** | Off     | Prompt for the entry's `description` after a stop. The entry is written first; skipping loses nothing. The note's last description is prefilled.                                    |
+| **Idle detection (minutes)**                   | 30      | Minutes without activity in Obsidian before a running session asks: end when the activity stopped, keep running, or discard. 0 = off.                                               |
+| **Session cap (minutes)**                      | 480     | Longest session written without asking. Past it (and for a suspicious session found after a restart) you are asked to end at the cap, keep running, or discard. 0 = no cap.         |
+| **Chain phases automatically**                 | On      | A completed phase starts the next one: work → break (short, or long every Nth) → work on the same note. A phase stopped early never chains; **Skip to the next phase** always does. |
+| **Sound at phase boundaries**                  | Off     | A short two-tone cue when a phase completes.                                                                                                                                        |
+| **System notification at phase boundaries**    | Off     | A desktop notification when a phase completes (permission is requested once).                                                                                                       |
+| **Work / Short break / Long break (minutes)**  | 25/5/15 | Phase lengths.                                                                                                                                                                      |
+| **Long break interval**                        | 4       | Every Nth completed work pomodoro is followed by a long break.                                                                                                                      |
+
 They are never inferred from the values your notes happen to carry.
 
 One related global setting is not a property name. **Minutes per day** (default 480 = an

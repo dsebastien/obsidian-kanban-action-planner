@@ -436,6 +436,54 @@ export class KanbanActionPlannerSettingTab extends PluginSettingTab {
             'YYYY-MM-DD'
         )
 
+        new Setting(containerEl).setName('Time tracking').setHeading()
+        new Setting(containerEl)
+            .setName('Ask for a description when a session stops')
+            .setDesc(
+                'After a session stops, prompt for what it was about and write it into the entry\u2019s description. The entry is written first, so skipping or closing the prompt loses nothing; the last description on the note is prefilled.'
+            )
+            .addToggle((toggle) => {
+                toggle
+                    .setValue(this.plugin.settings.askDescriptionOnStop)
+                    .onChange(
+                        (value) => void this.updateBooleanSetting('askDescriptionOnStop', value)
+                    )
+            })
+        const guardMinutes = (
+            name: string,
+            desc: string,
+            key: NumberSettingKey,
+            placeholder: string
+        ): void => {
+            new Setting(containerEl)
+                .setName(name)
+                .setDesc(desc)
+                .addText((input) => {
+                    input.inputEl.type = 'number'
+                    input.inputEl.min = '0'
+                    input
+                        .setPlaceholder(placeholder)
+                        .setValue(String(this.plugin.settings[key]))
+                        .onChange((value) => {
+                            const n = Number.parseInt(value, 10)
+                            if (Number.isFinite(n) && n >= 0)
+                                void this.updateNumberSetting(key, n, 'chrome')
+                        })
+                })
+        }
+        guardMinutes(
+            'Idle detection (minutes)',
+            'Minutes without any activity in Obsidian before a running session asks whether to end when the activity stopped, keep running, or be discarded. 0 = off.',
+            'sessionIdleMinutes',
+            '30'
+        )
+        guardMinutes(
+            'Session cap (minutes)',
+            'Longest session written without asking. Past it (and after a restart) you are asked to end the session at the cap, keep it running, or discard it. 0 = no cap.',
+            'sessionMaxMinutes',
+            '480'
+        )
+
         new Setting(containerEl).setName('Pomodoro').setHeading()
         const minutes = (
             name: string,
@@ -477,6 +525,34 @@ export class KanbanActionPlannerSettingTab extends PluginSettingTab {
             'pomodoroLongBreakInterval',
             '4'
         )
+        new Setting(containerEl)
+            .setName('Chain phases automatically')
+            .setDesc(
+                'When a phase completes, start the next one by itself: work, then the break the cadence calls for, then work again. Off: the tracker notices that a break is next and waits for you. A stopped-early phase never chains; "Skip to the next phase" always does.'
+            )
+            .addToggle((toggle) => {
+                toggle
+                    .setValue(this.plugin.settings.pomodoroAutoChain)
+                    .onChange((value) => void this.updateBooleanSetting('pomodoroAutoChain', value))
+            })
+        new Setting(containerEl)
+            .setName('Sound at phase boundaries')
+            .setDesc('A short two-tone cue when a phase completes.')
+            .addToggle((toggle) => {
+                toggle
+                    .setValue(this.plugin.settings.pomodoroSoundCue)
+                    .onChange((value) => void this.updateBooleanSetting('pomodoroSoundCue', value))
+            })
+        new Setting(containerEl)
+            .setName('System notification at phase boundaries')
+            .setDesc('A desktop notification when a phase completes (asks for permission once).')
+            .addToggle((toggle) => {
+                toggle
+                    .setValue(this.plugin.settings.pomodoroNotificationCue)
+                    .onChange(
+                        (value) => void this.updateBooleanSetting('pomodoroNotificationCue', value)
+                    )
+            })
         text(
             'Pomodoros property',
             'Daily-note list property receiving one record per pomodoro (TaskNotes’ shape and name).',
@@ -928,6 +1004,21 @@ export class KanbanActionPlannerSettingTab extends PluginSettingTab {
             draft[key] = value
         })
         await this.plugin.saveSettings(scope)
+    }
+
+    /** Keys whose value is a plain boolean toggle read live (no board re-render). */
+    private async updateBooleanSetting(
+        key:
+            | 'pomodoroAutoChain'
+            | 'askDescriptionOnStop'
+            | 'pomodoroSoundCue'
+            | 'pomodoroNotificationCue',
+        value: boolean
+    ): Promise<void> {
+        this.plugin.settings = produce(this.plugin.settings, (draft) => {
+            draft[key] = value
+        })
+        await this.plugin.saveSettings('chrome')
     }
 
     private async updateTargetFollowsPlanned(value: boolean): Promise<void> {

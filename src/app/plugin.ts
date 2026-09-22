@@ -14,13 +14,19 @@ import { log } from '../utils/log'
 import { registerWhatsNewView } from './whats-new'
 import {
     nextBreakType,
+    noteActivity,
     pomodoroLabel,
+    recoverSessionOnLoad,
+    skipPomodoroPhase,
     startPomodoro,
     stopPomodoro,
     stopTimeSession,
     tickPomodoro,
+    tickSessionGuard,
+    togglePomodoroPause,
     trackerStatusText
 } from './services/time-tracking.service'
+import { isPaused } from './domain/pomodoro'
 import { produce } from 'immer'
 
 export class KanbanActionPlannerPlugin extends Plugin {
@@ -88,10 +94,21 @@ export class KanbanActionPlannerPlugin extends Plugin {
         this.refreshTrackerStatus()
         this.registerInterval(
             window.setInterval(() => {
-                void tickPomodoro(this, Date.now())
+                const now = Date.now()
+                void tickPomodoro(this, now)
+                tickSessionGuard(this, now)
                 this.refreshTrackerStatus()
             }, 1000)
         )
+        // Activity signals for the idle guard (issue #197): coarse and cheap —
+        // the guard only needs "was there anything in the last N minutes".
+        for (const type of ['pointerdown', 'keydown', 'wheel'] as const) {
+            this.registerDomEvent(document, type, () => noteActivity(), { passive: true })
+        }
+        this.registerEvent(this.app.workspace.on('active-leaf-change', () => noteActivity()))
+        // A session that survived a restart: ask about a suspicious one, once
+        // the workspace is up so the prompt has somewhere to appear.
+        this.app.workspace.onLayoutReady(() => recoverSessionOnLoad(this, Date.now()))
     }
 
     /** Repaint the status-bar readout (hidden when nothing runs). */
@@ -114,6 +131,19 @@ export class KanbanActionPlannerPlugin extends Plugin {
         const pomodoro = this.settings.activePomodoro
         const session = this.settings.activeTimeSession
         if (pomodoro) {
+            const paused = isPaused(pomodoro)
+            menu.addItem((item) =>
+                item
+                    .setTitle(paused ? 'Resume pomodoro' : 'Pause pomodoro')
+                    .setIcon(paused ? 'play' : 'pause')
+                    .onClick(() => void togglePomodoroPause(this))
+            )
+            menu.addItem((item) =>
+                item
+                    .setTitle('Skip to the next phase')
+                    .setIcon('skip-forward')
+                    .onClick(() => void skipPomodoroPhase(this))
+            )
             menu.addItem((item) =>
                 item
                     .setTitle(`Stop ${pomodoroLabel(pomodoro.type).toLowerCase()}`)
@@ -310,6 +340,24 @@ export class KanbanActionPlannerPlugin extends Plugin {
             checkCallback: (checking: boolean): boolean => {
                 if (!this.settings.activePomodoro) return false
                 if (!checking) void stopPomodoro(this)
+                return true
+            }
+        })
+        this.addCommand({
+            id: 'pause-resume-pomodoro',
+            name: 'Pause or resume pomodoro',
+            checkCallback: (checking: boolean): boolean => {
+                if (!this.settings.activePomodoro) return false
+                if (!checking) void togglePomodoroPause(this)
+                return true
+            }
+        })
+        this.addCommand({
+            id: 'skip-pomodoro-phase',
+            name: 'Skip to the next pomodoro phase',
+            checkCallback: (checking: boolean): boolean => {
+                if (!this.settings.activePomodoro) return false
+                if (!checking) void skipPomodoroPhase(this)
                 return true
             }
         })

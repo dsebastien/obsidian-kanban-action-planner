@@ -56,6 +56,17 @@ export const DEFAULT_POMODORO_WORK_MINUTES = 25
 export const DEFAULT_POMODORO_SHORT_BREAK_MINUTES = 5
 export const DEFAULT_POMODORO_LONG_BREAK_MINUTES = 15
 export const DEFAULT_POMODORO_LONG_BREAK_INTERVAL = 4
+/**
+ * Tracker ergonomics (issue #197): auto-chain pomodoro phases, minutes of
+ * inactivity before a session counts as idle (0 = off), and the longest
+ * session written without asking (0 = no cap).
+ */
+export const DEFAULT_POMODORO_AUTO_CHAIN = true
+export const DEFAULT_SESSION_IDLE_MINUTES = 30
+export const DEFAULT_SESSION_MAX_MINUTES = 480
+/** The pomodoro timer view (issue #199). */
+export const POMODORO_VIEW_TYPE = 'kanban-action-planner-pomodoro'
+export const POMODORO_VIEW_ICON = 'timer'
 
 /** Default review (spaced-repetition) property names (issue #57; configurable). */
 export const DEFAULT_REVIEWED_DATE_PROPERTY = 'last_reviewed'

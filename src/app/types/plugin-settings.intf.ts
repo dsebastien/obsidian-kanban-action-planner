@@ -29,6 +29,9 @@ import {
     DEFAULT_POMODORO_SHORT_BREAK_MINUTES,
     DEFAULT_POMODORO_LONG_BREAK_MINUTES,
     DEFAULT_POMODORO_LONG_BREAK_INTERVAL,
+    DEFAULT_POMODORO_AUTO_CHAIN,
+    DEFAULT_SESSION_IDLE_MINUTES,
+    DEFAULT_SESSION_MAX_MINUTES,
     DEFAULT_TIME_BLOCKS_PROPERTY,
     DEFAULT_PLANNED_MINUTES_PROPERTY,
     DEFAULT_TARGET_MINUTES_PROPERTY,
@@ -154,11 +157,28 @@ export const pluginSettingsSchema = z.object({
             path: z.string().nullable(),
             type: z.enum(['work', 'short-break', 'long-break']),
             startedAt: z.number(),
-            plannedMinutes: z.number()
+            plannedMinutes: z.number(),
+            /** Pause state (issue #199); optional so an older stored pomodoro parses. */
+            pausedAt: z.number().nullable().optional(),
+            periods: z.array(z.object({ start: z.number(), end: z.number() })).optional()
         })
         .nullable()
         .default(null),
     pomodoroCompletedWork: z.number().int().min(0).default(0),
+    /**
+     * Tracker ergonomics (issue #197). `pomodoroAutoChain`: a completed phase
+     * starts the next one by itself (work → break → work). `askDescriptionOnStop`:
+     * prompt for the entry's description after a session stops (the entry is
+     * written first; the prompt only fills it in). `sessionIdleMinutes` /
+     * `sessionMaxMinutes`: the session guard (0 = off). Cues at phase
+     * boundaries (issue #199), both off by default.
+     */
+    pomodoroAutoChain: z.boolean().default(DEFAULT_POMODORO_AUTO_CHAIN),
+    askDescriptionOnStop: z.boolean().default(false),
+    sessionIdleMinutes: z.number().int().min(0).default(DEFAULT_SESSION_IDLE_MINUTES),
+    sessionMaxMinutes: z.number().int().min(0).default(DEFAULT_SESSION_MAX_MINUTES),
+    pomodoroSoundCue: z.boolean().default(false),
+    pomodoroNotificationCue: z.boolean().default(false),
     /**
      * Week Planner mode (issue #172): the ideal-week properties (blocks list,
      * planned-minutes cache the plugin writes, weekly target the rail reads),
@@ -290,6 +310,12 @@ export const DEFAULT_SETTINGS: PluginSettings = {
     dailyNoteFormat: '',
     activePomodoro: null,
     pomodoroCompletedWork: 0,
+    pomodoroAutoChain: DEFAULT_POMODORO_AUTO_CHAIN,
+    askDescriptionOnStop: false,
+    sessionIdleMinutes: DEFAULT_SESSION_IDLE_MINUTES,
+    sessionMaxMinutes: DEFAULT_SESSION_MAX_MINUTES,
+    pomodoroSoundCue: false,
+    pomodoroNotificationCue: false,
     defaultTimeBlocksProperty: DEFAULT_TIME_BLOCKS_PROPERTY,
     defaultPlannedMinutesProperty: DEFAULT_PLANNED_MINUTES_PROPERTY,
     defaultTargetMinutesProperty: DEFAULT_TARGET_MINUTES_PROPERTY,

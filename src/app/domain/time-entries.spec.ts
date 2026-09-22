@@ -10,7 +10,8 @@ import {
     parseEntryDateTime,
     parseTimeEntries,
     readTrackedMinutes,
-    sumEntryMinutes
+    sumEntryMinutes,
+    withEntryDescription
 } from './time-entries'
 import type { TimeEntry } from './time-entries'
 
@@ -207,5 +208,41 @@ describe('clipEntryMinutes / minutesInRange (issue #172, phase C)', () => {
                 to
             )
         ).toBe(90)
+    })
+})
+
+describe('withEntryDescription (issue #197)', () => {
+    const list = [
+        { startTime: '2026-09-09T09:00:00', endTime: '2026-09-09T09:30:00', description: '' },
+        'garbage',
+        { startTime: '2026-09-09T10:00:00', endTime: '2026-09-09T10:20:00', description: '' }
+    ]
+
+    test('fills in the matching entry and keeps everything else verbatim', () => {
+        const next = withEntryDescription(list, '2026-09-09T10:00:00', 'Review')
+        expect(next[2]).toEqual({
+            startTime: '2026-09-09T10:00:00',
+            endTime: '2026-09-09T10:20:00',
+            description: 'Review'
+        })
+        expect(next[0]).toBe(list[0])
+        expect(next[1]).toBe('garbage')
+        expect(list[2]).toEqual({
+            startTime: '2026-09-09T10:00:00',
+            endTime: '2026-09-09T10:20:00',
+            description: ''
+        })
+    })
+
+    test('targets the LAST entry sharing the start time', () => {
+        const dup = [...list, { startTime: '2026-09-09T10:00:00', endTime: '2026-09-09T10:25:00' }]
+        const next = withEntryDescription(dup, '2026-09-09T10:00:00', 'Later')
+        expect((next[3] as { description?: string }).description).toBe('Later')
+        expect((next[2] as { description?: string }).description).toBe('')
+    })
+
+    test('returns the same list when nothing matches, and [] for a non-list', () => {
+        expect(withEntryDescription(list, 'nope', 'x')).toBe(list)
+        expect(withEntryDescription(null, 'x', 'y')).toEqual([])
     })
 })

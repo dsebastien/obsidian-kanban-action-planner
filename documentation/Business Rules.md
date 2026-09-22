@@ -1131,3 +1131,20 @@ Markdown)`, `Export ideal week (JSON)`, `Export ideal week (Markdown)`); the for
     the note's type does not define. The "No status" group clears the status. A day column
     always wins the hit-test, because planning a block is the rail's primary gesture; grouping
     by area or context stamps no drop target at all.
+
+62. **Tracker ergonomics (issue #197).** (a) A stop is never blocked: the time entry is written
+    BEFORE the description prompt opens, and the prompt only patches `description` on the entry
+    it just wrote (`withEntryDescription`, matched by `startTime`, last match wins); skipping,
+    closing, or a chained/trimmed stop (`quiet`) writes nothing more. (b) Chaining: a phase that
+    COMPLETED starts the next one (`nextPhaseAfter`: work → cadence break → work) when
+    `pomodoroAutoChain` is on; a phase stopped early never chains; a skip always does. A chained
+    work → work on the same note keeps its session open; a break re-opens work on the note the
+    last work phase ran on. (c) The session guard (`domain/session-guard.ts`) asks ONCE per
+    session (keyed by its start) when the session is idle for `sessionIdleMinutes` (activity =
+    pointerdown / keydown / wheel / leaf change, counted from the session start at the earliest)
+    or past `sessionMaxMinutes`; the cap wins over idleness; 0 disables each check. The choices
+    are keep / trim (end at the idle instant or the cap) / discard; closing the prompt KEEPS the
+    session — the guard never ends one unasked. A suspicious session found running after a
+    restart gets the same prompt on layout-ready. (d) Pause (issue #199): `pausedAt` freezes the
+    countdown and `periods` keeps every closed run segment, so elapsed time still derives from
+    stored instants; the record lists each segment in `activePeriods` and completes on time RUN.

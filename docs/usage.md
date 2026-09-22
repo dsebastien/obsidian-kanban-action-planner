@@ -1309,6 +1309,31 @@ records), straight from the cards, on **any note type**:
 
     ![Start time tracking and Start pomodoro in the card menu]({{ '/images/card-menu-pomodoro.png' | relative_url }})
 
+- **Phases chain by themselves.** When a phase completes, the next one starts on its own:
+  work, then the break the cadence calls for, then work again on the same note (its time
+  session stays open across a work → work chain and re-opens after a break). A phase you
+  **stop early** never chains — that is a decision, not a boundary. **Skip to the next phase**
+  (status-bar menu, command palette, or the timer's ⏭) records the current phase as it stands
+  and moves on at once. Turn chaining off with **Chain phases automatically** in the settings.
+  Optional cues at each boundary — a short two-tone **sound** and a **system notification** —
+  are both off by default.
+- **Pause.** **Pause or resume pomodoro** (command, status-bar menu, or the timer's ⏸) freezes
+  the countdown; the status bar shows `⏸`. Every run segment is kept, so the record's
+  `activePeriods` lists each stretch and the pomodoro completes on **time actually run**, not
+  on the clock. Elapsed time still derives from stored instants, so a paused pomodoro survives
+  a restart exactly where it was.
+- **A description for the entry.** Turn on **Ask for a description when a session stops** and a
+  small prompt asks what the session was about; the answer lands in the entry's
+  `description`. The entry is written **before** the prompt appears, so skipping or closing it
+  loses nothing, and the last description used on that note is prefilled.
+- **Idle detection and a session cap.** A session forgotten overnight used to record the
+  whole night and inflate every roll-up. Now, after **Idle detection (minutes)** without any
+  activity in Obsidian (30 by default), or once a session passes the **Session cap (minutes)**
+  (8 hours by default), you are asked once: **end it when the activity stopped** (or at the
+  cap), **keep it running**, or **discard** it. Closing the prompt keeps the session — the
+  tracker never ends one behind your back. A suspicious session found running after a restart
+  gets the same prompt. Set either value to 0 to turn that check off.
+
 - Activities and projects carry a **weekly budget ring** on their cards and WBS rows: the arc is
   the time tracked this ISO week (the note's own entries plus its linked tasks', clipped to the
   week) against the weekly target, the label reads `1h 30m / 4h`, and the tooltip adds the planned
@@ -1726,6 +1751,7 @@ is active, and each can be given a hotkey in **Settings → Hotkeys**):
 - **Start work pomodoro** (on the tracked note when a session runs, else on nothing)
 - **Start pomodoro break** (short, or long after every Nth completed work pomodoro)
 - **Stop pomodoro** (only while one runs)
+- **Pause or resume pomodoro** / **Skip to the next pomodoro phase** (only while one runs)
 - **Focus filter**: jump to the filter box
 - **Clear filter**
 - **Go to next swimlane** / **Go to previous swimlane**

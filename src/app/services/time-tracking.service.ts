@@ -14,10 +14,18 @@ import {
     breakTypeAfter,
     buildPomodoroRecord,
     formatCountdown,
+    isPaused,
     newPomodoroId,
+    nextPhaseAfter,
+    pausePomodoro,
     plannedMinutesFor,
-    remainingSeconds
+    remainingSeconds,
+    resumePomodoro
 } from '../domain/pomodoro'
+import { guardVerdict, recoveryChoices } from '../domain/session-guard'
+import { withEntryDescription } from '../domain/time-entries'
+import { DescriptionPromptModal } from '../ui/description-prompt-modal'
+import { SessionRecoveryModal } from '../ui/session-recovery-modal'
 import type { ActivePomodoro, PomodoroConfig, PomodoroType } from '../domain/pomodoro'
 import { DEFAULT_DURATION_PROPERTY } from '../constants'
 import {
@@ -159,19 +167,29 @@ export async function startTimeSession(
  * last-session date — one frontmatter transaction. A session whose note no
  * longer exists is discarded with a notice instead of throwing.
  */
-export async function stopTimeSession(plugin: KanbanActionPlannerPlugin): Promise<void> {
+export async function stopTimeSession(
+    plugin: KanbanActionPlannerPlugin,
+    /**
+     * When the session ends (issue #197): now by default; the idle instant or
+     * the cap when the guard trims it. Never before the session started.
+     */
+    endedAt: number = Date.now(),
+    /** Skip the description prompt (a chained phase / a trim asks nothing). */
+    quiet = false
+): Promise<void> {
     const session = plugin.settings.activeTimeSession
     if (!session) return
     plugin.settings = produce(plugin.settings, (draft) => {
         draft.activeTimeSession = null
     })
+    guardAsked = null
     const file = plugin.app.vault.getFileByPath(session.path)
     if (!file) {
         await plugin.saveSettings('cards')
         new Notice(`Time tracking stopped — note not found: ${session.path}`)
         return
     }
-    const now = Date.now()
+    const now = Math.max(session.startedAt, endedAt)
     const properties = await trackingPropertiesFor(plugin, file)
     const raw = getFrontmatterValue(plugin.app, file, properties.entries)
     // Existing items are kept verbatim (a shape this version doesn't know is
@@ -196,6 +214,110 @@ export async function stopTimeSession(plugin: KanbanActionPlannerPlugin): Promis
         `Time tracking stopped: ${basename(session.path)} — ` +
             `${formatTrackedMinutes(elapsed, perDay)} (total ${formatTrackedMinutes(total, perDay)})`
     )
+    // The entry is on disk. The description prompt only fills it in
+    // afterwards, so ignoring or closing the prompt loses nothing (issue #197).
+    if (plugin.settings.askDescriptionOnStop && !quiet) {
+        const previous = [...parsed].reverse().find((e) => (e.description ?? '').trim() !== '')
+        new DescriptionPromptModal(plugin.app, {
+            title: 'What was this session about?',
+            subtitle: `${basename(session.path)} · ${formatTrackedMinutes(elapsed, perDay)}. Skip to leave the entry as it is.`,
+            placeholder: 'Description',
+            initial: previous?.description ?? '',
+            submitText: 'Save',
+            onSubmit: (value) => {
+                const current = getFrontmatterValue(plugin.app, file, properties.entries)
+                const next = withEntryDescription(current, entry.startTime, value)
+                void setProperties(plugin.app, file, { [properties.entries]: next })
+            }
+        }).open()
+    }
+}
+
+// ── Session guard (issue #197) ────────────────────────────────────────
+
+/** Epoch ms of the last user activity Obsidian reported (see `noteActivity`). */
+let lastActivityAt = Date.now()
+/** The session start the guard already asked about, so it asks once per session. */
+let guardAsked: number | null = null
+
+/** Record user activity (pointer, key, wheel, leaf change). Cheap; called often. */
+export function noteActivity(now: number = Date.now()): void {
+    lastActivityAt = now
+}
+
+/**
+ * One tick of the session guard: when the running session is idle or over
+ * the cap, ask ONCE what to do — keep it, end it at the idle instant / the
+ * cap, or discard it. Nothing is written until the user chooses; closing the
+ * prompt keeps the session.
+ */
+export function tickSessionGuard(plugin: KanbanActionPlannerPlugin, now: number): void {
+    const session = plugin.settings.activeTimeSession
+    if (!session || guardAsked === session.startedAt) return
+    const verdict = guardVerdict(session, lastActivityAt, now, {
+        idleMinutes: plugin.settings.sessionIdleMinutes,
+        maxMinutes: plugin.settings.sessionMaxMinutes
+    })
+    if (verdict.kind === 'ok') return
+    guardAsked = session.startedAt
+    const perDay = plugin.settings.minutesPerDay
+    const note = basename(session.path)
+    const trimAt = verdict.kind === 'idle' ? verdict.idleSince : verdict.capAt
+    new SessionRecoveryModal(plugin.app, {
+        title: verdict.kind === 'idle' ? 'Still working?' : 'Long session',
+        message:
+            verdict.kind === 'idle'
+                ? `No activity for ${formatTrackedMinutes(verdict.idleMinutes, perDay)} while tracking ${note}. End the session when the activity stopped, keep it running, or discard it?`
+                : `${note} has been tracked for ${formatTrackedMinutes(verdict.elapsedMinutes, perDay)}, past the ${formatTrackedMinutes(plugin.settings.sessionMaxMinutes, perDay)} cap. End it at the cap, keep it running, or discard it?`,
+        trimText: verdict.kind === 'idle' ? 'End when activity stopped' : 'End at the cap',
+        onDecide: (decision) => void applyRecovery(plugin, decision, trimAt)
+    }).open()
+}
+
+/**
+ * A session found running after a restart (issue #197): a short one simply
+ * keeps running, as before; one past the idle threshold or the cap gets the
+ * same keep / trim / discard prompt as the live guard.
+ */
+export function recoverSessionOnLoad(plugin: KanbanActionPlannerPlugin, now: number): void {
+    const session = plugin.settings.activeTimeSession
+    if (!session) return
+    const choices = recoveryChoices(session, now, {
+        idleMinutes: plugin.settings.sessionIdleMinutes,
+        maxMinutes: plugin.settings.sessionMaxMinutes
+    })
+    if (!choices.suspicious) return
+    guardAsked = session.startedAt
+    const perDay = plugin.settings.minutesPerDay
+    new SessionRecoveryModal(plugin.app, {
+        title: 'A session was still running',
+        message: `${basename(session.path)} has been tracked for ${formatTrackedMinutes(choices.elapsedMinutes, perDay)}, across a restart. Keep it running, end it now, or discard it?`,
+        trimText: choices.trimTo !== null ? 'End at the cap' : 'End now',
+        onDecide: (decision) => void applyRecovery(plugin, decision, choices.trimTo ?? now)
+    }).open()
+}
+
+async function applyRecovery(
+    plugin: KanbanActionPlannerPlugin,
+    decision: 'keep' | 'trim' | 'discard',
+    trimAt: number
+): Promise<void> {
+    if (decision === 'keep') return
+    if (decision === 'trim') {
+        // A trimmed session also ends a running work pomodoro on it.
+        if (plugin.settings.activePomodoro?.path === plugin.settings.activeTimeSession?.path) {
+            await stopPomodoro(plugin, { chain: false })
+        }
+        await stopTimeSession(plugin, trimAt, true)
+        return
+    }
+    const path = plugin.settings.activeTimeSession?.path
+    if (plugin.settings.activePomodoro?.path === path) await stopPomodoro(plugin, { chain: false })
+    plugin.settings = produce(plugin.settings, (draft) => {
+        draft.activeTimeSession = null
+    })
+    await plugin.saveSettings('cards')
+    if (path) new Notice(`Session discarded: ${basename(path)} (nothing written)`)
 }
 
 /**
@@ -271,7 +393,9 @@ export async function startPomodoro(
         path: type === 'work' ? path : null,
         type,
         startedAt: now,
-        plannedMinutes: plannedMinutesFor(type, pomodoroConfig(plugin))
+        plannedMinutes: plannedMinutesFor(type, pomodoroConfig(plugin)),
+        pausedAt: null,
+        periods: []
     }
     if (type === 'work' && path) await startTimeSession(plugin, path)
     else await stopTimeSession(plugin)
@@ -291,7 +415,18 @@ export async function startPomodoro(
  * a work pomodoro ran its course (an early stop resets the cadence). Safe
  * to call when nothing runs.
  */
-export async function stopPomodoro(plugin: KanbanActionPlannerPlugin): Promise<void> {
+export async function stopPomodoro(
+    plugin: KanbanActionPlannerPlugin,
+    options: {
+        /**
+         * Start the next phase when this one COMPLETED and auto-chaining is
+         * on (issue #197). A manual stop never chains; a skip always does.
+         */
+        chain?: boolean
+        /** Treat the stop as a skip: the next phase starts whatever the state. */
+        skip?: boolean
+    } = {}
+): Promise<void> {
     const active = plugin.settings.activePomodoro
     if (!active) return
     const now = Date.now()
@@ -302,8 +437,24 @@ export async function stopPomodoro(plugin: KanbanActionPlannerPlugin): Promise<v
             draft.pomodoroCompletedWork = record.completed ? draft.pomodoroCompletedWork + 1 : 0
         }
     })
-    if (active.type === 'work' && active.path && isTrackingPath(plugin, active.path)) {
-        await stopTimeSession(plugin)
+    const willChain =
+        options.skip === true ||
+        (options.chain !== false && record.completed && plugin.settings.pomodoroAutoChain)
+    const nextType = nextPhaseAfter(
+        active,
+        plugin.settings.pomodoroCompletedWork,
+        pomodoroConfig(plugin)
+    )
+    // A chained work → work on the same note keeps its session open; anything
+    // else closes the work session (quietly when a phase follows at once).
+    const keepsSession = willChain && nextType === 'work' && active.path !== null
+    if (
+        active.type === 'work' &&
+        active.path &&
+        isTrackingPath(plugin, active.path) &&
+        !keepsSession
+    ) {
+        await stopTimeSession(plugin, now, willChain)
     }
     try {
         const daily = await ensureDailyNote(plugin.app, plugin.settings, new Date(now))
@@ -325,6 +476,21 @@ export async function stopPomodoro(plugin: KanbanActionPlannerPlugin): Promise<v
         )
     }
     await plugin.saveSettings('cards')
+    if (record.completed) phaseCues(plugin, active.type, nextType)
+    if (willChain) {
+        new Notice(
+            `${pomodoroLabel(active.type)} ${options.skip ? 'skipped' : 'completed'}` +
+                (active.path ? `: ${basename(active.path)}` : '') +
+                ` → ${pomodoroLabel(nextType).toLowerCase()}`
+        )
+        // The next phase reuses the work note: a break remembers which note
+        // work resumes on; a work phase after a break goes back to it.
+        const path = nextType === 'work' ? (active.path ?? lastWorkPath) : null
+        if (active.type === 'work' && active.path) lastWorkPath = active.path
+        await startPomodoro(plugin, path, nextType)
+        return
+    }
+    if (active.type === 'work' && active.path) lastWorkPath = active.path
     const next =
         active.type === 'work'
             ? record.completed
@@ -338,6 +504,96 @@ export async function stopPomodoro(plugin: KanbanActionPlannerPlugin): Promise<v
     )
 }
 
+/** The note the last work pomodoro ran on, so a chained break → work returns to it. */
+let lastWorkPath: string | null = null
+
+/** Skip the current phase: record it as it stands and start the next one (issue #197). */
+export async function skipPomodoroPhase(plugin: KanbanActionPlannerPlugin): Promise<void> {
+    if (!plugin.settings.activePomodoro) return
+    await stopPomodoro(plugin, { skip: true })
+}
+
+/** Pause the running pomodoro (issue #199); a no-op when none runs or it is paused. */
+export async function pauseActivePomodoro(plugin: KanbanActionPlannerPlugin): Promise<void> {
+    const active = plugin.settings.activePomodoro
+    if (!active || isPaused(active)) return
+    const paused = pausePomodoro(active, Date.now())
+    plugin.settings = produce(plugin.settings, (draft) => {
+        draft.activePomodoro = paused
+    })
+    await plugin.saveSettings('chrome')
+}
+
+/** Resume a paused pomodoro (issue #199); a no-op when none is paused. */
+export async function resumeActivePomodoro(plugin: KanbanActionPlannerPlugin): Promise<void> {
+    const active = plugin.settings.activePomodoro
+    if (!active || !isPaused(active)) return
+    const resumed = resumePomodoro(active, Date.now())
+    plugin.settings = produce(plugin.settings, (draft) => {
+        draft.activePomodoro = resumed
+    })
+    await plugin.saveSettings('chrome')
+}
+
+/** Pause when running, resume when paused. */
+export async function togglePomodoroPause(plugin: KanbanActionPlannerPlugin): Promise<void> {
+    const active = plugin.settings.activePomodoro
+    if (!active) return
+    await (isPaused(active) ? resumeActivePomodoro(plugin) : pauseActivePomodoro(plugin))
+}
+
+/**
+ * Optional cues at a phase boundary (issue #199): a short two-tone beep and a
+ * system notification, each off by default. Best effort — a missing audio
+ * context or a denied notification permission is silently skipped.
+ */
+function phaseCues(
+    plugin: KanbanActionPlannerPlugin,
+    ended: PomodoroType,
+    next: PomodoroType
+): void {
+    if (plugin.settings.pomodoroSoundCue) {
+        try {
+            const Ctx = window.AudioContext
+            const ctx = new Ctx()
+            const tone = (freq: number, at: number): void => {
+                const osc = ctx.createOscillator()
+                const gain = ctx.createGain()
+                osc.frequency.value = freq
+                gain.gain.setValueAtTime(0.0001, ctx.currentTime + at)
+                gain.gain.exponentialRampToValueAtTime(0.2, ctx.currentTime + at + 0.02)
+                gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + at + 0.35)
+                osc.connect(gain).connect(ctx.destination)
+                osc.start(ctx.currentTime + at)
+                osc.stop(ctx.currentTime + at + 0.4)
+            }
+            tone(ended === 'work' ? 660 : 523, 0)
+            tone(ended === 'work' ? 880 : 659, 0.25)
+            window.setTimeout(() => void ctx.close(), 1500)
+        } catch {
+            // No audio available: skip the cue.
+        }
+    }
+    if (plugin.settings.pomodoroNotificationCue && 'Notification' in window) {
+        const show = (): void => {
+            try {
+                new Notification(`${pomodoroLabel(ended)} completed`, {
+                    body: `Next: ${pomodoroLabel(next).toLowerCase()}`,
+                    silent: true
+                })
+            } catch {
+                // Notifications unavailable: skip the cue.
+            }
+        }
+        if (Notification.permission === 'granted') show()
+        else if (Notification.permission === 'default') {
+            void Notification.requestPermission().then((p) => {
+                if (p === 'granted') show()
+            })
+        }
+    }
+}
+
 /**
  * One tick of the pomodoro clock (the plugin calls it every second): a
  * pomodoro whose planned time elapsed is stopped and recorded as completed.
@@ -346,7 +602,7 @@ export async function stopPomodoro(plugin: KanbanActionPlannerPlugin): Promise<v
 let completing = false
 export async function tickPomodoro(plugin: KanbanActionPlannerPlugin, now: number): Promise<void> {
     const active = plugin.settings.activePomodoro
-    if (!active || completing || remainingSeconds(active, now) > 0) return
+    if (!active || completing || isPaused(active) || remainingSeconds(active, now) > 0) return
     completing = true
     try {
         await stopPomodoro(plugin)
@@ -364,7 +620,8 @@ export function trackerStatusText(plugin: KanbanActionPlannerPlugin, now: number
     if (active) {
         const note = active.path ? ` · ${basename(active.path)}` : ''
         const label = pomodoroLabel(active.type).toLowerCase()
-        return `🍅 ${formatCountdown(remainingSeconds(active, now))} ${label}${note}`
+        const paused = isPaused(active) ? ' ⏸' : ''
+        return `🍅 ${formatCountdown(remainingSeconds(active, now))}${paused} ${label}${note}`
     }
     const session = plugin.settings.activeTimeSession
     if (session) {
