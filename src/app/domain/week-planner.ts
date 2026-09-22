@@ -211,6 +211,8 @@ export interface WeekEntry {
     /** Status label and rank (column order) for the status-grouped rail. */
     statusLabel: string
     statusRank: number
+    /** Raw status value, for the rail's status-group drops (issue #185). */
+    statusValue: string | null
 }
 
 /** Entries with a target and no block. */

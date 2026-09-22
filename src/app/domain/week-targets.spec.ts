@@ -27,6 +27,7 @@ const entry = (over: Partial<WeekEntry>): WeekEntry => ({
     onGrid: true,
     statusLabel: 'Active',
     statusRank: 0,
+    statusValue: null,
     ...over
 })
 

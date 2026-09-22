@@ -53,7 +53,7 @@ import { buildAgenda } from '../../domain/agenda'
 import type { AgendaWindow } from '../../domain/agenda'
 import { renderAgendaView } from '../../ui/agenda/agenda-view'
 import { NO_TYPE_ID, groupByTypeAndStatus } from '../../domain/timeline'
-import { resolvePaneGroupDrop } from '../../domain/pane-drop'
+import { resolvePaneGroupDrop, resolveRailStatusDrop } from '../../domain/pane-drop'
 import type { EstimateConfig } from '../../domain/estimate'
 import { formatDuration, readEstimate } from '../../domain/estimate'
 import type { AggregateKind } from '../../domain/column-aggregate'
@@ -872,6 +872,9 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             onSpan: (path, from, edge, toDay) => void this.week?.span(path, from, edge, toDay),
             onCreate: (day, start) => this.week?.create(day, start),
             onRailDrop: (path, day, start) => void this.week?.createFor(path, day, start),
+            onRailStatusDrop: (path, status, label) => this.dropOnRailStatus(path, status, label),
+            canRailStatusDrop: (path, status, label) =>
+                this.resolveRailDrop(path, status, label) !== null,
             onBlockClick: (path, newTab) => this.week?.open(path, newTab),
             onSelect: (keys) => this.week?.select(keys),
             onToggleSelect: (key) => this.week?.toggleSelect(key),
@@ -4874,6 +4877,33 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             this.cardColumns(card)
         )
         return resolved ? { card, ...resolved } : null
+    }
+
+    /**
+     * Whether dragging a rail entry onto a status group commits, and to what
+     * (issue #185). The ideal week's rail has no note-type level, so the group
+     * is resolved against the DRAGGED note's own columns — by raw value, else
+     * by displayed label.
+     */
+    private resolveRailDrop(
+        path: string,
+        status: string,
+        label: string
+    ): { card: KanbanCard; statusValue: string | null; columnId: string } | null {
+        const card = this.cardsByKey.get(path)
+        if (!card) return null
+        const resolved = resolveRailStatusDrop(
+            { statusValue: card.statusValue },
+            { statusValue: status, label },
+            this.cardColumns(card)
+        )
+        return resolved ? { card, ...resolved } : null
+    }
+
+    private dropOnRailStatus(path: string, status: string, label: string): void {
+        const resolved = this.resolveRailDrop(path, status, label)
+        if (resolved)
+            void this.setCardStatus(resolved.card, resolved.statusValue, resolved.columnId)
     }
 
     private canDropOnPaneGroup(cardKey: string, typeId: string, status: string): boolean {

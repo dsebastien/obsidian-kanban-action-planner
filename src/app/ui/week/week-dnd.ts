@@ -15,7 +15,8 @@ import { claimPointerDrag } from '../pointer-claim'
  *   while blocks are selected only clears the selection);
  * - Shift-click a block → toggle it in the selection; a plain click opens
  *   the note (Ctrl/Cmd-click in a new tab), on blocks and rail entries alike;
- * - drag a rail entry onto a day column → create a block for that note;
+ * - drag a rail entry onto a day column → create a block for that note, or
+ *   onto another status group of the rail → set that status (issue #185);
  * - Delete / Backspace with a selection → remove the selected blocks;
  * - Ctrl/Cmd+C copies the selection (or the focused block), Ctrl/Cmd+V
  *   pastes it at the grid cell under the mouse pointer (that cell is lit
@@ -47,6 +48,13 @@ export interface WeekDndCallbacks {
     onSpan(path: string, from: Slot, edge: 'left' | 'right', toDay: number): void
     onCreate(day: number, startMinutes: number): void
     onRailDrop(path: string, day: number, startMinutes: number): void
+    /**
+     * A rail entry dropped on another status group (issue #185). `status` is
+     * the group's raw value ('' = the "No status" group).
+     */
+    onRailStatusDrop(path: string, status: string, label: string): void
+    /** Whether that drop would commit — drives the valid / invalid hint. */
+    canRailStatusDrop(path: string, status: string, label: string): boolean
     /** A block or rail entry clicked without dragging (opens the note). */
     onBlockClick(path: string, newTab: boolean): void
     /** Replace the selection (marquee) / toggle one key (Shift-click). */
@@ -94,6 +102,9 @@ export class WeekDnd {
     private previewDay: number | null = null
     private previewKeys: string[] = []
     private previewDayEl: HTMLElement | null = null
+    /** The rail status group under a rail drag (issue #185). */
+    private railStatusEl: HTMLElement | null = null
+    private railStatusTarget: { status: string; label: string } | null = null
     private dragWin: Window | null = null
     private readonly onPointerDown = (e: PointerEvent): void => this.handlePointerDown(e)
     private readonly onPointerMove = (e: PointerEvent): void => this.handlePointerMove(e)
@@ -251,6 +262,24 @@ export class WeekDnd {
         if (gesture.kind === 'rail') {
             this.moveGhost(e.clientX, e.clientY)
             this.setDropHint(hit?.el ?? null)
+            // The grid wins when the pointer is over a day: planning a block is
+            // the primary gesture, setting a status the secondary one.
+            this.setRailStatusHint(hit ? null : this.railStatusAt(e.clientX, e.clientY), gesture)
+            if (!hit && this.railStatusTarget) {
+                this.preview = null
+                this.hidePhantom()
+                const valid = this.callbacks.canRailStatusDrop(
+                    gesture.path,
+                    this.railStatusTarget.status,
+                    this.railStatusTarget.label
+                )
+                this.setLabel(
+                    valid
+                        ? `Set status · ${this.railStatusTarget.label}`
+                        : `${this.railStatusTarget.label} is not a status of this note`
+                )
+                return
+            }
             if (hit) {
                 const start = clampStart(
                     floorToGrid(hit.minutes),
@@ -333,6 +362,7 @@ export class WeekDnd {
         const preview = this.preview
         const previewDay = this.previewDay
         const previewKeys = this.previewKeys
+        const railStatus = this.railStatusTarget
         const moved = this.moved
         this.cleanupListeners()
         if (!gesture) return
@@ -354,6 +384,12 @@ export class WeekDnd {
             if (previewDay !== null && previewDay !== gesture.from.day) {
                 this.callbacks.onSpan(gesture.path, gesture.from, gesture.edge, previewDay)
             }
+            return
+        }
+        // A rail entry dropped on a status group (issue #185): no grid preview
+        // is involved, so this runs before the preview guard below.
+        if (gesture.kind === 'rail' && railStatus) {
+            this.callbacks.onRailStatusDrop(gesture.path, railStatus.status, railStatus.label)
             return
         }
         if (!preview) return
@@ -625,6 +661,34 @@ export class WeekDnd {
         if (this.label) this.label.setText(text)
     }
 
+    /** The rail status group under the pointer, or null (issue #185). */
+    private railStatusAt(x: number, y: number): HTMLElement | null {
+        const el = this.containerEl.ownerDocument.elementFromPoint(x, y) as HTMLElement | null
+        const hit = el?.closest<HTMLElement>('[data-rail-drop-status]') ?? null
+        // The dragged entry's own group is not a destination; dropping on it is
+        // a no-op and `canRailStatusDrop` refuses it, so the hint says so.
+        return hit && this.containerEl.contains(hit) ? hit : null
+    }
+
+    /** Light the rail status group under a rail drag, valid or invalid. */
+    private setRailStatusHint(groupEl: HTMLElement | null, gesture: Gesture): void {
+        if (this.railStatusEl !== groupEl) {
+            this.railStatusEl?.removeClass('kap-cal-drop')
+            this.railStatusEl?.removeClass('kap-cal-drop-invalid')
+            this.railStatusEl = groupEl
+        }
+        if (!groupEl || gesture.kind !== 'rail') {
+            this.railStatusTarget = null
+            return
+        }
+        const status = groupEl.dataset['railDropStatus'] ?? ''
+        const label = groupEl.dataset['railDropLabel'] ?? ''
+        const valid = this.callbacks.canRailStatusDrop(gesture.path, status, label)
+        groupEl.toggleClass('kap-cal-drop', valid)
+        groupEl.toggleClass('kap-cal-drop-invalid', !valid)
+        this.railStatusTarget = valid ? { status, label } : null
+    }
+
     private setDropHint(dayEl: HTMLElement | null): void {
         if (this.previewDayEl !== dayEl) {
             this.previewDayEl?.removeClass('kap-cal-drop')
@@ -723,6 +787,10 @@ export class WeekDnd {
         this.marqueeEl?.remove()
         this.marqueeEl = null
         this.setDropHint(null)
+        this.railStatusEl?.removeClass('kap-cal-drop')
+        this.railStatusEl?.removeClass('kap-cal-drop-invalid')
+        this.railStatusEl = null
+        this.railStatusTarget = null
         this.preview = null
         this.previewDay = null
         this.previewKeys = []

@@ -455,7 +455,7 @@ function renderRail(
         for (const group of section.groups) {
             const key = `${section.key}|${group.label}`
             const collapsed = model.collapsedGroups.has(key)
-            renderGroupHeader(
+            const subHeader = renderGroupHeader(
                 list,
                 'kap-cal-usubgroup',
                 group.label,
@@ -463,8 +463,27 @@ function renderRail(
                 collapsed,
                 () => callbacks.onToggleGroup(key)
             )
+            // Rail status-group drop contract (issue #185): only the STATUS
+            // grouping names statuses — an area or context header is not a
+            // status and must not accept a status drop. The raw value comes
+            // from the group's own entries; '' is the "No status" group, which
+            // clears the status.
+            const railStatus =
+                model.railGroupBy === 'status' ? (group.entries[0]?.statusValue ?? '') : null
+            if (railStatus !== null) {
+                subHeader.dataset['railDropStatus'] = railStatus
+                subHeader.dataset['railDropLabel'] = group.label
+            }
             if (collapsed) continue
-            for (const entry of group.entries) renderRailItem(list, entry, model, callbacks)
+            for (const entry of group.entries) {
+                const item = renderRailItem(list, entry, model, callbacks)
+                // Dropping on a sibling entry means the same as dropping on its
+                // header, exactly like the calendar panel's chips.
+                if (railStatus !== null) {
+                    item.dataset['railDropStatus'] = railStatus
+                    item.dataset['railDropLabel'] = group.label
+                }
+            }
         }
     }
     return panel
@@ -475,7 +494,7 @@ function renderRailItem(
     entry: WeekEntry,
     model: WeekViewModel,
     callbacks: WeekCallbacks
-): void {
+): HTMLElement {
     const planned = plannedMinutesPerWeek(entry.blocks)
     const item = list.createDiv({
         cls: 'kap-cal-card kap-week-rail-item',
@@ -507,7 +526,8 @@ function renderRailItem(
             ? ` of a ${formatHoursMinutes(entry.targetMinutes)} target`
             : ', no weekly target yet') +
         (entry.active ? '' : '\nNot active: its blocks render dimmed') +
-        '\nClick to open (Ctrl/Cmd-click in a new tab), drag onto the grid to plan a block'
+        '\nClick to open (Ctrl/Cmd-click in a new tab), drag onto the grid to plan a block' +
+        '\nDrag onto another status group to change the status'
     item.addEventListener('contextmenu', (e) => {
         e.preventDefault()
         callbacks.onRailContextMenu(entry.path, e)
@@ -515,6 +535,7 @@ function renderRailItem(
     item.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') callbacks.onOpen(entry.path, e.ctrlKey || e.metaKey)
     })
+    return item
 }
 
 function renderToolbar(parent: HTMLElement, model: WeekViewModel, callbacks: WeekCallbacks): void {

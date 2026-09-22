@@ -1120,3 +1120,14 @@ Markdown)`, `Export ideal week (JSON)`, `Export ideal week (Markdown)`); the for
     a `background`: the column's background is an inline per-status shade that a stylesheet rule
     cannot override. Dragging off any column clears BOTH affordances and the pending target, so
     a release outside never lands the card in a column the pointer has left.
+
+61. **The ideal week's rail changes status by drag (issue #185).** While the rail is grouped by
+    STATUS, a rail entry dropped on another status group (header or sibling entry) writes that
+    status through the board's own status-change path, so automations, stamping and the
+    optimistic overlay behave exactly as a column move (business rule 49). The rail has no
+    note-type level, so a group can hold several types: resolution runs against the DRAGGED
+    note's own columns (`resolveRailStatusDrop`) — the group's raw value when that type has it,
+    else the column whose displayed LABEL matches, else no drop, rather than writing a status
+    the note's type does not define. The "No status" group clears the status. A day column
+    always wins the hit-test, because planning a block is the rail's primary gesture; grouping
+    by area or context stamps no drop target at all.

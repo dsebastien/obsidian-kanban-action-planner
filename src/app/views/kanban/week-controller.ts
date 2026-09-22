@@ -382,7 +382,8 @@ export class WeekController {
                 active: this.host.isActiveCard(card),
                 onGrid: inWeekWindow(start, due, today, today),
                 statusLabel: this.host.statusLabelFor(card) ?? 'No status',
-                statusRank: this.host.statusRankFor(card)
+                statusRank: this.host.statusRankFor(card),
+                statusValue: card.statusValue
             })
         }
         return entries.sort((a, b) => a.statusRank - b.statusRank || a.title.localeCompare(b.title))

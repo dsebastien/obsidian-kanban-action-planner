@@ -158,6 +158,7 @@ describe('needsPlanning (issue #172)', () => {
         onGrid: true,
         statusLabel: 'Active',
         statusRank: 0,
+        statusValue: null,
         ...over
     })
 
@@ -186,6 +187,7 @@ describe('groupByStatus (issue #172)', () => {
         onGrid: true,
         statusLabel: 'Active',
         statusRank: 0,
+        statusValue: null,
         ...over
     })
 
@@ -217,7 +219,8 @@ describe('matchesRailFilter (issue #172, phase G)', () => {
         active: true,
         onGrid: true,
         statusLabel: 'Active',
-        statusRank: 0
+        statusRank: 0,
+        statusValue: null
     }
 
     test('empty matches; title, type, status, area and context match case-insensitively', () => {

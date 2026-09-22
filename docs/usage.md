@@ -1136,6 +1136,14 @@ command), or embed it with `mode=ideal-week` (`mode=week` works too).
   list only (title, type, status, area or context; Escape clears it) while the grid keeps
   every block, so you can find a note to drag without losing sight of the week. Drag a note
   from the rail onto the grid to plan a block for it.
+- **Change a status without leaving the week.** While the rail is grouped **by status**, drag a
+  note onto another status group (its header or any note in it) to set that status — the same
+  write as moving a card between columns on the board, so your automations and date stamping
+  run exactly as they would there. The group lights up while the note is over it, dashed red
+  when that status is not one the note's type defines, and the note jumps to its new group
+  immediately. The grid wins whenever the pointer is over a day, so planning a block stays the
+  primary gesture; the **No status** group clears the status. Grouping by area or context
+  offers no status drop — those headers are not statuses.
 
     ![The rail filtered and grouped by area]({{ '/images/week-rail-filter.png' | relative_url }}) Blocks of notes that are not active render **dimmed and dashed** (they are on the
     grid so nothing you plan disappears, but only active notes count in the planned total); a
