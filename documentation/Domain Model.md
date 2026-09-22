@@ -142,6 +142,11 @@ column rule.
   Pomodoro records (`{id, taskPath, startTime, endTime, plannedDuration, type, completed,
 activePeriods}`) live in the daily note's `pomodoros` list. Domain: `time-entries.ts`,
   `pomodoro.ts`, `daily-note.ts`; service: `time-tracking.service.ts`, `daily-note.service.ts`.
+  The running pomodoro carries `pausedAt` + `periods` (closed run segments, issue #199), so
+  elapsed time is a sum of stored instants; `pomodoroViewModel` turns the persisted state into
+  what the timer view (`ui/pomodoro-view.ts`, sidebar widget + full-screen leaf) shows. The
+  session guard (`session-guard.ts`, issue #197) decides when a running session is idle or over
+  its cap and what to offer (keep / trim / discard).
 - **Ideal week** (issue #172): `time_blocks` (list of `<days> HH:MM-HH:MM` strings, Monday-first
   day indexes 0..6, 15-minute grid, midnight crossing), `minutes_planned_per_week` (plugin
   cache, sum of the blocks), `minutes_per_week` (user target; the Needs planning rail). A

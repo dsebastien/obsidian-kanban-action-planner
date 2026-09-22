@@ -49,7 +49,7 @@ const STORAGE_KEY_SUFFIX = ':whats-new-last-seen-version'
  * runtime rather than assumed; anything unexpected makes this a no-op and
  * `registerView` reports the real failure.
  */
-function unregisterStaleView(plugin: Plugin, viewType: string): void {
+export function unregisterStaleView(plugin: Plugin, viewType: string): void {
     const app: unknown = plugin.app
     if (typeof app !== 'object' || app === null || !('viewRegistry' in app)) return
     const registry: unknown = app.viewRegistry

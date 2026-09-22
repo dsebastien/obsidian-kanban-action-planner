@@ -199,3 +199,82 @@ export function newPomodoroId(now: number, random: () => number = Math.random): 
         .toString(36)
         .padStart(4, '0')}`
 }
+
+/** What the timer view shows (issue #199); pure so it is unit-tested. */
+export interface PomodoroViewModel {
+    /** 'idle' when nothing runs. */
+    phase: PomodoroType | 'idle'
+    /** "Work", "Short break", "Long break", "No pomodoro running". */
+    phaseLabel: string
+    paused: boolean
+    /** `m:ss` left, or '' when idle. */
+    remaining: string
+    /** 0..1 drained so far (0 when idle). */
+    fraction: number
+    /** Note basename the phase runs on, or null. */
+    note: string | null
+    /** "Pomodoro 2 of 4" style cycle text (work phases within the long-break cadence). */
+    cycle: string
+    /** Spoken summary for assistive tech. */
+    ariaLabel: string
+}
+
+/** The timer view's model from the persisted tracker state at `now`. */
+export function pomodoroViewModel(
+    state: {
+        active: ActivePomodoro | null
+        completedWork: number
+        session: { path: string } | null
+    },
+    config: PomodoroConfig,
+    now: number
+): PomodoroViewModel {
+    const interval = Math.max(1, Math.round(config.longBreakInterval))
+    const done = state.completedWork % interval
+    const { active } = state
+    if (!active) {
+        const note = state.session ? noteName(state.session.path) : null
+        return {
+            phase: 'idle',
+            phaseLabel: 'No pomodoro running',
+            paused: false,
+            remaining: '',
+            fraction: 0,
+            note,
+            cycle: `${String(done)} of ${String(interval)} done in this cycle`,
+            ariaLabel: note ? `No pomodoro running. Tracking ${note}.` : 'No pomodoro running.'
+        }
+    }
+    const paused = isPaused(active)
+    const remaining = formatCountdown(remainingSeconds(active, now))
+    const label =
+        active.type === 'work'
+            ? 'Work'
+            : active.type === 'short-break'
+              ? 'Short break'
+              : 'Long break'
+    const note = active.path ? noteName(active.path) : null
+    // During work the running pomodoro is the (done + 1)th of the cycle.
+    const cycle =
+        active.type === 'work'
+            ? `Pomodoro ${String(done + 1)} of ${String(interval)}`
+            : `${String(done)} of ${String(interval)} done in this cycle`
+    return {
+        phase: active.type,
+        phaseLabel: label,
+        paused,
+        remaining,
+        fraction: progressFraction(active, now),
+        note,
+        cycle,
+        ariaLabel:
+            `${label}${paused ? ', paused' : ''}: ${remaining} remaining` +
+            (note ? ` on ${note}` : '') +
+            `. ${cycle}.`
+    }
+}
+
+function noteName(path: string): string {
+    const name = path.split('/').pop() ?? path
+    return name.replace(/\.md$/, '')
+}

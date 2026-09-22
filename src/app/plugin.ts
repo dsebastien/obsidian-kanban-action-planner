@@ -9,9 +9,16 @@ import type { PluginSettings, SettingsRefreshScope } from './types/plugin-settin
 import { KanbanActionPlannerSettingTab } from './settings/settings-tab'
 import { KanbanActionPlannerView } from './views/kanban/kanban-view'
 import { getKanbanViewOptions } from './views/kanban/kanban-view-options'
-import { KANBAN_VIEW_ICON, KANBAN_VIEW_NAME, KANBAN_VIEW_TYPE } from './constants'
+import {
+    KANBAN_VIEW_ICON,
+    KANBAN_VIEW_NAME,
+    KANBAN_VIEW_TYPE,
+    POMODORO_VIEW_ICON,
+    POMODORO_VIEW_TYPE
+} from './constants'
+import { PomodoroTimerView, openPomodoroTimer } from './ui/pomodoro-view'
 import { log } from '../utils/log'
-import { registerWhatsNewView } from './whats-new'
+import { registerWhatsNewView, unregisterStaleView } from './whats-new'
 import {
     nextBreakType,
     noteActivity,
@@ -67,6 +74,7 @@ export class KanbanActionPlannerPlugin extends Plugin {
         await this.loadSettings()
 
         this.registerKanbanView()
+        this.registerPomodoroView()
         this.registerCommands()
         // Let the core "Page preview" plugin show note popovers when hovering a
         // card (issue #14 follow-up). `defaultMod` keeps it Ctrl/Cmd-gated by
@@ -83,6 +91,20 @@ export class KanbanActionPlannerPlugin extends Plugin {
         // completion check, once a second. Elapsed time always derives from
         // the persisted epoch start, so a missed tick loses nothing.
         this.registerTrackerClock()
+    }
+
+    /**
+     * The visual pomodoro timer (issue #199): a sidebar widget and its
+     * full-screen variant, one view type. A stale registration from a previous
+     * instance is cleared first (see `registerWhatsNewView`).
+     */
+    private registerPomodoroView(): void {
+        unregisterStaleView(this, POMODORO_VIEW_TYPE)
+        this.registerView(POMODORO_VIEW_TYPE, (leaf) => new PomodoroTimerView(leaf, this))
+        this.register(() => this.app.workspace.detachLeavesOfType(POMODORO_VIEW_TYPE))
+        this.addRibbonIcon(POMODORO_VIEW_ICON, 'Open pomodoro timer', () => {
+            void openPomodoroTimer(this, false)
+        })
     }
 
     /** The status-bar readout + pomodoro completion tick. */
@@ -174,6 +196,19 @@ export class KanbanActionPlannerPlugin extends Plugin {
                     .onClick(() => void stopTimeSession(this))
             )
         }
+        menu.addSeparator()
+        menu.addItem((item) =>
+            item
+                .setTitle('Open pomodoro timer')
+                .setIcon(POMODORO_VIEW_ICON)
+                .onClick(() => void openPomodoroTimer(this, false))
+        )
+        menu.addItem((item) =>
+            item
+                .setTitle('Open pomodoro timer full screen')
+                .setIcon('maximize-2')
+                .onClick(() => void openPomodoroTimer(this, true))
+        )
         menu.showAtMouseEvent(event)
     }
 
@@ -342,6 +377,16 @@ export class KanbanActionPlannerPlugin extends Plugin {
                 if (!checking) void stopPomodoro(this)
                 return true
             }
+        })
+        this.addCommand({
+            id: 'open-pomodoro-timer',
+            name: 'Open pomodoro timer',
+            callback: () => void openPomodoroTimer(this, false)
+        })
+        this.addCommand({
+            id: 'open-pomodoro-timer-fullscreen',
+            name: 'Open pomodoro timer full screen',
+            callback: () => void openPomodoroTimer(this, true)
         })
         this.addCommand({
             id: 'pause-resume-pomodoro',

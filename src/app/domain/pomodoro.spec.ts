@@ -9,6 +9,7 @@ import {
     nextPhaseAfter,
     pausePomodoro,
     plannedMinutesFor,
+    pomodoroViewModel,
     progressFraction,
     remainingSeconds,
     resumePomodoro
@@ -178,5 +179,64 @@ describe('nextPhaseAfter (issue #197)', () => {
         expect(nextPhaseAfter({ type: 'work' }, 4, config)).toBe('long-break')
         expect(nextPhaseAfter({ type: 'short-break' }, 4, config)).toBe('work')
         expect(nextPhaseAfter({ type: 'long-break' }, 4, config)).toBe('work')
+    })
+})
+
+describe('pomodoroViewModel (issue #199)', () => {
+    const startedAt = local(2026, 9, 9, 9, 0, 0)
+    const work: ActivePomodoro = {
+        id: 'pomo_v',
+        path: 'Work/Task A.md',
+        type: 'work',
+        startedAt,
+        plannedMinutes: 25
+    }
+
+    test('idle: no ring, the cycle so far, the tracked note when a session runs', () => {
+        const model = pomodoroViewModel(
+            { active: null, completedWork: 2, session: { path: 'Work/Task A.md' } },
+            config,
+            startedAt
+        )
+        expect(model.phase).toBe('idle')
+        expect(model.remaining).toBe('')
+        expect(model.fraction).toBe(0)
+        expect(model.note).toBe('Task A')
+        expect(model.cycle).toBe('2 of 4 done in this cycle')
+        expect(model.ariaLabel).toBe('No pomodoro running. Tracking Task A.')
+    })
+
+    test('a work phase counts itself within the cycle and drains the ring', () => {
+        const model = pomodoroViewModel(
+            { active: work, completedWork: 1, session: null },
+            config,
+            startedAt + 5 * 60000
+        )
+        expect(model.phase).toBe('work')
+        expect(model.phaseLabel).toBe('Work')
+        expect(model.remaining).toBe('20:00')
+        expect(model.fraction).toBeCloseTo(0.2)
+        expect(model.cycle).toBe('Pomodoro 2 of 4')
+        expect(model.ariaLabel).toBe('Work: 20:00 remaining on Task A. Pomodoro 2 of 4.')
+    })
+
+    test('a paused break says so, and the cycle wraps at the long-break interval', () => {
+        const paused = pausePomodoro(
+            { ...work, type: 'short-break', path: null, plannedMinutes: 5 },
+            startedAt + 60000
+        )
+        const model = pomodoroViewModel(
+            { active: paused, completedWork: 4, session: null },
+            config,
+            startedAt + 10 * 60000
+        )
+        expect(model.phaseLabel).toBe('Short break')
+        expect(model.paused).toBe(true)
+        expect(model.remaining).toBe('4:00')
+        expect(model.note).toBeNull()
+        expect(model.cycle).toBe('0 of 4 done in this cycle')
+        expect(model.ariaLabel).toBe(
+            'Short break, paused: 4:00 remaining. 0 of 4 done in this cycle.'
+        )
     })
 })

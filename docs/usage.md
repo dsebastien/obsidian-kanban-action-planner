@@ -1326,6 +1326,25 @@ records), straight from the cards, on **any note type**:
   small prompt asks what the session was about; the answer lands in the entry's
   `description`. The entry is written **before** the prompt appears, so skipping or closing it
   loses nothing, and the last description used on that note is prefilled.
+- **A timer you can see.** **Open pomodoro timer** (command, ribbon icon, or the status-bar menu)
+  opens a compact widget in the right sidebar: a ring that **drains over the phase**, the phase
+  name, the note it runs on (click to open it), the remaining time large enough to read from
+  across the room, the pomodoro count in the current cycle, and the controls in place —
+  **start work** (on the tracked note when a session runs), **start the break**, **pause / resume**,
+  **skip the phase**, **stop**. Colour tells work (red) from a short break (green) and a long break
+  (blue), never alone: the phase name is always printed, a paused ring goes dashed, and the view
+  carries an accessible label announcing the phase and the remaining time.
+  **Open pomodoro timer full screen** (command, status-bar menu, or the widget's ⤢) shows the
+  timer alone, centred in a main-area tab with both sidebars folded away — for focus stretches
+  and a shared screen. **Escape** leaves it and puts back the sidebars it folded; Space pauses
+  and resumes. It is a rendered view, not a window, so it follows your
+  theme in light and dark and survives a theme switch. Both derive from the same stored start as
+  the status bar, so they are right after a reload.
+
+    ![The pomodoro timer widget in the sidebar]({{ '/images/pomodoro-timer.png' | relative_url }})
+
+    ![The full-screen pomodoro timer]({{ '/images/pomodoro-timer-full.png' | relative_url }})
+
 - **Idle detection and a session cap.** A session forgotten overnight used to record the
   whole night and inflate every roll-up. Now, after **Idle detection (minutes)** without any
   activity in Obsidian (30 by default), or once a session passes the **Session cap (minutes)**
@@ -1752,6 +1771,7 @@ is active, and each can be given a hotkey in **Settings → Hotkeys**):
 - **Start pomodoro break** (short, or long after every Nth completed work pomodoro)
 - **Stop pomodoro** (only while one runs)
 - **Pause or resume pomodoro** / **Skip to the next pomodoro phase** (only while one runs)
+- **Open pomodoro timer** / **Open pomodoro timer full screen**
 - **Focus filter**: jump to the filter box
 - **Clear filter**
 - **Go to next swimlane** / **Go to previous swimlane**

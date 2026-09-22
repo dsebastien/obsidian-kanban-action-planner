@@ -1148,3 +1148,16 @@ Markdown)`, `Export ideal week (JSON)`, `Export ideal week (Markdown)`); the for
     restart gets the same prompt on layout-ready. (d) Pause (issue #199): `pausedAt` freezes the
     countdown and `periods` keeps every closed run segment, so elapsed time still derives from
     stored instants; the record lists each segment in `activePeriods` and completes on time RUN.
+
+63. **The pomodoro timer view derives, never counts (issue #199).** `PomodoroTimerView` (one
+    view type, `kanban-action-planner-pomodoro`) renders `pomodoroViewModel(settings, now)` on
+    a 1 s clock from the SAME persisted state as the status bar — never from its own counter —
+    so the ring, digits and cycle are right after a reload and identical in every open copy.
+    Two placements, one renderer: the compact widget opens in the right sidebar, the
+    full-screen variant (`state.full`) as a main-area tab, each reused when already open;
+    Escape leaves full screen by flipping the leaf's state, and the plugin detaches its leaves
+    on unload. Colour (work red, short break green, long break blue) is never the only signal:
+    the phase name is printed, a paused ring is dashed, and the root carries `role="timer"`
+    with an `aria-label` naming the phase and the remaining time. The control row is rebuilt
+    only when the phase / pause / note signature changes; the per-second parts are patched in
+    place (business rule 49). The view's DOM lives under its own `.kap-root`.

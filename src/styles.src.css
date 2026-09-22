@@ -57,6 +57,142 @@
         --kap-ease: cubic-bezier(0.2, 0, 0, 1);
     }
 
+    /* ── Pomodoro timer view (issue #199) ─────────────────────────────
+       A standalone ItemView hosting its own .kap-root: a compact sidebar
+       widget and a full-screen variant (`.kap-pomo-full`) sharing one
+       renderer. Phase colour is a hint, never the only signal: the phase
+       name is always printed and the ring's drain is readable in grey. */
+    .kap-root.kap-pomo-root {
+        @apply flex flex-col items-center gap-3 p-4 h-full overflow-auto;
+        --kap-pomo-accent: var(--interactive-accent);
+        outline: none;
+    }
+    .kap-root.kap-pomo-work {
+        --kap-pomo-accent: var(--color-red, var(--text-error));
+    }
+    .kap-root.kap-pomo-short-break {
+        --kap-pomo-accent: var(--color-green, var(--text-success));
+    }
+    .kap-root.kap-pomo-long-break {
+        --kap-pomo-accent: var(--color-blue, var(--interactive-accent));
+    }
+    .kap-root.kap-pomo-idle {
+        --kap-pomo-accent: var(--text-faint);
+    }
+    .kap-root .kap-pomo-head {
+        @apply flex items-center justify-between w-full gap-2;
+    }
+    .kap-root .kap-pomo-phase {
+        @apply font-semibold uppercase tracking-wide text-[0.8em];
+        color: var(--kap-pomo-accent);
+    }
+    .kap-root .kap-pomo-icon-btn {
+        @apply inline-flex items-center justify-center p-1 rounded border-0 cursor-pointer bg-transparent;
+        color: var(--text-muted);
+    }
+    .kap-root .kap-pomo-icon-btn:hover {
+        background: var(--background-modifier-hover);
+        color: var(--text-normal);
+    }
+    .kap-root .kap-pomo-dial {
+        @apply relative;
+        width: min(100%, 14rem);
+        aspect-ratio: 1;
+    }
+    .kap-root .kap-pomo-ring {
+        @apply w-full h-full;
+        transform: rotate(-90deg);
+    }
+    .kap-root .kap-pomo-ring-track,
+    .kap-root .kap-pomo-ring-fill {
+        fill: none;
+        stroke-width: 6;
+        stroke-linecap: round;
+    }
+    .kap-root .kap-pomo-ring-track {
+        stroke: var(--background-modifier-border);
+    }
+    .kap-root .kap-pomo-ring-fill {
+        stroke: var(--kap-pomo-accent);
+        transition: stroke-dashoffset var(--kap-transition-slow) linear;
+    }
+    .kap-root.kap-pomo-paused .kap-pomo-ring-fill {
+        stroke-dasharray: 4 4;
+        opacity: 0.7;
+    }
+    .kap-root .kap-pomo-centre {
+        @apply absolute inset-0 flex flex-col items-center justify-center gap-1;
+    }
+    .kap-root .kap-pomo-time {
+        font-size: clamp(2rem, 18cqw, 4rem);
+        font-weight: 600;
+        font-variant-numeric: tabular-nums;
+        line-height: 1;
+        color: var(--text-normal);
+    }
+    .kap-root .kap-pomo-state {
+        @apply text-[0.75em] uppercase tracking-wide;
+        color: var(--text-muted);
+        min-height: 1em;
+    }
+    .kap-root .kap-pomo-note {
+        @apply max-w-full truncate border-0 bg-transparent cursor-pointer text-[0.95em] px-2 py-1 rounded;
+        color: var(--text-normal);
+    }
+    .kap-root .kap-pomo-note:hover {
+        background: var(--background-modifier-hover);
+        text-decoration: underline;
+    }
+    .kap-root .kap-pomo-cycle {
+        @apply text-[0.8em];
+        color: var(--text-muted);
+    }
+    .kap-root .kap-pomo-controls {
+        @apply flex flex-wrap items-center justify-center gap-2 w-full;
+    }
+    .kap-root .kap-pomo-btn {
+        @apply inline-flex items-center gap-1.5 px-3 py-1.5 rounded border-0 cursor-pointer text-[0.85em];
+        background: var(--interactive-normal);
+        color: var(--text-normal);
+    }
+    .kap-root .kap-pomo-btn:hover {
+        background: var(--interactive-hover);
+    }
+    .kap-root .kap-pomo-btn-cta {
+        background: var(--kap-pomo-accent);
+        color: var(--text-on-accent);
+    }
+    .kap-root .kap-pomo-btn-icon {
+        @apply inline-flex;
+    }
+    /* Full screen: the timer alone, centred, everything scaled up; the
+       leaf's own chrome is Obsidian's, so Escape (handled on the root)
+       is the way back rather than a hidden tab bar. */
+    .kap-root.kap-pomo-full {
+        @apply justify-center gap-6 p-10;
+        container-type: inline-size;
+        background: var(--background-primary);
+    }
+    .kap-root.kap-pomo-full .kap-pomo-dial {
+        width: min(70vh, 70vw, 40rem);
+    }
+    .kap-root.kap-pomo-full .kap-pomo-time {
+        font-size: clamp(3rem, 12vw, 9rem);
+    }
+    .kap-root.kap-pomo-full .kap-pomo-phase {
+        @apply text-[1.2em];
+    }
+    .kap-root.kap-pomo-full .kap-pomo-note,
+    .kap-root.kap-pomo-full .kap-pomo-cycle {
+        @apply text-[1.25em];
+    }
+    .kap-root.kap-pomo-full .kap-pomo-btn {
+        @apply text-[1.05em] px-5 py-2.5;
+    }
+    .kap-root.kap-pomo-full .kap-pomo-head {
+        @apply max-w-3xl;
+    }
+
     /* Text the user types into (filter, config fields) or is expected to select
        and copy must stay selectable despite the board-wide user-select:none. */
     .kap-root input,
@@ -4556,6 +4692,12 @@
             --kap-anim-fast: 0.01ms;
         }
     }
+}
+
+/* The pomodoro timer's leaf content: the .kap-root inside fills it (#199). */
+.kap-pomo-content {
+    padding: 0;
+    height: 100%;
 }
 
 /* ========================================
