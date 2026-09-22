@@ -6,10 +6,15 @@ import type { ViewMode } from '../domain/embed-params'
 import { DEFAULT_CONTEXTS_PROPERTY } from '../constants'
 import type KanbanActionPlannerPlugin from '../../main'
 import type { PluginSettings, SettingsRefreshScope } from '../types/plugin-settings.intf'
+import { configurableStatusValues } from '../domain/status'
 import { formatDays, formatMinutes as minutesLabel, parseTimeBlock } from '../domain/time-blocks'
 import { parseAvailableHours } from '../domain/week-targets'
 import type { NoteType } from '../domain/note-type'
-import { findStatusProperty, listNoteTypes } from '../services/starter-kit.service'
+import {
+    findStatusProperty,
+    getNoteTypeStatus,
+    listNoteTypes
+} from '../services/starter-kit.service'
 import {
     DEFAULT_NOTE_TYPE_ID,
     createLocalNoteType,
@@ -155,12 +160,11 @@ export class KanbanActionPlannerSettingTab extends PluginSettingTab {
     private knownNoteTypes(): NoteTypeRow[] {
         const map = new Map<string, NoteTypeRow>()
         for (const sk of listNoteTypes(this.app)) {
-            const status = findStatusProperty(sk, this.plugin.settings.defaultStatusProperty)
             map.set(sk.id, {
                 id: sk.id,
                 name: sk.name,
                 source: 'starter-kit',
-                statusValues: status?.allowedValues ?? []
+                statusValues: this.statusValuesFor(sk.id, 'starter-kit')
             })
         }
         for (const noteType of this.plugin.settings.noteTypes) {
@@ -169,10 +173,41 @@ export class KanbanActionPlannerSettingTab extends PluginSettingTab {
                 id: noteType.id,
                 name: noteType.name,
                 source: noteType.source,
-                statusValues: noteType.columns.map((c) => c.statusValue)
+                statusValues: this.statusValuesFor(noteType.id, noteType.source)
             })
         }
         return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name))
+    }
+
+    /**
+     * The status values to offer when configuring a note type (issue #200) —
+     * chiefly the per-status color rows, which used to disappear for every type
+     * that wasn't being created right then.
+     *
+     * The chain mirrors how a board resolves its columns, so "Configure" shows
+     * what the board shows: the Starter Kit's EXPLICIT status declaration first
+     * (its 1.13+ Status section, which the old heuristic never consulted, so an
+     * explicitly-configured type yielded nothing), then the historical property
+     * heuristic, then the type's own stored columns (what was last mirrored —
+     * also the answer when the Starter Kit is absent), and finally the global
+     * default statuses, so a freshly-created local type with no columns yet is
+     * still configurable.
+     */
+    private statusValuesFor(id: string, source: NoteType['source']): string[] {
+        const sk =
+            source === 'starter-kit'
+                ? listNoteTypes(this.app).find((type) => type.id === id)
+                : undefined
+        const explicit = sk ? getNoteTypeStatus(this.app, id) : null
+        return configurableStatusValues({
+            starterKitExplicit: explicit?.explicit ? explicit.values.map((v) => v.value) : [],
+            starterKitDetected: sk
+                ? (findStatusProperty(sk, this.plugin.settings.defaultStatusProperty)
+                      ?.allowedValues ?? [])
+                : [],
+            storedColumns: findNoteType(this.plugin, id)?.columns.map((c) => c.statusValue) ?? [],
+            globalDefaults: this.plugin.settings.defaultStatuses
+        })
     }
 
     /** Open the shared note-type config (reuses the Configure-board editor). */
@@ -196,7 +231,7 @@ export class KanbanActionPlannerSettingTab extends PluginSettingTab {
             this.app,
             this.plugin,
             noteType,
-            this.plugin.settings.defaultStatuses,
+            this.statusValuesFor(noteType.id, noteType.source),
             this.propertiesForType(noteType.id),
             () => this.render(),
             'recognition'

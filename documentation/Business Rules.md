@@ -1086,3 +1086,14 @@ Markdown)`, `Export ideal week (JSON)`, `Export ideal week (Markdown)`); the for
     kept whole — a card never goes blank. Strictly presentational and applied once, in
     `buildCardDisplay`, so every mode inherits it through `display.title`: the file name,
     search, links, recognition, and every frontmatter write keep the full name.
+
+58. **Configuring a note type offers the statuses the BOARD uses (issue #200).** Every
+    per-status editor in the note-type config (colors, WIP limits, automation triggers, done
+    values) draws its values from `configurableStatusValues` (`domain/status.ts`), first
+    non-empty wins: the Starter Kit's EXPLICIT status declaration (its 1.13+ Status section) →
+    its property heuristic (older kits) → the type's own stored columns (also the answer with no
+    Starter Kit) → the global default statuses. Never from the Starter Kit heuristic alone: a
+    type whose status values live only in the Kit's Status section resolved to an empty list,
+    so the colors panel was blank for every type except one being created that instant (which
+    got the global defaults passed in by hand). A freshly created local type has no columns yet
+    and must still be configurable, which is what the last rung is for.

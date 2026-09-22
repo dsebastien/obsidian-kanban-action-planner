@@ -110,6 +110,11 @@ use an auto-assigned palette color, a chosen palette color, or a custom hex valu
 backgrounds are a translucent blend of the card color over your theme background. That way they
 look right in both light and dark themes.
 
+The per-status rows appear in **Settings → Note types → Configure → Colors** for every note
+type, whether you just created it or configured it months ago. The statuses listed are the
+ones the board itself uses: the Obsidian Starter Kit's declared status values when it owns the
+type, else the type's own columns, else the global default statuses.
+
 ## Swimlanes
 
 A board can be split into horizontal **lanes**. The grouping is saved per note type (and can be

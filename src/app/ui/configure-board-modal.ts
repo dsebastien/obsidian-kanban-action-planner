@@ -1683,7 +1683,9 @@ export class ConfigureBoardModal extends Modal {
         if (this.statusValues.length === 0) {
             this.body.createDiv({
                 cls: 'kap-modal-empty',
-                text: 'Status colors appear here once notes in this board have status values.'
+                text:
+                    'No status values are known for this note type yet. Define its columns' +
+                    ' (or the default statuses in the plugin settings) and they appear here.'
             })
             return
         }

@@ -90,3 +90,37 @@ export function resolveColumnId(
     if (statusValue !== null && knownColumnIds.has(statusValue)) return statusValue
     return UNMAPPED_COLUMN_ID
 }
+
+/**
+ * The status values to offer when CONFIGURING a note type (issue #200): the
+ * per-status color rows, the WIP limits, the automation triggers, the done
+ * values. Mirrors how a board resolves its columns, so "Configure" shows what
+ * the board shows.
+ *
+ * First non-empty source wins:
+ *   1. The Starter Kit's EXPLICIT status declaration (its 1.13+ Status section).
+ *      The historical property heuristic never consulted it, so an explicitly
+ *      configured type yielded nothing and every list came up empty.
+ *   2. The Starter Kit property heuristic (older kits).
+ *   3. The type's own stored columns — what was last mirrored, and the answer
+ *      when the Starter Kit is absent.
+ *   4. The global default statuses, so a freshly created local type with no
+ *      columns yet is configurable instead of showing an empty panel.
+ */
+export function configurableStatusValues(sources: {
+    starterKitExplicit?: ReadonlyArray<string>
+    starterKitDetected?: ReadonlyArray<string>
+    storedColumns?: ReadonlyArray<string>
+    globalDefaults?: ReadonlyArray<string>
+}): string[] {
+    const chain = [
+        sources.starterKitExplicit,
+        sources.starterKitDetected,
+        sources.storedColumns,
+        sources.globalDefaults
+    ]
+    for (const values of chain) {
+        if (values && values.length > 0) return [...values]
+    }
+    return []
+}

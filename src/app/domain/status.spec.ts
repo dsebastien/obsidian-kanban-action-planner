@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 import {
     compareStatusValues,
+    configurableStatusValues,
     detectStatusProperty,
     normalizeStatusValue,
     resolveColumnId,
@@ -130,5 +131,51 @@ describe('resolveWriteStatusProperty (issue #188)', () => {
             })
         ).toBe('status')
         expect(resolveWriteStatusProperty(base)).toBeNull()
+    })
+})
+
+describe('configurableStatusValues (issue #200)', () => {
+    const all = {
+        starterKitExplicit: ['10 - Todo', '80 - Done'],
+        starterKitDetected: ['detected'],
+        storedColumns: ['stored'],
+        globalDefaults: ['global']
+    }
+
+    it("prefers the Starter Kit's explicit status declaration", () => {
+        expect(configurableStatusValues(all)).toEqual(['10 - Todo', '80 - Done'])
+    })
+
+    it('falls back to the property heuristic when there is no explicit status', () => {
+        expect(configurableStatusValues({ ...all, starterKitExplicit: [] })).toEqual(['detected'])
+    })
+
+    it('falls back to the stored columns when the Starter Kit says nothing', () => {
+        expect(
+            configurableStatusValues({ ...all, starterKitExplicit: [], starterKitDetected: [] })
+        ).toEqual(['stored'])
+    })
+
+    it('falls back to the global defaults for a type with no columns yet', () => {
+        expect(configurableStatusValues({ globalDefaults: ['global'] })).toEqual(['global'])
+    })
+
+    it('is empty only when every source is', () => {
+        expect(configurableStatusValues({})).toEqual([])
+        expect(
+            configurableStatusValues({
+                starterKitExplicit: [],
+                starterKitDetected: [],
+                storedColumns: [],
+                globalDefaults: []
+            })
+        ).toEqual([])
+    })
+
+    it('copies rather than aliasing the winning source', () => {
+        const stored = ['stored']
+        const result = configurableStatusValues({ storedColumns: stored })
+        result.push('mutated')
+        expect(stored).toEqual(['stored'])
     })
 })
