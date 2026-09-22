@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.29.0](https://github.com/dsebastien/obsidian-kanban-action-planner/compare/1.28.1...1.29.0) (2026-09-22)
+
+### Features
+
+* **plugin:** filter the note type name decoration out of card titles ([d190950](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/d1909501e16d2b1705541695166efae1f4869e4f))
+* **plugin:** set a status by dragging a rail entry between status groups ([26e5be5](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/26e5be50797129de3d0a3b1ed02dcf1be6efbd92))
+* **plugin:** time tracking ergonomics - description, chained phases, idle guard ([56db2aa](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/56db2aa1a2268d35318f9d7f987cb550f05cb668)), closes [#197](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/197) [#199](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/199)
+* **plugin:** visual pomodoro timer with a full-screen variant ([c9b28f6](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/c9b28f6378e98600065d272038cafbee17f192e9))
+
+### Bug Fixes
+
+* **plugin:** highlight a collapsed column as a drop target while dragging ([cae3867](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/cae38673c5d04455d179d6033c7e713fa06ba75c))
+* **plugin:** make the global date property settings reach every mode ([54d46f6](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/54d46f68ee3a123ef88bac97c77f1c916020ce54)), closes [#113](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/113)
+* **plugin:** show the status colors for every note type, not just a new one ([0ddfdd1](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/0ddfdd15f8b138a19f059421deef74c443d1b62c))
+
 ## [1.28.1](https://github.com/dsebastien/obsidian-kanban-action-planner/compare/1.28.0...1.28.1) (2026-09-17)
 
 ### Bug Fixes
@@ -607,6 +622,7 @@ All notable changes to this project will be documented in this file.
 
 * **plugin:** match Starter Kit's {{quarter}} placeholder format (Q2, not 2) ([4fde618](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/4fde6185c5956e3f6fd2ca3a9b03e70cf5e16840))
 * **plugin:** persist discovered statuses so Show empty columns works ([cf91b81](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/cf91b81a1b0786e35c73f4885882e2dc33564c62))
+
 
 
 

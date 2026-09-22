@@ -1,5 +1,20 @@
 # Release Notes
 
+## 1.29.0 (2026-09-22)
+
+### Features
+
+- **plugin:** filter the note type name decoration out of card titles
+- **plugin:** set a status by dragging a rail entry between status groups
+- **plugin:** time tracking ergonomics - description, chained phases, idle guard [#199](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/199)
+- **plugin:** visual pomodoro timer with a full-screen variant
+
+### Bug Fixes
+
+- **plugin:** highlight a collapsed column as a drop target while dragging
+- **plugin:** make the global date property settings reach every mode
+- **plugin:** show the status colors for every note type, not just a new one
+
 ## 1.28.1 (2026-09-17)
 
 ### Bug Fixes
