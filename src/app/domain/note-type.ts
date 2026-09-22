@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { creationConfigSchema } from './note-creation'
+import { namingConfigSchema, titleDisplaySchema } from './card-title'
 
 /**
  * NoteType configuration model + Zod schemas.
@@ -374,6 +375,24 @@ export const noteTypeSchema = z.object({
      * the Base's filters, exactly like an all-blank config.
      */
     creation: nullToAbsent(creationConfigSchema),
+    /**
+     * The type's own name decoration, mirrored from the Starter Kit (read-only,
+     * re-synced on every board resolution). Plugin-owned types leave it blank and
+     * decorate through `creation` instead. Defaults to blank so older stored
+     * types parse.
+     */
+    naming: namingConfigSchema.default({ prefix: '', suffix: '' }),
+    /**
+     * Card-title filtering (`domain/card-title.ts`): strip the type's name
+     * prefix/suffix from what cards show. Defaults to BOTH ON, so a type stored
+     * before this existed (no backfill) filters its decoration out of the box.
+     */
+    titleDisplay: titleDisplaySchema.default({
+        stripPrefix: true,
+        stripSuffix: true,
+        extraPrefixes: [],
+        extraSuffixes: []
+    }),
     /**
      * Automation rules. Defaults to `[]` so older stored note types degrade
      * gracefully (no backfill). Items are parsed individually and invalid

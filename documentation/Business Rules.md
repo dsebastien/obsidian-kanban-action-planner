@@ -1071,3 +1071,18 @@ Markdown)`, `Export ideal week (JSON)`, `Export ideal week (Markdown)`); the for
     resolves a remembered or embedded (`mode=`) disabled mode to the board, and `setViewMode`
     (commands included) refuses it with a notice naming the mode. Nothing is deleted: the
     view's flags stay, and re-enabling the mode brings the view back where it was.
+
+57. **Card titles filter the note type's name decoration (decided 2026-09-22).** A note type's
+    name prefix/suffix exists so recognition rules can key off it (` (Task)`, `AI Wiki - `), not
+    to be read on a board where every card is already that type — so the card title drops it.
+    Per note type, `titleDisplay.stripPrefix` / `stripSuffix` default to **TRUE**, including for
+    types stored before the field existed (the Zod default supplies it; there is no backfill),
+    with `extraPrefixes` / `extraSuffixes` for affixes the type does not declare. What gets
+    stripped is the type's `creation` name prefix/suffix when set, else its own naming — the
+    Starter Kit's, asked live when it owns the type and mirrored into `naming` on every board
+    resolution as the offline fallback. At most ONE prefix and ONE suffix come off, only at the
+    very ends, longest match first; a placeholder affix matches by shape (`{{date}} - ` strips
+    `2026-09-22 - `); and a title that would end up empty (a note literally named `(Task)`) is
+    kept whole — a card never goes blank. Strictly presentational and applied once, in
+    `buildCardDisplay`, so every mode inherits it through `display.title`: the file name,
+    search, links, recognition, and every frontmatter write keep the full name.

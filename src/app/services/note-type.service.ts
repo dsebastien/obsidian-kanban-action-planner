@@ -13,6 +13,13 @@ import type {
     NoteTypeWeekPlannerConfig
 } from '../domain/note-type'
 import type { CreationConfig } from '../domain/note-creation'
+import {
+    cardTitleAffixes,
+    defaultNamingConfig,
+    defaultTitleDisplayConfig,
+    type CardTitleAffixes,
+    type TitleDisplayConfig
+} from '../domain/card-title'
 import { compareStatusValues, splitStatusValue } from '../domain/status'
 import { matchesAnyMapping } from '../domain/note-type-recognition'
 import type { RecognitionFile } from '../domain/note-type-recognition'
@@ -21,6 +28,7 @@ import { log } from '../../utils/log'
 import type { SkArchive } from './starter-kit.service'
 import {
     getNoteTypeArchive,
+    getNoteTypeById,
     findStatusProperty,
     getNoteTypeStatus,
     isStarterKitAvailable,
@@ -100,6 +108,8 @@ export function createDefaultNoteType(
         source,
         typeRecognition: { mappings: [] },
         statusRoles: {},
+        naming: defaultNamingConfig(),
+        titleDisplay: defaultTitleDisplayConfig(),
         statusProperty: defaults.statusProperty,
         orderProperty: defaults.orderProperty,
         columns: [],
@@ -338,6 +348,40 @@ export async function setCreationConfig(
             draft.creation = creation
         })
     )
+}
+
+/** Set the note type's card-title filtering. */
+export async function setTitleDisplayConfig(
+    plugin: KanbanActionPlannerPlugin,
+    noteTypeId: string,
+    titleDisplay: TitleDisplayConfig
+): Promise<void> {
+    const noteType = requireNoteType(plugin, noteTypeId)
+    if (!noteType) return
+    await upsertNoteType(
+        plugin,
+        produce(noteType, (draft) => {
+            draft.titleDisplay = titleDisplay
+        })
+    )
+}
+
+/**
+ * The card-title affixes that apply to a note type. The Starter Kit is asked
+ * first when it owns the type, so a type that has never been the board's
+ * dominant one (and therefore never had its `naming` mirrored) still filters
+ * correctly; the stored mirror is the offline fallback.
+ */
+export function titleAffixesFor(app: App, noteType: NoteType): CardTitleAffixes {
+    const live = noteType.source === 'starter-kit' ? getNoteTypeById(app, noteType.id) : null
+    const naming = live
+        ? { prefix: live.noteNamePrefix ?? '', suffix: live.noteNameSuffix ?? '' }
+        : noteType.naming
+    return cardTitleAffixes({
+        titleDisplay: noteType.titleDisplay,
+        naming,
+        creation: noteType.creation
+    })
 }
 
 export async function setLaneGrouping(
@@ -691,6 +735,12 @@ function mirrorNoteType(
         draft.name = noteType.name
         draft.source = 'starter-kit'
         draft.typeRecognition.mappings = recognitionMappings(noteType)
+        // Read-only mirror of the Starter Kit's name decoration, so card-title
+        // filtering knows what to strip without asking the Kit per card.
+        draft.naming = {
+            prefix: noteType.noteNamePrefix ?? '',
+            suffix: noteType.noteNameSuffix ?? ''
+        }
         if (status) {
             draft.statusProperty = status.name
             draft.columns = columnsFromValues(status.allowedValues, base, true)

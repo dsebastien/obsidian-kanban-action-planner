@@ -52,6 +52,35 @@ describe('resolveCardTitle (issue #4)', () => {
     it('treats an explicit file.name as the note name', () => {
         expect(resolveCardTitle(entry, 'file.name', 'the-note')).toBe('the-note')
     })
+
+    it('filters the note type decoration out of the note name', () => {
+        expect(
+            resolveCardTitle(entry, null, 'Ship the plugin (Task)', {
+                prefixes: [],
+                suffixes: [' (Task)']
+            })
+        ).toBe('Ship the plugin')
+    })
+
+    it('filters the decoration out of the title property too', () => {
+        expect(
+            resolveCardTitle(
+                entryOf({ 'note.title': 'Technical meeting (Meeting)' }),
+                'note.title',
+                'x',
+                {
+                    prefixes: [],
+                    suffixes: [' (Meeting)']
+                }
+            )
+        ).toBe('Technical meeting')
+    })
+
+    it('leaves the title alone when no affixes are given', () => {
+        expect(resolveCardTitle(entry, null, 'Ship the plugin (Task)')).toBe(
+            'Ship the plugin (Task)'
+        )
+    })
 })
 
 describe('buildCardDisplay title property (issue #4)', () => {

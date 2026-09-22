@@ -1,6 +1,7 @@
 import type { App, BasesEntry, BasesPropertyId, TFile } from 'obsidian'
 import { getFrontmatterValue } from './frontmatter.service'
 import { parseFrontmatterDate, startOfDay } from '../domain/calendar'
+import { NO_TITLE_AFFIXES, stripTitleAffixes, type CardTitleAffixes } from '../domain/card-title'
 import type {
     CardCountdown,
     CardDisplay,
@@ -84,10 +85,19 @@ function entryText(entry: BasesEntry | undefined, id: BasesPropertyId): string {
 export function resolveCardTitle(
     entry: BasesEntry | undefined,
     titleProperty: BasesPropertyId | null,
-    basename: string
+    basename: string,
+    /**
+     * Note-type name decoration to filter out (`domain/card-title.ts`). Applied
+     * to the title property's value too: a `title` that repeats the file name's
+     * suffix should read the same on the card either way.
+     */
+    affixes: CardTitleAffixes = NO_TITLE_AFFIXES
 ): string {
-    if (!titleProperty || titleProperty === TITLE_PROPERTY_ID) return basename
-    return entryText(entry, titleProperty) || basename
+    const raw =
+        !titleProperty || titleProperty === TITLE_PROPERTY_ID
+            ? basename
+            : entryText(entry, titleProperty) || basename
+    return stripTitleAffixes(raw, affixes)
 }
 
 /**
@@ -184,7 +194,12 @@ export function buildCardDisplay(
      * optimistic display recompute substitutes these for the matching reads —
      * card fields AND the due-date state/countdown.
      */
-    overrides?: ReadonlyMap<string, string | null>
+    overrides?: ReadonlyMap<string, string | null>,
+    /**
+     * Note-type name decoration to filter out of the card title
+     * (`domain/card-title.ts`); defaults to none.
+     */
+    titleAffixes: CardTitleAffixes = NO_TITLE_AFFIXES
 ): CardDisplay {
     /** The override for a `note.*` property id, or undefined when none applies. */
     const noteOverride = (id: BasesPropertyId): string | null | undefined => {
@@ -253,7 +268,7 @@ export function buildCardDisplay(
     const countdownProperty = countdown.property ?? dueDateProperty
     const countdownDate = countdownProperty === dueDateProperty ? due : readDate(countdownProperty)
     return {
-        title: resolveCardTitle(entry, titleProperty, file.basename),
+        title: resolveCardTitle(entry, titleProperty, file.basename, titleAffixes),
         fields,
         coverUrl: null,
         wrap: true,

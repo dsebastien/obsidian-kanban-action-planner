@@ -121,8 +121,10 @@ import {
     findNoteType,
     recognizeLocalNoteType,
     recognizeNoteTypeFor,
-    resolveActiveNoteType
+    resolveActiveNoteType,
+    titleAffixesFor
 } from '../../services/note-type.service'
+import { NO_TITLE_AFFIXES, type CardTitleAffixes } from '../../domain/card-title'
 import {
     buildCardDisplay,
     formatCountdown,
@@ -468,6 +470,8 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
     private automationSnapshot = new Map<string, Map<string, unknown>>()
     private readonly automationRunning = new Set<string>()
     private archiveByPath = new Map<string, ArchiveConfig>()
+    /** Per-card note-type name decoration to filter out of card titles. */
+    private titleAffixesByPath = new Map<string, CardTitleAffixes>()
     private relationshipsByPath = new Map<string, RelationshipSet>()
     private readonly collapsedLanes = new Set<string>()
     private readonly collapsedColumns = new Set<string>()
@@ -1292,6 +1296,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         this.laneGrouping = this.resolveLaneGrouping()
         this.laneValueByPath = this.computeLaneValues(files, this.laneGrouping)
         this.archiveByPath = this.computeArchiveByPath(files)
+        this.titleAffixesByPath = this.computeTitleAffixesByPath(files)
         this.rebuild()
         // Archive grace period: sweep aged done notes once per board load,
         // as soon as the Base has handed over its entries (an empty first
@@ -1338,6 +1343,28 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
                 byType.set(type.id, config)
             }
             map.set(file.path, config)
+        }
+        return map
+    }
+
+    /**
+     * Card-title filtering per file, resolved once per board load from each
+     * file's OWN note type (mixed boards decorate names differently per type).
+     * Files with no recognized type follow the board's active type.
+     */
+    private computeTitleAffixesByPath(files: TFile[]): Map<string, CardTitleAffixes> {
+        const map = new Map<string, CardTitleAffixes>()
+        const byType = new Map<string, CardTitleAffixes>()
+        for (const file of files) {
+            const type = this.noteTypeByPath.get(file.path) ?? null
+            const id = type?.id ?? this.noteType.id
+            let affixes = byType.get(id)
+            if (!affixes) {
+                const noteType = findNoteType(this.plugin, id) ?? this.noteType
+                affixes = titleAffixesFor(this.app, noteType)
+                byType.set(id, affixes)
+            }
+            map.set(file.path, affixes)
         }
         return map
     }
@@ -3048,7 +3075,8 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
                 property: this.countdownDateProperty()
             },
             (id) => this.allowedValuesForCardField(file, id),
-            overrides
+            overrides,
+            this.titleAffixesByPath.get(file.path) ?? NO_TITLE_AFFIXES
         )
     }
 

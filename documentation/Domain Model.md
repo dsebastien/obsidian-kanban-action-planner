@@ -39,7 +39,16 @@ column rule.
 - **CardDisplay** (issue #50) — built per card by `services/card-display.service.ts` from the
   Bases view's configured properties (`config.getOrder()`): the note name as `title`, one
   labelled `CardFieldView` per property (read via `BasesEntry.getValue`, labelled via
-  `getDisplayName`, empty/`null` skipped), plus the `dueState`. No stored per-type config.
+  `getDisplayName`, empty/`null` skipped), plus the `dueState`. The `title` is filtered
+  through `domain/card-title.ts` first (see **TitleDisplayConfig**).
+- **TitleDisplayConfig** + **NamingConfig** (`domain/card-title.ts`) — per note type.
+  `naming` is a read-only mirror of the Starter Kit type's `noteNamePrefix`/`noteNameSuffix`;
+  `titleDisplay` (`stripPrefix` / `stripSuffix`, both defaulting to TRUE so stored types with
+  no block filter anyway, plus `extraPrefixes` / `extraSuffixes`) says what to strip.
+  `cardTitleAffixes` layers the `creation` override over `naming` and adds the extras;
+  `stripTitleAffixes` removes at most one prefix and one suffix from a title, placeholder
+  templates matched by SHAPE (`{{date}} - ` matches `2026-09-22 - `), never returning ''.
+  Presentational only: no write path ever sees the filtered title.
 - **RelationshipRule** — a `role` (`parent`/`sibling`/`child`/`blocked_by`), a primary
   `linkProperty`, and an optional secondary tag+link `heuristic`. Resolved at runtime by
   `domain/relationships.ts` into a **RelationshipSet** per note (`Record<role, string[]>`):

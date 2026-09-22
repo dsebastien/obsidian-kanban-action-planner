@@ -1582,6 +1582,15 @@ to the note name, so cards never go blank. The chosen property is not repeated a
 and clicking the card still opens the underlying note. The title applies everywhere the card
 appears: the board, the calendar chips and scheduling panel, triage, search, and name sorting.
 
+**Card titles drop the note type's name decoration.** Note types decorate file names so their
+recognition rules can key off them: the Obsidian Starter Kit writes ` (Task)`, ` (Project)`,
+`AI Wiki - `. On a board where every card is the same type that is noise, so the card shows
+**Ship the plugin**, not **Ship the plugin (Task)**. It is on by default for every note type,
+in every view mode, and it is purely presentational: the file name, search, links, and every
+write keep the full name. Turn it off per type, or add your own prefixes/suffixes to strip, in
+**Configure board → Card titles** (see the
+[configuration guide]({{ '/configuration.html#filtering-the-note-types-name-decoration' | relative_url }})).
+
 Field rendering is tuned for **scanning the whole board at a glance**:
 
 - **Enum values are color-coded** by where they rank, a warm (red/orange) signal for the

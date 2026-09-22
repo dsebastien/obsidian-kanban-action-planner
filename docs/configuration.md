@@ -11,8 +11,8 @@ Settings live in three places, by scope:
 
 - **Plugin settings** (**Settings → Community plugins → Kanban Action Planner**). Vault-wide
   **defaults** (property names, default statuses, date format) **plus a central "Note types"
-  list**. Each note type's shared config (statuses, colors, cards, relationships, estimate
-  property + unit, archiving)
+  list**. Each note type's shared config (statuses, colors, cards, card titles, relationships,
+  estimate property + unit, archiving)
   is defined here once, and **every** board applies it to the notes it recognizes. You never
   reconfigure a type board by board. When the Obsidian Starter Kit is present, its note types are
   synchronized into this list automatically; the **Default** entry covers notes with no
@@ -25,8 +25,8 @@ Settings live in three places, by scope:
   enabled, frontmatter pickers are further limited to your note types' known properties.
 
 The **gear** in the board's top-right is a shortcut to the plugin's **Note types** settings.
-Note-type config lives there, not on the board: colors, cards, relationships, estimate,
-archiving, default swimlane grouping.
+Note-type config lives there, not on the board: colors, cards, card titles, relationships,
+estimate, archiving, default swimlane grouping.
 
 Precedence, most specific wins: a **view's** Configure-view setting → the **note type's** shared
 config (Settings → Note types) → the **global** default. Swimlane grouping is a good example. It
@@ -395,6 +395,37 @@ property is not repeated as a body field, and clicking the card still opens the 
 | Setting            | Scope     | Default   | What it does                                                            |
 | ------------------ | --------- | --------- | ----------------------------------------------------------------------- |
 | **Title property** | Per board | Note name | Shows this property's value as the card heading, in board and calendar. |
+
+### Filtering the note type's name decoration
+
+Note types decorate file names so recognition rules can key off them: the Obsidian Starter
+Kit writes ` (Task)`, ` (Project)`, `AI Wiki - `. On a board where every card is already the
+same type, that decoration is noise, so cards show **Ship the plugin**, not
+**Ship the plugin (Task)**.
+
+**Configure board → Card titles**, per note type:
+
+| Setting                   | Default | What it does                                                        |
+| ------------------------- | ------- | ------------------------------------------------------------------- |
+| **Strip the name prefix** | On      | Removes the type's name prefix from card titles.                    |
+| **Strip the name suffix** | On      | Removes the type's name suffix from card titles.                    |
+| **Extra prefixes**        | Empty   | More prefixes to remove, one per line (a `Draft - ` convention, …). |
+| **Extra suffixes**        | Empty   | More suffixes to remove, one per line.                              |
+
+Both toggles are **on by default for every note type**, including types configured before
+this existed. Turn one off to see the full file name on cards again.
+
+What is stripped is the type's **Name prefix / Name suffix**
+([Creating notes](#creating-notes-quick-capture)) when you set one there, otherwise the
+Starter Kit type's own prefix/suffix. Each side is applied at most once, and only at the very
+start or end of the title. Leading and trailing spaces count, so list ` (Draft)`, not
+`(Draft)`. Extras accept the same `{{year}}`, `{{date}}`, … placeholders as note creation, and
+match any value they can produce (`{{date}} - ` strips `2026-09-22 - `).
+
+This is **presentational only**, and applies in every view mode (board, calendar, timeline,
+triage, WBS, agenda, ideal week). File names, search, links, and every write path keep the
+full name. A note whose entire name is decoration keeps its name rather than showing a blank
+card.
 
 ## Due countdown
 

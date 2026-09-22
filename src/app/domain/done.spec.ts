@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 import { isDoneValue, resolveDoneConfig } from './done'
 import type { NoteType } from './note-type'
+import { defaultNamingConfig, defaultTitleDisplayConfig } from './card-title'
 
 function noteTypeWith(done: NoteType['done'], statusProperty = 'status'): NoteType {
     return {
@@ -9,6 +10,8 @@ function noteTypeWith(done: NoteType['done'], statusProperty = 'status'): NoteTy
         source: 'local',
         typeRecognition: { mappings: [] },
         statusRoles: {},
+        naming: defaultNamingConfig(),
+        titleDisplay: defaultTitleDisplayConfig(),
         statusProperty,
         orderProperty: 'order',
         columns: [],

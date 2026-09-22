@@ -17,6 +17,8 @@ import type {
 import { FolderSuggest } from './folder-suggest'
 import { FileSuggest } from './file-suggest'
 import { defaultCreationConfig, emptyInheritedDefaults } from '../domain/note-creation'
+import { defaultTitleDisplayConfig } from '../domain/card-title'
+import type { TitleDisplayConfig } from '../domain/card-title'
 import type { CreationConfig } from '../domain/note-creation'
 import { creationDefaults, getNoteTypeById } from '../services/starter-kit.service'
 import { isTemplaterAvailable, templaterTemplatesFolder } from '../services/templater.service'
@@ -43,7 +45,9 @@ import {
     setEnumProperty,
     setRecognitionMappings,
     setRelationships,
-    setWipLimit
+    setTitleDisplayConfig,
+    setWipLimit,
+    titleAffixesFor
 } from '../services/note-type.service'
 import { listEnumProperties, resolveAllowedValues } from '../services/enum.service'
 
@@ -64,6 +68,7 @@ type SectionId =
     | 'done'
     | 'automation'
     | 'creation'
+    | 'titles'
 
 const SECTIONS: ReadonlyArray<{ id: SectionId; label: string; icon: string }> = [
     { id: 'recognition', label: 'Note type', icon: 'scan-search' },
@@ -78,6 +83,7 @@ const SECTIONS: ReadonlyArray<{ id: SectionId; label: string; icon: string }> = 
     { id: 'done', label: 'Done state', icon: 'circle-check' },
     { id: 'automation', label: 'Automations', icon: 'zap' },
     { id: 'creation', label: 'Creating notes', icon: 'file-plus' },
+    { id: 'titles', label: 'Card titles', icon: 'case-sensitive' },
     { id: 'archiving', label: 'Archiving', icon: 'archive' }
 ]
 
@@ -225,6 +231,9 @@ export class ConfigureBoardModal extends Modal {
                 return
             case 'creation':
                 this.renderCreation(noteType)
+                return
+            case 'titles':
+                this.renderTitles(noteType)
                 return
         }
     }
@@ -1455,6 +1464,93 @@ export class ConfigureBoardModal extends Modal {
 
     // ── Relationships ─────────────────────────────────────────
 
+    // ── Card titles (name filtering) ──────────────────────────
+
+    /**
+     * What cards SHOW. Note types decorate file names so recognition rules can
+     * key off them (` (Task)`, `AI Wiki - `); on a board where every card is the
+     * same type that decoration is pure noise, so it is filtered out by default.
+     * Presentational only — the file name itself is never touched.
+     */
+    private renderTitles(noteType: NoteType): void {
+        const config = noteType.titleDisplay
+        const affixes = titleAffixesFor(this.app, noteType)
+
+        new Setting(this.body).setName('Card titles').setHeading()
+        this.body.createEl('p', {
+            cls: 'kap-modal-subtitle',
+            text:
+                "Filters the note type's name decoration out of card titles, in every view mode." +
+                ' Cards only — file names, search and links keep the full name.'
+        })
+
+        new Setting(this.body)
+            .setName('Strip the name prefix')
+            .setDesc(
+                affixes.prefixes.length > 0
+                    ? `Removed from card titles: ${affixes.prefixes.map(quoted).join(', ')}`
+                    : 'This note type declares no name prefix, so nothing is removed.'
+            )
+            .addToggle((toggle) =>
+                toggle
+                    .setValue(config.stripPrefix)
+                    .onChange((on) => void this.patchTitleDisplay({ stripPrefix: on }, true))
+            )
+
+        new Setting(this.body)
+            .setName('Strip the name suffix')
+            .setDesc(
+                affixes.suffixes.length > 0
+                    ? `Removed from card titles: ${affixes.suffixes.map(quoted).join(', ')}`
+                    : 'This note type declares no name suffix, so nothing is removed.'
+            )
+            .addToggle((toggle) =>
+                toggle
+                    .setValue(config.stripSuffix)
+                    .onChange((on) => void this.patchTitleDisplay({ stripSuffix: on }, true))
+            )
+
+        new Setting(this.body)
+            .setName('Extra prefixes')
+            .setDesc(
+                "One per line, in addition to the type's own. Leading/trailing spaces count." +
+                    ' Placeholders ({{date}}, {{year}}, …) match any value.'
+            )
+            .addTextArea((area) =>
+                area
+                    .setPlaceholder('Draft - ')
+                    .setValue(config.extraPrefixes.join('\n'))
+                    .onChange(
+                        (value) =>
+                            void this.patchTitleDisplay({ extraPrefixes: toLines(value) }, false)
+                    )
+            )
+
+        new Setting(this.body)
+            .setName('Extra suffixes')
+            .setDesc("One per line, in addition to the type's own.")
+            .addTextArea((area) =>
+                area
+                    .setPlaceholder(' (Draft)')
+                    .setValue(config.extraSuffixes.join('\n'))
+                    .onChange(
+                        (value) =>
+                            void this.patchTitleDisplay({ extraSuffixes: toLines(value) }, false)
+                    )
+            )
+    }
+
+    /** Apply a partial change to the note type's card-title filtering. */
+    private async patchTitleDisplay(
+        patch: Partial<TitleDisplayConfig>,
+        rerender: boolean
+    ): Promise<void> {
+        const current = this.noteType()?.titleDisplay ?? defaultTitleDisplayConfig()
+        await setTitleDisplayConfig(this.plugin, this.noteTypeId, { ...current, ...patch })
+        this.onChange()
+        if (rerender) this.render()
+    }
+
     private renderRelationships(noteType: NoteType): void {
         new Setting(this.body).setName('Relationships').setHeading()
         this.body.createEl('p', {
@@ -1672,6 +1768,16 @@ function upsertRule(
 }
 
 /** Example value text for a recognition rule, by kind. */
+/** Split a textarea into affixes: one per line, blanks dropped, spacing kept. */
+function toLines(value: string): string[] {
+    return value.split('\n').filter((line) => line.length > 0)
+}
+
+/** Quote an affix so its significant leading/trailing spaces are visible. */
+function quoted(value: string): string {
+    return `"${value}"`
+}
+
 function recognitionPlaceholder(type: 'tag' | 'folder' | 'regex'): string {
     if (type === 'folder') return 'Areas/Work'
     if (type === 'regex') return '^Projects/'
