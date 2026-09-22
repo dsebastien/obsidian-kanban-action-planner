@@ -132,6 +132,8 @@ until you define your statuses.
   onto the bar to park it there; the bar highlights while the card is over it, and the card
   lands at the bottom of that column.
 
+    ![A collapsed column highlighted as the drop target]({{ '/images/collapsed-column-drop.png' | relative_url }})
+
 ## Moving and reordering cards
 
 - **Drag a card to another column** to change its status (the status property is rewritten).

@@ -54,6 +54,14 @@ When it's time to actually do the work, spotlight one card full-pane in Focus mo
 
 ![Focus mode](docs/images/focus.png)
 
+The pomodoro timer: a ring that drains over the phase, the note it runs on, the cycle count, and the controls in place — in the sidebar, or alone on a full screen for focus stretches and shared screens:
+
+![The full-screen pomodoro timer](docs/images/pomodoro-timer-full.png)
+
+Card titles drop the note type's decoration (` (Task)`), and a collapsed column highlights as a drop target while you drag:
+
+![A collapsed column highlighted as the drop target](docs/images/collapsed-column-drop.png)
+
 Filter as you type with a compact query language:
 
 ![Filter as you type](docs/images/filter.png)
