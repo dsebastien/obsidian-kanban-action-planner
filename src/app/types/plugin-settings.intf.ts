@@ -46,8 +46,14 @@ import {
     DEFAULT_WEEK_PIXELS_PER_HOUR
 } from '../constants'
 
-/** Current settings schema version; bump when the shape changes (migrations). */
-const SETTINGS_SCHEMA_VERSION = 1
+/**
+ * Current settings schema version; bump when the shape changes, and add the
+ * matching step to `domain/settings-migrations.ts`.
+ *
+ * 2 — note-type calendar date properties became "empty = inherit the global
+ *     default" (issue #201); the seeded snapshots are cleared on load.
+ */
+export const SETTINGS_SCHEMA_VERSION = 2
 
 /**
  * Plugin settings.

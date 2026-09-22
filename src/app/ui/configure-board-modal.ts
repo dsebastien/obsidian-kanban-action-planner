@@ -44,6 +44,7 @@ import {
     setNoteTypeName,
     setEnumProperty,
     setRecognitionMappings,
+    setCalendarDates,
     setRelationships,
     setTitleDisplayConfig,
     setWipLimit,
@@ -69,6 +70,7 @@ type SectionId =
     | 'automation'
     | 'creation'
     | 'titles'
+    | 'dates'
 
 const SECTIONS: ReadonlyArray<{ id: SectionId; label: string; icon: string }> = [
     { id: 'recognition', label: 'Note type', icon: 'scan-search' },
@@ -77,6 +79,7 @@ const SECTIONS: ReadonlyArray<{ id: SectionId; label: string; icon: string }> = 
     { id: 'limits', label: 'WIP limits', icon: 'gauge' },
     { id: 'swimlanes', label: 'Swimlanes', icon: 'rows-3' },
     { id: 'relationships', label: 'Relationships', icon: 'git-fork' },
+    { id: 'dates', label: 'Dates', icon: 'calendar-days' },
     { id: 'estimate', label: 'Estimate', icon: 'ruler' },
     { id: 'tracking', label: 'Time tracking', icon: 'timer' },
     { id: 'week', label: 'Ideal week', icon: 'calendar-range' },
@@ -234,6 +237,9 @@ export class ConfigureBoardModal extends Modal {
                 return
             case 'titles':
                 this.renderTitles(noteType)
+                return
+            case 'dates':
+                this.renderDates(noteType)
                 return
         }
     }
@@ -1463,6 +1469,79 @@ export class ConfigureBoardModal extends Modal {
     }
 
     // ── Relationships ─────────────────────────────────────────
+
+    // ── Dates (per-type property overrides, issue #201) ───────
+
+    /**
+     * Which frontmatter properties carry this type's dates. Every field is
+     * "empty = inherit the global default from the plugin settings", and the
+     * placeholder shows the value that will be inherited, so the effect of
+     * leaving a field blank is visible without typing anything.
+     *
+     * These used to be seeded with the defaults of the moment and had no UI at
+     * all, which made the global settings look broken: the frozen copy won.
+     */
+    private renderDates(noteType: NoteType): void {
+        const globals = this.plugin.settings
+        const calendar = noteType.calendar
+
+        new Setting(this.body).setName('Dates').setHeading()
+        this.body.createEl('p', {
+            cls: 'kap-modal-subtitle',
+            text:
+                `Which frontmatter properties hold the dates of ${noteType.name} notes, in every mode ` +
+                '(board, calendar, timeline, WBS). Leave a field empty to use the global default ' +
+                'from the plugin settings. A single board can still override these in Configure view.'
+        })
+
+        const fields: ReadonlyArray<{
+            key: 'scheduledDateProperty' | 'dueDateProperty' | 'deferDateProperty' | 'dateFormat'
+            name: string
+            desc: string
+            placeholder: string
+        }> = [
+            {
+                key: 'scheduledDateProperty',
+                name: 'Scheduled date property',
+                desc: 'When work is planned to start. Drives the timeline bars and calendar chips.',
+                placeholder: globals.defaultScheduledDateProperty
+            },
+            {
+                key: 'dueDateProperty',
+                name: 'Due date property',
+                desc: 'The deadline. Drives overdue emphasis, the countdown badge, and deadline lines.',
+                placeholder: globals.defaultDueDateProperty
+            },
+            {
+                key: 'deferDateProperty',
+                name: 'Defer date property',
+                desc: "When the work can start ('waiting until').",
+                placeholder: globals.defaultDeferDateProperty
+            },
+            {
+                key: 'dateFormat',
+                name: 'Date format',
+                desc: 'Moment.js format used when writing these dates.',
+                placeholder: globals.defaultDateFormat
+            }
+        ]
+
+        for (const field of fields) {
+            new Setting(this.body)
+                .setName(field.name)
+                .setDesc(`${field.desc} Empty = the global default.`)
+                .addText((text) =>
+                    text
+                        .setPlaceholder(field.placeholder || 'None')
+                        .setValue(calendar[field.key])
+                        .onChange((value) => {
+                            void setCalendarDates(this.plugin, this.noteTypeId, {
+                                [field.key]: value.trim()
+                            }).then(() => this.onChange())
+                        })
+                )
+        }
+    }
 
     // ── Card titles (name filtering) ──────────────────────────
 

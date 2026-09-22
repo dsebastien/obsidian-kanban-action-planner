@@ -216,6 +216,25 @@ first present done-date property) is that many days old:
 - Types without done-date properties ignore the grace period and archive immediately.
 - Notes another board or an external tool archived in the meantime are skipped.
 
+## Date properties
+
+Three dates drive every mode: the **scheduled** date (when work is planned to start), the
+**due** date (the deadline), and the optional **defer** date (when it may start). Each is a
+frontmatter property name resolved at three levels, most specific wins:
+
+1. **Per board** — _Configure view_ (a board that reads different properties than the rest).
+2. **Per note type** — \_Settings → Note types → Configure → **Dates\***. Also holds the date
+   **format** used when writing.
+3. **Global default** — _Settings → Kanban Action Planner_.
+
+Every per-type field is **empty = inherit**, and shows the inherited value as its placeholder.
+Blank one out to go back to following the global setting.
+
+> Before 1.29, a note type silently copied the global defaults when it was first created and
+> there was no UI to change them, so editing the global **Scheduled date property** or **Due
+> date property** appeared to do nothing: the frozen copy won, and the timeline showed
+> everything as _Unplanned_. Those copies are cleared automatically on upgrade.
+
 ## Calendar mode
 
 Calendar mode is toggled per view by the in-view **Board / Calendar** switch. It reads two date

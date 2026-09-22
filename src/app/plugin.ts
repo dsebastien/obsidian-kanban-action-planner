@@ -1,5 +1,10 @@
 import { Menu, Plugin, View } from 'obsidian'
-import { DEFAULT_SETTINGS, pluginSettingsSchema } from './types/plugin-settings.intf'
+import {
+    DEFAULT_SETTINGS,
+    SETTINGS_SCHEMA_VERSION,
+    pluginSettingsSchema
+} from './types/plugin-settings.intf'
+import { migrateSettings } from './domain/settings-migrations'
 import type { PluginSettings, SettingsRefreshScope } from './types/plugin-settings.intf'
 import { KanbanActionPlannerSettingTab } from './settings/settings-tab'
 import { KanbanActionPlannerView } from './views/kanban/kanban-view'
@@ -353,8 +358,12 @@ export class KanbanActionPlannerPlugin extends Plugin {
         const parsed = pluginSettingsSchema.safeParse(merged)
 
         if (parsed.success) {
-            this.settings = produce(parsed.data, () => {})
-            log('Settings loaded', 'debug', parsed.data)
+            // Migrations run on VALIDATED settings, so each step can assume the
+            // current shape and only worry about stale values (issue #201).
+            const migrated = migrateSettings(parsed.data, SETTINGS_SCHEMA_VERSION)
+            this.settings = produce(migrated, () => {})
+            log('Settings loaded', 'debug', migrated)
+            if (migrated !== parsed.data) await this.saveData(this.settings)
         } else {
             log('Invalid settings; using defaults', 'warn', parsed.error)
             this.settings = produce(DEFAULT_SETTINGS, () => {})

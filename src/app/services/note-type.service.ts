@@ -127,11 +127,13 @@ export function createDefaultNoteType(
         ],
         calendar: {
             enabled: false,
-            scheduledDateProperty: defaults.scheduledDateProperty,
-            dueDateProperty: defaults.dueDateProperty,
-            // Empty = follow the global default (issue #113).
+            // Every date field is EMPTY = follow the global default (issue #201).
+            // Seeding them with the defaults of the moment froze a snapshot that
+            // silently shadowed the setting forever after.
+            scheduledDateProperty: '',
+            dueDateProperty: '',
             deferDateProperty: '',
-            dateFormat: defaults.dateFormat,
+            dateFormat: '',
             defaultRange: 'month',
             tabSort: defaults.orderProperty
         }
@@ -382,6 +384,30 @@ export function titleAffixesFor(app: App, noteType: NoteType): CardTitleAffixes 
         naming,
         creation: noteType.creation
     })
+}
+
+/**
+ * Set the note type's calendar date overrides (issue #201). Every field is
+ * "empty = inherit the global default", so blanking one restores the setting.
+ */
+export async function setCalendarDates(
+    plugin: KanbanActionPlannerPlugin,
+    noteTypeId: string,
+    patch: Partial<
+        Pick<
+            NoteType['calendar'],
+            'scheduledDateProperty' | 'dueDateProperty' | 'deferDateProperty' | 'dateFormat'
+        >
+    >
+): Promise<void> {
+    const noteType = requireNoteType(plugin, noteTypeId)
+    if (!noteType) return
+    await upsertNoteType(
+        plugin,
+        produce(noteType, (draft) => {
+            Object.assign(draft.calendar, patch)
+        })
+    )
 }
 
 export async function setLaneGrouping(

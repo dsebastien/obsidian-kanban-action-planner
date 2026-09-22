@@ -2764,18 +2764,26 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         )
     }
 
+    /**
+     * The deadline property: per-view override, else the note type's calendar
+     * override (EMPTY = unset, issue #201 — `??` treated the seeded snapshot as
+     * an override and the global setting had no effect), else the global default.
+     */
     private resolveDueDateProperty(): string {
+        const perType = this.noteType.calendar.dueDateProperty.trim()
         return (
             basesPropToName(this.viewConfig.get('dueDateProperty')) ??
-            this.noteType.calendar.dueDateProperty ??
+            (perType.length > 0 ? perType : null) ??
             this.plugin.settings.defaultDueDateProperty
         )
     }
 
+    /** The scheduled ("planned start") property; same precedence as the deadline. */
     private resolveScheduledDateProperty(): string {
+        const perType = this.noteType.calendar.scheduledDateProperty.trim()
         return (
             basesPropToName(this.viewConfig.get('scheduledDateProperty')) ??
-            this.noteType.calendar.scheduledDateProperty ??
+            (perType.length > 0 ? perType : null) ??
             this.plugin.settings.defaultScheduledDateProperty
         )
     }

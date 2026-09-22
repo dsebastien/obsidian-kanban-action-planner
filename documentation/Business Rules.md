@@ -1097,3 +1097,16 @@ Markdown)`, `Export ideal week (JSON)`, `Export ideal week (Markdown)`); the for
     so the colors panel was blank for every type except one being created that instant (which
     got the global defaults passed in by hand). A freshly created local type has no columns yet
     and must still be configurable, which is what the last rung is for.
+
+59. **Per-type date properties are "empty = inherit" (issue #201).** A note type's
+    `calendar.scheduledDateProperty` / `dueDateProperty` / `deferDateProperty` / `dateFormat`
+    are OVERRIDES: blank means follow the global default, and resolution is per-view →
+    per-type (trimmed, non-empty) → global. `createDefaultNoteType` therefore seeds them
+    BLANK. It used to seed them with the global defaults of the moment while no UI could edit
+    them, and `resolveScheduledDateProperty` / `resolveDueDateProperty` read them with `??`,
+    so the frozen snapshot counted as a deliberate override: changing the global setting had
+    no effect on any board and the timeline parked every note under "Unplanned". Stored seeds
+    are cleared by the v1 → v2 settings migration (`domain/settings-migrations.ts`), which
+    blanks only values still EXACTLY equal to the built-in constants — anything else is a hand
+    edit and survives. Settings migrations run on VALIDATED settings and persist immediately
+    when they change anything.
