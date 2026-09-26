@@ -371,9 +371,21 @@ export class BoardSelection {
      * sequentially. A failed move triggers a rebuild so its card reappears.
      */
     private async bulkArchive(): Promise<void> {
+        await this.archiveCards(this.selectedCards())
+        this.clear()
+    }
+
+    /**
+     * Archive `cards` (each through its own type's archive config; cards
+     * whose type has no folder are skipped), with the optimistic model drop,
+     * sequential moves, precise rollback and summary notice of the bulk
+     * action. Shared by the selection bar and the column-header Archive
+     * button (done columns); does not touch the selection.
+     */
+    async archiveCards(cards: ReadonlyArray<KanbanCard>): Promise<void> {
         let skipped = 0
         const targets: Array<{ card: KanbanCard; archive: ArchiveConfig }> = []
-        for (const card of this.selectedCards()) {
+        for (const card of cards) {
             const archive = this.host.archiveConfigFor(card)
             if (archive.archiveFolder.trim().length === 0) {
                 skipped++
@@ -404,7 +416,6 @@ export class BoardSelection {
         if (skipped) parts.push(`${String(skipped)} skipped (no folder)`)
         if (failed) parts.push(`${String(failed)} failed`)
         new Notice(`${parts.join(', ')}.`)
-        this.clear()
     }
 
     private bulkOpen(): void {

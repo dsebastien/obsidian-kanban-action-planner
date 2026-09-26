@@ -852,7 +852,8 @@
     }
 
     /* A collapsed column is a narrow vertical bar — only the chevron stays. */
-    .kap-column-collapsed .kap-column-add {
+    .kap-column-collapsed .kap-column-add,
+    .kap-column-collapsed .kap-column-archive {
         @apply hidden;
     }
 
@@ -4219,12 +4220,14 @@
        stationary status tray under it. Only the face transforms; every
        animation duration routes through --kap-anim* so reduced motion
        collapses it all. */
-    .kap-root .kap-column-triage {
+    .kap-root .kap-column-triage,
+    .kap-root .kap-column-archive {
         @apply inline-flex items-center justify-center p-0.5 rounded border-0 cursor-pointer bg-transparent;
         color: var(--text-faint);
     }
 
-    .kap-root .kap-column-triage:hover {
+    .kap-root .kap-column-triage:hover,
+    .kap-root .kap-column-archive:hover {
         color: var(--text-normal);
         background: var(--background-modifier-hover);
     }

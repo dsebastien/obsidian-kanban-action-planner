@@ -36,6 +36,8 @@ import type {
     RelationshipRole
 } from '../../domain/note-type'
 import { isDoneValue, resolveDoneConfig } from '../../domain/done'
+import { columnArchivable } from '../../domain/column-archive'
+import { ConfirmModal } from '../../ui/confirm-modal'
 import type { ResolvedDoneConfig } from '../../domain/done'
 import {
     dedupeRules,
@@ -484,6 +486,8 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
      * which hashes it) so the renderer only has to look one up.
      */
     private aggregateLabels = new Map<string, string>()
+    /** `aggregateKey`s of the columns showing the header Archive button. */
+    private archivableColumns = new Set<string>()
     private cardsByKey = new Map<string, KanbanCard>()
     // Triage (issue #53): a stable ordered queue snapshot (card keys) captured on
     // entering triage, and the cursor into it. Null = needs (re)building.
@@ -1791,6 +1795,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         // editing an aggregated property re-renders even though nothing in the
         // card signatures changed (issue #23).
         this.aggregateLabels = this.computeColumnAggregates(board)
+        this.archivableColumns = this.computeArchivableColumns(board)
         // Column triage covers the board with an OPAQUE full-pane overlay, so
         // the DOM pass below — patchBoard and its forced full-board reflows
         // (equalize, anchors, refocus) — would be invisible work on every
@@ -1848,6 +1853,11 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
                     this.aggregateLabels.get(
                         KanbanActionPlannerView.aggregateKey(laneId, columnId)
                     ) ?? null,
+                canArchiveColumn: (laneId, columnId) =>
+                    this.archivableColumns.has(
+                        KanbanActionPlannerView.aggregateKey(laneId, columnId)
+                    ),
+                onArchiveColumn: (info) => this.confirmArchiveColumn(info),
                 ...(this.addCardEnabled()
                     ? {
                           onAddCard: (laneId: string, columnId: string) => {
@@ -1980,6 +1990,8 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
                 // signature covers, so the computed labels themselves go in
                 // (sorted — a Map is not JSON-serializable in a stable order).
                 [...this.aggregateLabels.entries()].sort((a, b) => a[0].localeCompare(b[0])),
+                // The done-column Archive button follows done/archive config.
+                [...this.archivableColumns].sort(),
                 boardRenderSignature(this.board, this.collapsedLanes, this.collapsedColumns)
             ])
         }
@@ -3989,6 +4001,60 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
      * button passes the exact lane + card keys it rendered, so per-type
      * lanes can never mix unrelated definitions into the queue.
      */
+    /**
+     * Columns offering the header Archive button: the lane's note type has a
+     * status-based done definition listing the column's status, and an
+     * archive folder (`domain/column-archive.ts`).
+     */
+    private computeArchivableColumns(board: Board<KanbanCard>): Set<string> {
+        const result = new Set<string>()
+        for (const lane of board.lanes) {
+            const noteType = this.noteTypeForLane(lane.lane.id)
+            const done = resolveDoneConfig(noteType)
+            for (const { column } of lane.columns) {
+                const statusValue = this.columnStatusValue(column.id, lane.lane.id)
+                if (
+                    columnArchivable(
+                        statusValue,
+                        done,
+                        noteType.statusProperty,
+                        noteType.archive.archiveFolder
+                    )
+                ) {
+                    result.add(KanbanActionPlannerView.aggregateKey(lane.lane.id, column.id))
+                }
+            }
+        }
+        return result
+    }
+
+    /**
+     * Header Archive button: confirm, then archive every card rendered in the
+     * column through the bulk-archive path (each card by its own type's
+     * archive config; cards without a folder are skipped). Filtered-out
+     * cards are not rendered, so they are not archived.
+     */
+    private confirmArchiveColumn(info: {
+        columnId: string
+        laneId: string
+        label: string
+        cardKeys: string[]
+    }): void {
+        const cards = info.cardKeys
+            .map((key) => this.cardsByKey.get(key))
+            .filter((card): card is KanbanCard => card !== undefined)
+        if (cards.length === 0) {
+            new Notice(`Nothing to archive in ${info.label}.`)
+            return
+        }
+        new ConfirmModal(this.app, {
+            title: `Archive ${info.label}`,
+            message: `Archive all ${String(cards.length)} card(s) shown in the ${info.label} column? Their notes move to the archive folder.`,
+            confirmText: 'Archive',
+            onConfirm: () => void this.selection?.archiveCards(cards)
+        }).open()
+    }
+
     private startColumnTriage(info: {
         columnId: string
         laneId: string

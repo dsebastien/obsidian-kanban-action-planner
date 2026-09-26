@@ -708,6 +708,14 @@ set). If the note still has active children or blockers you get a non-blocking h
 move proceeds and the wikilinks are preserved. Archived notes leave the board because they no
 longer match the Base's filter.
 
+To clear out a whole done column at once, use the **Archive** button (archive icon) in its
+header. It shows on a column only when the note type has a **done definition based on the
+status property** that lists that column's status, **and** an archive folder is set. After a
+confirmation, every card **shown** in the column is archived (filtered-out cards stay put),
+each through its own note type's archive folder; cards whose type has no folder are skipped.
+Same path as the bulk **Archive** action: `archived` automation rules run, and a notice
+summarizes what moved.
+
 ### Folder notes move with their folder
 
 A note that is the **namesake of its folder** (`Projects/Foo/Foo.md`, or with a

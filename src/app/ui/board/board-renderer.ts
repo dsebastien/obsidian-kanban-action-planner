@@ -49,6 +49,18 @@ export interface BoardRenderCallbacks {
      * absent callback) means no aggregate badge for that column.
      */
     aggregateLabel?: (laneId: string, columnId: string) => string | null
+    /**
+     * Whether a column shows the header **Archive** button (a done column
+     * whose type has an archive folder). Absent = never.
+     */
+    canArchiveColumn?: (laneId: string, columnId: string) => boolean
+    /** Archive every card currently rendered in the column. */
+    onArchiveColumn?: (info: {
+        columnId: string
+        laneId: string
+        label: string
+        cardKeys: string[]
+    }) => void
 }
 
 /** `data-board-struct` records the rendered lane/column shape for patch vs full-render. */
@@ -232,11 +244,7 @@ function renderColumns(
                 // the keyed patch path (patchColumns) moves card nodes around
                 // without re-running renderColumns, so the captured `cards`
                 // array goes stale after the first drag (v2 review F3).
-                const cardKeys = Array.from(
-                    colEl.querySelectorAll<HTMLElement>('.kap-column-cards [data-card-key]')
-                )
-                    .map((el) => el.dataset['cardKey'] ?? '')
-                    .filter((key) => key.length > 0)
+                const cardKeys = columnCardKeys(colEl)
                 onTriageColumn({
                     columnId: column.id,
                     laneId,
@@ -248,6 +256,7 @@ function renderColumns(
         const countEl = header.createSpan({ cls: 'kap-column-count' })
         setColumnCount(colEl, countEl, cards.length, column.wipLimit)
         syncColumnAggregate(colEl, column.id, laneId, callbacks)
+        syncArchiveColumnButton(colEl, column.id, column.label, laneId, callbacks)
 
         const listEl = colEl.createDiv({ cls: 'kap-column-cards' })
         listEl.setAttribute('role', 'list')
@@ -357,6 +366,58 @@ function syncColumnAggregate(
     else headerEl.appendChild(el)
 }
 
+/** The card keys in a column's CURRENT DOM (the keyed patch path moves nodes). */
+function columnCardKeys(colEl: HTMLElement): string[] {
+    return Array.from(colEl.querySelectorAll<HTMLElement>('.kap-column-cards [data-card-key]'))
+        .map((el) => el.dataset['cardKey'] ?? '')
+        .filter((key) => key.length > 0)
+}
+
+/**
+ * Add (or remove) a done column's header **Archive** button idempotently, so
+ * the patch path follows config changes (done values, archive folder) without
+ * a full re-render. Inserted right before the count, so it sits next to the
+ * triage button and the count / aggregate / `+` keep their places.
+ */
+function syncArchiveColumnButton(
+    colEl: HTMLElement,
+    columnId: string,
+    label: string,
+    laneId: string,
+    callbacks: BoardRenderCallbacks
+): void {
+    const headerEl = colEl.querySelector<HTMLElement>(':scope > .kap-column-header')
+    if (!headerEl) return
+    const existing = headerEl.querySelector<HTMLElement>(':scope > .kap-column-archive')
+    const onArchiveColumn = callbacks.onArchiveColumn
+    const enabled =
+        Boolean(onArchiveColumn) &&
+        columnId !== UNMAPPED_COLUMN_ID &&
+        (callbacks.canArchiveColumn?.(laneId, columnId) ?? false)
+    if (!enabled || !onArchiveColumn) {
+        existing?.remove()
+        return
+    }
+    if (existing) return
+    const button = createEl('button', {
+        cls: 'kap-column-archive',
+        attr: {
+            'type': 'button',
+            'aria-label': `Archive all cards in the ${label} column`,
+            'title': 'Archive all cards in this column'
+        }
+    })
+    setIcon(button, 'archive')
+    button.addEventListener('click', (e) => {
+        e.stopPropagation()
+        // Keys from the CURRENT DOM, not a closure (see the triage button).
+        onArchiveColumn({ columnId, laneId, label, cardKeys: columnCardKeys(colEl) })
+    })
+    const countEl = headerEl.querySelector<HTMLElement>(':scope > .kap-column-count')
+    if (countEl) headerEl.insertBefore(button, countEl)
+    else headerEl.appendChild(button)
+}
+
 /** Patch each column's card list in place against the desired cards. */
 function patchColumns(
     boardEl: HTMLElement,
@@ -377,6 +438,7 @@ function patchColumns(
 
         const laneId = colEl.dataset['laneId'] ?? ''
         syncColumnAggregate(colEl, column.id, laneId, callbacks)
+        syncArchiveColumnButton(colEl, column.id, column.label, laneId, callbacks)
         syncAddCardAffordances(colEl, column.id, laneId, callbacks)
 
         const collapsed = collapsedColumns.has(column.id)

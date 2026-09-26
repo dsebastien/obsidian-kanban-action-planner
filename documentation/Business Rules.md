@@ -184,6 +184,13 @@ When a new business rule is mentioned:
     marked done outside the board), which starts its clock; an unparseable done date waits. Pure
     decision in `domain/archive-grace.ts`. Sweeps serialize across views and re-check each note
     against the vault before moving it, so a note archived out of band meanwhile is skipped.
+    **Column Archive button:** a column header shows an **Archive** button iff the lane's note
+    type (`noteTypeForLane`) has a status-based done definition (`doneIsStatusBased`) listing the
+    column's status AND a non-empty archive folder (`domain/column-archive.ts`
+    `columnArchivable`; never on Unmapped). Click → confirm modal → archives every card rendered
+    in the column (DOM keys; filtered-out cards untouched) via `BoardSelection.archiveCards` (the
+    bulk path: per-card archive config, no-folder cards skipped, `archived` automations, optimistic
+    drop + precise rollback). Eligible columns are part of the board render signature.
 12. **Responsiveness (hard invariant).** Every UI works on large desktop, small/narrow
     desktop, and mobile; layouts adapt and never break/overflow. One Pointer-event DnD path
     serves mouse/trackpad/touch, with a non-drag fallback. `isDesktopOnly` stays `false`.
