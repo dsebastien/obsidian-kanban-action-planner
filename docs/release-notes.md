@@ -1,5 +1,11 @@
 # Release Notes
 
+## 1.31.0 (2026-09-26)
+
+### Features
+
+- **plugin:** archive every card of a done column from its header
+
 ## 1.30.0 (2026-09-22)
 
 ### Features
