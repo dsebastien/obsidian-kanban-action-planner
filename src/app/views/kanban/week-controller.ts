@@ -1017,7 +1017,7 @@ export class WeekController {
             new Notice('Nothing to print: the ideal week has no block.')
             return
         }
-        const doc = this.host.boardEl()?.ownerDocument ?? document
+        const doc = this.host.boardEl()?.ownerDocument ?? window.document
         const win = doc.defaultView ?? window
         const root = renderWeekPrint(doc, model, 'Ideal week')
         doc.body.addClass('kap-week-printing')

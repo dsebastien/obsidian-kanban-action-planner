@@ -242,7 +242,7 @@ export function snapToGrid(minutes: number, step = GRID_MINUTES): number {
 /** Clamp a slot into a legal shape: on the grid, at least one step long, within a day span. */
 export function normalizeSlot(slot: Slot): Slot {
     const day = ((Math.round(slot.day) % 7) + 7) % 7
-    let start = Math.min(MINUTES_PER_DAY - GRID_MINUTES, Math.max(0, snapToGrid(slot.start)))
+    const start = Math.min(MINUTES_PER_DAY - GRID_MINUTES, Math.max(0, snapToGrid(slot.start)))
     let end = snapToGrid(slot.end)
     if (end <= start) end = start + GRID_MINUTES
     if (end - start > MINUTES_PER_DAY) end = start + MINUTES_PER_DAY

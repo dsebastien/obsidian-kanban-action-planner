@@ -125,7 +125,7 @@ export class KanbanActionPlannerPlugin extends Plugin {
         // Activity signals for the idle guard (issue #197): coarse and cheap —
         // the guard only needs "was there anything in the last N minutes".
         for (const type of ['pointerdown', 'keydown', 'wheel'] as const) {
-            this.registerDomEvent(document, type, () => noteActivity(), { passive: true })
+            this.registerDomEvent(window.document, type, () => noteActivity(), { passive: true })
         }
         this.registerEvent(this.app.workspace.on('active-leaf-change', () => noteActivity()))
         // A session that survived a restart: ask about a suspicious one, once

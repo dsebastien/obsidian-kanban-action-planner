@@ -289,13 +289,18 @@ async function writeCreationFrontmatter(
     )
 }
 
+/** `Array.isArray`, narrowing to `unknown[]` rather than `any[]`. */
+function isArray(value: unknown): value is unknown[] {
+    return Array.isArray(value)
+}
+
 /**
  * Merge `additions` into an existing frontmatter list value without disturbing
  * what is already there (a template's own tags stay, in their order). A scalar is
  * promoted to a list; `null`/absent starts a fresh one.
  */
 function mergeList(raw: unknown, additions: string[], caseInsensitive: boolean): unknown[] {
-    const existing = Array.isArray(raw) ? [...raw] : raw === null || raw === undefined ? [] : [raw]
+    const existing = isArray(raw) ? [...raw] : raw === null || raw === undefined ? [] : [raw]
     const seen = new Set(
         existing
             .filter((item): item is string => typeof item === 'string')

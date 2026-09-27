@@ -156,6 +156,11 @@ export function readTrackedMinutes(raw: {
     return legacy !== null && legacy > 0 ? legacy : null
 }
 
+/** `Array.isArray`, narrowing to `unknown[]` rather than `any[]`. */
+function isArray(value: unknown): value is unknown[] {
+    return Array.isArray(value)
+}
+
 /**
  * The entries list with the description of the entry that starts at
  * `startTime` replaced (issue #197: the description typed after the stop).
@@ -168,7 +173,7 @@ export function withEntryDescription(
     startTime: string,
     description: string
 ): unknown[] {
-    if (!Array.isArray(raw)) return []
+    if (!isArray(raw)) return []
     let index = -1
     raw.forEach((item, i) => {
         if (typeof item === 'object' && item !== null) {
