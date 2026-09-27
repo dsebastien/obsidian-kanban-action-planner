@@ -4833,3 +4833,15 @@
     background-color: color-mix(in srgb, var(--interactive-accent) 22%, transparent);
     box-shadow: inset 0 0 0 1px var(--interactive-accent);
 }
+
+/* ========================================
+   SETTINGS ROWS DRAWN AS A STACK
+   Intentionally unlayered. A settings `render:` hook draws into
+   `.setting-item`, which is a flex ROW; blocks made of full-width rows (the
+   note types list, the support section) need block flow, or their parts sit
+   side by side. Obsidian's `.setting-item { display: flex }` is unlayered,
+   and unlayered CSS beats every layered rule whatever the specificity.
+   ======================================== */
+.kap-settings-stack {
+    display: block;
+}

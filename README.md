@@ -6,7 +6,7 @@ Pick a status property. It becomes your columns. From there you drag cards betwe
 
 I built this because I wanted my planning to live in my notes, not in yet another app.
 
-> Requires Obsidian 1.12+ (the Bases view API). Desktop only (mobile isn't supported yet).
+> Requires Obsidian 1.13+ (the Bases view API and declarative settings). Desktop only (mobile isn't supported yet).
 
 ## Video tour
 
