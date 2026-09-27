@@ -2,6 +2,26 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.0.0](https://github.com/dsebastien/obsidian-kanban-action-planner/compare/1.31.0...2.0.0) (2026-09-27)
+
+### ⚠ BREAKING CHANGES
+
+* **plugin:** requires Obsidian 1.13.0 (minAppVersion 1.12.0 -> 1.13.0).
+The versions.json commit in this series names 1.31.0 as the last release
+on 1.12.0, so Obsidian 1.12 users keep getting it once both reach main.
+
+Claude-Session: https://claude.ai/code/session_01LM4hi11kohPVqgZNLpjRgh
+
+### Features
+
+* **plugin:** declare the settings for Obsidian 1.13's settings API ([fa59176](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/fa59176640bb25b2c0433d0391f13435110a5485))
+
+### Bug Fixes
+
+* **build:** harden the release path from the template ([40a837c](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/40a837c0b189664a34b26357aaf18d29bc171411))
+* **build:** rebuild versions.json from the published releases ([7928f6e](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/7928f6e9e86adbad7322912bcbafa1d971aefa6c))
+* **plugin:** lowercase the newsletter line ([07bc122](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/07bc1224f1798a7c49a3efead1222dc29bf40d33))
+
 ## [1.31.0](https://github.com/dsebastien/obsidian-kanban-action-planner/compare/1.30.0...1.31.0) (2026-09-26)
 
 ### Features
@@ -638,6 +658,7 @@ All notable changes to this project will be documented in this file.
 
 * **plugin:** match Starter Kit's {{quarter}} placeholder format (Q2, not 2) ([4fde618](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/4fde6185c5956e3f6fd2ca3a9b03e70cf5e16840))
 * **plugin:** persist discovered statuses so Show empty columns works ([cf91b81](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/cf91b81a1b0786e35c73f4885882e2dc33564c62))
+
 
 
 

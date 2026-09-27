@@ -1,5 +1,25 @@
 # Release Notes
 
+## 2.0.0 (2026-09-27)
+
+### ⚠ BREAKING CHANGES
+
+- **plugin:** requires Obsidian 1.13.0 (minAppVersion 1.12.0 -> 1.13.0).
+  The versions.json commit in this series names 1.31.0 as the last release
+  on 1.12.0, so Obsidian 1.12 users keep getting it once both reach main.
+
+Claude-Session: https://claude.ai/code/session_01LM4hi11kohPVqgZNLpjRgh
+
+### Features
+
+- **plugin:** declare the settings for Obsidian 1.13's settings API
+
+### Bug Fixes
+
+- **build:** harden the release path from the template
+- **build:** rebuild versions.json from the published releases
+- **plugin:** lowercase the newsletter line
+
 ## 1.31.0 (2026-09-26)
 
 ### Features
