@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'bun:test'
-import type { App, BasesEntry, BasesPropertyId, TFile } from 'obsidian'
+import { TFile } from 'obsidian'
+import type { App, BasesEntry, BasesPropertyId } from 'obsidian'
 import type { CardDisplay } from '../ui/board/types'
 import {
     buildCardDisplay,
@@ -84,7 +85,7 @@ describe('resolveCardTitle (issue #4)', () => {
 })
 
 describe('buildCardDisplay title property (issue #4)', () => {
-    const file = { basename: '2026-07-07-technical-meeting' } as unknown as TFile
+    const file = Object.assign(new TFile(), { basename: '2026-07-07-technical-meeting' })
     const config = {
         getOrder: (): BasesPropertyId[] => ['file.name', 'note.title', 'note.status'],
         getDisplayName: (id: BasesPropertyId): string => id.split('.')[1] ?? id
@@ -111,7 +112,7 @@ describe('buildCardDisplay title property (issue #4)', () => {
 })
 
 describe('buildCardDisplay write overrides (issue #105, finding 4.3)', () => {
-    const file = { basename: 'the-note' } as unknown as TFile
+    const file = Object.assign(new TFile(), { basename: 'the-note' })
     const config = {
         getOrder: (): BasesPropertyId[] => ['note.Priority', 'note.status'],
         getDisplayName: (id: BasesPropertyId): string => id.split('.')[1] ?? id
@@ -168,7 +169,7 @@ describe('buildCardDisplay write overrides (issue #105, finding 4.3)', () => {
 })
 
 describe('buildCardDisplay countdown source (issue #68)', () => {
-    const file = { basename: 'the-note' } as unknown as TFile
+    const file = Object.assign(new TFile(), { basename: 'the-note' })
     const config = {
         getOrder: (): BasesPropertyId[] => [],
         getDisplayName: (id: BasesPropertyId): string => id

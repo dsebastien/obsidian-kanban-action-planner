@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'bun:test'
-import type { App, TFile } from 'obsidian'
+import { TFile } from 'obsidian'
+import type { App } from 'obsidian'
 import {
     appendRecordToListProperty,
     coerceOrder,
@@ -44,7 +45,7 @@ describe('setProperties', () => {
         } as unknown as App
         return { app, calls: () => calls }
     }
-    const file = { path: 'Notes/Card.md' } as unknown as TFile
+    const file = Object.assign(new TFile(), { path: 'Notes/Card.md' })
 
     it('writes every entry in ONE processFrontMatter transaction', async () => {
         const fm: Record<string, unknown> = {}
@@ -120,7 +121,7 @@ describe('coerceOrder', () => {
 })
 
 describe('queueFrontmatterWrite (per-file write serialization)', () => {
-    const file = (path: string): TFile => ({ path }) as TFile
+    const file = (path: string): TFile => Object.assign(new TFile(), { path })
     const deferred = (): {
         promise: Promise<void>
         resolve: () => void
@@ -143,8 +144,9 @@ describe('queueFrontmatterWrite (per-file write serialization)', () => {
             await first.promise
             order.push('a:end')
         })
-        const b = queueFrontmatterWrite(file('same.md'), async () => {
+        const b = queueFrontmatterWrite(file('same.md'), () => {
             order.push('b:start')
+            return Promise.resolve()
         })
         // a starts at once (idle file); b must wait while a is still writing.
         expect(order).toEqual(['a:start'])
@@ -160,8 +162,9 @@ describe('queueFrontmatterWrite (per-file write serialization)', () => {
             order.push('a:start')
             await first.promise
         })
-        const b = queueFrontmatterWrite(file('b.md'), async () => {
+        const b = queueFrontmatterWrite(file('b.md'), () => {
             order.push('b:start')
+            return Promise.resolve()
         })
         await b
         expect(order).toEqual(['a:start', 'b:start'])
@@ -195,7 +198,7 @@ describe('appendRecordToListProperty (issue #172)', () => {
         }
         return { fileManager } as App
     }
-    const file = { path: 'Daily/2026-09-09.md' } as TFile
+    const file = Object.assign(new TFile(), { path: 'Daily/2026-09-09.md' })
 
     it('creates the list, drops a template placeholder, and appends the object', async () => {
         const fm: Record<string, unknown> = { pomodoros: [null] }

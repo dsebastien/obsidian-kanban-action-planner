@@ -1,5 +1,6 @@
 import { describe, expect, it, mock } from 'bun:test'
-import type { Menu, TFile } from 'obsidian'
+import { TFile } from 'obsidian'
+import type { Menu } from 'obsidian'
 import { UNMAPPED_COLUMN_ID } from '../../constants'
 import type { ColumnDef } from '../../domain/note-type'
 import type { KanbanCard } from '../../ui/board/types'
@@ -28,7 +29,7 @@ function makeCard(): KanbanCard {
         key: 'Tasks/task.md',
         statusValue: 'todo',
         order: 1000,
-        file: { path: 'Tasks/task.md' } as unknown as TFile,
+        file: Object.assign(new TFile(), { path: 'Tasks/task.md' }),
         title: 'Task',
         display: {
             title: 'Task',

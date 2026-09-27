@@ -69,6 +69,15 @@ class MenuItemMock {
     }
 }
 
+/**
+ * Vault file stand-ins with Obsidian's real hierarchy (TFile/TFolder extend
+ * TAbstractFile), so specs build doubles as `Object.assign(new TFile(), {...})`
+ * instead of casting plain objects, and `instanceof` narrows as in the app.
+ */
+class TAbstractFileMock {}
+class TFileMock extends TAbstractFileMock {}
+class TFolderMock extends TAbstractFileMock {}
+
 // Mock the obsidian module (fire-and-forget, no need to await)
 void bunMock.module('obsidian', () => ({
     Notice: class Notice {
@@ -79,13 +88,13 @@ void bunMock.module('obsidian', () => ({
     // These are only used as types, but we provide empty implementations
     // in case they're ever accessed at runtime
     App: class App {},
-    TFile: class TFile {},
+    TFile: TFileMock,
     Plugin: class Plugin {},
     PluginSettingTab: class PluginSettingTab {},
     Setting: class Setting {},
     MarkdownView: class MarkdownView {},
-    TAbstractFile: class TAbstractFile {},
-    TFolder: class TFolder {},
+    TAbstractFile: TAbstractFileMock,
+    TFolder: TFolderMock,
     AbstractInputSuggest: class AbstractInputSuggest {},
     SearchComponent: class SearchComponent {},
     // Modal primitives — needed for ConfirmModal-style replacements
@@ -134,6 +143,9 @@ void bunMock.module('obsidian', () => ({
         setWarning() {
             return this
         }
+        setDestructive() {
+            return this
+        }
         onClick(_cb: () => unknown) {
             return this
         }
@@ -141,13 +153,14 @@ void bunMock.module('obsidian', () => ({
     Menu: MenuMock,
     MenuItem: MenuItemMock,
     // Network — the obsidian-fetch adapter wraps this
-    requestUrl: async (_params: unknown) => ({
-        status: 200,
-        headers: {},
-        text: '',
-        json: {},
-        arrayBuffer: new ArrayBuffer(0)
-    }),
+    requestUrl: (_params: unknown) =>
+        Promise.resolve({
+            status: 200,
+            headers: {},
+            text: '',
+            json: {},
+            arrayBuffer: new ArrayBuffer(0)
+        }),
     debounce: (fn: (...args: unknown[]) => unknown) => fn,
     setIcon: () => {},
     getAllTags: (_cache: unknown): string[] => [],

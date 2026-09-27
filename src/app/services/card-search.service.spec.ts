@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'bun:test'
-import type { App, CachedMetadata, TFile } from 'obsidian'
+import { TFile } from 'obsidian'
+import type { App, CachedMetadata } from 'obsidian'
 import { buildCardSearchRecord, stringifyForSearch } from './card-search.service'
 import type { RelatedNote } from './relationships.service'
 import type { KanbanCard } from '../ui/board/types'
@@ -19,7 +20,7 @@ function related(label: string, key: string): RelatedNote {
 
 function card(overrides: Partial<KanbanCard> = {}): KanbanCard {
     return {
-        file: { path: 'Notes/Card.md' } as unknown as TFile,
+        file: Object.assign(new TFile(), { path: 'Notes/Card.md' }),
         key: 'Notes/Card.md',
         title: 'Card',
         statusValue: '20 Doing',

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'bun:test'
-import type { App, TFile } from 'obsidian'
+import { TFile } from 'obsidian'
+import type { App } from 'obsidian'
 import { createDefaultNoteType, recognizeLocalNoteType } from './note-type.service'
 import type { NoteType } from '../domain/note-type'
 import type { KanbanActionPlannerPlugin } from '../plugin'
@@ -20,7 +21,7 @@ function fakePlugin(noteTypes: NoteType[]): KanbanActionPlannerPlugin {
 
 // getAllTags is mocked to return [] in test-setup, so these cover path/folder rules.
 const app = { metadataCache: { getFileCache: () => null } } as unknown as App
-const file = (path: string): TFile => ({ path }) as unknown as TFile
+const file = (path: string): TFile => Object.assign(new TFile(), { path })
 
 describe('recognizeLocalNoteType (issue #31)', () => {
     it('matches a file to a local type by folder rule', () => {
