@@ -3,6 +3,19 @@ import tseslint from 'typescript-eslint'
 import eslintConfigPrettier from 'eslint-config-prettier'
 import globals from 'globals'
 import obsidianmd from 'eslint-plugin-obsidianmd'
+// Passing `brands` REPLACES the plugin's default list rather than extending it
+// (see sentenceCaseUtil.js: `options?.brands ?? DEFAULT_BRANDS`). Listing only
+// this plugin's own names would therefore silently strip "Obsidian", "Git",
+// "Markdown", "GitHub", "Windows" and the other 40-odd defaults — and the
+// community catalog reviewer, which runs the plugin's own ruleset, would keep
+// enforcing every one of them. The loss shows up as findings you never see
+// locally, not as findings that go away.
+// Deep path because the package exports only its default plugin object; it is
+// pinned exactly, and a break here is a loud module-resolution error, never a
+// silent shrinking of the list.
+import { DEFAULT_BRANDS } from 'eslint-plugin-obsidianmd/dist/lib/rules/ui/brands.js'
+// `acronyms` REPLACES DEFAULT_ACRONYMS the same way, so it is spread too.
+import { DEFAULT_ACRONYMS } from 'eslint-plugin-obsidianmd/dist/lib/rules/ui/acronyms.js'
 import { defineConfig } from 'eslint/config'
 
 // eslint-plugin-obsidianmd 0.4.x lowered these rules from error to warn in its
@@ -186,36 +199,23 @@ export default defineConfig([
             // Sentence case is a community-review requirement, so the rule is an
             // ERROR here rather than off. The catalog reviewer runs its OWN
             // ruleset against the source archive, so switching it off locally
-            // suppresses nothing on their side. `brands` REPLACES the plugin's
-            // default list; `ignoreRegex` entries are anchored to the exact
-            // literals they exempt.
+            // suppresses nothing on their side. `brands` and `acronyms` REPLACE
+            // the plugin's default lists, so both spread the defaults first
+            // (see the imports) and add only what the defaults lack;
+            // `ignoreRegex` entries are anchored to the exact literals they
+            // exempt.
             'obsidianmd/ui/sentence-case': [
                 'error',
                 {
                     enforceCamelCaseLower: true,
                     brands: [
-                        // Defaults this codebase relies on
-                        'Obsidian',
-                        'iOS',
-                        'macOS',
-                        'Windows',
-                        'Linux',
-                        'Android',
-                        'GitHub',
+                        ...DEFAULT_BRANDS,
+                        // Funding link, not among the defaults
                         'GitHub Sponsors',
-                        'Git',
-                        'YouTube',
-                        'Markdown',
-                        'JavaScript',
-                        'TypeScript',
-                        'Node.js',
-                        // The follow CTA links to x.com
-                        'X',
                         // Obsidian features and plugins this copy names
                         'Base',
                         'Bases',
                         'Canvas',
-                        'Excalidraw',
                         'Dataview',
                         'TaskNotes',
                         // The companion plugin whose note types this one reads
@@ -224,24 +224,9 @@ export default defineConfig([
                         'Knowii'
                     ],
                     // Tokens that must keep their exact casing wherever they
-                    // appear: this plugin's own vocabulary (WBS, WIP) and the
-                    // key names its shortcut hints spell out. `acronyms`
-                    // REPLACES the rule's defaults exactly like `brands`, so
-                    // everything this codebase relies on is listed.
-                    acronyms: [
-                        'WBS',
-                        'GTD',
-                        'WIP',
-                        'TBD',
-                        'API',
-                        'URL',
-                        'CSS',
-                        'HTML',
-                        'JSON',
-                        'YAML',
-                        'UI',
-                        'ID'
-                    ],
+                    // appear: the defaults (API, URL, UI, ID, ...) plus this
+                    // plugin's own vocabulary.
+                    acronyms: [...DEFAULT_ACRONYMS, 'WBS', 'GTD', 'WIP', 'TBD'],
                     ignoreRegex: [
                         // Author credit / handle — proper noun
                         '^@dSebastien$',
