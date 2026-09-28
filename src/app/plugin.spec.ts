@@ -56,10 +56,14 @@ describe('default settings', () => {
         expectDefaultsNotFrozen()
     })
 
-    test('loadSettings with stored data never freezes the shared defaults', async () => {
+    test('loadSettings with stored data: regression guard for the merge shape', async () => {
         // Nothing stored for the arrays: the merge takes them from the
-        // defaults. Zod's parse copies them today; this pins that the whole
-        // merge, parse and migrate chain keeps the constant out of produce.
+        // defaults. This does NOT fail if the merge alone goes back to
+        // spreading DEFAULT_SETTINGS: Zod's parse copies every array and
+        // record before produce sees them. It fails when both happen, a
+        // DEFAULT_SETTINGS merge and a parse or migrate step that passes the
+        // merged values through (verified on a scratch clone), so it guards
+        // the createDefaultSettings() merge against the day parse stops copying.
         const plugin = createPlugin({ minutesPerDay: 420 })
 
         await plugin.loadSettings()
