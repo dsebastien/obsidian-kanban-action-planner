@@ -285,6 +285,17 @@ These rules apply to **`id`**, **`name`**, and **`description`** in `manifest.js
 - File pickers in settings tabs: never hand-roll. Use `AbstractInputSuggest` for inline autocomplete and `FuzzySuggestModal` for a browse-button modal — both cover keyboard nav, theming, and popout-window correctness for free. Hand-rolled menus accumulate inline-style + `document.createElement` lint warnings fast.
 - Replace `window.confirm(...)` with a `Modal` subclass: `confirm()` blocks the UI thread, can't be themed, doesn't play with popout windows, and is forbidden by the scorecard.
 - Never give a `PluginSettingTab` subclass a method/property whose name collides with an Obsidian `SettingTab` base member — reserved as of API 1.13.0: `update`, `getSettingDefinitions`, `getControlValue`, `setControlValue`, `settingItems`, `icon` (plus long-standing `display`, `hide`, `containerEl`, `app`). A same-named helper silently **shadows** the framework method; e.g. `addSettingTab()` calls `tab.update()` with no args at registration, so a custom `update(mutator)` receives `undefined` and crashes (`[Immer] The first or second argument to 'produce' must be a function`, or any "expected a function" error). Name helpers distinctively (`mutateSettings`, `renderX`, …), and keep the `obsidian` dev types current so `noImplicitOverride` flags collisions at compile time.
+- **Never `produce()` from the shared `DEFAULT_SETTINGS`.** Immer
+  deep-freezes what `produce` returns, including every subtree it shares with
+  its base, so `produce(DEFAULT_SETTINGS, …)` freezes the exported constant
+  (and its arrays) for the rest of the process. Later code or specs that touch
+  it fail with "Attempted to assign to readonly property". The `test` script
+  runs `bun test --isolate`, which hides it, so `validate` and CI never see
+  it: only the `Object.isFrozen` assertions in `src/app/plugin.spec.ts` do.
+  Produce from `createDefaultSettings()`, a deep-fresh object per call: build
+  nested arrays and objects as new values, never `{ ...DEFAULT_SETTINGS }`
+  (the spread shares them, and they freeze again). Keep `DEFAULT_SETTINGS` for
+  reads.
 
 ## Versioning & releases
 
@@ -378,7 +389,7 @@ override async onload() { }  // ✓ Must use 'override' keyword
 
 // 2. Uninitialized properties (TS2564)
 settings!: PluginSettings;  // ✓ Use definite assignment if initialized in onload
-settings: PluginSettings = DEFAULT_SETTINGS;  // ✓ Or initialize inline
+settings: PluginSettings = produce(createDefaultSettings(), () => {});  // ✓ Or initialize inline (never from DEFAULT_SETTINGS itself)
 
 // 3. Unchecked array access (noUncheckedIndexedAccess)
 const first = array[0];
@@ -694,6 +705,10 @@ async onload() {
   await this.saveData(this.settings);
 }
 ```
+
+`Object.assign` copies one level only: once settings are nested and go
+through Immer, start from `createDefaultSettings()` instead (see "Never
+`produce()` from the shared `DEFAULT_SETTINGS`").
 
 ### Register listeners safely
 

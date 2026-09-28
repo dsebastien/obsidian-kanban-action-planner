@@ -164,6 +164,23 @@ void bunMock.module('obsidian', () => ({
     debounce: (fn: (...args: unknown[]) => unknown) => fn,
     setIcon: () => {},
     getAllTags: (_cache: unknown): string[] => [],
+    // Reached when a spec imports plugin.ts (the default-settings freeze
+    // tests): its views extend these at module load, and its services
+    // import the helpers.
+    View: class View {},
+    ItemView: class ItemView {},
+    BasesView: class BasesView {},
+    Scope: class Scope {},
+    MarkdownRenderer: { render: async () => {} },
+    normalizePath: (path: string): string => path,
+    parseYaml: (_yaml: string): unknown => null,
+    getFrontMatterInfo: (_content: string) => ({
+        exists: false,
+        frontmatter: '',
+        from: 0,
+        to: 0,
+        contentStart: 0
+    }),
     moment: (input?: unknown) => ({
         isValid: () => input !== undefined && input !== null && input !== '',
         format: () => (typeof input === 'string' ? input : '')

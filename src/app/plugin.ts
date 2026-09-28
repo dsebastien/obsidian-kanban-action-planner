@@ -1,7 +1,7 @@
 import { Menu, Plugin, View } from 'obsidian'
 import {
-    DEFAULT_SETTINGS,
     SETTINGS_SCHEMA_VERSION,
+    createDefaultSettings,
     pluginSettingsSchema
 } from './types/plugin-settings.intf'
 import { migrateSettings } from './domain/settings-migrations'
@@ -42,7 +42,7 @@ export class KanbanActionPlannerPlugin extends Plugin {
      */
     // No `override`: `Plugin.settings` only exists in API 1.13+ typings and the
     // plugin supports 1.12 (latest public release line).
-    override settings: PluginSettings = produce(DEFAULT_SETTINGS, () => DEFAULT_SETTINGS)
+    override settings: PluginSettings = produce(createDefaultSettings(), () => {})
 
     /**
      * Live kanban view instances, so a settings/noteType change can refresh every
@@ -443,11 +443,11 @@ export class KanbanActionPlannerPlugin extends Plugin {
 
         if (!loadedData || typeof loadedData !== 'object') {
             log('Using default settings', 'debug')
-            this.settings = produce(DEFAULT_SETTINGS, () => {})
+            this.settings = produce(createDefaultSettings(), () => {})
             return
         }
 
-        const merged = { ...DEFAULT_SETTINGS, ...(loadedData as Partial<PluginSettings>) }
+        const merged = { ...createDefaultSettings(), ...(loadedData as Partial<PluginSettings>) }
         const parsed = pluginSettingsSchema.safeParse(merged)
 
         if (parsed.success) {
@@ -459,7 +459,7 @@ export class KanbanActionPlannerPlugin extends Plugin {
             if (migrated !== parsed.data) await this.saveData(this.settings)
         } else {
             log('Invalid settings; using defaults', 'warn', parsed.error)
-            this.settings = produce(DEFAULT_SETTINGS, () => {})
+            this.settings = produce(createDefaultSettings(), () => {})
         }
     }
 
