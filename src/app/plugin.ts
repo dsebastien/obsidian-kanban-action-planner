@@ -40,8 +40,8 @@ export class KanbanActionPlannerPlugin extends Plugin {
     /**
      * The plugin settings are immutable
      */
-    // No `override`: `Plugin.settings` only exists in API 1.13+ typings and the
-    // plugin supports 1.12 (latest public release line).
+    // `override` required: `Plugin.settings?: unknown` exists in the 1.13+
+    // typings this plugin targets (minAppVersion 1.13.0).
     override settings: PluginSettings = produce(createDefaultSettings(), () => {})
 
     /**
