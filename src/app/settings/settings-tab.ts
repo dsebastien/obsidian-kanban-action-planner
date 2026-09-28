@@ -494,8 +494,8 @@ function reportSaveFailure(error: unknown): void {
  *
  * Rules that each cost a shipped bug in a sibling plugin: a `render:` hook
  * writes into its own row only, and returns a cleanup when it appends content
- * (update() re-runs it on the same row and only resets the control area); a
- * row with neither a control nor a render hook is skipped.
+ * (update() re-runs it on the same row and only resets its name, description
+ * and control area); a row with neither a control nor a render hook is skipped.
  */
 export class KanbanActionPlannerSettingTab extends PluginSettingTab {
     plugin: KanbanActionPlannerPlugin
@@ -782,7 +782,8 @@ export class KanbanActionPlannerSettingTab extends PluginSettingTab {
                                 this.renderBuyMeACoffeeBadge(el)
                             })
                             // update() re-runs this hook on the SAME row: only
-                            // the control area is reset, so remove what was added
+                            // name, description and control area are reset, so
+                            // remove what was added
                             return () => blockEl.remove()
                         }
                     }
