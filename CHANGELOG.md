@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.1.0](https://github.com/dsebastien/obsidian-kanban-action-planner/compare/2.0.0...2.1.0) (2026-10-01)
+
+### Mobile support
+
+The plugin now runs on iPhone, iPad and Android. It was wrongly flagged as desktop-only; nothing in it actually needs the desktop app. Feedback on layout or touch issues is welcome on GitHub. (#204)
+
+### Long card titles no longer stretch every card
+
+All cards on a board share the same height. A single very long note name used to make every card that tall. Card titles now stop at three lines with an ellipsis, and hovering a title shows it in full. (#207)
+
 ## [2.0.0](https://github.com/dsebastien/obsidian-kanban-action-planner/compare/1.31.0...2.0.0) (2026-09-27)
 
 ### ⚠ BREAKING CHANGES
@@ -658,6 +668,7 @@ Claude-Session: https://claude.ai/code/session_01LM4hi11kohPVqgZNLpjRgh
 
 * **plugin:** match Starter Kit's {{quarter}} placeholder format (Q2, not 2) ([4fde618](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/4fde6185c5956e3f6fd2ca3a9b03e70cf5e16840))
 * **plugin:** persist discovered statuses so Show empty columns works ([cf91b81](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/cf91b81a1b0786e35c73f4885882e2dc33564c62))
+
 
 
 
