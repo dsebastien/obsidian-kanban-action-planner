@@ -149,9 +149,16 @@ until you define your statuses.
 
 Manual ordering is stored in your notes, not in plugin data, so it travels with the vault.
 
-**Touch screens.** Swiping vertically over cards scrolls the column as usual. To drag a card by
-touch, start the gesture **sideways** (for a column header, start **downwards**). A plain swipe
-never moves a card or writes to a note. The same rule applies in the calendar and WBS panels.
+**Touch screens.** On the board, **press and hold** a card to pick it up, then drag it. Lift your
+finger without moving to open the card's menu instead. Swiping over cards in any direction just
+scrolls: up and down through the column, sideways across the board. A swipe never moves a card or
+writes to a note. To reorder columns by touch, start the gesture on the column header
+**downwards**. In the calendar and WBS panels, start a drag **sideways**. See
+[Phones and tablets](#phones-and-tablets).
+
+**Auto-scroll.** While you drag a card, hold it near the edge of the board, a column or the lane
+stack and it scrolls that way, so you can reach a column or a slot that is off screen.
+
 Drag-and-drop also works in popped-out (separate) Obsidian windows.
 
 **Auto-sort a column by a property.** Instead of hand-curated manual order, a board can sort the
@@ -1412,6 +1419,32 @@ writes the minutes to the duration property.
 - **Next** (or **→**) advances without changing anything; **Esc** exits; **D** marks done;
   **T** toggles the timer; **O** opens the note. Right-click anywhere for the full card
   menu.
+
+## Phones and tablets
+
+The plugin runs in the Obsidian mobile apps. What changes there:
+
+- **Pick up a card with a long press.** Press and hold a card until it lifts, then drag it. Hold it
+  near an edge to scroll. Lifting your finger without moving opens the card's menu (the same menu
+  a right-click opens on the desktop).
+- **One column at a time on a phone.** Every column takes the full width and the board snaps from
+  column to column as you swipe. A row of chips above the board names every column with its card
+  count; tap one to jump to it. Collapsed columns stay narrow bars. Tablets keep the full board.
+- **Bigger touch targets.** The column and lane buttons, the mode switch, and the resize handles in
+  the ideal week and the timeline are sized for a finger. The resize handles are always faintly
+  visible, since there is no hover on a touch screen. A timeline bar needs a little more width
+  before it shows its handles.
+
+What mobile does not do, on purpose:
+
+- **Print the ideal week.** The mobile apps have no print dialog, so the command isn't offered.
+  Print from the desktop app.
+- **Import an ideal week from a file.** Pasting the JSON or Markdown into the import box works
+  everywhere. **Browse…** depends on your device's file picker and may not offer every file type.
+
+Still desktop-first: the calendar, timeline, WBS and ideal week work on a phone, but their touch
+gestures and layouts haven't been redesigned yet. Follow the linked issues in the
+[mobile plan](https://github.com/dsebastien/obsidian-kanban-action-planner/blob/main/documentation/plans/mobile-first.md).
 
 ## Keyboard
 

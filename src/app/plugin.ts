@@ -1,4 +1,4 @@
-import { Menu, Plugin, View } from 'obsidian'
+import { Menu, Platform, Plugin, View } from 'obsidian'
 import {
     SETTINGS_SCHEMA_VERSION,
     createDefaultSettings,
@@ -296,7 +296,10 @@ export class KanbanActionPlannerPlugin extends Plugin {
         this.addCommand({
             id: 'print-ideal-week',
             name: 'Print the ideal week',
-            checkCallback: onActiveView((view) => view.printIdealWeek())
+            // Mobile posture (issue #194): the mobile apps have no print
+            // dialog, so the command is not offered there.
+            checkCallback: (checking) =>
+                !Platform.isMobile && onActiveView((view) => view.printIdealWeek())(checking)
         })
         this.addCommand({
             id: 'import-ideal-week',

@@ -166,7 +166,11 @@ export class WeekDnd {
                     : handle.hasClass('kap-week-handle-right')
                       ? 'right'
                       : null
-                : sideEdgeAt(block, e.clientX)
+                : sideEdgeAt(
+                      block,
+                      e.clientX,
+                      e.pointerType === 'touch' ? SIDE_EDGE_TOUCH_PX : SIDE_EDGE_PX
+                  )
             if (sideEdge) {
                 this.gesture = { kind: 'span', el: block, path, from, edge: sideEdge }
             } else if (handle) {
@@ -846,6 +850,8 @@ function slotOf(el: HTMLElement): Slot | null {
  * (or on the title text over it) still stretches instead of moving.
  */
 export const SIDE_EDGE_PX = 10
+/** The same zone for a finger (issue #194): matches the mobile handle width. */
+export const SIDE_EDGE_TOUCH_PX = 18
 
 /**
  * The side edge a press at `clientX` sits on for a piece spanning
@@ -865,12 +871,16 @@ export function sideEdgeOf(
 }
 
 /** `sideEdgeOf` for a rendered piece (continuation pieces have no side edges). */
-export function sideEdgeAt(block: HTMLElement, clientX: number): 'left' | 'right' | null {
+export function sideEdgeAt(
+    block: HTMLElement,
+    clientX: number,
+    zone = SIDE_EDGE_PX
+): 'left' | 'right' | null {
     // The run of days is edited on the piece that starts the slot, never on
     // the second half of a midnight crosser.
     if (block.dataset['continuation'] === '1') return null
     const rect = block.getBoundingClientRect()
-    return sideEdgeOf(rect.left, rect.right, clientX)
+    return sideEdgeOf(rect.left, rect.right, clientX, zone)
 }
 
 /** Snap DOWN to the grid step: the cell the pointer is in. */

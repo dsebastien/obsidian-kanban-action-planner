@@ -197,6 +197,22 @@ When a new business rule is mentioned:
     serves mouse/trackpad/touch, with a non-drag fallback. `isDesktopOnly` stays `false`.
     Deliberate mobile **graceful degradation** is allowed but must be intentional and
     documented per feature ("mobile posture"). Respect `prefers-reduced-motion` everywhere.
+    12a. **Mobile-first board (issue #194).** Layouts key off Obsidian's `Platform` flags
+    (`.kap-mobile` / `.kap-phone` / `.kap-tablet` on `.kap-root`, `ui/platform.ts`); width
+    queries only drive finer breakpoints. **Touch drag on the board is a long press**
+    (`LONG_PRESS_MS`): cards are `touch-action: pan-x pan-y`, so every swipe scrolls and a finger
+    that moves before the press completes is never a drag (replaces the issue-#109
+    sideways-swipe card drag on the board; calendar/WBS keep it). Lift without moving = the card
+    menu (dispatched as `contextmenu`; the native long-press menu is swallowed during a touch
+    press). While dragging, edge auto-scroll moves the board, card list or lane stack
+    (`auto-scroll.ts`), snapping suspended. **Phone: one column at a time**: expanded columns
+    are board-wide (still equal widths), the board snaps per column, and a column-switcher
+    chip strip (label + count across lanes; tap scrolls every lane) sits above the board in
+    board mode only. Mobile targets: board icon buttons and mode buttons ≥ 36px; week/timeline
+    resize handles always faintly visible with finger-wide zones (week side zone
+    `SIDE_EDGE_TOUCH_PX`, timeline handle gate `BAR_HANDLES_MIN_PX_MOBILE`). Mobile posture:
+    no ideal-week print (command hidden); file import relies on the OS picker, paste always
+    works. Remaining mobile work is tracked in `documentation/plans/mobile-first.md`.
 13. **Documentation is a first-class, per-milestone deliverable.** Every user-visible change
     updates end-user docs in `docs/` and technical docs in `documentation/` (Architecture,
     Domain Model, Configuration, Business Rules) — not as a follow-up.

@@ -152,6 +152,21 @@ void bunMock.module('obsidian', () => ({
     },
     Menu: MenuMock,
     MenuItem: MenuItemMock,
+    // Desktop by default; layout code keys off these flags (issue #194).
+    Platform: {
+        isDesktop: true,
+        isMobile: false,
+        isDesktopApp: true,
+        isMobileApp: false,
+        isIosApp: false,
+        isAndroidApp: false,
+        isPhone: false,
+        isTablet: false,
+        isMacOS: false,
+        isWin: false,
+        isLinux: true,
+        isSafari: false
+    },
     // Network — the obsidian-fetch adapter wraps this
     requestUrl: (_params: unknown) =>
         Promise.resolve({

@@ -11,10 +11,20 @@
 
 /** Rendered bar width (px) below which the resize handles are dropped. */
 export const BAR_HANDLES_MIN_PX = 24
+/**
+ * The same gate on mobile (issue #194), where each handle is a 16px finger
+ * zone: two of them need a bar wide enough to keep a body to move-drag.
+ */
+export const BAR_HANDLES_MIN_PX_MOBILE = 56
 /** Rendered bar width (px) below which the duration tag is dropped. */
 export const BAR_DURATION_TAG_MIN_PX = 32
 
-const GATES_PX = [BAR_HANDLES_MIN_PX, BAR_DURATION_TAG_MIN_PX] as const
+/** The handle gate for the platform. */
+export function barHandlesMinPx(isMobile: boolean): number {
+    return isMobile ? BAR_HANDLES_MIN_PX_MOBILE : BAR_HANDLES_MIN_PX
+}
+
+const GATES_PX = [BAR_HANDLES_MIN_PX, BAR_HANDLES_MIN_PX_MOBILE, BAR_DURATION_TAG_MIN_PX] as const
 
 /**
  * Whether re-rendering at `nextTrackWidth` would change any px-gated

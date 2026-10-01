@@ -1,5 +1,10 @@
 import { test, expect, describe } from 'bun:test'
-import { timelineWidthGatesCrossed } from './width-gates'
+import {
+    BAR_HANDLES_MIN_PX,
+    BAR_HANDLES_MIN_PX_MOBILE,
+    barHandlesMinPx,
+    timelineWidthGatesCrossed
+} from './width-gates'
 
 describe('timelineWidthGatesCrossed', () => {
     test('unchanged width never re-renders', () => {
@@ -32,5 +37,21 @@ describe('timelineWidthGatesCrossed', () => {
     test('tiny bars that stay under both gates at both widths are a no-op', () => {
         // 1% of 800 = 8px, of 1200 = 12px — both below 24.
         expect(timelineWidthGatesCrossed([1], 800, 1200)).toBe(false)
+    })
+})
+
+describe('barHandlesMinPx', () => {
+    test('desktop keeps the 24px gate', () => {
+        expect(barHandlesMinPx(false)).toBe(BAR_HANDLES_MIN_PX)
+    })
+
+    test('mobile needs a wider bar for its finger-sized handles', () => {
+        expect(barHandlesMinPx(true)).toBe(BAR_HANDLES_MIN_PX_MOBILE)
+        expect(BAR_HANDLES_MIN_PX_MOBILE).toBeGreaterThan(BAR_HANDLES_MIN_PX)
+    })
+
+    test('a bar crossing the mobile gate re-renders', () => {
+        // 7% of 800 = 56px (handles on), of 790 = 55.3px (handles off).
+        expect(timelineWidthGatesCrossed([7], 800, 790)).toBe(true)
     })
 })

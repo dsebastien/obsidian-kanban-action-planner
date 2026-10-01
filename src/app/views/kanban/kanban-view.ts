@@ -210,6 +210,8 @@ import { applyUniformCardHeight } from '../../ui/board/card-equalize'
 import { BoardDnd } from '../../ui/board/dnd-controller'
 import type { DropTarget } from '../../ui/board/dnd-controller'
 import { ColumnDnd } from '../../ui/board/column-dnd'
+import { ColumnSwitcher } from '../../ui/board/column-switcher'
+import { currentPlatform, platformClasses } from '../../ui/platform'
 import type { CardDisplay, KanbanCard } from '../../ui/board/types'
 import { renderViewToolbar } from '../../ui/view-toolbar'
 import type { ViewMode } from '../../ui/view-toolbar'
@@ -443,6 +445,10 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
     private boardEl: HTMLElement | null = null
     private dnd: BoardDnd | null = null
     private columnDnd: ColumnDnd | null = null
+    /** Phone-only column chips above the board (issue #194). */
+    private columnSwitcher: ColumnSwitcher | null = null
+    /** On a phone the board shows one column at a time (issue #194). */
+    private readonly isPhone = currentPlatform().isPhone
     private calendarDnd: CalendarDnd | null = null
     private weekDnd: WeekDnd | null = null
     private readonly debouncedRebuild: Debouncer<[], void>
@@ -698,6 +704,9 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
 
     override onload(): void {
         this.rootEl = this.containerEl.createDiv({ cls: CSS_ROOT_CLASS })
+        // Platform-keyed layout hooks (issue #194): `.kap-mobile` (finger-sized
+        // targets), `.kap-phone` (one column at a time), `.kap-tablet`.
+        this.rootEl.addClasses(platformClasses(currentPlatform()))
         // Toolbar controls are rendered in rebuild(), once `this.config` is
         // populated — reading it here (onload) would throw. The three slots are
         // created now: left (mode switch) and right (lane nav + gear) are
@@ -776,6 +785,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             text: 'No cards match the filter.'
         })
         this.boardEl = this.rootEl.createDiv({ cls: 'kap-board-host' })
+        if (this.isPhone) this.columnSwitcher = new ColumnSwitcher(this.rootEl, this.boardEl)
         this.dnd = new BoardDnd(this.boardEl, {
             onDrop: (cardKey, target) => void this.handleDrop(cardKey, target)
         })
@@ -1110,6 +1120,8 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         this.stopFocusTick()
         this.dnd?.destroy()
         this.dnd = null
+        this.columnSwitcher?.destroy()
+        this.columnSwitcher = null
         this.columnDnd?.destroy()
         this.columnDnd = null
         this.calendarDnd?.destroy()
@@ -1632,6 +1644,14 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
      */
     private applyFilterAndRender(): void {
         this.applyFilterAndRenderInner()
+        // Phone column chips follow the board just rendered (issue #194);
+        // hidden in every other mode and under the triage/focus overlays.
+        if (this.columnSwitcher && this.boardEl) {
+            this.columnSwitcher.sync(
+                this.boardEl,
+                this.viewMode() === 'board' && !this.triageMode() && !this.columnTriage
+            )
+        }
         // Focus mode (issue #160): the spotlight overlay sits ON TOP of
         // whatever mode just rendered, so it must be re-mounted after every
         // pass (mode renderers may have emptied the host).

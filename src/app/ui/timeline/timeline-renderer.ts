@@ -1,9 +1,9 @@
 import { claimPointerDrag } from '../pointer-claim'
-import { Menu } from 'obsidian'
+import { Menu, Platform } from 'obsidian'
 import type { CalendarRange } from '../../domain/calendar'
 import { resizeEstimate, resizeFromStart } from '../../domain/timeline'
 import type { AxisTick, BarGeometry } from '../../domain/timeline'
-import { BAR_DURATION_TAG_MIN_PX, BAR_HANDLES_MIN_PX } from './width-gates'
+import { BAR_DURATION_TAG_MIN_PX, barHandlesMinPx } from './width-gates'
 import type { KanbanCard } from '../board/types'
 import { contextColor } from '../../services/colors.service'
 import { addContextLegendItem } from '../calendar/calendar-renderer'
@@ -400,8 +400,9 @@ function renderRow(
         // Resize handles (issue #80): none on a clipped side (the real date is
         // off-window) and none at all under 24px rendered width — two 7px
         // zones would swallow a 1–3-day bar's move-drag and click. Narrow bars
-        // fall back to the context menu.
-        if (barWidthPx >= BAR_HANDLES_MIN_PX) {
+        // fall back to the context menu. Mobile handles are finger-wide, so
+        // their gate is wider too (issue #194).
+        if (barWidthPx >= barHandlesMinPx(Platform.isMobile)) {
             const geometry = row.bar
             if (!geometry.clippedStart) {
                 const handle = bar.createDiv({ cls: 'kap-tl-handle kap-tl-handle-start' })

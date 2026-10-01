@@ -1009,9 +1009,10 @@
         border-left: 3px solid var(--kap-card-accent, var(--background-modifier-border));
         border-radius: var(--radius-s, 6px);
         cursor: grab;
-        /* pan-y keeps native vertical column scrolling on touch — a horizontal
-           touch gesture starts the card drag instead (issue #109). */
-        touch-action: pan-y;
+        /* Every swipe pans natively on touch: vertically through the column,
+           sideways across the board (on a phone, to the next column). A long
+           press picks the card up instead (issue #194, dnd-controller.ts). */
+        touch-action: pan-x pan-y;
         box-shadow: var(--shadow-s);
         transition:
             border-color var(--kap-transition) var(--kap-ease),
@@ -2074,6 +2075,109 @@
             width: 80vw;
             scroll-snap-align: start;
         }
+    }
+
+    /* ── Mobile (issue #194) ──
+       `.kap-mobile` / `.kap-phone` / `.kap-tablet` are set on `.kap-root` from
+       Obsidian's Platform flags (ui/platform.ts); width queries still drive the
+       finer breakpoints. */
+
+    /* A long press must lift the card, not select its text or open the iOS
+       link callout. */
+    .kap-mobile .kap-card {
+        -webkit-touch-callout: none;
+        -webkit-user-select: none;
+        user-select: none;
+    }
+
+    /* Picked up by a long press, not moved yet: the card rises under the
+       finger. Releasing here opens the card menu. */
+    .kap-root .kap-card.kap-card-lifted {
+        border-color: var(--interactive-accent);
+        box-shadow: var(--shadow-l);
+        transform: scale(1.03);
+    }
+
+    /* Edge auto-scroll moves the board in small steps: snapping would fight
+       it, so it is suspended for the drag and resumes on drop. */
+    .kap-board-host.kap-dragging .kap-board {
+        scroll-snap-type: none;
+    }
+
+    /* Phone: one column at a time. Every expanded column is as wide as the
+       board (still equal widths, rule 12), the horizontal scroll snaps to
+       columns, and the column switcher above the board jumps between them. A
+       collapsed column stays a narrow bar. */
+    .kap-phone .kap-board {
+        scroll-snap-type: x mandatory;
+        scroll-padding-inline: var(--size-4-3, 0.75rem);
+    }
+    .kap-phone .kap-column {
+        scroll-snap-align: start;
+    }
+    .kap-phone .kap-column:not(.kap-column-collapsed) {
+        flex: 0 0 100%;
+        max-width: 100%;
+    }
+
+    .kap-column-switcher {
+        @apply flex flex-none gap-2 overflow-x-auto px-3 py-2;
+        border-bottom: 1px solid var(--background-modifier-border);
+        scrollbar-width: none;
+    }
+
+    /* stylelint-disable declaration-no-important -- chips are <button>s; Obsidian's
+       unlayered button rule outranks every layered declaration (see .kap-mode-btn-active). */
+    .kap-root .kap-column-switcher-chip {
+        @apply inline-flex flex-none items-center gap-2 px-3 rounded-full cursor-pointer whitespace-nowrap;
+        min-height: 2.25rem;
+        font-size: var(--font-ui-small);
+        color: var(--text-muted) !important;
+        background: var(--background-secondary) !important;
+        border: 1px solid var(--background-modifier-border) !important;
+        box-shadow: none !important;
+    }
+
+    .kap-root .kap-column-switcher-chip-active {
+        color: var(--text-on-accent) !important;
+        background: var(--interactive-accent) !important;
+        border-color: var(--interactive-accent) !important;
+    }
+    /* stylelint-enable declaration-no-important */
+
+    .kap-column-switcher-count {
+        font-variant-numeric: tabular-nums;
+        opacity: 0.8;
+    }
+
+    /* Finger-sized targets: the board's small icon buttons grow to 36px. */
+    .kap-mobile .kap-column-toggle,
+    .kap-mobile .kap-lane-toggle,
+    .kap-root.kap-mobile .kap-column-add,
+    .kap-root.kap-mobile .kap-column-triage {
+        min-width: 2.25rem;
+        min-height: 2.25rem;
+    }
+
+    .kap-root.kap-mobile .kap-mode-btn {
+        min-height: 2.25rem;
+    }
+
+    /* Resize handles: no hover on touch, so they show (faintly) all the time,
+       with finger-wide hit zones (week-dnd.ts SIDE_EDGE_TOUCH_PX and
+       width-gates.ts BAR_HANDLES_MIN_PX_MOBILE match these widths). */
+    .kap-mobile .kap-week-handle {
+        height: 14px;
+        opacity: 0.6;
+    }
+    .kap-mobile .kap-week-handle-left,
+    .kap-mobile .kap-week-handle-right {
+        height: auto;
+        width: 18px;
+    }
+    .kap-root.kap-mobile .kap-tl-handle {
+        width: 16px;
+        opacity: 0.35;
     }
 
     /* Thin scrollbars in the plugin's scroll regions (cleaner than default). */
@@ -4701,6 +4805,10 @@
             --kap-transition-slow: 0.01ms;
             --kap-anim: 0.01ms;
             --kap-anim-fast: 0.01ms;
+        }
+        /* The lifted card keeps its accent border and shadow, without growing. */
+        .kap-root .kap-card.kap-card-lifted {
+            transform: none;
         }
     }
 }
