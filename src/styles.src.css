@@ -1059,6 +1059,14 @@
         flex: 1 1 auto;
         min-width: 0;
         word-break: break-word;
+        /* Long titles clamp to three lines with an ellipsis so one long note
+           name can't inflate the uniform card height board-wide (issue #207).
+           The full title stays available as the hover tooltip. */
+        display: -webkit-box;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 3;
+        line-clamp: 3;
+        overflow: hidden;
     }
 
     /* ── Compact mode (board toolbar toggle): title-only cards ──

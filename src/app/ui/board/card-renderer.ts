@@ -83,7 +83,12 @@ export function renderCard(
     // Title row is a flex line: the title takes the slack (ellipsis), the badge
     // (placement `title`) sits right-aligned and keeps its natural width.
     const titleEl = el.createDiv({ cls: 'kap-card-title' })
-    titleEl.createSpan({ cls: 'kap-card-title-text', text: card.display.title })
+    // Clamped to three lines in CSS (issue #207); the tooltip shows the full title.
+    titleEl.createSpan({
+        cls: 'kap-card-title-text',
+        text: card.display.title,
+        attr: { 'aria-label': card.display.title }
+    })
     if (cd && cd.placement === 'title') renderCountdown(titleEl, cd)
 
     const countdownAsChip = cd !== null && cd.placement === 'chip'

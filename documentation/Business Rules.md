@@ -102,7 +102,8 @@ When a new business rule is mentioned:
    compact flag — via `boardHeightsSignature`; a pure move/reorder skips the re-measure,
    its two full-board style invalidations being the DOM pass's dominant cost — approved
    2026-08-28. Published as the `--kap-card-height` CSS var, applied as `min-height`). No card
-   content is ever clipped — cards keep their natural height (`flex: none` so the
+   content is ever clipped, except the title, which clamps to three lines with an ellipsis (full
+   title as tooltip) so one long note name can't inflate every card (issue #207). Cards keep their natural height (`flex: none` so the
    height-constrained column scrolls instead of shrinking cards); sparser cards get matching
    whitespace.
 9. **Relationships.** Roles parent/sibling/child/`blocked_by` detected via explicit
