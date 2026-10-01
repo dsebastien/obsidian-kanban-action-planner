@@ -6,7 +6,7 @@ Pick a status property. It becomes your columns. From there you drag cards betwe
 
 I built this because I wanted my planning to live in my notes, not in yet another app.
 
-> Requires Obsidian 1.13+ (the Bases view API and declarative settings). Desktop only (mobile isn't supported yet).
+> Requires Obsidian 1.13+ (the Bases view API and declarative settings). Works on desktop and mobile.
 
 ## Video tour
 
@@ -143,7 +143,7 @@ Start/stop a session from any card's menu (one active session; starting elsewher
 - **Note types.** Reusable per-type config (statuses, colors, relationships, archiving, swimlanes). Define your own by tag, folder, or regex, or mirror them from the [Obsidian Starter Kit](https://store.dsebastien.net/product/obsidian-starter-kit) when present. With it installed the board configures itself (columns, colors, lanes, done states and date-stamping rules, and the folder + template new cards get), with nothing to set up. It stays entirely optional; everything works without it.
 - **Productivity touches.** Soft per-column WIP limits, per-column aggregates rolling any numeric property up next to the card count (`Σ 13`, or an average / min / max; estimates roll up as `1d 2h`, unit-converted per note type), multi-select with bulk set-status / archive / open, a compact mode showing titles only, overdue and due-today emphasis, an optional due countdown badge (`In 3d`, `2d overdue`, `Today`, color-coded by urgency and positionable on the title, a chip, the corner, or a footer), native hover preview, and per-view state remembered across reloads.
 - **What's new after updates.** After a plugin update, a one-time **tab** opens with the release notes you just received (including any versions you skipped) and ways to support development. It never appears on fresh installs or regular restarts.
-- **Your notes stay the source of truth.** Status, order, dates, relationships, and grouping ALL land in your frontmatter. Desktop only for now (mobile isn't supported yet), and respects reduced-motion settings.
+- **Your notes stay the source of truth.** Status, order, dates, relationships, and grouping ALL land in your frontmatter. Works on desktop and mobile, and respects reduced-motion settings.
 
 ## Development
 
