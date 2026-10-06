@@ -128,9 +128,12 @@ column rule.
 
 ## Property semantics
 
-- **Status** drives columns. Auto-detection prefers a property literally named `status`,
-  else any property whose name contains `status`. When sourced from the Starter Kit, the
-  status property's `allowedValues` become the column set.
+- **Status** drives columns. Auto-detection takes the configured status property, else a
+  property literally named `status`, else none (never a guess from another property, the
+  Starter Kit's rule too). When sourced from the Starter Kit, its explicit status declaration
+  wins; the status property's `allowedValues` become the column set. A guessed property
+  mirrored by an older version (`rating`, `relationship`, `*_status`, …) is dropped on the next
+  mirror (`isStaleGuessedStatus`).
 - **Order** (`manual_order` by default) is persisted to the note as a fractional float; new
   positions are midpoints between neighbours (per-column scope).
 - **blocked_by**, **date_scheduled**, **date_due** are property names (configurable) used by

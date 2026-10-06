@@ -261,27 +261,54 @@ export async function recognizeNoteType(app: App, file: TFile): Promise<SkNoteTy
 }
 
 /**
- * Pick the status property of a note type, preferring a configured name, then
- * one named `status`, then one whose name contains `status`, then the first
- * `select`-typed / constrained property. Returns its name + allowed values.
+ * Pick the status property of a Starter Kit note type that declares none
+ * explicitly: the configured name, else a property named exactly `status`
+ * (case-insensitive), else none. The Starter Kit resolves the same way, so a
+ * board never invents a lifecycle from `rating`, `relationship` or another
+ * `*_status` property. Returns its name + allowed values, or null.
  */
 export function findStatusProperty(
     noteType: SkNoteType,
     configuredName?: string | null
 ): { name: string; allowedValues: string[] } | null {
     const props = noteType.properties ?? []
-    const byName = (pred: (n: string) => boolean): SkPropertyDefinition | undefined =>
-        props.find((p) => pred(p.name.toLowerCase()))
+    const byName = (name: string): SkPropertyDefinition | undefined =>
+        props.find((p) => p.name.toLowerCase() === name.toLowerCase())
 
-    const candidate =
-        (configuredName ? byName((n) => n === configuredName.toLowerCase()) : undefined) ??
-        byName((n) => n === 'status') ??
-        byName((n) => n.includes('status')) ??
-        props.find((p) => p.type === 'select') ??
-        props.find((p) => Array.isArray(p.allowedValues) && p.allowedValues.length > 0)
+    const candidate = (configuredName ? byName(configuredName) : undefined) ?? byName('status')
 
     if (!candidate) return null
     return { name: candidate.name, allowedValues: toStringValues(candidate.allowedValues) }
+}
+
+/**
+ * The property the pre-2.3 heuristic picked when a note type had no `status`
+ * property: the first whose name contains `status`, else the first `select`,
+ * else the first with constrained values. Only used to recognize (and drop) a
+ * guess mirrored by an older version; never to pick a status.
+ */
+export function legacyGuessedStatusProperty(noteType: SkNoteType): string | null {
+    const props = noteType.properties ?? []
+    const candidate =
+        props.find((p) => p.name.toLowerCase().includes('status')) ??
+        props.find((p) => p.type === 'select') ??
+        props.find((p) => Array.isArray(p.allowedValues) && p.allowedValues.length > 0)
+    return candidate?.name ?? null
+}
+
+/**
+ * Whether `statusProperty`, mirrored onto a note type by an older version, is a
+ * guess that the type no longer resolves (it has no explicit status, no
+ * configured one and no `status` property): the board should drop it.
+ */
+export function isStaleGuessedStatus(
+    statusProperty: string | undefined,
+    defaultStatusProperty: string,
+    noteType: SkNoteType
+): boolean {
+    if (!statusProperty) return false
+    if (statusProperty.toLowerCase() === defaultStatusProperty.toLowerCase()) return false
+    return statusProperty === legacyGuessedStatusProperty(noteType)
 }
 
 /**

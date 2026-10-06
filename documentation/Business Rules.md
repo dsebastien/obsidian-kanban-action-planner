@@ -22,12 +22,16 @@ When a new business rule is mentioned:
    select the notes. Notes are read from `this.data.data`; per-view state lives in
    `this.config`; frontmatter is written via `app.fileManager.processFrontMatter`.
 2. **Status drives columns; columns come from a strong definition, never observed values.**
-   The status property is auto-detected (prefer a field literally named `status`, else any
-   field whose name contains `status`; configurable). The column **set** is defined
+   The status property is auto-detected: the configured name, else a field literally named
+   `status`, else none; never a guess from another field (same rule as the Starter Kit, whose
+   explicit status declaration wins when present; a stale guess mirrored by an older version
+   is dropped). The column **set** is defined
    explicitly — precedence: per-view `statuses` list (a **whole-board override** that forces one
    shared set on every lane) → the note type's allowed values → global `defaultStatuses`. On a
    **mixed board with note-type lanes**, the set is resolved **per lane**: each lane carries its
-   own type's vocabulary, colors, and WIP limits (Ungrouped lane = the board set); column
+   own type's vocabulary, colors, and WIP limits (Ungrouped lane = the board set; every
+   Starter Kit type on the board is mirrored when the board loads, so a lane never borrows
+   another type's columns because its own type was never a board's dominant type); column
    **drag-reorder is disabled** there (a Notice explains; order comes from each type). Columns
    are NEVER created from values observed in notes (avoids stale columns from typos/invalid
    data). With no definition, all notes sit in a single **Unmapped** column; notes with

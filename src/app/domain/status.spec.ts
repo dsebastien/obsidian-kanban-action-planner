@@ -23,8 +23,9 @@ describe('detectStatusProperty', () => {
         expect(detectStatusProperty(['task_status', 'status', 'x'])).toBe('status')
     })
 
-    it('falls back to a name containing status', () => {
-        expect(detectStatusProperty(['title', 'task_status'])).toBe('task_status')
+    it('never guesses from a name that only contains status', () => {
+        expect(detectStatusProperty(['title', 'task_status'])).toBeNull()
+        expect(detectStatusProperty(['title', 'task_status'], 'task_status')).toBe('task_status')
     })
 
     it('returns null when nothing matches', () => {

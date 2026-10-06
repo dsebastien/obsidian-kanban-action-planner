@@ -33,9 +33,9 @@ export function resolveWriteStatusProperty(input: {
 /**
  * Pick the status property name. Preference order:
  * 1. an explicitly configured name, if present in `propertyNames`;
- * 2. a property named exactly `status` (case-insensitive);
- * 3. the first property whose name contains `status` (case-insensitive).
- * Returns `null` when nothing matches.
+ * 2. a property named exactly `status` (case-insensitive).
+ * Returns `null` when nothing matches: a board never guesses a status from
+ * another property (same rule as the Obsidian Starter Kit).
  */
 export function detectStatusProperty(
     propertyNames: string[],
@@ -45,10 +45,7 @@ export function detectStatusProperty(
         const exact = propertyNames.find((p) => p.toLowerCase() === configured.toLowerCase())
         if (exact) return exact
     }
-    const named = propertyNames.find((p) => p.toLowerCase() === 'status')
-    if (named) return named
-    const contains = propertyNames.find((p) => p.toLowerCase().includes('status'))
-    return contains ?? null
+    return propertyNames.find((p) => p.toLowerCase() === 'status') ?? null
 }
 
 /** Split a status value into a sort key and a display label. */

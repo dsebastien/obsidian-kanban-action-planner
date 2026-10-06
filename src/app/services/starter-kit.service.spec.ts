@@ -4,6 +4,8 @@ import {
     enumPropertyDefs,
     findProperty,
     findStatusProperty,
+    isStaleGuessedStatus,
+    legacyGuessedStatusProperty,
     namingOf,
     recognitionMappings
 } from './starter-kit.service'
@@ -27,7 +29,7 @@ describe('findStatusProperty', () => {
         })
     })
 
-    it('prefers a property named status, then one containing status', () => {
+    it('prefers a property named status, else none', () => {
         expect(
             findStatusProperty(
                 noteType({
@@ -43,15 +45,52 @@ describe('findStatusProperty', () => {
             findStatusProperty(
                 noteType({ properties: [{ name: 'task_status', allowedValues: ['t'] }] })
             )
-        ).toEqual({ name: 'task_status', allowedValues: ['t'] })
+        ).toBeNull()
     })
 
-    it('falls back to a select-typed or constrained property', () => {
+    it('never guesses from a select-typed or constrained property', () => {
         expect(
             findStatusProperty(
-                noteType({ properties: [{ name: 'kind', type: 'select', allowedValues: ['p'] }] })
-            )?.name
-        ).toBe('kind')
+                noteType({
+                    properties: [
+                        { name: 'rating', type: 'select', allowedValues: ['1', '2'] },
+                        { name: 'relationship', allowedValues: ['friend'] }
+                    ]
+                })
+            )
+        ).toBeNull()
+    })
+
+    it('isStaleGuessedStatus flags only a mirrored legacy guess', () => {
+        const rated = noteType({
+            properties: [{ name: 'rating', type: 'select', allowedValues: ['1'] }]
+        })
+        expect(isStaleGuessedStatus('rating', 'status', rated)).toBe(true)
+        expect(isStaleGuessedStatus('status', 'status', rated)).toBe(false)
+        expect(isStaleGuessedStatus('stage', 'status', rated)).toBe(false)
+        expect(isStaleGuessedStatus('rating', 'rating', rated)).toBe(false)
+        expect(isStaleGuessedStatus(undefined, 'status', rated)).toBe(false)
+    })
+
+    it('legacyGuessedStatusProperty recognizes what older versions picked', () => {
+        expect(
+            legacyGuessedStatusProperty(
+                noteType({ properties: [{ name: 'rating', type: 'select', allowedValues: ['1'] }] })
+            )
+        ).toBe('rating')
+        expect(
+            legacyGuessedStatusProperty(
+                noteType({
+                    properties: [
+                        { name: 'rating', type: 'select', allowedValues: ['1'] },
+                        { name: 'health_status', allowedValues: ['ok'] }
+                    ]
+                })
+            )
+        ).toBe('health_status')
+        expect(
+            legacyGuessedStatusProperty(noteType({ properties: [{ name: 'title' }] }))
+        ).toBeNull()
     })
 
     it('coerces numeric allowed values to strings and drops empties', () => {
