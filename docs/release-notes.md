@@ -1,5 +1,15 @@
 # Release Notes
 
+## 2.3.0 (2026-10-06)
+
+### Features
+
+- **plugin:** mirror every Starter Kit type shown on a mixed board at load
+
+### Bug Fixes
+
+- **plugin:** trust the Starter Kit's status resolution, never guess from other properties
+
 ## 2.2.0 (2026-10-01)
 
 ### A real mobile experience, starting with the board
