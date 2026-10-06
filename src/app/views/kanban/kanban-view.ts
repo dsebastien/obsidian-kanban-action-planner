@@ -123,6 +123,7 @@ import {
     findNoteType,
     recognizeLocalNoteType,
     recognizeNoteTypeFor,
+    mirrorStarterKitTypes,
     resolveActiveNoteType,
     titleAffixesFor
 } from '../../services/note-type.service'
@@ -1311,6 +1312,17 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         // swimlanes and per-type archiving. Runs with or without the Starter Kit:
         // SK recognition first, then local mapping rules (issue #31).
         this.noteTypeByPath = await this.recognizeNoteTypes(files)
+        // Mixed boards: every Starter Kit type on the board gets its own stored
+        // mirror (columns, status), not only the dominant one, so each
+        // note-type lane shows its own statuses on first open.
+        await mirrorStarterKitTypes(
+            this.app,
+            this.plugin,
+            [...this.noteTypeByPath.values()]
+                .filter((t): t is { id: string; name: string } => t !== null)
+                .map((t) => t.id)
+                .filter((id) => id !== this.noteType.id)
+        )
         this.rebuildAutomationSnapshot(files)
         this.laneGrouping = this.resolveLaneGrouping()
         this.laneValueByPath = this.computeLaneValues(files, this.laneGrouping)

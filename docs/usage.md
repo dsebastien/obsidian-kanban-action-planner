@@ -108,8 +108,10 @@ above. Two things differ from a note embed:
 
 ## Columns from status
 
-Cards are placed by a **status property**. The plugin looks for a property named `status`
-first, then any property whose name contains `status`, and you can override it per view.
+Cards are placed by a **status property**. The plugin uses the property named `status` (or the
+one set in **Settings → Default status property**), and you can override it per view. It never
+guesses another property: a note type without a `status` property has no status until you pick one.
+With the Obsidian Starter Kit, a type's declared status property wins.
 
 The **columns themselves are defined explicitly**. They are not guessed from the values in
 your notes, so a typo never creates a stray column. A board takes its columns, in order of

@@ -32,6 +32,7 @@ import {
     getNoteTypeById,
     findStatusProperty,
     getNoteTypeStatus,
+    isStaleGuessedStatus,
     isStarterKitAvailable,
     namingOf,
     recognitionMappings,
@@ -607,6 +608,58 @@ export function columnsFromValues(
     })
 }
 
+/**
+ * Mirror one Starter Kit note type onto this plugin's stored note type: its
+ * status property and values, done states, stamped dates, naming, recognition
+ * and archive (local color overrides kept). Writes only when something changed.
+ */
+export async function mirrorStarterKitType(
+    app: App,
+    plugin: KanbanActionPlannerPlugin,
+    skType: SkNoteType
+): Promise<{ noteType: NoteType; statusValues: string[] | null }> {
+    const defaults = defaultsFromPlugin(plugin)
+    // The Starter Kit's own status resolution wins when explicit (its
+    // status property + done states, issue #56 follow-up); else the
+    // configured name or a property named exactly `status`, as the Starter
+    // Kit resolves it. Same rule whatever the Starter Kit's version.
+    const skStatus = getNoteTypeStatus(app, skType.id)
+    const skArchive = getNoteTypeArchive(app, skType.id)
+    const skRunsAutomations = starterKitRunsAutomations(app)
+    const status = skStatus?.explicit
+        ? { name: skStatus.property, allowedValues: skStatus.values.map((v) => v.value) }
+        : findStatusProperty(skType, defaults.statusProperty)
+    const base = (await getOrCreateNoteType(plugin, skType.id, skType.name, 'starter-kit')) ?? null
+    const merged = mirrorNoteType(
+        base,
+        skType,
+        status,
+        defaults,
+        skStatus,
+        skRunsAutomations,
+        skArchive
+    )
+    if (!noteTypesEqual(base, merged)) await upsertNoteType(plugin, merged)
+    return { noteType: merged, statusValues: status?.allowedValues ?? null }
+}
+
+/**
+ * Mirror every Starter Kit note type in `typeIds` that the Starter Kit knows,
+ * so a mixed board's lanes use each type's own columns on first open (not only
+ * the dominant type's). Unknown or local ids are skipped.
+ */
+export async function mirrorStarterKitTypes(
+    app: App,
+    plugin: KanbanActionPlannerPlugin,
+    typeIds: Iterable<string>
+): Promise<void> {
+    if (!isStarterKitAvailable(app)) return
+    for (const id of new Set(typeIds)) {
+        const skType = getNoteTypeById(app, id)
+        if (skType) await mirrorStarterKitType(app, plugin, skType)
+    }
+}
+
 export interface ResolvedNoteType {
     noteType: NoteType
     /** Explicit status values from the source of truth, or null to use observed. */
@@ -628,31 +681,10 @@ export async function resolveActiveNoteType(
     const skType = await recognizeDominantNoteType(app, files)
 
     if (skType) {
-        const defaults = defaultsFromPlugin(plugin)
-        // The Starter Kit's own status resolution wins when explicit (its
-        // status property + done states, issue #56 follow-up); else the
-        // historical detection over its properties.
-        const skStatus = getNoteTypeStatus(app, skType.id)
-        const skArchive = getNoteTypeArchive(app, skType.id)
-        const skRunsAutomations = starterKitRunsAutomations(app)
-        const status = skStatus?.explicit
-            ? { name: skStatus.property, allowedValues: skStatus.values.map((v) => v.value) }
-            : findStatusProperty(skType, defaults.statusProperty)
-        const base =
-            (await getOrCreateNoteType(plugin, skType.id, skType.name, 'starter-kit')) ?? null
-        const merged = mirrorNoteType(
-            base,
-            skType,
-            status,
-            defaults,
-            skStatus,
-            skRunsAutomations,
-            skArchive
-        )
-        if (!noteTypesEqual(base, merged)) await upsertNoteType(plugin, merged)
+        const mirrored = await mirrorStarterKitType(app, plugin, skType)
         return {
-            noteType: merged,
-            statusValues: status?.allowedValues ?? null,
+            noteType: mirrored.noteType,
+            statusValues: mirrored.statusValues,
             preserveOrder: true
         }
     }
@@ -782,6 +814,11 @@ function mirrorNoteType(
         if (status) {
             draft.statusProperty = status.name
             draft.columns = columnsFromValues(status.allowedValues, base, true)
+        } else if (isStaleGuessedStatus(draft.statusProperty, defaults.statusProperty, noteType)) {
+            // An older version mirrored a guessed status (e.g. `rating`): the
+            // type has none, so drop the guess and the columns built from it.
+            draft.statusProperty = defaults.statusProperty
+            draft.columns = []
         }
         if (!draft.orderProperty) draft.orderProperty = defaults.orderProperty
         const done = reconcileDone(draft.done, skStatus)
