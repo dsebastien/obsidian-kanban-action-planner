@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'bun:test'
+import type { EventRef, Events } from 'obsidian'
 import {
+    STARTER_KIT_NOTE_TYPES_CHANGED,
+    onStarterKitNoteTypesChanged,
     creationDefaults,
     enumPropertyDefs,
     findProperty,
@@ -215,5 +218,33 @@ describe('namingOf', () => {
             prefixOptional: true,
             suffixOptional: false
         })
+    })
+})
+
+describe('onStarterKitNoteTypesChanged', () => {
+    /** A minimal Events bus double. */
+    function bus(): Pick<Events, 'on'> & { trigger: (name: string) => void } {
+        const handlers = new Map<string, Array<() => unknown>>()
+        return {
+            on: (name: string, cb: () => unknown): EventRef => {
+                handlers.set(name, [...(handlers.get(name) ?? []), cb])
+                const ref: EventRef & { name: string } = { name }
+                return ref
+            },
+            trigger: (name: string) => {
+                for (const cb of handlers.get(name) ?? []) cb()
+            }
+        }
+    }
+
+    it('subscribes to the Starter Kit event and calls back on it only', () => {
+        const events = bus()
+        let calls = 0
+        const ref = onStarterKitNoteTypesChanged(events, () => calls++)
+        expect(ref).toEqual({ name: STARTER_KIT_NOTE_TYPES_CHANGED })
+        events.trigger('layout-change')
+        expect(calls).toBe(0)
+        events.trigger('obsidian-starter-kit:note-types-changed')
+        expect(calls).toBe(1)
     })
 })

@@ -1,4 +1,5 @@
-import type { App, TFile } from 'obsidian'
+import { debounce } from 'obsidian'
+import type { App, EventRef, Events, TFile } from 'obsidian'
 import { STARTER_KIT_PLUGIN_ID } from '../constants'
 import type { NamingConfig } from '../domain/card-title'
 import type { InheritedCreationDefaults } from '../domain/note-creation'
@@ -354,4 +355,29 @@ export function recognitionMappings(
             value: m.value,
             enabled: m.enabled
         }))
+}
+
+/**
+ * Workspace event the Starter Kit triggers after ANY note type mutation
+ * (properties, statuses, done states, mappings, …). Not in Obsidian's typings:
+ * it is a custom name on the workspace's generic `Events` bus.
+ */
+export const STARTER_KIT_NOTE_TYPES_CHANGED = 'obsidian-starter-kit:note-types-changed'
+
+/** Coalescing window for a burst of note type mutations (one rebuild per burst). */
+export const NOTE_TYPES_CHANGED_DEBOUNCE_MS = 300
+
+/**
+ * Subscribe to {@link STARTER_KIT_NOTE_TYPES_CHANGED}, debounced (trailing) so a
+ * burst of mutations triggers `onChange` once. Returns the `EventRef` for
+ * `registerEvent`. Typed through `Events.on(name: string, …)`, the base
+ * overload `Workspace`'s named overloads hide.
+ */
+export function onStarterKitNoteTypesChanged(
+    workspace: Pick<Events, 'on'>,
+    onChange: () => void,
+    wait: number = NOTE_TYPES_CHANGED_DEBOUNCE_MS
+): EventRef {
+    const debounced = debounce(onChange, wait, false)
+    return workspace.on(STARTER_KIT_NOTE_TYPES_CHANGED, () => debounced())
 }

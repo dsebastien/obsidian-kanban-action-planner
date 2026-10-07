@@ -34,6 +34,7 @@ import {
     trackerStatusText
 } from './services/time-tracking.service'
 import { isPaused } from './domain/pomodoro'
+import { onStarterKitNoteTypesChanged } from './services/starter-kit.service'
 import { produce } from 'immer'
 
 export class KanbanActionPlannerPlugin extends Plugin {
@@ -57,6 +58,14 @@ export class KanbanActionPlannerPlugin extends Plugin {
     /** Register a live kanban view for settings-change notifications. */
     trackKanbanView(view: KanbanActionPlannerView): void {
         this.openKanbanViews.add(view)
+    }
+
+    /**
+     * Re-resolve note types on every open board (the Starter Kit's note types
+     * changed). Each view re-mirrors the live definitions on its rebuild.
+     */
+    refreshNoteTypes(): void {
+        for (const view of this.openKanbanViews) view.onSettingsChanged('full')
     }
 
     /** Stop notifying a kanban view (called on its unload). */
@@ -83,6 +92,13 @@ export class KanbanActionPlannerPlugin extends Plugin {
             display: 'Kanban Action Planner',
             defaultMod: true
         })
+
+        // Live Starter Kit sync: KAP mirrors OSK note types (statuses, done
+        // states, …) at rebuild time and keeps no cache of them, so a registry
+        // change only needs every open board to re-resolve (debounced).
+        this.registerEvent(
+            onStarterKitNoteTypesChanged(this.app.workspace, () => this.refreshNoteTypes())
+        )
 
         // Add a settings screen for the plugin
         this.addSettingTab(new KanbanActionPlannerSettingTab(this.app, this))
