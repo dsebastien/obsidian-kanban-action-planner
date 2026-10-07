@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.4.0](https://github.com/dsebastien/obsidian-kanban-action-planner/compare/2.3.0...2.4.0) (2026-10-07)
+
+### Covers on cards, a timer that keeps your minutes, live Starter Kit sync
+
+- **Card covers**: a new per-board option, **Cover property**, shows an image at the top of each card. Point it at a property or a formula: an image URL, a `[[wikilink]]` or `![[embed]]` to an image in your vault, or a plain vault path all work (e.g. `note.cover`, `note.local_cover` or a Bases formula that picks the best of both). Compact mode hides covers, like the other card details.
+- **The timer no longer wipes your time**: stopping a session now adds its minutes to the note's duration property (`time_spent` in the Obsidian Starter Kit) instead of replacing it with the sum of the tracked sessions. Minutes you typed by hand or added with another tool stay. When the duration is empty, it still starts from the sum of the existing sessions. Cards also show the duration when it's set, even if the tracked sessions add up to less.
+- **Live Starter Kit sync**: when you change a note type in the Obsidian Starter Kit plugin (statuses, done states…), open boards refresh right away instead of at the next note change. Needs Obsidian Starter Kit 1.33.0 or later.
+- The **Recompute tracked time from entries** action still replaces the duration with the sum of the tracked sessions, minutes added by hand included.
+
 ## [2.3.0](https://github.com/dsebastien/obsidian-kanban-action-planner/compare/2.2.0...2.3.0) (2026-10-06)
 
 ### Features
@@ -692,6 +701,7 @@ Claude-Session: https://claude.ai/code/session_01LM4hi11kohPVqgZNLpjRgh
 
 * **plugin:** match Starter Kit's {{quarter}} placeholder format (Q2, not 2) ([4fde618](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/4fde6185c5956e3f6fd2ca3a9b03e70cf5e16840))
 * **plugin:** persist discovered statuses so Show empty columns works ([cf91b81](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/cf91b81a1b0786e35c73f4885882e2dc33564c62))
+
 
 
 

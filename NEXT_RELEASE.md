@@ -1,6 +1,0 @@
-### Covers on cards, a timer that keeps your minutes, live Starter Kit sync
-
-- **Card covers**: a new per-board option, **Cover property**, shows an image at the top of each card. Point it at a property or a formula: an image URL, a `[[wikilink]]` or `![[embed]]` to an image in your vault, or a plain vault path all work (e.g. `note.cover`, `note.local_cover` or a Bases formula that picks the best of both). Compact mode hides covers, like the other card details.
-- **The timer no longer wipes your time**: stopping a session now adds its minutes to the note's duration property (`time_spent` in the Obsidian Starter Kit) instead of replacing it with the sum of the tracked sessions. Minutes you typed by hand or added with another tool stay. When the duration is empty, it still starts from the sum of the existing sessions. Cards also show the duration when it's set, even if the tracked sessions add up to less.
-- **Live Starter Kit sync**: when you change a note type in the Obsidian Starter Kit plugin (statuses, done states…), open boards refresh right away instead of at the next note change. Needs Obsidian Starter Kit 1.33.0 or later.
-- The **Recompute tracked time from entries** action still replaces the duration with the sum of the tracked sessions, minutes added by hand included.
