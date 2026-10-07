@@ -1,6 +1,10 @@
 import { describe, expect, test } from 'bun:test'
+import { TFile } from 'obsidian'
+import { KanbanActionPlannerPlugin } from '../plugin'
+import { createDefaultSettings } from '../types/plugin-settings.intf'
 import {
     elapsedSessionMinutes,
+    stopTimeSession,
     formatTrackedMinutes,
     readDurationMinutes,
     trackingPropertiesForType
@@ -79,5 +83,66 @@ describe('trackingPropertiesForType (issue #172)', () => {
             entries: 'sessions',
             lastSession: 'date_last_session'
         })
+    })
+})
+
+describe('stopTimeSession: adds to the existing duration', () => {
+    const START = new Date(2026, 8, 9, 10, 0, 0).getTime()
+    const END = START + 20 * 60000
+
+    /** A plugin double around one note's frontmatter; writes land in `fm`. */
+    function setup(fm: Record<string, unknown>) {
+        const file = Object.assign(new TFile(), { path: 'n.md', basename: 'n' })
+        const app = {
+            plugins: { plugins: {} },
+            vault: { getFileByPath: (p: string) => (p === 'n.md' ? file : null) },
+            metadataCache: { getFileCache: () => ({ frontmatter: fm }) },
+            fileManager: {
+                processFrontMatter: (_f: TFile, fn: (fm: Record<string, unknown>) => void) => {
+                    fn(fm)
+                    return Promise.resolve()
+                }
+            }
+        }
+        // Built without the constructor (as in plugin.spec.ts), so no Obsidian runtime is needed
+        const plugin = Object.assign(
+            Object.create(KanbanActionPlannerPlugin.prototype) as KanbanActionPlannerPlugin,
+            {
+                app,
+                settings: {
+                    ...createDefaultSettings(),
+                    activeTimeSession: { path: 'n.md', startedAt: START },
+                    noteTypes: [],
+                    defaultDurationProperty: 'time_spent',
+                    defaultTotalDurationProperty: 'total_time_spent',
+                    defaultTimeEntriesProperty: 'time_entries',
+                    defaultLastSessionProperty: 'date_last_session',
+                    minutesPerDay: 480,
+                    askDescriptionOnStop: false
+                },
+                saveSettings: (): Promise<void> => Promise.resolve()
+            }
+        )
+        return { fm, plugin }
+    }
+    const old30 = { startTime: '2026-09-08T09:00:00', endTime: '2026-09-08T09:30:00' }
+
+    test('keeps minutes added outside the tracker', async () => {
+        const { fm, plugin } = setup({ time_spent: 90, time_entries: [old30] })
+        await stopTimeSession(plugin, END)
+        expect(fm['time_spent']).toBe(110)
+        expect(fm['time_entries']).toHaveLength(2)
+        expect(fm['date_last_session']).toBe('2026-09-09')
+        expect(plugin.settings.activeTimeSession).toBeNull()
+    })
+
+    test('an empty or non-numeric duration falls back to the entries sum', async () => {
+        const empty = setup({ time_entries: [old30] })
+        await stopTimeSession(empty.plugin, END)
+        expect(empty.fm['time_spent']).toBe(50)
+
+        const text = setup({ Time_Spent: 'lots', time_entries: [old30] })
+        await stopTimeSession(text.plugin, END)
+        expect(text.fm['Time_Spent']).toBe(50)
     })
 })

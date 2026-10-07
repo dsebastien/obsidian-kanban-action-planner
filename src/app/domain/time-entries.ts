@@ -7,9 +7,11 @@ import { coerceOrder } from '../services/frontmatter.service'
  * note's entries list (`time_entries` in TaskNotes' mapping). Datetimes are
  * stored as LOCAL ISO strings without an offset (`2026-09-09T14:05:00`),
  * exactly as TaskNotes writes them, so the two tools read each other's
- * records. The spent-minutes property is a CACHE recomputed from the list on
- * every write (an entry the user edited or removed by hand is honoured), and
- * the last-session date is the calendar day of the latest entry.
+ * records. The spent-minutes property is the note's TOTAL, not a cache of the
+ * list: minutes added by hand or by other tools live only there, so the
+ * tracker ADDS to it ({@link durationAfterEntryChange}) and never overwrites
+ * it with the list's sum. The last-session date is the calendar day of the
+ * latest entry.
  *
  * Pure: no Obsidian imports, so the arithmetic is unit-testable.
  */
@@ -135,23 +137,61 @@ export function buildTimeEntry(startedAt: number, endedAt: number, description =
 }
 
 /**
+ * The existing duration as a usable base for {@link durationAfterEntryChange}:
+ * a finite, non-negative number (numeric strings accepted), else null (empty,
+ * text, negative → the caller falls back to the entries' sum).
+ */
+export function numericDuration(raw: unknown): number | null {
+    const value = coerceOrder(raw)
+    return value !== null && value >= 0 ? value : null
+}
+
+/**
+ * The duration property after ONE entry changed (the single rule every write
+ * of the duration goes through):
+ * - stop / add: `before` null, `after` the new entry;
+ * - edit: both set → the delta `minutes(after) − minutes(before)` is applied;
+ * - delete: `after` null → the entry's minutes are subtracted.
+ *
+ * When the existing duration is a number, the delta is applied to it, so
+ * minutes added by hand or by other tools (a QuickAdd "add playtime" action)
+ * survive. When it is empty or not a number, the result is the sum of the
+ * whole list after the change (`entriesAfter`), the only total available.
+ * Never negative. Open / malformed entries count 0 minutes.
+ */
+export function durationAfterEntryChange(
+    existingDuration: unknown,
+    before: TimeEntry | null,
+    after: TimeEntry | null,
+    entriesAfter: readonly TimeEntry[]
+): number {
+    const base = numericDuration(existingDuration)
+    if (base === null) return sumEntryMinutes(entriesAfter)
+    const delta =
+        (after ? (entryMinutes(after) ?? 0) : 0) - (before ? (entryMinutes(before) ?? 0) : 0)
+    return Math.max(0, base + delta)
+}
+
+/**
  * A note's own tracked minutes from its raw frontmatter values, in priority
- * order: the entries list when it holds any entry (the ledger is the truth),
- * else the spent-minutes cache when set, else a legacy single `duration`
- * number written by the pre-#172 tracker. Null when nothing is tracked.
+ * order: the duration property when it holds a positive number (it is the
+ * total: tracked sessions plus minutes added by hand), else the entries
+ * list's sum (a note tracked only by TaskNotes), else a legacy single
+ * `duration` number written by the pre-#172 tracker. Null when nothing is
+ * tracked.
  */
 export function readTrackedMinutes(raw: {
     entries: unknown
     spent: unknown
     legacy?: unknown
 }): number | null {
+    const spent = coerceOrder(raw.spent)
+    if (spent !== null && spent > 0) return spent
     const entries = parseTimeEntries(raw.entries)
     if (entries.length > 0) {
         const sum = sumEntryMinutes(entries)
-        return sum > 0 ? sum : null
+        if (sum > 0) return sum
     }
-    const spent = coerceOrder(raw.spent)
-    if (spent !== null && spent > 0) return spent
     const legacy = coerceOrder(raw.legacy)
     return legacy !== null && legacy > 0 ? legacy : null
 }

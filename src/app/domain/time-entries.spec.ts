@@ -9,6 +9,8 @@ import {
     latestEntryDate,
     parseEntryDateTime,
     parseTimeEntries,
+    durationAfterEntryChange,
+    numericDuration,
     readTrackedMinutes,
     sumEntryMinutes,
     withEntryDescription
@@ -131,19 +133,18 @@ describe('buildTimeEntry (issue #172)', () => {
 })
 
 describe('readTrackedMinutes (issue #172)', () => {
-    test('the entries list wins when it holds any entry', () => {
-        expect(
-            readTrackedMinutes({
-                entries: [{ startTime: '2026-09-09T09:00:00', endTime: '2026-09-09T09:30:00' }],
-                spent: 999,
-                legacy: 5
-            })
-        ).toBe(30)
-    })
+    const halfHour = [{ startTime: '2026-09-09T09:00:00', endTime: '2026-09-09T09:30:00' }]
 
-    test('falls back to the spent cache, then to a legacy duration number', () => {
+    test('the duration property wins when positive (it is the total)', () => {
+        expect(readTrackedMinutes({ entries: halfHour, spent: 999, legacy: 5 })).toBe(999)
         expect(readTrackedMinutes({ entries: [], spent: 90 })).toBe(90)
         expect(readTrackedMinutes({ entries: undefined, spent: '45' })).toBe(45)
+    })
+
+    test('falls back to the entries sum, then to a legacy duration number', () => {
+        expect(readTrackedMinutes({ entries: halfHour, spent: undefined, legacy: 5 })).toBe(30)
+        expect(readTrackedMinutes({ entries: halfHour, spent: 'n/a' })).toBe(30)
+        expect(readTrackedMinutes({ entries: halfHour, spent: 0 })).toBe(30)
         expect(readTrackedMinutes({ entries: undefined, spent: undefined, legacy: 20 })).toBe(20)
         expect(readTrackedMinutes({ entries: undefined, spent: 0, legacy: 20 })).toBe(20)
     })
@@ -154,6 +155,64 @@ describe('readTrackedMinutes (issue #172)', () => {
         expect(
             readTrackedMinutes({ entries: [{ startTime: '2026-09-09T09:00:00' }], spent: 0 })
         ).toBeNull()
+    })
+})
+
+describe('numericDuration', () => {
+    test('accepts finite non-negative numbers and numeric strings', () => {
+        expect(numericDuration(0)).toBe(0)
+        expect(numericDuration(42)).toBe(42)
+        expect(numericDuration(' 15 ')).toBe(15)
+    })
+    test('rejects empty, text, negative and non-finite values', () => {
+        expect(numericDuration(undefined)).toBeNull()
+        expect(numericDuration(null)).toBeNull()
+        expect(numericDuration('')).toBeNull()
+        expect(numericDuration('1h')).toBeNull()
+        expect(numericDuration(-3)).toBeNull()
+        expect(numericDuration(Number.NaN)).toBeNull()
+        expect(numericDuration([10])).toBeNull()
+    })
+})
+
+describe('durationAfterEntryChange', () => {
+    const e = (from: string, to: string | undefined): TimeEntry =>
+        to === undefined
+            ? { startTime: `2026-09-09T${from}:00` }
+            : { startTime: `2026-09-09T${from}:00`, endTime: `2026-09-09T${to}:00` }
+    const old30 = e('09:00', '09:30')
+    const new20 = e('10:00', '10:20')
+
+    test('stop: adds the new entry to an existing numeric duration (manual minutes kept)', () => {
+        // 30 tracked + 60 added by hand = 90; a 20-minute session → 110, not 50.
+        expect(durationAfterEntryChange(90, null, new20, [old30, new20])).toBe(110)
+        expect(durationAfterEntryChange('90', null, new20, [old30, new20])).toBe(110)
+        expect(durationAfterEntryChange(0, null, new20, [old30, new20])).toBe(20)
+    })
+
+    test('stop: empty or non-numeric duration falls back to the list sum', () => {
+        expect(durationAfterEntryChange(undefined, null, new20, [old30, new20])).toBe(50)
+        expect(durationAfterEntryChange('', null, new20, [old30, new20])).toBe(50)
+        expect(durationAfterEntryChange('lots', null, new20, [old30, new20])).toBe(50)
+        expect(durationAfterEntryChange(-5, null, new20, [new20])).toBe(20)
+    })
+
+    test('edit: applies the delta, not a recompute', () => {
+        const edited = e('09:00', '09:45') // 30 → 45
+        expect(durationAfterEntryChange(100, old30, edited, [edited])).toBe(115)
+        const shorter = e('09:00', '09:10') // 30 → 10
+        expect(durationAfterEntryChange(100, old30, shorter, [shorter])).toBe(80)
+    })
+
+    test('delete: subtracts the entry, never below zero', () => {
+        expect(durationAfterEntryChange(100, old30, null, [])).toBe(70)
+        expect(durationAfterEntryChange(10, old30, null, [])).toBe(0)
+        expect(durationAfterEntryChange(undefined, old30, null, [new20])).toBe(20)
+    })
+
+    test('open or malformed entries count zero minutes', () => {
+        expect(durationAfterEntryChange(40, null, e('11:00', undefined), [])).toBe(40)
+        expect(durationAfterEntryChange(40, e('11:00', undefined), new20, [new20])).toBe(60)
     })
 })
 

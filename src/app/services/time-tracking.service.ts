@@ -5,6 +5,7 @@ import { formatDuration } from '../domain/estimate'
 import type { NoteType } from '../domain/note-type'
 import {
     buildTimeEntry,
+    durationAfterEntryChange,
     latestEntryDate,
     parseTimeEntries,
     readTrackedMinutes,
@@ -44,9 +45,10 @@ import type { KanbanActionPlannerPlugin } from '../plugin'
  * Time tracking (issue #119, rewritten for issue #172): ONE start/stop
  * session at a time, on any note type. Stopping appends a TaskNotes-shaped
  * `{startTime, endTime, description}` entry to the note's entries list,
- * recomputes the spent-minutes cache from the whole list (an entry edited or
- * removed by hand is honoured — nothing accumulates blindly), and stamps the
- * last-session date. The active session persists in the plugin settings so a
+ * ADDS the session's minutes to the duration property (minutes added by hand
+ * or by other tools are kept; an empty / non-numeric duration falls back to
+ * the list's sum — `durationAfterEntryChange`), and stamps the last-session
+ * date. The active session persists in the plugin settings so a
  * restart mid-session loses nothing — elapsed time derives from the stored
  * epoch start, never from a timer.
  *
@@ -119,8 +121,8 @@ export async function trackingPropertiesFor(
 }
 
 /**
- * A note's own tracked minutes: its entries ledger when it holds any entry,
- * else its spent cache, else (compatibility) a legacy `duration` number left
+ * A note's own tracked minutes: its duration property when positive (the
+ * total), else its entries ledger's sum, else (compatibility) a legacy `duration` number left
  * by the pre-#172 tracker — read only when the configured duration property
  * is not `duration` itself, so nothing is double-counted. Null = untracked.
  */
@@ -163,7 +165,7 @@ export async function startTimeSession(
 
 /**
  * Stop the active session (if any): append its entry to the tracked note's
- * entries list, recompute the spent cache from the list, and stamp the
+ * entries list, add its minutes to the duration property, and stamp the
  * last-session date — one frontmatter transaction. A session whose note no
  * longer exists is discarded with a notice instead of throwing.
  */
@@ -199,7 +201,14 @@ export async function stopTimeSession(
     const entry = buildTimeEntry(session.startedAt, now)
     const list = [...existing, entry]
     const parsed = parseTimeEntries(list)
-    const total = sumEntryMinutes(parsed)
+    // Add the session to the existing duration (minutes added by hand or by
+    // other tools are kept); empty / non-numeric → the list's sum.
+    const total = durationAfterEntryChange(
+        getFrontmatterValue(plugin.app, file, properties.duration),
+        null,
+        entry,
+        parsed
+    )
     const lastSession = latestEntryDate(parsed)
     const write: Record<string, unknown> = {
         [properties.entries]: list,
@@ -321,10 +330,12 @@ async function applyRecovery(
 }
 
 /**
- * Recompute a note's spent cache and last-session date from its entries
- * list (the WBS row menu's "Recompute tracked time"): the repair for a
- * ledger edited by hand or by TaskNotes. Returns the new total, or null for
- * a note without entries (left alone — its cache may be its only record).
+ * Reset a note's duration and last-session date to its entries list (the
+ * WBS row menu's "Recompute tracked time from entries"): an EXPLICIT repair,
+ * the one write that replaces the duration with the list's sum, so minutes
+ * added outside the tracker are dropped by design. Returns the new total, or
+ * null for a note without entries (left alone — its duration may be its
+ * only record).
  */
 export async function recomputeTrackedTime(
     plugin: KanbanActionPlannerPlugin,
