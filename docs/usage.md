@@ -785,7 +785,8 @@ Each rule is a **trigger** plus a list of **actions** that run in order:
 
 With the Obsidian Starter Kit (1.13+), a note type whose **Status** section declares done
 states and stamped dates gets its **Done state** and one `Stamp … on …` rule per stamping
-status **mirrored** here, read-only and re-synced on every board load. Configure them once
+status **mirrored** here, read-only and re-synced on every board load. Edits you make to a
+note type in the Starter Kit reach open boards live, without reopening them. Configure them once
 in the Starter Kit and every board, the `osk-cli` and your AI skills agree on what "done"
 means.
 
@@ -1304,9 +1305,10 @@ records), straight from the cards, on **any note type**:
 
 - Stopping appends a **time entry**, a `{startTime, endTime, description}` object with local
   ISO datetimes, exactly TaskNotes' shape, to the note's **time entries** list property
-  (`time_entries` by default), then **recomputes** the note's **duration** property from the
-  whole list (minutes; an entry you edited or deleted by hand is honoured, nothing accumulates
-  blindly) and stamps the **last session** date property (`date_last_session`). A session that
+  (`time_entries` by default), then **adds** the session's minutes to the note's **duration**
+  property, so minutes you added by hand or with another tool (a QuickAdd "add playtime"
+  action, say) are kept; when the duration is empty or not a number, it is set to the sum of
+  the whole list instead. It also stamps the **last session** date property (`date_last_session`). A session that
   crosses midnight is one entry with its real start and end. The session survives an Obsidian
   restart, since elapsed time derives from the stored start, not a running timer.
 - **Property names per note type.** Each type can map the four tracking properties (duration,
@@ -1394,8 +1396,9 @@ records), straight from the cards, on **any note type**:
   never replaces the children's contribution). A total the children contributed to is styled
   derived, and the row menu offers **Save total tracked time** to persist it (in minutes) to
   the **total duration** property (`total_duration` by default). **Recompute tracked time from
-  entries** repairs a note's duration and last-session date after the list was edited by hand
-  or by TaskNotes.
+  entries** resets a note's duration and last-session date to the list (after it was edited by
+  hand or by TaskNotes); it drops minutes added outside the tracker, so use it only when the
+  list is the whole story.
 - Tracked time renders with the same `d / h / m` grammar as estimates, sized by **Minutes
   per day**, so tracked vs estimated reads side by side.
 
@@ -1569,6 +1572,9 @@ changing your notes. They're grouped:
 
 - **Title property**: show a property as the card heading instead of the note name (falls back
   to the note name when it is missing or empty). Formulas allowed.
+- **Cover property**: show an image at the top of each card, from a property or formula holding
+  an `http(s)` URL, a `[[wikilink]]` / `![[embed]]` or a vault path. Empty = no covers; hidden in
+  compact mode. See [Card cover](configuration.md#card-cover).
 - **Show due countdown**: show the `In 3d` / `2d overdue` badge on cards. Its position and the
   "soon" threshold are global plugin settings.
 - **Countdown counts down to**: whether that badge tracks the **deadline** (the due date, the

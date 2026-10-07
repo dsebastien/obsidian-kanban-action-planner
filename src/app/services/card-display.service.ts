@@ -2,6 +2,8 @@ import type { App, BasesEntry, BasesPropertyId, TFile } from 'obsidian'
 import { getFrontmatterValue } from './frontmatter.service'
 import { parseFrontmatterDate, startOfDay } from '../domain/calendar'
 import { NO_TITLE_AFFIXES, stripTitleAffixes, type CardTitleAffixes } from '../domain/card-title'
+import { resolveCoverUrl } from './card-cover.service'
+import type { CoverApp } from './card-cover.service'
 import type {
     CardCountdown,
     CardDisplay,
@@ -9,6 +11,11 @@ import type {
     CountdownPlacement,
     DueState
 } from '../ui/board/types'
+
+/** The vault surface {@link buildCardDisplay} needs (an `App` satisfies it). */
+export type CardDisplayApp = CoverApp & {
+    metadataCache: Pick<App['metadataCache'], 'getFileCache'>
+}
 
 /**
  * Classify a due date against `today` (issue #22): `overdue` when strictly
@@ -150,6 +157,33 @@ export function heatLevel(value: string, allowedValues: ReadonlyArray<string>): 
     return Math.min(4, Math.round(frac * 4))
 }
 
+/**
+ * Resolve the card cover (view option `coverProperty`). A `note.*` property is
+ * read raw from the frontmatter (honoring just-written overrides) so a
+ * `[[wikilink]]` keeps its brackets; a `formula.*` / `file.*` column is read
+ * from the Bases entry. See {@link resolveCoverUrl} for the accepted forms.
+ */
+function readCoverUrl(
+    app: CardDisplayApp,
+    file: TFile,
+    entry: BasesEntry | undefined,
+    coverProperty: BasesPropertyId | null,
+    noteOverride: (id: BasesPropertyId) => string | null | undefined
+): string | null {
+    if (!coverProperty) return null
+    let raw: unknown
+    if (coverProperty.startsWith('note.')) {
+        const override = noteOverride(coverProperty)
+        raw =
+            override !== undefined
+                ? override
+                : getFrontmatterValue(app, file, coverProperty.slice('note.'.length))
+    } else {
+        raw = entryText(entry, coverProperty)
+    }
+    return resolveCoverUrl(app, raw, file.path)
+}
+
 /** A pure number (integer or decimal), used to flag a numeric formula "score". */
 function isNumeric(text: string): boolean {
     return text !== '' && Number.isFinite(Number(text))
@@ -165,7 +199,7 @@ function isNumeric(text: string): boolean {
  * separately, not here.
  */
 export function buildCardDisplay(
-    app: App,
+    app: CardDisplayApp,
     file: TFile,
     entry: BasesEntry | undefined,
     config: CardFieldConfig,
@@ -199,7 +233,12 @@ export function buildCardDisplay(
      * Note-type name decoration to filter out of the card title
      * (`domain/card-title.ts`); defaults to none.
      */
-    titleAffixes: CardTitleAffixes = NO_TITLE_AFFIXES
+    titleAffixes: CardTitleAffixes = NO_TITLE_AFFIXES,
+    /**
+     * Card-cover source (view option `coverProperty`): a Bases property id
+     * (`note.*` / `formula.*` / `file.*`), or null → no covers.
+     */
+    coverProperty: BasesPropertyId | null = null
 ): CardDisplay {
     /** The override for a `note.*` property id, or undefined when none applies. */
     const noteOverride = (id: BasesPropertyId): string | null | undefined => {
@@ -270,7 +309,7 @@ export function buildCardDisplay(
     return {
         title: resolveCardTitle(entry, titleProperty, file.basename, titleAffixes),
         fields,
-        coverUrl: null,
+        coverUrl: readCoverUrl(app, file, entry, coverProperty, noteOverride),
         wrap: true,
         // Always the deadline: overdue/due-today emphasis is about what is owed,
         // not about when you planned to start.

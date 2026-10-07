@@ -933,12 +933,18 @@ When a new business rule is mentioned:
 47. **Time tracking writes TaskNotes' records, on every note type (issue #172, phase A).**
     Stopping a session appends ONE `{startTime, endTime, description}` object (local ISO
     datetimes without offset, `formatEntryDateTime`) to the note's entries list, then writes
-    the duration property as the **sum of the whole list** (`sumEntryMinutes`; never
-    `current + elapsed`, so a hand-edited or deleted entry is honoured) and the last-session
-    date as the day of the latest entry — one `setProperties` transaction. Existing list items
+    the duration property **plus the new entry's minutes** (`durationAfterEntryChange`; the
+    duration is the note's TOTAL, so minutes added by hand or by other tools, e.g. a QuickAdd
+    "add playtime" action, survive; when the duration is empty or not a number, the sum of the
+    whole list is written instead) and the last-session date as the day of the latest entry —
+    one `setProperties` transaction. Any future write that edits or deletes an entry applies the
+    **delta** (`minutes(after) − minutes(before)`, clamped at 0) through the same function, never
+    a recompute. The only full recompute is the explicit WBS row action **Recompute tracked time
+    from entries** (a user-chosen reset that drops minutes added outside the tracker). Existing list items
     are kept verbatim (an unknown shape is not the plugin's to drop; only a template's `null`
     placeholder goes); the list is never compacted. Reads (`readTrackedMinutes`) prefer the
-    entries list when it holds any entry, else the duration property, else a legacy `duration`
+    duration property when it holds a positive number, else the entries list's sum (a note
+    tracked only by TaskNotes), else a legacy `duration`
     number (only when the configured duration property is not `duration` itself — no double
     counting); nothing migrates data. The four property names resolve **per note type**
     (`timeTracking` override, blank = global default: `trackingPropertiesForType`), and a
@@ -1198,3 +1204,20 @@ Markdown)`, `Export ideal week (JSON)`, `Export ideal week (Markdown)`); the for
     with an `aria-label` naming the phase and the remaining time. The control row is rebuilt
     only when the phase / pause / note signature changes; the per-second parts are patched in
     place (business rule 49). The view's DOM lives under its own `.kap-root`.
+64. **Card covers (per-view `coverProperty`).** Configure view → Cards → **Cover property**: any
+    `note.*` / `formula.*` / `file.*` id, read-only; empty (the default) = no covers. A `note.*`
+    value is read raw from the frontmatter (just-written overrides honoured) so a wikilink keeps
+    its brackets; computed columns come from the Bases entry. `resolveCoverUrl`
+    (`card-cover.service.ts`): first non-empty list item; `http(s)` URL as is; `[[link]]` /
+    `![[embed]]` / `![](path)` → `metadataCache.getFirstLinkpathDest` relative to the card note
+    (alias and `#subpath` dropped); a plain path → `vault.getAbstractFileByPath`, falling back
+    to link resolution for a bare file name; local files → `vault.getResourcePath`; any other
+    scheme, a folder, or nothing resolved → no cover. Compact mode hides covers (it shows titles
+    only). The URL is part of the card render signature.
+65. **Live Starter Kit note type sync.** The plugin listens to the workspace event
+    `obsidian-starter-kit:note-types-changed` (triggered by the Starter Kit after any note type
+    mutation; custom name, subscribed through the generic `Events.on`) and asks every open board
+    to re-resolve (`refreshNoteTypes` → `onSettingsChanged('full')`), debounced 300 ms plus the
+    view's own 250 ms rebuild debounce, so a burst of mutations costs one rebuild. There is no
+    mirrored-type cache to clear: `resolveAndRebuild` re-reads the Starter Kit and re-mirrors
+    (writing only on change) on every rebuild.

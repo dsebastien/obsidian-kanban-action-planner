@@ -3094,6 +3094,16 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
     }
 
     /**
+     * The per-view card-cover source (`coverProperty`): a validated Bases
+     * property id, or null → no covers (the default).
+     */
+    private coverPropertyId(): BasesPropertyId | null {
+        const ref = parsePropertyRef(this.viewConfig.get('coverProperty'))
+        if (!ref) return null
+        return ref.kind === 'note' ? (`note.${ref.name}` as BasesPropertyId) : ref.id
+    }
+
+    /**
      * The date the countdown badge counts down to (issue #68): the deadline by
      * default, or the scheduled date for boards that triage by when work lands.
      * Only the badge follows this — the overdue/due-today card emphasis stays on
@@ -3131,7 +3141,8 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             },
             (id) => this.allowedValuesForCardField(file, id),
             overrides,
-            this.titleAffixesByPath.get(file.path) ?? NO_TITLE_AFFIXES
+            this.titleAffixesByPath.get(file.path) ?? NO_TITLE_AFFIXES,
+            this.coverPropertyId()
         )
     }
 

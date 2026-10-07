@@ -189,6 +189,18 @@ export function getKanbanViewOptions(app: App, settings: PluginSettings): BasesA
                     filter: readOnlyPropertyFilter
                 },
                 {
+                    type: 'property',
+                    // Card cover: an image shown at the top of each card. The
+                    // value may be an http(s) URL, a [[wikilink]] / ![[embed]],
+                    // or a vault path. Read-only, so formulas work too (e.g. a
+                    // formula picking a local file first, else a URL). Hidden
+                    // in compact mode.
+                    key: 'coverProperty',
+                    displayName: 'Cover property',
+                    placeholder: 'None (no covers)',
+                    filter: readOnlyPropertyFilter
+                },
+                {
                     type: 'toggle',
                     // Visibility is per-view (issue #62); the badge position and the
                     // "soon" color threshold are global (plugin settings).

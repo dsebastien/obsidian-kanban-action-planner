@@ -34,7 +34,11 @@ export function coerceOrder(raw: unknown): number | null {
 }
 
 /** Read a frontmatter value by property name (case-insensitive). */
-export function getFrontmatterValue(app: App, file: TFile, propertyName: string): unknown {
+export function getFrontmatterValue(
+    app: { metadataCache: Pick<App['metadataCache'], 'getFileCache'> },
+    file: TFile,
+    propertyName: string
+): unknown {
     const fm = app.metadataCache.getFileCache(file)?.frontmatter
     if (!fm) return undefined
     const key = findKeyCaseInsensitive(fm, propertyName)

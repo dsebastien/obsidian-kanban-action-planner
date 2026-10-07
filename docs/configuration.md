@@ -45,9 +45,9 @@ hidden. The defaults below are used today; per-view overrides may arrive in late
 | Estimate        | `estimate`                 | How long you expect a note to take. A number of **days** by default. A note type can associate its **own property and unit** (days or **minutes**, e.g. a tasknotes-compatible `time_estimate`) in **Configure → Estimate**; minute values convert to days everywhere via **Minutes per day** (default 480 = an 8-hour workday). With a start date it gives a card its span on the timeline. Written when you resize a bar or via **Set estimate…**, always in the note's own unit. |
 | Milestones      | `milestones`               | List of `<date> <label>` entries rendered as diamond markers on the timeline. Set globally with **Milestones property**.                                                                                                                                                                                                                                                                                                                                                            |
 | Contexts        | `contexts`                 | Optional list of GTD-style contexts (`@work`, `@home`, …). Drives the **@** context switcher in the toolbar; it filters only, the plugin never writes it. Set globally with **Contexts property**; must not be a reserved filter word (`parent`, `status`, `due`, …).                                                                                                                                                                                                               |
-| Duration        | `duration`                 | The note's own tracked time in **minutes**: recomputed from its time-entries list every time a session stops (an edited or deleted entry is honoured). Set globally with **Duration property**; a note type can map its own in **Configure → Time tracking**. A legacy number left by an older version is still read when neither the entries list nor this property is set.                                                                                                        |
+| Duration        | `duration`                 | The note's own tracked time in **minutes**: stopping a session **adds** the session's minutes to it, so minutes you add by hand or with another tool are kept; when it is empty or not a number, it is set to the sum of the time-entries list. Set globally with **Duration property**; a note type can map its own in **Configure → Time tracking**. A legacy number left by an older version is still read when neither the entries list nor this property is set.               |
 | Total duration  | `total_duration`           | The persisted tracked-time rollup (minutes): the WBS row menu's **Save total tracked time** writes the subtree total (own + descendants) here. Set globally with **Total duration property**, per type in **Configure → Time tracking**.                                                                                                                                                                                                                                            |
-| Time entries    | `time_entries`             | List of `{startTime, endTime, description}` objects (local ISO datetimes), one per tracked session, TaskNotes' format, never compacted. The ledger the duration is recomputed from. Set globally with **Time entries property**, per type in **Configure → Time tracking**.                                                                                                                                                                                                         |
+| Time entries    | `time_entries`             | List of `{startTime, endTime, description}` objects (local ISO datetimes), one per tracked session, TaskNotes' format, never compacted. The ledger of tracked sessions; the duration falls back to its sum when empty. Set globally with **Time entries property**, per type in **Configure → Time tracking**.                                                                                                                                                                      |
 | Last session    | `date_last_session`        | Date of the latest time entry, stamped on every stop. Set globally with **Last session property**, per type in **Configure → Time tracking**.                                                                                                                                                                                                                                                                                                                                       |
 | Pomodoros       | `pomodoros`                | **Daily-note** list property receiving one record per pomodoro (`{id, taskPath, startTime, endTime, plannedDuration, type, completed, activePeriods}`, TaskNotes' shape). The daily note is resolved through Periodic Notes, else the core Daily Notes plugin, else the **Daily note folder / format (fallback)** settings. Pomodoro lengths and the long-break interval are settings too.                                                                                          |
 | Time blocks     | `time_blocks`              | The ideal week: a list of `<days> HH:MM-HH:MM` entries on a 15-minute grid (`mon-fri 09:00-12:00`; a day list or range repeats, an end before the start crosses midnight). Read and written by **Ideal week** mode. Set globally with **Time blocks property**.                                                                                                                                                                                                                     |
@@ -439,6 +439,26 @@ property is not repeated as a body field, and clicking the card still opens the 
 | Setting            | Scope     | Default   | What it does                                                            |
 | ------------------ | --------- | --------- | ----------------------------------------------------------------------- |
 | **Title property** | Per board | Note name | Shows this property's value as the card heading, in board and calendar. |
+
+## Card cover
+
+Per board, **Configure view → Cards → Cover property** picks a property (or base formula) whose
+value is shown as an image at the top of each card. Empty (the default) means no covers. The
+value can be:
+
+- an `http(s)` URL, shown as is;
+- a `[[wikilink]]` or `![[embed]]` to an image in your vault, resolved like any link from the
+  card's note;
+- a plain vault path (`Attachments/Cover.jpg`), or a bare file name.
+
+Anything else, or a link that doesn't resolve, shows no cover. A list property uses its first
+item. A base formula is the easiest way to prefer a local file and fall back to a URL, e.g.
+`if(local_cover && file(local_cover), file(local_cover).path, cover)`. Covers are hidden in
+compact mode (titles only).
+
+| Setting            | Scope     | Default | What it does                                     |
+| ------------------ | --------- | ------- | ------------------------------------------------ |
+| **Cover property** | Per board | None    | Shows this property's image at the top of cards. |
 
 ### Filtering the note type's name decoration
 

@@ -4,6 +4,7 @@ import type { App, BasesEntry, BasesPropertyId } from 'obsidian'
 import type { CardDisplay } from '../ui/board/types'
 import {
     buildCardDisplay,
+    type CardDisplayApp,
     computeDueState,
     formatCountdown,
     heatLevel,
@@ -108,6 +109,65 @@ describe('buildCardDisplay title property (issue #4)', () => {
         const display = build(null)
         expect(display.title).toBe('2026-07-07-technical-meeting')
         expect(display.fields.map((f) => f.label)).toEqual(['title', 'status'])
+    })
+})
+
+describe('buildCardDisplay cover property', () => {
+    const file = Object.assign(new TFile(), { basename: 'Movie', path: 'm/Movie.md' })
+    const img = Object.assign(new TFile(), { path: 'att/Movie.jpg' })
+    const config = {
+        getOrder: (): BasesPropertyId[] => [],
+        getDisplayName: (id: BasesPropertyId): string => id
+    }
+    const app: CardDisplayApp = {
+        metadataCache: {
+            getFileCache: () => ({ frontmatter: { Local_Cover: '[[Movie.jpg]]' } }),
+            getFirstLinkpathDest: (link: string) => (link === 'Movie.jpg' ? img : null)
+        },
+        vault: {
+            getAbstractFileByPath: (p: string) => (p === 'att/Movie.jpg' ? img : null),
+            getResourcePath: (f: TFile) => `app://res/${f.path}`
+        }
+    }
+    const entry = entryOf({
+        'formula.cover_image': 'att/Movie.jpg',
+        'formula.web': 'https://x/movie.jpg'
+    })
+    const build = (cover: BasesPropertyId | null, overrides?: ReadonlyMap<string, string | null>) =>
+        buildCardDisplay(
+            app,
+            file,
+            entry,
+            config,
+            null,
+            null,
+            TODAY,
+            { show: false, soonDays: 7, placement: 'title' },
+            () => [],
+            overrides,
+            undefined,
+            cover
+        ).coverUrl
+
+    it('has no cover when unconfigured', () => {
+        expect(build(null)).toBeNull()
+    })
+    it('reads a note property raw from the frontmatter (wikilink, case-insensitive)', () => {
+        expect(build('note.local_cover')).toBe('app://res/att/Movie.jpg')
+    })
+    it('reads formulas from the Bases entry (path or URL)', () => {
+        expect(build('formula.cover_image')).toBe('app://res/att/Movie.jpg')
+        expect(build('formula.web')).toBe('https://x/movie.jpg')
+    })
+    it('is null when the value does not resolve', () => {
+        expect(build('formula.missing')).toBeNull()
+        expect(build('note.nope')).toBeNull()
+    })
+    it('honors a just-written note value', () => {
+        expect(build('note.local_cover', new Map([['local_cover', 'https://y/z.png']]))).toBe(
+            'https://y/z.png'
+        )
+        expect(build('note.local_cover', new Map([['local_cover', null]]))).toBeNull()
     })
 })
 
