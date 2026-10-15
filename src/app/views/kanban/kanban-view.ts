@@ -282,6 +282,7 @@ import type { CalendarViewState } from './calendar-controller'
 import {
     basesPropToName,
     EmbedAwareConfig,
+    laneChangeBlockedReason,
     laneValueForLaneId,
     normalizeLaneValue,
     readCompactMode,
@@ -842,7 +843,12 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         this.boardEl = this.rootEl.createDiv({ cls: 'kap-board-host' })
         if (this.isPhone) this.columnSwitcher = new ColumnSwitcher(this.rootEl, this.boardEl)
         this.dnd = new BoardDnd(this.boardEl, {
-            onDrop: (cardKey, target) => void this.handleDrop(cardKey, target)
+            onDrop: (cardKey, target) => void this.handleDrop(cardKey, target),
+            canDrop: (cardKey, target) => this.canDropInLane(cardKey, target.laneId),
+            onRefusedDrop: () => {
+                const reason = laneChangeBlockedReason(this.laneGrouping)
+                if (reason) new Notice(reason)
+            }
         })
         this.columnDnd = new ColumnDnd(this.boardEl, UNMAPPED_COLUMN_ID, {
             onReorder: (orderedColumnIds) => this.reorderColumns(orderedColumnIds)
@@ -3380,7 +3386,13 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         let laneWrite: Promise<void> | null = null
         if (this.board.isMultiLane && target.laneId !== this.laneIdOf(card)) {
             laneWrite = this.startLaneChange(card, target.laneId)
-            if (!laneWrite) return
+            if (!laneWrite) {
+                // The drag refuses these lanes up front; reached only by a
+                // drop that slipped past it (e.g. a re-render mid-drag).
+                const reason = laneChangeBlockedReason(this.laneGrouping)
+                if (reason) new Notice(reason)
+                return
+            }
         }
 
         // Resolve the dropped column's status from the TARGET LANE's own set
@@ -3392,6 +3404,19 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
                 : (this.columnStatusValue(target.columnId, target.laneId) ?? card.statusValue)
         const move = this.applyMove(card, newStatus, target.laneId, target.columnId, target.index)
         await Promise.all([laneWrite, move])
+    }
+
+    /**
+     * Whether a dragged card may land in the given lane: always its own lane,
+     * another one only when the lane grouping can be written. Drives the drag
+     * feedback (no insertion line, not-allowed cursor) so a drop that would
+     * be ignored never looks possible.
+     */
+    private canDropInLane(cardKey: string, laneId: string): boolean {
+        if (!this.board.isMultiLane) return true
+        const card = this.cardsByKey.get(cardKey)
+        if (!card || laneId === this.laneIdOf(card)) return true
+        return laneChangeBlockedReason(this.laneGrouping) === null
     }
 
     /**

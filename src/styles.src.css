@@ -2104,6 +2104,13 @@
         scroll-snap-type: none;
     }
 
+    /* The card cannot go to the column under the pointer (a lane of a
+       note-type or computed grouping): no insertion line, not-allowed cursor. */
+    .kap-board-host.kap-drop-forbidden,
+    .kap-board-host.kap-drop-forbidden * {
+        cursor: not-allowed !important;
+    }
+
     /* Phone: one column at a time. Every expanded column is as wide as the
        board (still equal widths, rule 12), the horizontal scroll snaps to
        columns, and the column switcher above the board jumps between them. A

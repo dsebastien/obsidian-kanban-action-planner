@@ -194,6 +194,20 @@ export function normalizeLaneValue(raw: unknown): string | null {
 }
 
 /**
+ * Why cards cannot be dragged between swimlanes under `grouping`, or null when
+ * they can. Only a note property can be rewritten: note-type lanes come from
+ * the note's type, and `formula.*` / `file.*` lanes have nothing to write.
+ */
+export function laneChangeBlockedReason(grouping: LaneGrouping): string | null {
+    if (grouping.kind === 'note-type') {
+        return 'Swimlanes grouped by note type cannot be changed by dragging. Move the card within its own lane.'
+    }
+    if (grouping.kind !== 'property') return null
+    if (parsePropertyRef(grouping.property)?.kind === 'note') return null
+    return 'Swimlanes grouped by a formula or file property cannot be changed by dragging. Move the card within its own lane.'
+}
+
+/**
  * The in-memory lane value a card gets when optimistically reassigned to a
  * lane (issue #105, finding 4.1): the Ungrouped lane clears it; any other
  * lane id IS the lane's property value, run through the SAME normalization

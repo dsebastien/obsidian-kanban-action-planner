@@ -54,6 +54,8 @@ const PLACEHOLDER_THICKNESS_PX = 2
 const PLACEHOLDER_FALLBACK_PX = 8
 /** Highlight class on a COLLAPSED column under the drag (issue #183). */
 const COLLAPSED_DROP_CLASS = 'kap-column-drop-target'
+/** Container class while the pointer is over a column the card cannot go to. */
+const FORBIDDEN_DROP_CLASS = 'kap-drop-forbidden'
 
 export interface DropTarget {
     /** Destination swimlane id (`''` for a single-lane board). */
@@ -66,6 +68,15 @@ export interface DropTarget {
 export interface BoardDndCallbacks {
     /** Called on a committed drop. `index` is within the destination column. */
     onDrop: (cardKey: string, target: DropTarget) => void
+    /**
+     * Whether the card may land in the column under the pointer. A refused
+     * column shows no insertion line and a not-allowed cursor, and releasing
+     * there calls {@link onRefusedDrop} instead of {@link onDrop}. Omitted:
+     * every column accepts.
+     */
+    canDrop?: (cardKey: string, target: Pick<DropTarget, 'laneId' | 'columnId'>) => boolean
+    /** Called when the card is released over a column {@link canDrop} refused. */
+    onRefusedDrop?: (cardKey: string, target: Pick<DropTarget, 'laneId' | 'columnId'>) => void
 }
 
 export class BoardDnd {
@@ -83,6 +94,8 @@ export class BoardDnd {
     private ghostEl: HTMLElement | null = null
     private placeholderEl: HTMLElement | null = null
     private currentTarget: DropTarget | null = null
+    /** The column under the pointer when {@link BoardDndCallbacks.canDrop} refused it. */
+    private refusedTarget: Pick<DropTarget, 'laneId' | 'columnId'> | null = null
     /** The collapsed column currently highlighted as the drop target (#183). */
     private highlightedColumnEl: HTMLElement | null = null
     /** The in-flight press comes from a finger (long-press pick-up). */
@@ -285,6 +298,17 @@ export class BoardDnd {
         }
         const columnId = columnEl.dataset['columnId'] ?? ''
         const laneId = columnEl.dataset['laneId'] ?? ''
+        const cardKey = this.sourceCardEl?.dataset['cardKey']
+        const refused =
+            cardKey !== undefined &&
+            this.callbacks.canDrop !== undefined &&
+            !this.callbacks.canDrop(cardKey, { laneId, columnId })
+        this.setRefusedTarget(refused ? { laneId, columnId } : null)
+        if (refused) {
+            this.clearDropFeedback()
+            this.currentTarget = null
+            return
+        }
         const listEl = columnEl.querySelector<HTMLElement>('.kap-column-cards')
         if (!listEl) {
             // No card list to aim at: drop nowhere rather than keeping the
@@ -339,6 +363,12 @@ export class BoardDnd {
         this.currentTarget = { laneId, columnId, index }
     }
 
+    /** Track the refused column under the pointer and toggle the not-allowed cursor. */
+    private setRefusedTarget(target: Pick<DropTarget, 'laneId' | 'columnId'> | null): void {
+        this.refusedTarget = target
+        this.containerEl.toggleClass(FORBIDDEN_DROP_CLASS, target !== null)
+    }
+
     /** Move the collapsed-column highlight, or clear it when passed null. */
     private setHighlightedColumn(columnEl: HTMLElement | null): void {
         if (this.highlightedColumnEl === columnEl) return
@@ -363,6 +393,7 @@ export class BoardDnd {
         const cardEl = this.sourceCardEl
         const cardKey = cardEl?.dataset['cardKey'] ?? null
         const target = this.currentTarget
+        const refused = this.refusedTarget
         const wasDragging = this.dragging
         // Lifted by a long press, then released in place: the card menu.
         const openMenu = this.lifted && !this.dragging
@@ -385,6 +416,8 @@ export class BoardDnd {
         }
         if (wasDragging && cardKey && target) {
             this.callbacks.onDrop(cardKey, target)
+        } else if (wasDragging && cardKey && refused) {
+            this.callbacks.onRefusedDrop?.(cardKey, refused)
         }
         if (openMenu && cardEl?.isConnected) {
             // Through the card's own contextmenu handler, so the touch menu is
@@ -428,6 +461,7 @@ export class BoardDnd {
         this.placeholderEl = null
         this.sourceCardEl = null
         this.currentTarget = null
+        this.setRefusedTarget(null)
         this.dragging = false
         this.pointerId = null
     }

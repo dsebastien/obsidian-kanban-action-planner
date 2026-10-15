@@ -575,6 +575,11 @@ options):
   property is a **List** (e.g. `contexts: [home, phone]`), the first value picks the lane.
   Dragging the card to another lane replaces that first value and keeps the others.
 
+Drag a card to another lane to change its value. That works only for lanes grouped by a property
+of the note. Lanes grouped by note type, or by a formula or file property, can't be changed by
+dragging: while you drag, those lanes show a "not allowed" cursor and no drop line, and letting
+go there shows a short notice. The card stays where it was.
+
 **Mixed boards group by note type automatically.** When a Base's results contain **more than one
 recognized note type** (e.g. an "All actions" view with goals, projects, and tasks) and you
 haven't chosen a grouping, the board auto-groups **by note type**. Each type gets its own lane

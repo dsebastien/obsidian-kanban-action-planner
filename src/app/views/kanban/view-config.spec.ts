@@ -3,6 +3,7 @@ import {
     basesPropToName,
     EmbedAwareConfig,
     laneValueForLaneId,
+    laneChangeBlockedReason,
     normalizeLaneValue,
     readCompactMode,
     readIdArray,
@@ -240,6 +241,23 @@ describe('readCompactMode', () => {
         expect(readCompactMode(config({ compactMode: false }))).toBe(false)
         expect(readCompactMode(config({}))).toBe(false)
         expect(readCompactMode(config({ compactMode: 'true' }))).toBe(false)
+    })
+})
+
+describe('laneChangeBlockedReason', () => {
+    it('allows lane changes for note properties and no grouping', () => {
+        expect(laneChangeBlockedReason({ kind: 'property', property: 'note.project' })).toBeNull()
+        expect(laneChangeBlockedReason({ kind: 'none' })).toBeNull()
+    })
+
+    it('refuses note-type, formula and file groupings with a reason', () => {
+        expect(laneChangeBlockedReason({ kind: 'note-type' })).toContain('note type')
+        expect(laneChangeBlockedReason({ kind: 'property', property: 'formula.area' })).toContain(
+            'formula or file'
+        )
+        expect(laneChangeBlockedReason({ kind: 'property', property: 'file.folder' })).toContain(
+            'formula or file'
+        )
     })
 })
 
