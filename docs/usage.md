@@ -571,7 +571,9 @@ options):
 - **By note type**: one lane per note type (recognized via the Obsidian Starter Kit or your own
   local recognition rules).
 - **By property**: one lane per distinct value of a property you choose (e.g. a `project` or
-  `area`). Lanes order by a numeric prefix just like columns (`10 Alpha`, `20 Beta`).
+  `area`). Lanes order by a numeric prefix just like columns (`10 Alpha`, `20 Beta`). When the
+  property is a **List** (e.g. `contexts: [home, phone]`), the first value picks the lane.
+  Dragging the card to another lane replaces that first value and keeps the others.
 
 **Mixed boards group by note type automatically.** When a Base's results contain **more than one
 recognized note type** (e.g. an "All actions" view with goals, projects, and tasks) and you

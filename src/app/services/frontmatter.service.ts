@@ -1,4 +1,5 @@
 import type { App, TFile } from 'obsidian'
+import { normalizeStatusValue } from '../domain/status'
 
 /**
  * Frontmatter read/write.
@@ -108,7 +109,8 @@ export function keepListShape(current: unknown, value: unknown): unknown {
  * Write a STATUS value, keeping the property's current shape: a list-shaped
  * status gets `[value]`, a text one `value` (see {@link keepListShape}). The
  * shape is read inside the transaction, from what is on disk. Only status
- * writes use this; other properties keep {@link setProperty}'s plain write.
+ * writes use this (swimlanes use {@link setLaneProperty}); other properties
+ * keep {@link setProperty}'s plain write.
  */
 export async function setStatusProperty(
     app: App,
@@ -119,6 +121,43 @@ export async function setStatusProperty(
     await processFrontMatter(app, file, (fm: Record<string, unknown>) => {
         const key = findKeyCaseInsensitive(fm, propertyName) ?? propertyName
         fm[key] = keepListShape(fm[key], value)
+    })
+}
+
+/**
+ * The value to store when moving a note to the swimlane `value` over the
+ * grouping property's `current` value. Lanes group on the FIRST usable entry
+ * of a list ({@link normalizeStatusValue}), so only that entry is replaced and
+ * the others stay (a `contexts`-style list keeps its other values); a later
+ * copy of `value` is dropped so the list holds it once. A list with no usable
+ * entry becomes `[value]`; anything else takes `value` as is.
+ */
+export function replaceLeadingListValue(current: unknown, value: string): unknown {
+    if (!Array.isArray(current)) return value
+    const entries: unknown[] = current
+    const lead = entries.findIndex(
+        (entry) => !Array.isArray(entry) && normalizeStatusValue(entry) !== null
+    )
+    if (lead === -1) return [value]
+    return entries
+        .map((entry, index) => (index === lead ? value : entry))
+        .filter((entry, index) => index <= lead || normalizeStatusValue(entry) !== value)
+}
+
+/**
+ * Write a SWIMLANE value, keeping the grouping property's shape and its other
+ * list entries (see {@link replaceLeadingListValue}). Read inside the
+ * transaction, from what is on disk.
+ */
+export async function setLaneProperty(
+    app: App,
+    file: TFile,
+    propertyName: string,
+    value: string
+): Promise<void> {
+    await processFrontMatter(app, file, (fm: Record<string, unknown>) => {
+        const key = findKeyCaseInsensitive(fm, propertyName) ?? propertyName
+        fm[key] = replaceLeadingListValue(fm[key], value)
     })
 }
 

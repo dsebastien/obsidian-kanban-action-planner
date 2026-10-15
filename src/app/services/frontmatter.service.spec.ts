@@ -8,6 +8,8 @@ import {
     keepListShape,
     queueFrontmatterWrite,
     replaceInListProperty,
+    replaceLeadingListValue,
+    setLaneProperty,
     setProperties,
     setStatusProperty
 } from './frontmatter.service'
@@ -252,5 +254,39 @@ describe('keepListShape / setStatusProperty (issue #219)', () => {
         const empty: Record<string, unknown> = {}
         await setStatusProperty(stubApp(empty).app, file, 'status', 'done')
         expect(empty).toEqual({ status: 'done' })
+    })
+})
+
+describe('replaceLeadingListValue / setLaneProperty (swimlane moves)', () => {
+    const file = Object.assign(new TFile(), { path: 'Notes/Lane.md' })
+
+    it('replaces only the entry the lane groups on, keeping the others', () => {
+        expect(replaceLeadingListValue(['home', 'phone'], 'work')).toEqual(['work', 'phone'])
+        expect(replaceLeadingListValue(['', null, 'home', 'phone'], 'work')).toEqual([
+            '',
+            null,
+            'work',
+            'phone'
+        ])
+    })
+
+    it('drops a later copy of the target value so the list holds it once', () => {
+        expect(replaceLeadingListValue(['home', 'work', 'phone'], 'work')).toEqual([
+            'work',
+            'phone'
+        ])
+    })
+
+    it('wraps the value for an empty list and writes text over anything else', () => {
+        expect(replaceLeadingListValue([], 'work')).toEqual(['work'])
+        expect(replaceLeadingListValue([null], 'work')).toEqual(['work'])
+        expect(replaceLeadingListValue('home', 'work')).toBe('work')
+        expect(replaceLeadingListValue(undefined, 'work')).toBe('work')
+    })
+
+    it('writes through a differently-cased key', async () => {
+        const fm: Record<string, unknown> = { Contexts: ['home', 'phone'] }
+        await setLaneProperty(stubApp(fm).app, file, 'contexts', 'work')
+        expect(fm).toEqual({ Contexts: ['work', 'phone'] })
     })
 })

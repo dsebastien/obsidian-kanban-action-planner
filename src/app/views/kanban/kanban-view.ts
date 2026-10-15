@@ -121,6 +121,7 @@ import {
     getFrontmatterValue,
     removeFromListProperty,
     setProperty,
+    setLaneProperty,
     setStatusProperty
 } from '../../services/frontmatter.service'
 import {
@@ -618,6 +619,12 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
     private get pendingOrderWrites(): Map<string, PendingWrite<number | null>> {
         return this.plugin.pendingOrderWrites
     }
+    /**
+     * Swimlane writes not yet observed in the metadata cache, keyed by card
+     * path: the lane counterpart of {@link pendingStatusWrites}, so a rebuild
+     * under a lagging cache cannot pull a card back into its source lane.
+     */
+    private readonly pendingLaneWrites = new Map<string, PendingWrite>()
     /** Masks of the bulk status writes in flight (see the selection host). */
     private readonly bulkStatusWrites = new Map<string, PendingWrite>()
     /** This view's id in normalizer job keys (one job per column per view). */
@@ -1501,11 +1508,22 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         if (grouping.kind === 'property') {
             const ref = parsePropertyRef(grouping.property)
             for (const file of files) {
+                if (ref?.kind === 'note') {
+                    // Only note properties are written by a cross-lane drag,
+                    // so only they can have a lane write in flight.
+                    const lane = this.settledValue(
+                        this.pendingLaneWrites,
+                        file,
+                        normalizeLaneValue(getFrontmatterValue(this.app, file, ref.name)),
+                        'swimlane',
+                        () => this.laneOnDisk(file, ref.name)
+                    )
+                    map.set(file.path, lane)
+                    continue
+                }
                 const raw = !ref
                     ? null
-                    : ref.kind === 'note'
-                      ? getFrontmatterValue(this.app, file, ref.name)
-                      : unwrapValue(this.entriesByPath.get(file.path)?.getValue(ref.id) ?? null)
+                    : unwrapValue(this.entriesByPath.get(file.path)?.getValue(ref.id) ?? null)
                 map.set(file.path, normalizeLaneValue(raw))
             }
             return map
@@ -3403,30 +3421,54 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         // snap-back to the source lane while the write round-trips). The
         // value gets the same normalization computeLaneValues applies on the
         // echo, so the re-derived state is identical and the echo is absorbed
-        // by the render-signature gate.
+        // by the render-signature gate. The pending write keeps it there
+        // until the cache catches up (see resolvePendingWrite): a lagging
+        // cache would otherwise pull the card back at the next rebuild.
         const laneValue = laneValueForLaneId(targetLaneId, UNGROUPED_LANE_ID)
         const previousLaneValue = card.laneValue
         const previousMapped = this.laneValueByPath.get(card.key) ?? null
+        const pending: PendingWrite = {
+            value: laneValue,
+            previous: normalizeLaneValue(getFrontmatterValue(this.app, card.file, property)),
+            until: window.performance.now() + PENDING_WRITE_TIMEOUT_MS,
+            activeWrites: 1,
+            // Not re-verified like a status: armed for the disk check at once.
+            verified: true,
+            observed: false
+        }
+        this.pendingLaneWrites.set(card.key, pending)
         card.laneValue = laneValue
         this.laneValueByPath.set(card.key, laneValue)
         // Returned unawaited (the caller renders first); never rejects.
-        return this.withRebuildsSuppressed(async () => {
-            if (targetLaneId === UNGROUPED_LANE_ID) {
-                await deleteProperty(this.app, card.file, property)
-            } else {
-                await setProperty(this.app, card.file, property, targetLaneId)
-            }
-        }).catch((error: unknown) => {
-            // A failed write fires no echo, and laneValueByPath is only
-            // re-derived in resolveAndRebuild — without this revert the card
-            // would render in a lane the disk does not hold indefinitely
-            // (issue #105 review). The status/order part of the move stands.
-            card.laneValue = previousLaneValue
-            this.laneValueByPath.set(card.key, previousMapped)
-            this.applyFilterAndRender()
-            log('Cross-lane write failed; reverted the optimistic lane change.', 'error', error)
-            new Notice('Failed to move the card to the target lane.')
-        })
+        return (
+            this.withRebuildsSuppressed(async () => {
+                if (targetLaneId === UNGROUPED_LANE_ID) {
+                    await deleteProperty(this.app, card.file, property)
+                } else {
+                    await setLaneProperty(this.app, card.file, property, targetLaneId)
+                }
+            })
+                .catch((error: unknown) => {
+                    if (this.pendingLaneWrites.get(card.key) === pending) {
+                        this.pendingLaneWrites.delete(card.key)
+                    }
+                    // A failed write fires no echo, and laneValueByPath is only
+                    // re-derived in resolveAndRebuild — without this revert the card
+                    // would render in a lane the disk does not hold indefinitely
+                    // (issue #105 review). The status/order part of the move stands.
+                    card.laneValue = previousLaneValue
+                    this.laneValueByPath.set(card.key, previousMapped)
+                    this.applyFilterAndRender()
+                    log(
+                        'Cross-lane write failed; reverted the optimistic lane change.',
+                        'error',
+                        error
+                    )
+                    new Notice('Failed to move the card to the target lane.')
+                })
+                // The mask's deadline runs from the end of the write.
+                .finally(() => this.endWrite(pending))
+        )
     }
 
     /**
@@ -3905,6 +3947,11 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
     /** A note's manual order ON DISK (see {@link statusOnDisk}). */
     private async orderOnDisk(file: TFile): Promise<number | null> {
         return coerceOrder(await this.propertyOnDisk(file, this.orderProperty))
+    }
+
+    /** A note's swimlane value ON DISK (see {@link statusOnDisk}). */
+    private async laneOnDisk(file: TFile, laneProperty: string): Promise<string | null> {
+        return normalizeLaneValue(await this.propertyOnDisk(file, laneProperty))
     }
 
     /** A raw frontmatter value read from the file, not the cache (case-insensitive). */

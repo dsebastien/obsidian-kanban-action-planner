@@ -80,7 +80,11 @@ When a new business rule is mentioned:
    and a `none` profile grouping, a board showing **more than one recognized note type**
    auto-groups lanes **by note type** (`resolveEffectiveLaneGrouping`, pure) — each type gets
    its own lane and, per rule 2, its own column set. An explicit per-view **None** keeps the
-   flat board.
+   flat board. A **List-typed** grouping property groups on its first usable entry
+   (`normalizeLaneValue` = `normalizeStatusValue`); a cross-lane drag replaces only that entry
+   and keeps the rest (`setLaneProperty` / `replaceLeadingListValue`), and its lane value is held
+   by a pending-write mask (`pendingLaneWrites`, same `resolvePendingWrite` rules as status moves) so
+   a lagging cache cannot pull the card back into its source lane.
 8. **Cards show the Bases view's properties (issue #50).** Each card renders the view's
    configured properties (`config.getOrder()` — the standard Bases **Properties** selection),
    one labelled field per property, in order, read per card via `BasesEntry.getValue` and

@@ -255,6 +255,13 @@ describe('normalizeLaneValue', () => {
         expect(normalizeLaneValue(3)).toBe('3')
         expect(normalizeLaneValue(false)).toBe('false')
     })
+
+    it('groups a list-typed property on its first usable entry', () => {
+        expect(normalizeLaneValue(['Work'])).toBe('Work')
+        expect(normalizeLaneValue(['', null, ' Home ', 'Work'])).toBe('Home')
+        expect(normalizeLaneValue([])).toBeNull()
+        expect(normalizeLaneValue([null])).toBeNull()
+    })
 })
 
 describe('laneValueForLaneId (issue #105, finding 4.1)', () => {

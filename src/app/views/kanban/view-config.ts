@@ -1,5 +1,6 @@
 import type { TabSortMode } from '../../domain/calendar-tabs'
 import type { LaneGrouping } from '../../domain/note-type'
+import { normalizeStatusValue } from '../../domain/status'
 import { parsePropertyRef } from './property-access'
 import type { TriageScope } from './triage'
 
@@ -183,14 +184,13 @@ export function readCompactMode(config: ConfigReader): boolean {
     return config.get('compactMode') === true
 }
 
-/** Normalize a raw frontmatter value into a swimlane key, or `null` (→ Ungrouped). */
+/**
+ * Normalize a raw frontmatter value into a swimlane key, or `null` (→
+ * Ungrouped). Same rules as a status: a List-typed property groups on its
+ * first usable entry (issue #219).
+ */
 export function normalizeLaneValue(raw: unknown): string | null {
-    if (typeof raw === 'string') {
-        const trimmed = raw.trim()
-        return trimmed.length > 0 ? trimmed : null
-    }
-    if (typeof raw === 'number' || typeof raw === 'boolean') return String(raw)
-    return null
+    return normalizeStatusValue(raw)
 }
 
 /**
