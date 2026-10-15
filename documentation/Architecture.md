@@ -225,30 +225,42 @@ shrunken layout never clamps it away). Cards never shrink below their content
 matching whitespace. The pure max-picking helper `uniformCardHeight()` is unit-tested.
 
 **Column virtualization (issue #111).** A column with `VIRTUALIZE_MIN_CARDS` (100) cards or
-more mounts only the cards within `OVERSCAN_PX` (800) of its visible area, between two spacers
-standing in for the rest (`ui/board/board-virtualizer.ts`; pure math in
-`ui/board/virtual-window.ts`, unit-tested). Smaller columns render every card exactly as before.
-Because every card has the same height, a virtual column is a fixed-pitch list (card `i` at
+more (staying virtual down to `VIRTUALIZE_OFF_BELOW`, 90) mounts only the cards within
+`OVERSCAN_PX` (800) of its visible area, between two spacers standing in for the rest
+(`ui/board/board-virtualizer.ts`; pure math in `ui/board/virtual-window.ts`). Because every card
+has the same height, a virtual column is a fixed-pitch list (card `i` at
 `padTop + i × (cardHeight + gap)`), so spacer heights, scroll extent and drop slots are exact.
-Per-list state lives in a `WeakMap` keyed by the `.kap-column-cards` element; `patchBoard` /
-`renderBoard` hand it the column's full card list (`renderVirtualColumn`) and the keyed
-reconcile runs over the mounted window only. Each list re-windows synchronously on its own
-`scroll` event and on a per-window `ResizeObserver` (`el.win`, popout-safe), with hysteresis
-(remount only once the view nears the window edge). Always mounted regardless of the window:
-the dragged/lifted card and the focused card, positioned absolutely at their exact slot
-(`.kap-card-pinned`). **Height:** `applyUniformCardHeight` measures the mounted cards plus a
-few probe cards per virtual column (`pickProbeIndices`: longest titles, richest bodies,
-covered cards; mounted invisible, measured, removed in the same task) and a per-board height
-cache (natural heights by card key + content signature + list width, reset when the host /
-root classes change); a card mounted later that is still taller raises the height
-(`growCardHeight`). Every height change re-anchors each virtual column on the card at its top
-(`captureVirtualAnchors`/`restoreVirtualAnchors`), and those lists set `overflow-anchor: none`
-so the browser's own scroll anchoring never adjusts a second time. Consumers that need the
-whole column read the model: `dnd-controller` aims with `virtualDropGeometry` + `dropSlot`,
-column triage / archive read `virtualCardKeys`, the phone switcher `columnCardCount`, and
-`applyRefocus` mounts an unmounted target via `ensureCardMounted`. Cards mounted outside a
-render pass go through `onCardsMounted` / `onCardsUnmounted` (selection decoration,
-`LazyImages.observeList` / `forget`).
+Per-list state lives in a `WeakMap` keyed by the `.kap-column-cards` element. The renderer only
+QUEUES a long column (`renderVirtualColumn`); `patchBoard` lays every queued column out at the end
+in one batch (`flushVirtualColumns` → `syncLists`: READ all geometry, WRITE all windows / spacers
+/ scroll offsets, READ the new nodes' heights once). Before a queued column swaps in its new cards
+it captures a key anchor (`captureKeyAnchor`: the card at the top of the view + fallbacks) and
+restores it after (`restoreKeyAnchor`), so inserts/removals above the view never shift it. Each
+list re-windows on its own `scroll` event and on a per-window `ResizeObserver` (`el.win`,
+popout-safe), with hysteresis; a 0-height viewport (hidden leaf) keeps the window, a collapsed
+column mounts nothing. A list that is not height-limited (a Markdown embed whose host scrolls) is
+detected on its first window (`readBounds`) and windows against its scrolling ancestor, followed
+through a document-level capture `scroll` listener. Always mounted regardless of the window: the
+dragged/lifted card and the focused card (`.kap-card-pinned`, absolute at their exact slot,
+before the top spacer or after the bottom one in column order); a document-level Tab tracker
+plus a `focusin` listener redirect a Tab landing off screen to the first / last card in view.
+Mounted cards carry `aria-posinset`/`aria-setsize`. **Height:** `applyUniformCardHeight`
+measures (fractional, `getBoundingClientRect`) the mounted cards plus a few probe cards per
+virtual column (`pickProbeIndices`: longest titles, richest bodies, covered cards, and an
+estimate of total height for cards tall by combination; mounted invisible, measured, removed in
+the same task) and a per-board height cache (natural heights by card key + FNV-1a hash of the
+content signature + list width; epoch = height-relevant host/root classes + font size + device
+pixel ratio, cleared on `css-change`), and publishes the max rounded up
+(`publishedCardHeight`). A card mounted later that is still taller raises the height
+(`growCardHeight`), every height change re-anchoring each virtual column on the card at its top
+(`captureVirtualAnchors`/`restoreVirtualAnchors`); those lists set `overflow-anchor: none`.
+Consumers that need the whole column read the model: `dnd-controller` aims with
+`virtualDropGeometry` + `dropSlot`, column triage / archive read `virtualCardKeys`, the phone
+switcher `columnCardCount`, and `applyRefocus` mounts an unmounted target via
+`ensureCardMounted`. Non-board modes and `onunload` call `releaseVirtualColumns`. Cards mounted
+or unmounted go through `onCardsMounted` / `onCardsUnmounted` (selection decoration,
+`LazyImages.observeList` / `forget`). DOM-side behaviour is unit-tested on a small fake DOM
+(`board-virtualizer.spec.ts`).
 
 **Render-signature gate (issue #105, #110).** Before the board/calendar/timeline render (and its side
 effects: toolbar teardown, calendar/timeline full teardown, column-anchor restore, equalize,

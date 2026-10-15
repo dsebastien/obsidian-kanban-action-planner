@@ -1325,11 +1325,26 @@ Markdown)`, `Export ideal week (JSON)`, `Export ideal week (Markdown)`); the for
     (`VIRTUALIZE_MIN_CARDS`, per column, per lane) mounts only the cards within 800px
     (`OVERSCAN_PX`) of its visible area; two spacers hold the rest, so the scrollbar, the scroll
     extent and every card position are exactly those of a full render (cards share one height,
-    rule 8a, so a column is a fixed-pitch list). Smaller columns render every card, unchanged.
+    rule 8a, so a column is a fixed-pitch list). Smaller columns render every card, unchanged; a
+    virtual column stays virtual down to 90 cards (`VIRTUALIZE_OFF_BELOW`, hysteresis).
     Re-windowing happens synchronously on the list's own scroll and resize (no debounce, rule 41),
-    with hysteresis so most scroll frames touch no DOM. Never unmounted while it matters: the
-    dragged or long-press-lifted card and the focused card stay mounted, out of the flow at their
-    exact slot. Drops aim with the column's geometry (any position, auto-scroll, cross-lane,
-    refused drops unchanged); actions over "the whole column" (triage, archive, counts, keyboard
-    refocus of an unmounted card, selection) use the model, never the mounted subset. Collapsed
-    columns and hidden leaves mount nothing until they show.
+    with hysteresis so most scroll frames touch no DOM, and every batch reads all geometry before
+    it writes. **View stability:** cards inserted or removed above the view (a drop from higher
+    up, an archive, a live update) never shift what the user is looking at: the column is
+    re-anchored on the card at its top (by key, falling back to the next surviving card); at the
+    very top it stays at the top. A hidden leaf / tab switch keeps the mounted window (no unmount,
+    covers stay loaded); a collapsed column mounts nothing. **Never unmounted while it matters:**
+    the dragged or long-press-lifted card and the focused card stay mounted, out of the flow at
+    their exact slot, placed in DOM order (before the window if above it, after it if below) so
+    Tab / Shift+Tab follow the column. Tab into a scrolled long column lands on the first
+    (Shift+Tab: last) card in view, not on a mounted card off screen. Mounted cards carry
+    `aria-posinset` / `aria-setsize` for their place in the whole column. Drops aim with the
+    column's geometry (any position, auto-scroll, cross-lane, refused drops unchanged); actions
+    over "the whole column" (triage, archive, counts, keyboard refocus of an unmounted card,
+    selection) use the model, never the mounted subset. A list that is not height-limited (a
+    Markdown embed whose host scrolls) windows against the area its scrolling ancestor shows.
+    **Heights:** measured with `getBoundingClientRect` and published rounded UP to a whole pixel,
+    so fractional natural heights never drift cards off their slots; the height cache resets on
+    the classes that change card heights (compact, cover layout, chip / color / accent style,
+    mobile, embed), the font size or the zoom, and on Obsidian's `css-change` (theme, font,
+    snippet), which also re-measures the board at once.
