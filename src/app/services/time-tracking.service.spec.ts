@@ -7,6 +7,7 @@ import {
     stopTimeSession,
     formatTrackedMinutes,
     readDurationMinutes,
+    recomputeTrackedTime,
     trackingPropertiesForType
 } from './time-tracking.service'
 
@@ -86,47 +87,47 @@ describe('trackingPropertiesForType (issue #172)', () => {
     })
 })
 
-describe('stopTimeSession: adds to the existing duration', () => {
-    const START = new Date(2026, 8, 9, 10, 0, 0).getTime()
-    const END = START + 20 * 60000
+const START = new Date(2026, 8, 9, 10, 0, 0).getTime()
+const END = START + 20 * 60000
+const old30 = { startTime: '2026-09-08T09:00:00', endTime: '2026-09-08T09:30:00' }
 
-    /** A plugin double around one note's frontmatter; writes land in `fm`. */
-    function setup(fm: Record<string, unknown>) {
-        const file = Object.assign(new TFile(), { path: 'n.md', basename: 'n' })
-        const app = {
-            plugins: { plugins: {} },
-            vault: { getFileByPath: (p: string) => (p === 'n.md' ? file : null) },
-            metadataCache: { getFileCache: () => ({ frontmatter: fm }) },
-            fileManager: {
-                processFrontMatter: (_f: TFile, fn: (fm: Record<string, unknown>) => void) => {
-                    fn(fm)
-                    return Promise.resolve()
-                }
+/** A plugin double around one note's frontmatter; writes land in `fm`. */
+function setup(fm: Record<string, unknown>) {
+    const file = Object.assign(new TFile(), { path: 'n.md', basename: 'n' })
+    const app = {
+        plugins: { plugins: {} },
+        vault: { getFileByPath: (p: string) => (p === 'n.md' ? file : null) },
+        metadataCache: { getFileCache: () => ({ frontmatter: fm }) },
+        fileManager: {
+            processFrontMatter: (_f: TFile, fn: (fm: Record<string, unknown>) => void) => {
+                fn(fm)
+                return Promise.resolve()
             }
         }
-        // Built without the constructor (as in plugin.spec.ts), so no Obsidian runtime is needed
-        const plugin = Object.assign(
-            Object.create(KanbanActionPlannerPlugin.prototype) as KanbanActionPlannerPlugin,
-            {
-                app,
-                settings: {
-                    ...createDefaultSettings(),
-                    activeTimeSession: { path: 'n.md', startedAt: START },
-                    noteTypes: [],
-                    defaultDurationProperty: 'time_spent',
-                    defaultTotalDurationProperty: 'total_time_spent',
-                    defaultTimeEntriesProperty: 'time_entries',
-                    defaultLastSessionProperty: 'date_last_session',
-                    minutesPerDay: 480,
-                    askDescriptionOnStop: false
-                },
-                saveSettings: (): Promise<void> => Promise.resolve()
-            }
-        )
-        return { fm, plugin }
     }
-    const old30 = { startTime: '2026-09-08T09:00:00', endTime: '2026-09-08T09:30:00' }
+    // Built without the constructor (as in plugin.spec.ts), so no Obsidian runtime is needed
+    const plugin = Object.assign(
+        Object.create(KanbanActionPlannerPlugin.prototype) as KanbanActionPlannerPlugin,
+        {
+            app,
+            settings: {
+                ...createDefaultSettings(),
+                activeTimeSession: { path: 'n.md', startedAt: START },
+                noteTypes: [],
+                defaultDurationProperty: 'time_spent',
+                defaultTotalDurationProperty: 'total_time_spent',
+                defaultTimeEntriesProperty: 'time_entries',
+                defaultLastSessionProperty: 'date_last_session',
+                minutesPerDay: 480,
+                askDescriptionOnStop: false
+            },
+            saveSettings: (): Promise<void> => Promise.resolve()
+        }
+    )
+    return { fm, plugin, file }
+}
 
+describe('stopTimeSession: adds to the existing duration', () => {
     test('keeps minutes added outside the tracker', async () => {
         const { fm, plugin } = setup({ time_spent: 90, time_entries: [old30] })
         await stopTimeSession(plugin, END)
@@ -144,5 +145,39 @@ describe('stopTimeSession: adds to the existing duration', () => {
         const text = setup({ Time_Spent: 'lots', time_entries: [old30] })
         await stopTimeSession(text.plugin, END)
         expect(text.fm['Time_Spent']).toBe(50)
+    })
+})
+
+describe('stopTimeSession on a template placeholder (issue #218)', () => {
+    test('[null] becomes the new entry alone', async () => {
+        const { fm, plugin } = setup({ time_entries: [null] })
+        await stopTimeSession(plugin, END)
+        expect(fm['time_entries']).toEqual([
+            { startTime: '2026-09-09T10:00:00', endTime: '2026-09-09T10:20:00', description: '' }
+        ])
+    })
+})
+
+describe('recomputeTrackedTime drops empty items (issue #218)', () => {
+    test('[null] becomes an empty list; the duration is left alone', async () => {
+        const { fm, plugin, file } = setup({ time_spent: 45, time_entries: [null] })
+        expect(await recomputeTrackedTime(plugin, file)).toBeNull()
+        expect(fm['time_entries']).toEqual([])
+        expect(fm['time_spent']).toBe(45)
+    })
+
+    test('[entry, null] keeps the entry and recomputes from it', async () => {
+        const { fm, plugin, file } = setup({ time_spent: 999, time_entries: [old30, null] })
+        expect(await recomputeTrackedTime(plugin, file)).toBe(30)
+        expect(fm['time_entries']).toEqual([old30])
+        expect(fm['time_spent']).toBe(30)
+        expect(fm['date_last_session']).toBe('2026-09-08')
+    })
+
+    test('a clean list is not rewritten', async () => {
+        const entries = [old30]
+        const { fm, plugin, file } = setup({ time_entries: entries })
+        await recomputeTrackedTime(plugin, file)
+        expect(fm['time_entries']).toBe(entries)
     })
 })

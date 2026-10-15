@@ -9,7 +9,8 @@ import {
     latestEntryDate,
     parseTimeEntries,
     readTrackedMinutes,
-    sumEntryMinutes
+    sumEntryMinutes,
+    withoutEmptyEntries
 } from '../domain/time-entries'
 import {
     breakTypeAfter,
@@ -197,7 +198,7 @@ export async function stopTimeSession(
     // Existing items are kept verbatim (a shape this version doesn't know is
     // not the plugin's to drop); only the sum reads the well-formed ones. A
     // template's empty placeholder (`- ` → null) is dropped.
-    const existing: unknown[] = Array.isArray(raw) ? raw.filter((item) => item !== null) : []
+    const existing: unknown[] = Array.isArray(raw) ? (withoutEmptyEntries(raw) ?? raw) : []
     const entry = buildTimeEntry(session.startedAt, now)
     const list = [...existing, entry]
     const parsed = parseTimeEntries(list)
@@ -333,19 +334,26 @@ async function applyRecovery(
  * Reset a note's duration and last-session date to its entries list (the
  * WBS row menu's "Recompute tracked time from entries"): an EXPLICIT repair,
  * the one write that replaces the duration with the list's sum, so minutes
- * added outside the tracker are dropped by design. Returns the new total, or
- * null for a note without entries (left alone — its duration may be its
- * only record).
+ * added outside the tracker are dropped by design. Empty items in the list
+ * are removed too (issue #218), even when no entry is left. Returns the new
+ * total, or null for a note without entries (its duration is left alone: it
+ * may be its only record).
  */
 export async function recomputeTrackedTime(
     plugin: KanbanActionPlannerPlugin,
     file: TFile
 ): Promise<number | null> {
     const properties = await trackingPropertiesFor(plugin, file)
-    const parsed = parseTimeEntries(getFrontmatterValue(plugin.app, file, properties.entries))
-    if (parsed.length === 0) return null
+    const raw = getFrontmatterValue(plugin.app, file, properties.entries)
+    const cleaned = withoutEmptyEntries(raw)
+    const parsed = parseTimeEntries(raw)
+    if (parsed.length === 0) {
+        if (cleaned) await setProperties(plugin.app, file, { [properties.entries]: cleaned })
+        return null
+    }
     const total = sumEntryMinutes(parsed)
     const write: Record<string, unknown> = { [properties.duration]: total }
+    if (cleaned) write[properties.entries] = cleaned
     const lastSession = latestEntryDate(parsed)
     if (lastSession) write[properties.lastSession] = lastSession
     await setProperties(plugin.app, file, write)

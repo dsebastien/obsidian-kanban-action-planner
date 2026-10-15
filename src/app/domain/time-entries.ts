@@ -71,6 +71,20 @@ export function parseTimeEntries(raw: unknown): TimeEntry[] {
 }
 
 /**
+ * A time-entries list without its empty items, or null when there is nothing
+ * to drop (not a list, or no empty item). A template's empty placeholder
+ * (`time_entries:\n  - ` parses as `[null]`) makes TaskNotes skip the note
+ * (issue #218). Every other item is kept verbatim: a shape this version does
+ * not know is not the plugin's to drop. `[null]` gives `[]`.
+ */
+export function withoutEmptyEntries(raw: unknown): unknown[] | null {
+    if (!Array.isArray(raw)) return null
+    const items: unknown[] = raw
+    const kept = items.filter((item) => item !== null && item !== undefined)
+    return kept.length === items.length ? null : kept
+}
+
+/**
  * Whole minutes of one CLOSED entry, at least 1 (a tracked tap still counts);
  * null for an open entry or unparsable datetimes. A session crossing
  * midnight is plain subtraction — the entry keeps its real start and end.

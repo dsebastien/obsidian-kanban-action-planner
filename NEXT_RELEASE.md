@@ -12,3 +12,7 @@
 ### View renamed to "Kanban Action Planner"
 
 - **Easier to find in the view picker** ([#221](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/221)): Obsidian 1.14 added its own Bases layout called **Kanban**, so the picker showed two "Kanban" entries. This plugin's view is now called **Kanban Action Planner**. Only the label changed: your existing boards, embeds and their settings keep working, and there's nothing to migrate.
+
+### Time tracking
+
+- **Recompute tracked time repairs empty entries** ([#218](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/218)): Starter Kit templates before v5.1.0 left an empty `- ` item under `time_entries`, and TaskNotes skips any note that has one. **Recompute tracked time from entries** now removes those items too, even when the list has nothing else in it, so the note shows up in TaskNotes again.

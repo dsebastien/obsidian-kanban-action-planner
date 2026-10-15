@@ -13,7 +13,8 @@ import {
     numericDuration,
     readTrackedMinutes,
     sumEntryMinutes,
-    withEntryDescription
+    withEntryDescription,
+    withoutEmptyEntries
 } from './time-entries'
 import type { TimeEntry } from './time-entries'
 
@@ -303,5 +304,22 @@ describe('withEntryDescription (issue #197)', () => {
     test('returns the same list when nothing matches, and [] for a non-list', () => {
         expect(withEntryDescription(list, 'nope', 'x')).toBe(list)
         expect(withEntryDescription(null, 'x', 'y')).toEqual([])
+    })
+})
+
+describe('withoutEmptyEntries (issue #218)', () => {
+    const entry = { startTime: '2026-09-08T09:00:00', endTime: '2026-09-08T09:30:00' }
+
+    test('drops empty items and keeps every other item verbatim', () => {
+        expect(withoutEmptyEntries([null])).toEqual([])
+        expect(withoutEmptyEntries([entry, null])).toEqual([entry])
+        expect(withoutEmptyEntries([null, 'odd', { foo: 1 }])).toEqual(['odd', { foo: 1 }])
+    })
+
+    test('returns null when there is nothing to drop', () => {
+        expect(withoutEmptyEntries([entry])).toBeNull()
+        expect(withoutEmptyEntries([])).toBeNull()
+        expect(withoutEmptyEntries(null)).toBeNull()
+        expect(withoutEmptyEntries('text')).toBeNull()
     })
 })

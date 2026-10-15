@@ -971,7 +971,9 @@ When a new business rule is mentioned:
     a recompute. The only full recompute is the explicit WBS row action **Recompute tracked time
     from entries** (a user-chosen reset that drops minutes added outside the tracker). Existing list items
     are kept verbatim (an unknown shape is not the plugin's to drop; only a template's `null`
-    placeholder goes); the list is never compacted. Reads (`readTrackedMinutes`) prefer the
+    placeholder goes, on stop and on **Recompute tracked time from entries**, which removes it
+    even when no well-formed entry is left: `[null]` → `[]`, `withoutEmptyEntries`, issue #218); the
+    list is never compacted otherwise. Reads (`readTrackedMinutes`) prefer the
     duration property when it holds a positive number, else the entries list's sum (a note
     tracked only by TaskNotes), else a legacy `duration`
     number (only when the configured duration property is not `duration` itself — no double

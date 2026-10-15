@@ -1430,7 +1430,8 @@ records), straight from the cards, on **any note type**:
   the **total duration** property (`total_duration` by default). **Recompute tracked time from
   entries** resets a note's duration and last-session date to the list (after it was edited by
   hand or by TaskNotes); it drops minutes added outside the tracker, so use it only when the
-  list is the whole story.
+  list is the whole story. It also removes empty items from the list, like the `- ` placeholder
+  older Starter Kit templates left under `time_entries`, which hides the note from TaskNotes.
 - Tracked time renders with the same `d / h / m` grammar as estimates, sized by **Minutes
   per day**, so tracked vs estimated reads side by side.
 
