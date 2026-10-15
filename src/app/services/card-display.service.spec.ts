@@ -13,6 +13,7 @@ import {
     resolveCardTitle,
     stripEnumPrefix
 } from './card-display.service'
+import { HEAT_COLORS, paletteColor } from '../domain/card-color'
 
 const TODAY = new Date(2026, 5, 28)
 
@@ -156,7 +157,7 @@ describe('buildCardDisplay cover property', () => {
             () => [],
             overrides,
             undefined,
-            cover
+            { cover }
         ).coverUrl
 
     it('has no cover when unconfigured', () => {
@@ -183,6 +184,62 @@ describe('buildCardDisplay cover property', () => {
             'https://y/z.png'
         )
         expect(build('note.local_cover', new Map([['local_cover', null]]))).toBeNull()
+    })
+})
+
+describe('buildCardDisplay card color property (issue #150)', () => {
+    const file = Object.assign(new TFile(), { basename: 'Task', path: 't/Task.md' })
+    const config = {
+        getOrder: (): BasesPropertyId[] => [],
+        getDisplayName: (id: BasesPropertyId): string => id
+    }
+    const app: CardDisplayApp = {
+        metadataCache: {
+            getFileCache: () => ({
+                frontmatter: { priority: '10 - High', project: ['[[Project A]]', '[[Project B]]'] }
+            }),
+            getFirstLinkpathDest: () => null
+        },
+        vault: { getAbstractFileByPath: () => null, getResourcePath: () => '' }
+    }
+    const entry = entryOf({ 'formula.color': '#123456', 'formula.empty': 'null' })
+    const allowed = (id: BasesPropertyId): string[] =>
+        id === 'note.priority' ? ['10 - High', '20 - Medium', '30 - Low'] : []
+    const build = (color: BasesPropertyId | null, overrides?: ReadonlyMap<string, string | null>) =>
+        buildCardDisplay(
+            app,
+            file,
+            entry,
+            config,
+            null,
+            null,
+            TODAY,
+            { show: false, soonDays: 7, placement: 'title' },
+            allowed,
+            overrides,
+            undefined,
+            { color }
+        ).cardColor
+
+    it('has no color when unconfigured or empty', () => {
+        expect(build(null)).toBeNull()
+        expect(build('formula.empty')).toBeNull()
+        expect(build('note.missing')).toBeNull()
+    })
+    it('colors enum values by heat rank', () => {
+        expect(build('note.priority')).toBe(HEAT_COLORS[0] ?? '')
+    })
+    it('uses a CSS color a formula returns', () => {
+        expect(build('formula.color')).toBe('#123456')
+    })
+    it('hashes other values, using the first list item', () => {
+        expect(build('note.project')).toBe(paletteColor('[[Project A]]'))
+    })
+    it('follows a just-written value at once', () => {
+        expect(build('note.priority', new Map([['priority', '30 - Low']]))).toBe(
+            HEAT_COLORS[4] ?? ''
+        )
+        expect(build('note.priority', new Map([['priority', null]]))).toBeNull()
     })
 })
 

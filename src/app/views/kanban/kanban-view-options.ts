@@ -230,6 +230,28 @@ export function getKanbanViewOptions(app: App, settings: PluginSettings): BasesA
                     }
                 },
                 {
+                    // Card color by property (issue #150). Read-only, so
+                    // formulas work too (a formula may return a CSS color).
+                    // Value → color: domain/card-color.ts.
+                    type: 'property',
+                    key: 'cardColorProperty',
+                    displayName: 'Card color property',
+                    placeholder: 'None (no card colors)',
+                    filter: readOnlyPropertyFilter
+                },
+                {
+                    // Overdue / due-today cards keep their wash: a tint then
+                    // shows on the border instead (business rule 67).
+                    type: 'dropdown',
+                    key: 'cardColorStyle',
+                    displayName: 'Card color style',
+                    default: 'tint',
+                    options: {
+                        tint: 'Tinted background',
+                        border: 'Colored border'
+                    }
+                },
+                {
                     type: 'toggle',
                     // Visibility is per-view (issue #62); the badge position and the
                     // "soon" color threshold are global (plugin settings).

@@ -5,6 +5,7 @@ import {
     laneValueForLaneId,
     laneChangeBlockedReason,
     normalizeLaneValue,
+    readCardColorStyle,
     readCompactMode,
     readCoverLayout,
     readIdArray,
@@ -253,6 +254,16 @@ describe('readCoverLayout', () => {
             fit: 'cover',
             aspect: 'banner'
         })
+    })
+})
+
+describe('readCardColorStyle (issue #150)', () => {
+    it('tints by default and on unknown values', () => {
+        expect(readCardColorStyle(config({}))).toBe('tint')
+        expect(readCardColorStyle(config({ cardColorStyle: 'glow' }))).toBe('tint')
+    })
+    it('reads the border style', () => {
+        expect(readCardColorStyle(config({ cardColorStyle: 'border' }))).toBe('border')
     })
 })
 

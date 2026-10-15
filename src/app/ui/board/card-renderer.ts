@@ -61,6 +61,12 @@ export function renderCard(
     el.setAttribute('role', 'listitem')
     el.setAttribute('tabindex', '0')
     el.style.setProperty('--kap-card-accent', accentColor)
+    // Card color by property (issue #150). The board's Card color style class
+    // decides how it shows (tint or border); overdue/due-today keep the wash.
+    if (card.display.cardColor) {
+        el.addClass('kap-card-colored')
+        el.style.setProperty('--kap-card-color', card.display.cardColor)
+    }
     if (card.display.wrap) el.addClass('kap-card-wrap')
     if (card.display.dueState === 'overdue') el.addClass('kap-card-overdue')
     else if (card.display.dueState === 'today') el.addClass('kap-card-due-today')

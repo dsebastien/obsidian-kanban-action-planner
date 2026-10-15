@@ -43,6 +43,7 @@ export function cardSignature(
         d.title,
         d.wrap ? 'w' : '',
         d.coverUrl ?? '',
+        d.cardColor ?? '',
         d.dueState,
         card.deferred ? 'D' : '',
         cd,

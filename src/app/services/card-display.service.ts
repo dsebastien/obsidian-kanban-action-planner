@@ -4,6 +4,7 @@ import { parseFrontmatterDate, startOfDay } from '../domain/calendar'
 import { NO_TITLE_AFFIXES, stripTitleAffixes, type CardTitleAffixes } from '../domain/card-title'
 import { coverRawFromValue, resolveCoverUrl } from './card-cover.service'
 import type { CoverApp } from './card-cover.service'
+import { resolveValueColor } from '../domain/card-color'
 import type {
     CardCountdown,
     CardDisplay,
@@ -158,32 +159,46 @@ export function heatLevel(value: string, allowedValues: ReadonlyArray<string>): 
 }
 
 /**
- * Resolve the card cover (view option `coverProperty`). A `note.*` property is
- * read raw from the frontmatter (honoring just-written overrides) so a
- * `[[wikilink]]` keeps its brackets; a `formula.*` / `file.*` column is read
- * from the Bases entry, unwrapped by {@link coverRawFromValue} so an `image()`
- * formula, a link, a file or a list of them each yield their target. See
- * {@link resolveCoverUrl} for the accepted forms.
+ * Read the raw value of a card-visual property (cover, card color). A `note.*`
+ * property is read raw from the frontmatter (honoring just-written overrides)
+ * so a `[[wikilink]]` keeps its brackets and a list stays a list; a
+ * `formula.*` / `file.*` column is read from the Bases entry, unwrapped by
+ * {@link coverRawFromValue} so an `image()` formula, a link, a file or a list
+ * of them each yield their own text.
  */
-function readCoverUrl(
+function readVisualRaw(
     app: CardDisplayApp,
     file: TFile,
     entry: BasesEntry | undefined,
-    coverProperty: BasesPropertyId | null,
+    property: BasesPropertyId,
     noteOverride: (id: BasesPropertyId) => string | null | undefined
-): string | null {
-    if (!coverProperty) return null
-    let raw: unknown
-    if (coverProperty.startsWith('note.')) {
-        const override = noteOverride(coverProperty)
-        raw =
-            override !== undefined
-                ? override
-                : getFrontmatterValue(app, file, coverProperty.slice('note.'.length))
-    } else {
-        raw = coverRawFromValue(entry?.getValue(coverProperty))
+): unknown {
+    if (property.startsWith('note.')) {
+        const override = noteOverride(property)
+        return override !== undefined
+            ? override
+            : getFrontmatterValue(app, file, property.slice('note.'.length))
     }
-    return resolveCoverUrl(app, raw, file.path)
+    return coverRawFromValue(entry?.getValue(property))
+}
+
+/**
+ * Where a card's optional visuals come from (view options): each a Bases
+ * property id (`note.*` / `formula.*` / `file.*`), or null/absent → off.
+ */
+export interface CardVisualSources {
+    /** `coverProperty`: the cover image (see {@link resolveCoverUrl}). */
+    cover?: BasesPropertyId | null
+    /** `cardColorProperty`: the card color (see `domain/card-color.ts`). */
+    color?: BasesPropertyId | null
+}
+
+/**
+ * A card-color value → CSS color (`domain/card-color.ts`). Enum values rank on
+ * the same heat scale as the field chips, using the property's allowed values.
+ */
+function readCardColor(raw: unknown, allowedValues: ReadonlyArray<string>): string | null {
+    return resolveValueColor(raw, (text) => heatLevel(text, allowedValues))
 }
 
 /** A pure number (integer or decimal), used to flag a numeric formula "score". */
@@ -236,11 +251,8 @@ export function buildCardDisplay(
      * (`domain/card-title.ts`); defaults to none.
      */
     titleAffixes: CardTitleAffixes = NO_TITLE_AFFIXES,
-    /**
-     * Card-cover source (view option `coverProperty`): a Bases property id
-     * (`note.*` / `formula.*` / `file.*`), or null → no covers.
-     */
-    coverProperty: BasesPropertyId | null = null
+    /** Optional card visuals (cover, color) and the properties they read. */
+    visuals: CardVisualSources = {}
 ): CardDisplay {
     /** The override for a `note.*` property id, or undefined when none applies. */
     const noteOverride = (id: BasesPropertyId): string | null | undefined => {
@@ -311,7 +323,19 @@ export function buildCardDisplay(
     return {
         title: resolveCardTitle(entry, titleProperty, file.basename, titleAffixes),
         fields,
-        coverUrl: readCoverUrl(app, file, entry, coverProperty, noteOverride),
+        coverUrl: visuals.cover
+            ? resolveCoverUrl(
+                  app,
+                  readVisualRaw(app, file, entry, visuals.cover, noteOverride),
+                  file.path
+              )
+            : null,
+        cardColor: visuals.color
+            ? readCardColor(
+                  readVisualRaw(app, file, entry, visuals.color, noteOverride),
+                  allowedValuesFor(visuals.color)
+              )
+            : null,
         wrap: true,
         // Always the deadline: overdue/due-today emphasis is about what is owed,
         // not about when you planned to start.

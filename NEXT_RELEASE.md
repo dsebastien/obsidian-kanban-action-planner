@@ -2,6 +2,7 @@
 
 - **Cover fit and shape** ([#220](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/220)): two new options next to **Cover property** in **Configure view → Cards**. **Cover fit** crops the image to fill the box (as before) or shows the whole image. **Cover aspect ratio** keeps the fixed-height banner (as before) or gives the box a 16:9, 3:2, 4:3, 1:1 or 2:3 shape. 2:3 suits movie posters, book covers and comics. The box is sized before the image loads, so cards don't jump while images come in.
 - **More cover sources**: a base formula built with `image()` works as the cover property, a formula or property that returns a list of links shows its first usable image, and image URLs that contain parentheses load.
+- **Card color by property** ([#150](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/150)): color cards by any property or base formula, separately from the column colors (e.g. by priority while the columns stay statuses). Pick it in **Configure view → Cards → Card color property**, and choose a tinted background or a colored border. A color value (`#e5484d`, `red`) is used as is, a ranked value such as `10 - High` gets the same color as its field, and any other value gets a stable color from your theme. Blocked, overdue and due-today cards keep their own markings.
 
 ### Cards stay where you drop them
 

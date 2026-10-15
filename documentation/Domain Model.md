@@ -39,7 +39,9 @@ column rule.
 - **CardDisplay** (issue #50) — built per card by `services/card-display.service.ts` from the
   Bases view's configured properties (`config.getOrder()`): the note name as `title`, one
   labelled `CardFieldView` per property (read via `BasesEntry.getValue`, labelled via
-  `getDisplayName`, empty/`null` skipped), plus the `dueState`. The `title` is filtered
+  `getDisplayName`, empty/`null` skipped), plus the `dueState`, the `coverUrl` (rule 64) and
+  the `cardColor` (a CSS color expression from the card color property, `domain/card-color.ts`,
+  rule 67). The `title` is filtered
   through `domain/card-title.ts` first (see **TitleDisplayConfig**).
 - **TitleDisplayConfig** + **NamingConfig** (`domain/card-title.ts`) — per note type.
   `naming` is a read-only mirror of the Starter Kit type's `noteNamePrefix`/`noteNameSuffix`;

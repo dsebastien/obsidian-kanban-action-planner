@@ -487,6 +487,43 @@ at about half the screen height.
 | **Cover fit**          | Per board | Crop to fill | Crop the image to fill the box, or show the whole image.               |
 | **Cover aspect ratio** | Per board | Banner       | Shape of the cover box: a fixed-height banner or a width:height ratio. |
 
+## Card color
+
+Per board, **Configure view → Cards → Card color property** colors each card by a property (or
+base formula), separately from the column colors. Color the cards by priority while the columns
+stay statuses, for example. Empty (the default) means no card colors.
+
+The color comes from the card's value:
+
+1. A value that is a color is used as is: `#e5484d`, `rgb(…)`, `hsl(…)` or a color name such as
+   `red` or `teal`. `red`, `orange`, `yellow`, `green`, `cyan`, `blue`, `purple` and `pink`
+   use your theme's shade of that color. This lets a base formula pick the color, e.g.
+   `if(priority == "10 - High", "red", "blue")`.
+2. A ranked value such as `10 - High` / `20 - Medium` / `30 - Low` gets the same warm-to-cool
+   color as its field on the card (red for the top rank, gray for the bottom).
+3. Any other value gets a color from your theme's palette. Each distinct value always gets the
+   same color, so all cards of one project or context match. `[[Project A]]` and
+   `[[Project A|A]]` count as the same value.
+
+A list property uses its first value. A card without a value keeps the normal look.
+
+**Card color style** sets how the color shows:
+
+- **Tinted background** (the default): a light wash of the color behind the card. The text
+  stays readable in light and dark themes.
+- **Colored border**: the card's top, right and bottom edges take the color.
+
+The card color never hides the other signals. The left edge stays the column color, or red
+for a blocked card. Overdue and due-today cards keep their red or amber background: with a
+tinted background, their card color moves to the border instead. Deferred cards stay faded, and
+the selection highlight still wins. Card colors show on board cards only, not in calendar,
+timeline or triage.
+
+| Setting                 | Scope     | Default           | What it does                                             |
+| ----------------------- | --------- | ----------------- | -------------------------------------------------------- |
+| **Card color property** | Per board | None              | Colors each card by this property's value.               |
+| **Card color style**    | Per board | Tinted background | Show the color as a background tint or as a card border. |
+
 ### Filtering the note type's name decoration
 
 Note types decorate file names so recognition rules can key off them: the Obsidian Starter

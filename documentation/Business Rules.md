@@ -1281,3 +1281,21 @@ Markdown)`, `Export ideal week (JSON)`, `Export ideal week (Markdown)`); the for
     step stops when the sort leaves manual or the setting is turned off. Each write goes through the
     shared pending-order mask, so nothing moves on screen while the cache lags, and a second open
     view of the same Base plans nothing for notes the first one already fixed.
+67. **Card color by property (issue #150).** Configure view → Cards → **Card color property**
+    (`cardColorProperty`, any `note.*` / `formula.*` / `file.*` id, read like the cover: raw
+    frontmatter with just-written overrides, or the unwrapped Bases value; empty = off, the
+    default) + **Card color style** (`cardColorStyle`: `tint` default | `border`).
+    `resolveValueColor` (`domain/card-color.ts`, pure) takes the first usable value (lists →
+    first item; numbers/booleans stringified; empty/`null` → no color) and resolves, in order:
+    (1) a CSS color literal (hex 3/4/6/8, `rgb/rgba/hsl/hsla/hwb/lab/lch/oklab/oklch()` with a
+    paren-free argument, a CSS named color; the 8 basic hues → `var(--color-<hue>)`), (2) the
+    enum heat rank via `heatLevel` against `allowedValuesForCardField` → `HEAT_COLORS` (same
+    scale as the field chips), (3) FNV-1a hash of `colorKey` (wikilink target, lowercased) →
+    one of `var(--color-red|orange|yellow|green|cyan|blue|purple|pink)` (order fixed: changing
+    it recolors boards). The card gets `.kap-card-colored` + `--kap-card-color`; the style is a
+    class on the board host (`kap-card-color-tint|border`). **Precedence:** blocked owns the left
+    edge (the border style colors top/right/bottom only), overdue / due-today own the background
+    (a tint moves to the border on those cards, so both show), deferred keeps its opacity, the
+    selection highlight and hover border win (`:where()` keeps the rules at plain-card weight).
+    Tint = `color-mix(… 14%, var(--background-primary))`. `cardColor` is in `cardSignature`, the
+    style in the render-pass and card-height signatures. Board cards only.

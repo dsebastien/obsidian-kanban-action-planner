@@ -67,6 +67,12 @@ export interface CardDisplay {
     title: string
     fields: CardFieldView[]
     coverUrl: string | null
+    /**
+     * The card color from the view's card color property, as a CSS color
+     * expression (`#hex`, `var(--color-…)`, …); null when off or empty
+     * (`domain/card-color.ts`, issue #150).
+     */
+    cardColor: string | null
     wrap: boolean
     /** Due-date urgency for at-a-glance emphasis. */
     dueState: DueState

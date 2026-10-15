@@ -223,6 +223,17 @@ export function readCoverLayout(config: ConfigReader): CoverLayout {
 }
 
 /**
+ * How a card shows its color (view option `cardColorStyle`, issue #150):
+ * `tint` washes the background (default), `border` colors the card's frame.
+ */
+export type CardColorStyle = 'tint' | 'border'
+
+/** Read the per-view card color style, default-on-missing (`tint`). */
+export function readCardColorStyle(config: ConfigReader): CardColorStyle {
+    return config.get('cardColorStyle') === 'border' ? 'border' : 'tint'
+}
+
+/**
  * Normalize a raw frontmatter value into a swimlane key, or `null` (→
  * Ungrouped). Same rules as a status: a List-typed property groups on its
  * first usable entry (issue #219).

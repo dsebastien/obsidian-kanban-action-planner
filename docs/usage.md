@@ -1611,6 +1611,10 @@ changing your notes. They're grouped:
 - **Cover fit** / **Cover aspect ratio**: crop covers to fill their box (the default) or show the
   whole image, and pick the box shape: a fixed-height banner (the default) or 16:9, 3:2, 4:3, 1:1
   or 2:3 for posters.
+- **Card color property** / **Card color style**: color each card by a property, as a background
+  tint (the default) or a colored border. Color values (`#e5484d`, `red`) are used as is, ranked
+  values (`10 - High`) follow the field colors, and any other value gets a stable color. See
+  [Card color](configuration.md#card-color).
 - **Show due countdown**: show the `In 3d` / `2d overdue` badge on cards. Its position and the
   "soon" threshold are global plugin settings.
 - **Countdown counts down to**: whether that badge tracks the **deadline** (the due date, the

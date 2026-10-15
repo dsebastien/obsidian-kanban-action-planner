@@ -35,6 +35,7 @@ function makeCard(): KanbanCard {
             title: 'Task',
             fields: [],
             coverUrl: null,
+            cardColor: null,
             wrap: false,
             dueState: 'none',
             countdown: null,

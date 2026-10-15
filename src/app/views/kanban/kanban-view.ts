@@ -287,6 +287,7 @@ import {
     normalizeLaneValue,
     readCompactMode,
     readCoverLayout,
+    readCardColorStyle,
     COVER_ASPECTS,
     readIdArray,
     readLaneGroupingOverride,
@@ -3180,11 +3181,12 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
     }
 
     /**
-     * The per-view card-cover source (`coverProperty`): a validated Bases
-     * property id, or null → no covers (the default).
+     * A per-view property option holding a Bases property id (`coverProperty`,
+     * `cardColorProperty`): the validated id, or null → the feature is off
+     * (the default).
      */
-    private coverPropertyId(): BasesPropertyId | null {
-        const ref = parsePropertyRef(this.viewConfig.get('coverProperty'))
+    private propertyIdOption(key: string): BasesPropertyId | null {
+        const ref = parsePropertyRef(this.viewConfig.get(key))
         if (!ref) return null
         return ref.kind === 'note' ? (`note.${ref.name}` as BasesPropertyId) : ref.id
     }
@@ -3228,7 +3230,10 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             (id) => this.allowedValuesForCardField(file, id),
             overrides,
             this.titleAffixesByPath.get(file.path) ?? NO_TITLE_AFFIXES,
-            this.coverPropertyId()
+            {
+                cover: this.propertyIdOption('coverProperty'),
+                color: this.propertyIdOption('cardColorProperty')
+            }
         )
     }
 
@@ -5720,7 +5725,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
 
     /**
      * Board-wide card presentation classes from the view options (cover fit and
-     * shape). Applied as classes on the board host, so the CSS does the layout:
+     * shape, card color style). Applied as classes on the board host, so the CSS does the layout:
      * no per-card inline styles, and a change needs no card rebuild. Their
      * values also go into the render and height signatures, so the pass that
      * follows a change re-measures the uniform card height.
@@ -5733,12 +5738,15 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         for (const aspect of COVER_ASPECTS) {
             el.toggleClass(`kap-cover-ratio-${aspect}`, cover.aspect === aspect)
         }
+        const colorStyle = readCardColorStyle(this.viewConfig)
+        el.toggleClass('kap-card-color-tint', colorStyle === 'tint')
+        el.toggleClass('kap-card-color-border', colorStyle === 'border')
     }
 
     /** The presentation inputs {@link applyCardPresentation} reads, for the signatures. */
     private cardPresentationKey(): string {
         const cover = readCoverLayout(this.viewConfig)
-        return `${cover.fit}|${cover.aspect}`
+        return `${cover.fit}|${cover.aspect}|${readCardColorStyle(this.viewConfig)}`
     }
 
     /** Whether compact cards (title only) are active (board mode). */

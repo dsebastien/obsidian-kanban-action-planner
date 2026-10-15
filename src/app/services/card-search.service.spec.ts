@@ -29,6 +29,7 @@ function card(overrides: Partial<KanbanCard> = {}): KanbanCard {
             title: 'My Card',
             fields: [],
             coverUrl: null,
+            cardColor: null,
             wrap: false,
             dueState: 'none',
             countdown: null,

@@ -1407,6 +1407,25 @@
         );
     }
 
+    /* Card color by property (issue #150). The card carries `.kap-card-colored`
+       and `--kap-card-color` (any CSS color, usually a theme `--color-*`
+       variable); the board host's style class decides how it shows. Selectors
+       go through :where() so they weigh like a plain `.kap-card` rule: the
+       selected-card highlight and the hover border still win.
+       Precedence: blocked owns the left edge (the colored border never touches
+       it), overdue / due-today own the background (a tint moves to the border
+       on those cards, so both signals show), deferred keeps its opacity. */
+    .kap-card-color-tint :where(.kap-card-colored:not(.kap-card-overdue, .kap-card-due-today)) {
+        background: color-mix(in srgb, var(--kap-card-color) 14%, var(--background-primary));
+    }
+    .kap-card-color-border :where(.kap-card-colored),
+    .kap-card-color-tint
+        :where(.kap-card-colored.kap-card-overdue, .kap-card-colored.kap-card-due-today) {
+        border-top-color: var(--kap-card-color);
+        border-right-color: var(--kap-card-color);
+        border-bottom-color: var(--kap-card-color);
+    }
+
     /* ── Due countdown badge (issue #62). Visibility is per-view; the position
        (title / chip / corner / footer) and the "soon" color threshold are global
        settings. The badge is a compact tinted pill; `--kap-countdown-color` is the
