@@ -195,7 +195,7 @@ export type CoverFit = 'cover' | 'contain'
  * strip (the look covers had before the option existed, and the default); the
  * others are width:height ratios, `2x3` being the poster shape.
  */
-export type CoverAspect = 'banner' | '16x9' | '3x2' | '4x3' | '1x1' | '2x3'
+export type CoverAspect = 'banner' | '16x9' | '3x2' | '4x3' | '1x1' | '3x4' | '2x3'
 
 export const COVER_ASPECTS: ReadonlyArray<CoverAspect> = [
     'banner',
@@ -203,6 +203,7 @@ export const COVER_ASPECTS: ReadonlyArray<CoverAspect> = [
     '3x2',
     '4x3',
     '1x1',
+    '3x4',
     '2x3'
 ]
 

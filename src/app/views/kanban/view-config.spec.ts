@@ -249,6 +249,7 @@ describe('readCoverLayout', () => {
         })
         expect(readCoverLayout(config({ coverAspect: '16x9' })).aspect).toBe('16x9')
         expect(readCoverLayout(config({ coverAspect: '1x1' })).aspect).toBe('1x1')
+        expect(readCoverLayout(config({ coverAspect: '3x4' })).aspect).toBe('3x4')
     })
     it('falls back to the defaults for unknown values', () => {
         expect(readCoverLayout(config({ coverFit: 'stretch', coverAspect: '21x9' }))).toEqual({

@@ -1252,7 +1252,7 @@ Markdown)`, `Export ideal week (JSON)`, `Export ideal week (Markdown)`); the for
     of the card render signature. **Layout** (per view, `readCoverLayout`): `coverFit` `cover`
     (crop, default) | `contain` (whole image, letterboxed on `--background-secondary`);
     `coverAspect` `banner` (fixed 7rem strip, default = the look before the option) | `16x9` |
-    `3x2` | `4x3` | `1x1` | `2x3` (poster). The box is sized before the image loads (height or
+    `3x2` | `4x3` | `1x1` | `3x4` | `2x3` (poster). The box is sized before the image loads (height or
     `aspect-ratio`, capped at `min(32rem, 70vh)`), so lazy images never change a card's height.
     Both are classes on the board host (`kap-cover-fit-contain`, `kap-cover-ratio-*`), no inline
     styles, and both go into the render-pass and card-height signatures.

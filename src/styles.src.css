@@ -1113,6 +1113,7 @@
     .kap-cover-ratio-3x2 .kap-card-cover,
     .kap-cover-ratio-4x3 .kap-card-cover,
     .kap-cover-ratio-1x1 .kap-card-cover,
+    .kap-cover-ratio-3x4 .kap-card-cover,
     .kap-cover-ratio-2x3 .kap-card-cover {
         height: auto;
         aspect-ratio: var(--kap-cover-ratio);
@@ -1131,6 +1132,9 @@
     }
     .kap-cover-ratio-1x1 {
         --kap-cover-ratio: 1 / 1;
+    }
+    .kap-cover-ratio-3x4 {
+        --kap-cover-ratio: 3 / 4;
     }
     .kap-cover-ratio-2x3 {
         --kap-cover-ratio: 2 / 3;

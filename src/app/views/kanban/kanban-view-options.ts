@@ -226,6 +226,7 @@ export function getKanbanViewOptions(app: App, settings: PluginSettings): BasesA
                         '3x2': '3:2',
                         '4x3': '4:3',
                         '1x1': '1:1 (square)',
+                        '3x4': '3:4 (box art)',
                         '2x3': '2:3 (poster)'
                     }
                 },

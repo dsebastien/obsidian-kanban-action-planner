@@ -474,8 +474,9 @@ Two more options shape the cover, like in the core Cards view:
 - **Cover fit**: **Crop to fill** (the default) fills the box and trims the edges. **Show the
   whole image** fits the entire image in the box, with bars on the sides or top and bottom.
 - **Cover aspect ratio**: **Banner** (the default) is a fixed-height strip across the top of the
-  card. **16:9**, **3:2**, **4:3**, **1:1** and **2:3 (poster)** give the box that shape, scaled
-  to the column width. Pick **2:3** for movie posters, book covers and comics.
+  card. **16:9**, **3:2**, **4:3**, **1:1**, **3:4** and **2:3 (poster)** give the box that shape, scaled
+  to the column width. Pick **2:3** for movie posters, book covers and comics, **3:4** for game box art, **1:1** for
+  album art.
 
 The box has its size before the image loads, so cards don't jump around while images come in,
 and images of different sizes all get the same box. On very wide columns, the box stops growing
