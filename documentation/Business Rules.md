@@ -317,8 +317,10 @@ When a new business rule is mentioned:
     durable fields lazily on first render (config is unavailable at construction) and writes on each
     change; lane/column collapse loads once in `rebuild()` and writes on toggle. **Compact mode**
     (`compactMode`, board toolbar toggle next to Select): off by default; when on, board cards show
-    only the title (CSS `kap-compact` on the board host hides covers, fields, badges, relationship
-    chips; the card color and the accent stripe / dot stay, rules 67-68); board mode only (calendar
+    only the title (CSS `kap-compact` on the board host hides the full cover, fields, badges,
+    relationship chips; the card color and the accent stripe / dot stay, rules 67-68; a cover shows
+    as a 2rem `.kap-card-thumb` before the title, same ratio and fit, rendered always and hidden by
+    CSS outside compact mode so the toggle needs no rebuild); board mode only (calendar
     panel and triage keep full cards).
 25. **In-column sort (issue #17).** A per-view **Card sort** option orders each column's cards by
     `order` (manual, default) / `name` / `property`, with a `cardSortDirection` (`asc`/`desc`) and a
@@ -1248,7 +1250,7 @@ Markdown)`, `Export ideal week (JSON)`, `Export ideal week (Markdown)`); the for
     (alias and `#subpath` dropped); a plain path → `vault.getAbstractFileByPath`, falling back
     to link resolution for a bare file name; local files → `vault.getResourcePath`; any other
     scheme, a folder, or nothing resolved → no cover. A Markdown image target is matched greedily
-    (URLs may hold parentheses). Compact mode hides covers (it shows titles only). The URL is part
+    (URLs may hold parentheses). Compact mode shows the cover as a thumbnail before the title instead. The URL is part
     of the card render signature. **Layout** (per view, `readCoverLayout`): `coverFit` `cover`
     (crop, default) | `contain` (whole image, letterboxed on `--background-secondary`);
     `coverAspect` `banner` (fixed 7rem strip, default = the look before the option) | `16x9` |

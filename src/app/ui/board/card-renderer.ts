@@ -97,6 +97,14 @@ export function renderCard(
     // Title row is a flex line: the title takes the slack (ellipsis), the badge
     // (placement `title`) sits right-aligned and keeps its natural width.
     const titleEl = el.createDiv({ cls: 'kap-card-title' })
+    // Compact mode's cover: a small thumbnail before the title, so a titles-only
+    // board stays recognizable. Hidden outside compact mode (CSS), so toggling
+    // compact needs no rebuild; a hidden lazy image is not fetched.
+    if (card.display.coverUrl) {
+        titleEl
+            .createSpan({ cls: 'kap-card-thumb', attr: { 'aria-hidden': 'true' } })
+            .createEl('img', { attr: { src: card.display.coverUrl, alt: '', loading: 'lazy' } })
+    }
     // Shown only under the dot accent style (CSS), so switching styles needs no rebuild.
     if (mark) titleEl.createSpan({ cls: 'kap-card-mark-dot', attr: { 'aria-hidden': 'true' } })
     // Clamped to three lines in CSS (issue #207); the tooltip shows the full title.

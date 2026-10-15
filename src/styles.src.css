@@ -1086,6 +1086,33 @@
         display: none;
     }
 
+    /* Compact mode keeps the cover as a thumbnail before the title, in the
+       board's cover aspect ratio (square for the banner default) and fit. */
+    .kap-card-thumb {
+        display: none;
+    }
+    .kap-compact .kap-card-thumb {
+        display: block;
+        flex: none;
+        width: 2rem;
+        aspect-ratio: var(--kap-cover-ratio, 1 / 1);
+        border-radius: var(--radius-s, 4px);
+        overflow: hidden;
+        background: var(--background-secondary);
+    }
+    .kap-compact .kap-card-title:has(.kap-card-thumb) {
+        align-items: center;
+    }
+    .kap-card-thumb img {
+        display: block;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+    .kap-cover-fit-contain .kap-card-thumb img {
+        object-fit: contain;
+    }
+
     /* Card cover. The BOX is sized up front (a fixed-height banner by default,
        or an aspect ratio from the board's Cover aspect ratio option), so a card
        never changes height when its lazy image arrives and images of different

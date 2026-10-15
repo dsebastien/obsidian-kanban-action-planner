@@ -1519,9 +1519,10 @@ auto-archive and you never mass-archive by accident.
 
 ## Compact cards
 
-Press the **compact** button (the rows icon next to **Select**) to show **titles only**: covers,
-fields, badges, and relationship chips are hidden so far more cards fit on screen. Card colors and
-accent stripes or dots stay. Press it again to bring the details back. The toggle is **off by
+Press the **compact** button (the rows icon next to **Select**) to show **titles only**: fields,
+badges, and relationship chips are hidden so far more cards fit on screen. Card colors and accent
+stripes or dots stay, and a cover shrinks to a small thumbnail before the title, so a media board
+stays easy to scan. Press it again to bring the details back. The toggle is **off by
 default** and is remembered **per view** (it's saved into the `.base` file, like the
 Board/Calendar/Triage mode).
 
@@ -1608,7 +1609,7 @@ changing your notes. They're grouped:
   to the note name when it is missing or empty). Formulas allowed.
 - **Cover property**: show an image at the top of each card, from a property or formula holding
   an `http(s)` URL, a `[[wikilink]]` / `![[embed]]`, a vault path, or an `image()` formula.
-  Empty = no covers; hidden in compact mode. See [Card cover](configuration.md#card-cover).
+  Empty = no covers; a small thumbnail in compact mode. See [Card cover](configuration.md#card-cover).
 - **Cover fit** / **Cover aspect ratio**: crop covers to fill their box (the default) or show the
   whole image, and pick the box shape: a fixed-height banner (the default) or 16:9, 3:2, 4:3, 1:1
   or 2:3 for posters.

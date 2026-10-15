@@ -467,7 +467,8 @@ value can be:
 Anything else, or a link that doesn't resolve, shows no cover. A list property (or a formula that
 returns a list) uses its first usable item. A base formula is the easiest way to prefer a local
 file and fall back to a URL, e.g. `if(local_cover && file(local_cover), file(local_cover).path, cover)`.
-Covers are hidden in compact mode (titles only).
+In compact mode (titles only), the cover shrinks to a small thumbnail before the title, in the same
+aspect ratio and fit.
 
 Two more options shape the cover, like in the core Cards view:
 
