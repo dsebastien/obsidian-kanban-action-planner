@@ -188,6 +188,11 @@ stack and it scrolls that way, so you can reach a column or a slot that is off s
 
 Drag-and-drop also works in popped-out (separate) Obsidian windows.
 
+**Big boards.** A column with 100 cards or more only builds the cards near the part you can see,
+and builds the rest as you scroll. The scrollbar, dragging, the keyboard and search work as if
+every card were there, so a board with thousands of notes opens in a few seconds and stays
+responsive. Smaller columns are not affected.
+
 **Auto-sort a column by a property.** Instead of hand-curated manual order, a board can sort the
 cards inside every column by **name** or by any **property** (priority, due date, created, and so
 on), ascending or descending. Set **Card sort**, **Card sort property**, and **Card sort
