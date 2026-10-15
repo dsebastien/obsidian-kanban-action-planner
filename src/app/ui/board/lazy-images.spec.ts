@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import { deferImage, loadImage, LOADING_CLASS } from './lazy-images'
+import { deferImage, isLaidOutHit, loadImage, LOADING_CLASS } from './lazy-images'
 import type { LazyImageEl } from './lazy-images'
 
 /** A DOM-free image double: records listeners and its box's classes. */
@@ -46,5 +46,30 @@ describe('lazy card images', () => {
         img.src = 'changed'
         loadImage(img)
         expect(img.src).toBe('changed')
+    })
+})
+
+describe('isLaidOutHit', () => {
+    const box = { width: 40, height: 60 }
+    test('loads only on a real hit with a laid-out target and root', () => {
+        expect(
+            isLaidOutHit({ isIntersecting: true, boundingClientRect: box, rootBounds: box })
+        ).toBe(true)
+        expect(
+            isLaidOutHit({ isIntersecting: false, boundingClientRect: box, rootBounds: box })
+        ).toBe(false)
+    })
+
+    test('ignores hidden images and boards in hidden leaves (0x0)', () => {
+        const zero = { width: 0, height: 0 }
+        expect(
+            isLaidOutHit({ isIntersecting: true, boundingClientRect: zero, rootBounds: box })
+        ).toBe(false)
+        expect(
+            isLaidOutHit({ isIntersecting: true, boundingClientRect: box, rootBounds: zero })
+        ).toBe(false)
+        expect(
+            isLaidOutHit({ isIntersecting: true, boundingClientRect: box, rootBounds: null })
+        ).toBe(false)
     })
 })

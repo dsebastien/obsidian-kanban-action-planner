@@ -61,7 +61,14 @@ export function loadImage(img: LazyImageEl): void {
 export class LazyImages {
     private observers: IntersectionObserver[] = []
 
-    /** Re-observe every parked image under `rootEl`; call after each board render. */
+    /**
+     * Re-observe every parked image under `rootEl`; call after each board
+     * render and when the board is resized or revealed. A board rendered in a
+     * hidden leaf measures 0x0, and a zero-size root reports EVERY target as
+     * intersecting (edge-adjacent), which would load the whole board: such
+     * entries are ignored and stay observed, and the reveal's resize re-syncs
+     * with real dimensions.
+     */
     sync(rootEl: HTMLElement): void {
         this.dispose()
         // The element's own window, so a board in a popout window is observed there.
@@ -74,7 +81,7 @@ export class LazyImages {
             const observer = new Observer(
                 (entries: IntersectionObserverEntry[]) => {
                     for (const entry of entries) {
-                        if (!entry.isIntersecting) continue
+                        if (!isLaidOutHit(entry)) continue
                         observer.unobserve(entry.target)
                         loadImage(entry.target as HTMLImageElement)
                     }
@@ -91,4 +98,25 @@ export class LazyImages {
         for (const observer of this.observers) observer.disconnect()
         this.observers = []
     }
+}
+
+/** The shape of an intersection entry {@link isLaidOutHit} reads (DOM-free tests). */
+export interface IntersectionLike {
+    isIntersecting: boolean
+    boundingClientRect: { width: number; height: number }
+    rootBounds: { width: number; height: number } | null
+}
+
+/**
+ * A real hit: intersecting, with a laid-out target AND root. A hidden image
+ * (display: none) or a board in a hidden leaf measures 0x0 and counts as
+ * intersecting when it merely touches the root; loading on that would fetch
+ * every image of the board.
+ */
+export function isLaidOutHit(entry: IntersectionLike): boolean {
+    if (!entry.isIntersecting) return false
+    const target = entry.boundingClientRect
+    const root = entry.rootBounds
+    if (target.width === 0 || target.height === 0) return false
+    return root !== null && root.width > 0 && root.height > 0
 }

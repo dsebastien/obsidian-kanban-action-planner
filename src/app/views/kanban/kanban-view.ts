@@ -6805,6 +6805,8 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         // reveal fires the observer again with real dimensions.
         const boardEl = this.boardEl
         if (!boardEl || (boardEl.offsetWidth === 0 && boardEl.offsetHeight === 0)) return
+        // Revealed or resized: covers that now sit near view can load.
+        this.lazyImages.sync(boardEl)
         // Embed detection (issue #103) may have been skipped while the root
         // was detached; a real-dimension tick means it is attached now. A
         // just-detected embed rebuilds so mode/filter overrides apply.
