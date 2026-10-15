@@ -217,7 +217,12 @@ import {
     structureSignature
 } from '../../ui/board/signatures'
 import { applyUniformCardHeight } from '../../ui/board/card-equalize'
-import { ensureCardMounted, syncVirtualColumns } from '../../ui/board/board-virtualizer'
+import {
+    clearHeightCache,
+    ensureCardMounted,
+    releaseVirtualColumns,
+    syncVirtualColumns
+} from '../../ui/board/board-virtualizer'
 import { BoardDnd } from '../../ui/board/dnd-controller'
 import type { DropTarget } from '../../ui/board/dnd-controller'
 import { ColumnDnd } from '../../ui/board/column-dnd'
@@ -1121,6 +1126,16 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
                 }
             })
         )
+        // A theme, font or snippet change alters natural card heights without
+        // any content or width change: forget the measured heights and
+        // re-measure now, so cards come back down too (issue #111).
+        this.registerEvent(
+            this.app.workspace.on('css-change', () => {
+                if (!this.boardEl) return
+                clearHeightCache(this.boardEl)
+                this.equalizeCardHeights()
+            })
+        )
         // Native note popover on card hover via the core "Page preview" plugin.
         this.registerDomEvent(this.boardEl, 'pointerover', (evt) => this.onCardPointerOver(evt))
         this.plugin.trackKanbanView(this)
@@ -1178,6 +1193,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
     override onunload(): void {
         this.alive = false
         this.lazyImages.dispose()
+        if (this.boardEl) releaseVirtualColumns(this.boardEl)
         this.plugin.orderNormalizer.cancelOwner(this)
         // Pops the pushed Esc keymap scope (a leaked scope outlives the view).
         this.exitColumnTriage(false)
@@ -1803,7 +1819,12 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         // unmounted, widths/styles can change without a board measurement
         // (resize, chip-style settings), so the next board pass must always
         // re-measure (adversarial review 2026-08-28, finding 2).
-        if (this.viewMode() !== 'board') this.lastHeightsSignature = null
+        if (this.viewMode() !== 'board') {
+            this.lastHeightsSignature = null
+            // The other modes empty the board host: drop the long columns'
+            // listeners and observers with it (issue #111).
+            if (this.boardEl) releaseVirtualColumns(this.boardEl)
+        }
 
         if (this.triageMode()) {
             // Triage keeps its own no-op guard inside renderTriage

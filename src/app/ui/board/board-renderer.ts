@@ -8,7 +8,12 @@ import type { KanbanCard } from './types'
 import { renderCard } from './card-renderer'
 import { planReconcile } from './reconcile'
 import { cardSignature, structureSignature } from './signatures'
-import { releaseVirtualColumns, renderVirtualColumn, virtualCardKeys } from './board-virtualizer'
+import {
+    flushVirtualColumns,
+    releaseVirtualColumns,
+    renderVirtualColumn,
+    virtualCardKeys
+} from './board-virtualizer'
 import type { ColumnCardsSource } from './board-virtualizer'
 
 export interface BoardRenderCallbacks {
@@ -141,6 +146,19 @@ export function patchBoard(
     callbacks: BoardRenderCallbacks,
     collapsedLanes: ReadonlySet<string> = new Set(),
     collapsedColumns: ReadonlySet<string> = new Set()
+): void {
+    patchBoardDom(rootEl, board, callbacks, collapsedLanes, collapsedColumns)
+    // Long columns were only queued above: lay them all out in one batch,
+    // reads before writes, after every column's chrome is in place (#111).
+    flushVirtualColumns(rootEl)
+}
+
+function patchBoardDom(
+    rootEl: HTMLElement,
+    board: Board<KanbanCard>,
+    callbacks: BoardRenderCallbacks,
+    collapsedLanes: ReadonlySet<string>,
+    collapsedColumns: ReadonlySet<string>
 ): void {
     const hasBoardDom = rootEl.querySelector(':scope > .kap-board, :scope > .kap-lanes') !== null
     const hasColumns = board.lanes.some((l) => l.columns.length > 0)

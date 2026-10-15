@@ -13,6 +13,7 @@ import {
     cachedHeights,
     captureVirtualAnchors,
     mountHeightProbes,
+    publishedCardHeight,
     restoreVirtualAnchors
 } from './board-virtualizer'
 
@@ -30,14 +31,14 @@ export function uniformCardHeight(naturalHeights: readonly number[]): number | n
 }
 
 /**
- * The value to (re)stamp as {@link CARD_HEIGHT_VAR}: the freshly measured max
- * when there is one, else the PREVIOUS value ('' when there was none). A null
+ * The value to (re)stamp as {@link CARD_HEIGHT_VAR}: the freshly measured max,
+ * rounded up to a whole pixel ({@link publishedCardHeight}), when there is one, else the PREVIOUS value ('' when there was none). A null
  * measurement means every card measured 0 — a hidden tab, not a real layout —
  * so the stale height is kept rather than destroyed; it is re-measured on
  * reveal (issue #105, finding 5.5). Returns '' when there is nothing to set.
  */
 export function cardHeightVarValue(measuredMax: number | null, previous: string): string {
-    if (measuredMax !== null) return `${String(measuredMax)}px`
+    if (measuredMax !== null) return `${String(publishedCardHeight(measuredMax))}px`
     return previous
 }
 
@@ -75,9 +76,12 @@ export function applyUniformCardHeight(boardEl: HTMLElement): void {
     const previous = boardEl.style.getPropertyValue(CARD_HEIGHT_VAR)
     boardEl.style.removeProperty(CARD_HEIGHT_VAR)
     const probes = mountHeightProbes(boardEl)
+    // Fractional heights (getBoundingClientRect, not the rounded offsetHeight):
+    // a 76.4px card published as 76px would push every later card off its
+    // computed slot in a virtual column (issue #111 review, finding 3).
     const measured = Array.from(boardEl.querySelectorAll<HTMLElement>('.kap-card')).map((el) => ({
         el,
-        height: el.offsetHeight
+        height: el.getBoundingClientRect().height
     }))
     const cached = cachedHeights(boardEl, measured)
     for (const probe of probes) probe.remove()
