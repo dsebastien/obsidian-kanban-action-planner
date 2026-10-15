@@ -123,7 +123,12 @@ When a new business rule is mentioned:
    content is ever clipped, except the title, which clamps to three lines with an ellipsis (full
    title as tooltip) so one long note name can't inflate every card (issue #207). Cards keep their natural height (`flex: none` so the
    height-constrained column scrolls instead of shrinking cards); sparser cards get matching
-   whitespace.
+   whitespace. **Under column virtualization (rule 69)** the max is taken over the cards that can
+   be measured: mounted cards, a few probe cards per long column (longest titles, richest bodies,
+   covered cards) and the heights measured earlier in the session for unchanged cards at the same
+   width. A card mounted later that is still taller raises the height board-wide, with each long
+   column re-anchored on the card at its top; it never shrinks while scrolling (decision of issue
+   #111: keep ONE board-wide height, not per-window heights).
 9. **Relationships.** Roles parent/sibling/child/`blocked_by` detected via explicit
    link-properties (primary) and a tag+link heuristic (secondary); inverses via reverse
    lookup. Non-empty `blocked_by` flags the card and enables navigate-to-blockers + filter;
@@ -797,7 +802,8 @@ When a new business rule is mentioned:
     session-long selection bar, overlay drop indicators), and **guarded resize paths** (0×0 and
     width-unchanged skips, timeline px-gates). Deliberately deferred pending a maintainer decision:
     per-column card-height equalization (conflicts with the uniform-card-envelope design) and
-    fixed column widths (conflicts with the issue-#73 equal-grow invariant).
+    fixed column widths (conflicts with the issue-#73 equal-grow invariant). The per-pass equalize cost is
+    O(mounted cards), not O(cards), since column virtualization (issue #111, rule 69).
 42. **Markdown-note embeds are projections (issue #103).** Obsidian natively renders the
     registered Bases view inside `![[<file>.base#<View>]]` embeds (the `.base` extension is
     REQUIRED in the link). The wikilink alias is a per-embed override channel — it lands
@@ -1314,3 +1320,16 @@ Markdown)`, `Export ideal week (JSON)`, `Export ideal week (Markdown)`); the for
     cover paints over the stripe (the corner countdown, z-index 1, stays above). Both shapes stay
     visible in compact mode. `accentColor` is in `cardSignature`, the style in the render-pass and
     card-height signatures. Board cards only.
+
+69. **Column virtualization (issue #111).** A column with 100 cards or more
+    (`VIRTUALIZE_MIN_CARDS`, per column, per lane) mounts only the cards within 800px
+    (`OVERSCAN_PX`) of its visible area; two spacers hold the rest, so the scrollbar, the scroll
+    extent and every card position are exactly those of a full render (cards share one height,
+    rule 8a, so a column is a fixed-pitch list). Smaller columns render every card, unchanged.
+    Re-windowing happens synchronously on the list's own scroll and resize (no debounce, rule 41),
+    with hysteresis so most scroll frames touch no DOM. Never unmounted while it matters: the
+    dragged or long-press-lifted card and the focused card stay mounted, out of the flow at their
+    exact slot. Drops aim with the column's geometry (any position, auto-scroll, cross-lane,
+    refused drops unchanged); actions over "the whole column" (triage, archive, counts, keyboard
+    refocus of an unmounted card, selection) use the model, never the mounted subset. Collapsed
+    columns and hidden leaves mount nothing until they show.

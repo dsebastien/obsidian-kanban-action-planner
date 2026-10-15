@@ -62,7 +62,9 @@ export function loadImage(img: LazyImageEl): void {
  * column) never intersect, so they are not fetched until they show.
  */
 export class LazyImages {
-    private observers: IntersectionObserver[] = []
+    /** One observer per column card list (its root). */
+    private observers = new Map<HTMLElement, IntersectionObserver>()
+    private rootEl: HTMLElement | null = null
     private retryTimer: number | null = null
     private retries = 0
 
@@ -77,14 +79,29 @@ export class LazyImages {
     sync(rootEl: HTMLElement, retry = false): void {
         this.dispose()
         if (!retry) this.retries = 0
-        // The element's own window, so a board in a popout window is observed there.
-        const Observer = (
-            rootEl.win as Window & { IntersectionObserver: typeof IntersectionObserver }
-        ).IntersectionObserver
+        this.rootEl = rootEl
         for (const list of Array.from(rootEl.querySelectorAll<HTMLElement>('.kap-column-cards'))) {
-            const pending = Array.from(list.querySelectorAll<HTMLImageElement>('img[data-kap-src]'))
-            if (pending.length === 0) continue
-            const observer = new Observer(
+            this.observeList(list)
+        }
+    }
+
+    /**
+     * Observe the parked images of one card list, e.g. the cards a virtual
+     * column just mounted while scrolling (issue #111). Observing an image
+     * already observed is a no-op.
+     */
+    observeList(list: HTMLElement): void {
+        const rootEl = this.rootEl
+        if (!rootEl) return
+        const pending = Array.from(list.querySelectorAll<HTMLImageElement>('img[data-kap-src]'))
+        if (pending.length === 0) return
+        let observer = this.observers.get(list)
+        if (!observer) {
+            // The element's own window, so a board in a popout window is observed there.
+            const Observer = (
+                list.win as Window & { IntersectionObserver: typeof IntersectionObserver }
+            ).IntersectionObserver
+            const created = new Observer(
                 (entries: IntersectionObserverEntry[]) => {
                     for (const entry of entries) {
                         // The column itself is not laid out yet (a leaf still
@@ -95,21 +112,33 @@ export class LazyImages {
                             continue
                         }
                         if (!isLaidOutHit(entry)) continue
-                        observer.unobserve(entry.target)
+                        created.unobserve(entry.target)
                         loadImage(entry.target as HTMLImageElement)
                     }
                 },
                 { root: list, rootMargin: LOOKAHEAD }
             )
-            for (const img of pending) observer.observe(img)
-            this.observers.push(observer)
+            this.observers.set(list, created)
+            observer = created
+        }
+        for (const img of pending) observer.observe(img)
+    }
+
+    /** Stop observing the images of cards a virtual column unmounted. */
+    forget(list: HTMLElement, nodes: readonly HTMLElement[]): void {
+        const observer = this.observers.get(list)
+        if (!observer) return
+        for (const node of nodes) {
+            for (const img of Array.from(node.querySelectorAll('img[data-kap-src]'))) {
+                observer.unobserve(img)
+            }
         }
     }
 
     /** Stop observing (a later {@link sync} starts over). */
     dispose(): void {
-        for (const observer of this.observers) observer.disconnect()
-        this.observers = []
+        for (const observer of this.observers.values()) observer.disconnect()
+        this.observers.clear()
         if (this.retryTimer !== null) window.clearTimeout(this.retryTimer)
         this.retryTimer = null
     }

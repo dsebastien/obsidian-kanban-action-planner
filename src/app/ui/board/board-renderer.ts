@@ -8,6 +8,8 @@ import type { KanbanCard } from './types'
 import { renderCard } from './card-renderer'
 import { planReconcile } from './reconcile'
 import { cardSignature, structureSignature } from './signatures'
+import { releaseVirtualColumns, renderVirtualColumn, virtualCardKeys } from './board-virtualizer'
+import type { ColumnCardsSource } from './board-virtualizer'
 
 export interface BoardRenderCallbacks {
     onOpen: (card: KanbanCard, newTab: boolean) => void
@@ -61,6 +63,14 @@ export interface BoardRenderCallbacks {
         label: string
         cardKeys: string[]
     }) => void
+    /**
+     * A long (virtualized) column mounted card nodes outside a render pass:
+     * it scrolled, resized, or revealed a card (issue #111). The view
+     * decorates them (selection) and observes their covers.
+     */
+    onCardsMounted?: (listEl: HTMLElement, nodes: HTMLElement[]) => void
+    /** A virtualized column unmounted card nodes (they left its window). */
+    onCardsUnmounted?: (listEl: HTMLElement, nodes: HTMLElement[]) => void
 }
 
 /** `data-board-struct` records the rendered lane/column shape for patch vs full-render. */
@@ -93,6 +103,7 @@ function renderBoard(
     collapsedLanes: ReadonlySet<string> = new Set(),
     collapsedColumns: ReadonlySet<string> = new Set()
 ): void {
+    releaseVirtualColumns(rootEl)
     rootEl.empty()
     delete rootEl.dataset[STRUCT_ATTR]
 
@@ -105,11 +116,13 @@ function renderBoard(
     if (!board.isMultiLane) {
         const lane = board.lanes[0]
         const boardEl = rootEl.createDiv({ cls: 'kap-board' })
-        if (lane) renderColumns(boardEl, lane.columns, callbacks, lane.lane.id, collapsedColumns)
+        if (lane) {
+            renderColumns(rootEl, boardEl, lane.columns, callbacks, lane.lane.id, collapsedColumns)
+        }
     } else {
         const lanesEl = rootEl.createDiv({ cls: 'kap-lanes' })
         for (const lane of board.lanes)
-            renderLane(lanesEl, lane, callbacks, collapsedLanes, collapsedColumns)
+            renderLane(rootEl, lanesEl, lane, callbacks, collapsedLanes, collapsedColumns)
     }
 
     rootEl.dataset[STRUCT_ATTR] = structureSignature(board)
@@ -139,7 +152,9 @@ export function patchBoard(
     if (!board.isMultiLane) {
         const boardEl = rootEl.querySelector<HTMLElement>(':scope > .kap-board')
         const lane = board.lanes[0]
-        if (boardEl && lane) patchColumns(boardEl, lane.columns, callbacks, collapsedColumns)
+        if (boardEl && lane) {
+            patchColumns(rootEl, boardEl, lane.columns, callbacks, collapsedColumns)
+        }
         return
     }
 
@@ -150,11 +165,12 @@ export function patchBoard(
         if (!laneEl) continue
         syncLaneChrome(laneEl, lane, collapsedLanes)
         const boardEl = laneEl.querySelector<HTMLElement>('.kap-board')
-        if (boardEl) patchColumns(boardEl, lane.columns, callbacks, collapsedColumns)
+        if (boardEl) patchColumns(rootEl, boardEl, lane.columns, callbacks, collapsedColumns)
     }
 }
 
 function renderLane(
+    hostEl: HTMLElement,
     lanesEl: HTMLElement,
     lane: BoardLane<KanbanCard>,
     callbacks: BoardRenderCallbacks,
@@ -178,7 +194,7 @@ function renderLane(
 
     const body = laneEl.createDiv({ cls: 'kap-lane-body' })
     const boardEl = body.createDiv({ cls: 'kap-board' })
-    renderColumns(boardEl, lane.columns, callbacks, lane.lane.id, collapsedColumns)
+    renderColumns(hostEl, boardEl, lane.columns, callbacks, lane.lane.id, collapsedColumns)
 }
 
 /** Update a lane's collapse state, toggle glyph, and card count in place. */
@@ -199,6 +215,7 @@ function syncLaneChrome(
 
 /** Render one lane's columns (with cards) into `boardEl` (full render). */
 function renderColumns(
+    hostEl: HTMLElement,
     boardEl: HTMLElement,
     columns: ReadonlyArray<BoardColumn<KanbanCard>>,
     callbacks: BoardRenderCallbacks,
@@ -260,7 +277,10 @@ function renderColumns(
 
         const listEl = colEl.createDiv({ cls: 'kap-column-cards' })
         listEl.setAttribute('role', 'list')
-        for (const card of cards) listEl.appendChild(buildCardNode(card, accent, callbacks))
+        // A long column mounts only the cards near its visible area (#111).
+        if (!renderVirtualColumn(listEl, hostEl, columnSource(cards, accent, callbacks))) {
+            for (const card of cards) listEl.appendChild(buildCardNode(card, accent, callbacks))
+        }
 
         syncAddCardAffordances(colEl, column.id, laneId, callbacks)
     }
@@ -366,8 +386,14 @@ function syncColumnAggregate(
     else headerEl.appendChild(el)
 }
 
-/** The card keys in a column's CURRENT DOM (the keyed patch path moves nodes). */
+/**
+ * The card keys of a column as rendered now (the keyed patch path moves
+ * nodes): every card of a virtualized column, not just the mounted ones.
+ */
 function columnCardKeys(colEl: HTMLElement): string[] {
+    const listEl = colEl.querySelector<HTMLElement>(':scope > .kap-column-cards')
+    const virtualKeys = listEl ? virtualCardKeys(listEl) : null
+    if (virtualKeys) return virtualKeys
     return Array.from(colEl.querySelectorAll<HTMLElement>('.kap-column-cards [data-card-key]'))
         .map((el) => el.dataset['cardKey'] ?? '')
         .filter((key) => key.length > 0)
@@ -420,6 +446,7 @@ function syncArchiveColumnButton(
 
 /** Patch each column's card list in place against the desired cards. */
 function patchColumns(
+    hostEl: HTMLElement,
     boardEl: HTMLElement,
     columns: ReadonlyArray<BoardColumn<KanbanCard>>,
     callbacks: BoardRenderCallbacks,
@@ -431,8 +458,12 @@ function patchColumns(
         )
         const listEl = colEl?.querySelector<HTMLElement>('.kap-column-cards')
         if (!colEl || !listEl) continue
+        const collapsed = collapsedColumns.has(column.id)
+        // Collapse first: a virtualized column sizes its window from the
+        // list's visible height, which a collapsed column does not have.
+        colEl.toggleClass('kap-column-collapsed', collapsed)
         const accent = resolveColor(column.color)
-        patchColumnCards(listEl, cards, accent, callbacks)
+        patchColumnCards(hostEl, listEl, cards, accent, callbacks)
         const countEl = colEl.querySelector<HTMLElement>('.kap-column-count')
         if (countEl) setColumnCount(colEl, countEl, cards.length, column.wipLimit)
 
@@ -441,8 +472,6 @@ function patchColumns(
         syncArchiveColumnButton(colEl, column.id, column.label, laneId, callbacks)
         syncAddCardAffordances(colEl, column.id, laneId, callbacks)
 
-        const collapsed = collapsedColumns.has(column.id)
-        colEl.toggleClass('kap-column-collapsed', collapsed)
         const toggle = colEl.querySelector<HTMLElement>('.kap-column-toggle')
         if (toggle) {
             setIcon(toggle, collapsed ? 'chevron-right' : 'chevron-down')
@@ -453,11 +482,14 @@ function patchColumns(
 
 /** Keyed reconcile of a single column's card nodes (the heart of the patch). */
 function patchColumnCards(
+    hostEl: HTMLElement,
     listEl: HTMLElement,
     cards: ReadonlyArray<KanbanCard>,
     accent: string,
     callbacks: BoardRenderCallbacks
 ): void {
+    // A long column reconciles only its mounted window (#111).
+    if (renderVirtualColumn(listEl, hostEl, columnSource(cards, accent, callbacks))) return
     const existingEls = Array.from(listEl.querySelectorAll<HTMLElement>(':scope > .kap-card'))
     const nodeByKey = new Map<string, HTMLElement>()
     const existing = existingEls.map((el) => {
@@ -484,6 +516,23 @@ function patchColumnCards(
         if (!node) continue
         if (node === cursor) cursor = cursor.nextElementSibling
         else listEl.insertBefore(node, cursor)
+    }
+}
+
+/** How a column's cards are drawn and diffed, for the virtualizer. */
+function columnSource(
+    cards: ReadonlyArray<KanbanCard>,
+    accent: string,
+    callbacks: BoardRenderCallbacks
+): ColumnCardsSource {
+    return {
+        cards,
+        signature: (card) => cardSignature(card, accent),
+        build: (card) => buildCardNode(card, accent, callbacks),
+        hooks: {
+            ...(callbacks.onCardsMounted ? { onMount: callbacks.onCardsMounted } : {}),
+            ...(callbacks.onCardsUnmounted ? { onUnmount: callbacks.onCardsUnmounted } : {})
+        }
     }
 }
 

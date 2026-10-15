@@ -156,6 +156,17 @@ export class BoardSelection {
         return true
     }
 
+    /**
+     * Apply the selected styling to card nodes mounted outside a render pass
+     * (a virtualized column scrolled them in, issue #111).
+     */
+    decorate(nodes: readonly HTMLElement[]): void {
+        if (this.keys.size === 0) return
+        for (const el of nodes) {
+            el.toggleClass('kap-card-selected', this.keys.has(el.dataset['cardKey'] ?? ''))
+        }
+    }
+
     /** Re-apply selected styling to card nodes and (re)render the action bar. */
     refresh(): void {
         const boardEl = this.host.boardEl()

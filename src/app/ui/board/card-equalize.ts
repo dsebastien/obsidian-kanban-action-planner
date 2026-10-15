@@ -8,9 +8,13 @@
  */
 
 import { captureScrollEntries, restoreScrollEntries } from '../scroll-preservation'
-
-/** CSS custom property the card stylesheet reads for its shared min-height. */
-const CARD_HEIGHT_VAR = '--kap-card-height'
+import {
+    CARD_HEIGHT_VAR,
+    cachedHeights,
+    captureVirtualAnchors,
+    mountHeightProbes,
+    restoreVirtualAnchors
+} from './board-virtualizer'
 
 /**
  * The shared height (px) for a set of measured natural card heights: the max,
@@ -49,6 +53,12 @@ export function cardHeightVarValue(measuredMax: number | null, previous: string)
  * card measures 0 (a hidden tab) the previous height is kept instead of being
  * destroyed — see {@link cardHeightVarValue}.
  *
+ * A virtualized column (issue #111) has only its window mounted: its probe
+ * cards (the ones most likely to be tallest) are mounted for the measurement
+ * and removed again, and heights measured earlier for cards that are not
+ * mounted now still count (the height cache). Afterwards every virtual
+ * column is re-windowed for the new height, anchored on the card at its top.
+ *
  * During the intermediate natural-height layout every column/lane scroller's
  * scrollHeight shrinks, so the browser silently clamps any scrollTop past the
  * shrunken extent — and re-setting the variable does NOT bring it back
@@ -60,15 +70,23 @@ export function applyUniformCardHeight(boardEl: HTMLElement): void {
         boardEl.querySelectorAll<HTMLElement>('.kap-column-cards, .kap-lanes')
     ).map((el, i) => [String(i), el] as const)
     const scrollSnapshot = captureScrollEntries(scrollers)
+    const anchors = captureVirtualAnchors(boardEl)
 
     const previous = boardEl.style.getPropertyValue(CARD_HEIGHT_VAR)
     boardEl.style.removeProperty(CARD_HEIGHT_VAR)
-    const cards = Array.from(boardEl.querySelectorAll<HTMLElement>('.kap-card'))
+    const probes = mountHeightProbes(boardEl)
+    const measured = Array.from(boardEl.querySelectorAll<HTMLElement>('.kap-card')).map((el) => ({
+        el,
+        height: el.offsetHeight
+    }))
+    const cached = cachedHeights(boardEl, measured)
+    for (const probe of probes) probe.remove()
     const value = cardHeightVarValue(
-        uniformCardHeight(cards.map((el) => el.offsetHeight)),
+        uniformCardHeight([...measured.map((m) => m.height), ...cached]),
         previous
     )
     if (value !== '') boardEl.style.setProperty(CARD_HEIGHT_VAR, value)
 
     restoreScrollEntries(scrollers, scrollSnapshot)
+    restoreVirtualAnchors(boardEl, anchors)
 }

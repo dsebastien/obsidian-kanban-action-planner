@@ -68,7 +68,9 @@ raw probes for style recalc/reflow.
 
 Non-goals: virtualizing/`content-visibility` (DOM is already tiny; recalc tax is
 per-element in this environment, and 793 nodes is fine); optimizing the derive pipeline
-(already <45ms at 200 cards).
+(already <45ms at 200 cards). Update: virtualization was later done for LONG columns (issue
+#111, Business Rule 69): boards of thousands of cards made the per-element tax dominate
+(4,888-card board: 60k nodes, 2.8s equalize). Columns under 100 cards are untouched.
 
 ## User-environment note
 

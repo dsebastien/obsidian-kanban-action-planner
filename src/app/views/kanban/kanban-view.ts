@@ -217,6 +217,7 @@ import {
     structureSignature
 } from '../../ui/board/signatures'
 import { applyUniformCardHeight } from '../../ui/board/card-equalize'
+import { ensureCardMounted, syncVirtualColumns } from '../../ui/board/board-virtualizer'
 import { BoardDnd } from '../../ui/board/dnd-controller'
 import type { DropTarget } from '../../ui/board/dnd-controller'
 import { ColumnDnd } from '../../ui/board/column-dnd'
@@ -1975,6 +1976,12 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
                         KanbanActionPlannerView.aggregateKey(laneId, columnId)
                     ),
                 onArchiveColumn: (info) => this.confirmArchiveColumn(info),
+                // A long column mounting/unmounting cards as it scrolls (#111).
+                onCardsMounted: (listEl, nodes) => {
+                    this.lazyImages.observeList(listEl)
+                    this.selection?.decorate(nodes)
+                },
+                onCardsUnmounted: (listEl, nodes) => this.lazyImages.forget(listEl, nodes),
                 ...(this.addCardEnabled()
                     ? {
                           onAddCard: (laneId: string, columnId: string) => {
@@ -1986,7 +1993,12 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             this.collapsedLanes,
             this.collapsedColumns
         )
-        if (scrolls) restoreBoardScroll(this.boardEl, scrolls)
+        if (scrolls) {
+            restoreBoardScroll(this.boardEl, scrolls)
+            // Long columns re-window for the restored offsets now, not on the
+            // scroll event of the next frame (issue #111).
+            syncVirtualColumns(this.boardEl)
+        }
         if (anchors) this.restoreColumnAnchors(anchors)
         this.lazyImages.sync(this.boardEl)
         this.selection?.refresh()
@@ -2164,9 +2176,13 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
      */
     private applyRefocus(): void {
         if (!this.refocusCardKey || !this.boardEl) return
-        const el = this.boardEl.querySelector<HTMLElement>(
-            `.kap-card[data-card-key="${cssEscapeAttr(this.refocusCardKey)}"]`
-        )
+        const reveal = this.refocusReveal
+        // A long column may not have the card mounted (issue #111): mount it,
+        // scrolled into its column's view or pinned in place (no reveal).
+        const el =
+            this.boardEl.querySelector<HTMLElement>(
+                `.kap-card[data-card-key="${cssEscapeAttr(this.refocusCardKey)}"]`
+            ) ?? ensureCardMounted(this.boardEl, this.refocusCardKey, reveal)
         if (!el) {
             // A keyboard move's card exists in the very next pass, so the key is
             // dropped at once. A newly CREATED note (issue #46) only reaches the
@@ -2180,7 +2196,6 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         }
         this.refocusCardKey = null
         this.refocusUntil = 0
-        const reveal = this.refocusReveal
         this.refocusReveal = true
         el.focus({ preventScroll: true })
         // Focus still follows the card (keyboard flow, screen readers), but a
@@ -2235,7 +2250,10 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         if (!listEl || !el) return
         const current = el.getBoundingClientRect().top - listEl.getBoundingClientRect().top
         const delta = anchorScrollDelta(anchor.top, current)
-        if (delta !== 0) listEl.scrollTop += delta
+        if (delta !== 0) {
+            listEl.scrollTop += delta
+            syncVirtualColumns(listEl.parentElement ?? listEl)
+        }
     }
 
     // ── Multi-select + bulk actions (issue #18) ───────────────

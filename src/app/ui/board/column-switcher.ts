@@ -13,6 +13,8 @@
  * across every lane and scrolls every lane to the column.
  */
 
+import { columnCardCount } from './board-virtualizer'
+
 export interface SwitcherItem {
     columnId: string
     label: string
@@ -68,7 +70,9 @@ function readItems(hostEl: HTMLElement): SwitcherItem[] {
             board.querySelectorAll<HTMLElement>(':scope > .kap-column')
         )) {
             const columnId = colEl.dataset['columnId'] ?? ''
-            const count = colEl.querySelectorAll('.kap-column-cards > .kap-card').length
+            const listEl = colEl.querySelector<HTMLElement>(':scope > .kap-column-cards')
+            // A virtualized column mounts only some of its cards (#111).
+            const count = listEl ? columnCardCount(listEl) : 0
             const existing = items.get(columnId)
             if (existing) {
                 existing.count += count

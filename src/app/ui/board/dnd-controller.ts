@@ -38,6 +38,8 @@
 import { insertionLineOffset } from './drop-indicator'
 import { claimPointerDrag } from '../pointer-claim'
 import { canScroll, edgeScrollStep } from './auto-scroll'
+import { virtualDropGeometry } from './board-virtualizer'
+import { dropSlot } from './virtual-window'
 
 const DRAG_THRESHOLD_PX = 5
 /** How long a finger must rest on a card to pick it up (touch only). */
@@ -319,9 +321,14 @@ export class BoardDnd {
             return
         }
 
-        const cardEls = Array.from(
-            listEl.querySelectorAll<HTMLElement>('.kap-card:not(.kap-card-dragging)')
-        )
+        // A long column mounts only part of its cards (issue #111): aim with
+        // its fixed-pitch geometry instead of the mounted nodes.
+        const virtual = virtualDropGeometry(listEl)
+        const cardEls = virtual
+            ? []
+            : Array.from(listEl.querySelectorAll<HTMLElement>('.kap-card:not(.kap-card-dragging)'))
+        const draggedIndex = virtual && cardKey !== undefined ? virtual.indexOf(cardKey) : -1
+        const cardCount = virtual ? virtual.count - (draggedIndex >= 0 ? 1 : 0) : cardEls.length
 
         // A COLLAPSED column still accepts a drop (park a card in a lane you
         // are not looking at), but its card list is `display: none`, so the
@@ -331,10 +338,21 @@ export class BoardDnd {
         if (columnEl.hasClass('kap-column-collapsed')) {
             this.setHighlightedColumn(columnEl)
             this.placeholderEl.remove()
-            this.currentTarget = { laneId, columnId, index: cardEls.length }
+            this.currentTarget = { laneId, columnId, index: cardCount }
             return
         }
         this.setHighlightedColumn(null)
+
+        if (virtual) {
+            const y = clientY - listEl.getBoundingClientRect().top + listEl.scrollTop
+            const slot = dropSlot(virtual, y, draggedIndex)
+            if (this.placeholderEl.parentElement !== listEl) listEl.appendChild(this.placeholderEl)
+            this.placeholderEl.style.top = `${String(
+                insertionLineOffset(slot, PLACEHOLDER_THICKNESS_PX, PLACEHOLDER_FALLBACK_PX)
+            )}px`
+            this.currentTarget = { laneId, columnId, index: slot.index }
+            return
+        }
 
         let index = cardEls.length
         for (let i = 0; i < cardEls.length; i++) {

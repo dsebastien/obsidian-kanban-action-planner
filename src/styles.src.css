@@ -821,6 +821,30 @@
         min-height: var(--size-4-8, 2rem);
     }
 
+    /* Virtualized long column (issue #111, board-virtualizer.ts): only the
+       cards near the visible area are mounted, between two spacers standing
+       in for the rest. The script keeps the scroll position anchored itself,
+       so the browser's own scroll anchoring must not adjust it a second time
+       when cards are swapped for spacer height. */
+    .kap-column-virtual {
+        overflow-anchor: none;
+    }
+    .kap-column-spacer {
+        flex: none;
+        pointer-events: none;
+    }
+    /* A dragged or focused card that left the window stays mounted, out of
+       the flow, at the exact slot it would have in a full render. */
+    .kap-column-cards > .kap-card-pinned {
+        position: absolute;
+        left: var(--size-4-2, 0.5rem);
+        right: var(--size-4-2, 0.5rem);
+    }
+    /* Mounted for one height measurement only, never painted. */
+    .kap-column-cards > .kap-card-probe {
+        visibility: hidden;
+    }
+
     /* Quick capture (issue #46): the "+" in the column header, always in reach at
        the top of the column. Sized like the collapse chevron opposite it. */
     /* stylelint-disable declaration-no-important -- Obsidian's unlayered <button>
