@@ -240,7 +240,7 @@ filter count/zoom chip) still refreshes on skipped passes. Optimistic in-memory 
 the signature by construction, so their immediate render always proceeds; a pending keyboard
 refocus forces a render. The signature is committed only when the pass **finishes**
 (`commitRenderPass`) — a renderer throwing partway leaves it cleared, so the next trigger repaints
-over the partial DOM. Multi-file write sequences (drag renumber, bulk status/archive) run inside
+over the partial DOM. Multi-file write sequences (windowed drag renumber, bulk status/archive) run inside
 `withRebuildsSuppressed`, deferring the non-resetting 250ms data-event debounce to the end of the
 sequence so a mid-sequence rebuild can never render a partial on-disk state. Every optimistic
 mutation path resolves its card through `liveCard()` first — reused DOM nodes keep handlers that
@@ -253,7 +253,9 @@ WBS carries its OWN gate inside `WbsController.render` (issue #110): a pure
 off-view context ancestors (reused from the climb `render` already does), the tree collapse +
 panel/pane state, and the sort-comparator identity — it returns early when that matches the last
 completed WBS pass and the `.kap-wbs` DOM is mounted. The resolved relationship sets are in the
-signature so an optimistic re-parent (which mutates them before the write) is never gated away.
+signature so an optimistic re-parent (which mutates them before the write) is never gated away. Background order repairs (rule 66) do NOT run inside it: they go
+through the plugin-wide `OrderNormalizerQueue` (`services/order-normalizer.service.ts`), one
+write per 200 ms, each masked in `plugin.pendingOrderWrites`, so their echoes render nothing new.
 
 **Hover preview.** The plugin registers a hover-link source (`registerHoverLinkSource`, Mod-gated by
 default) and a delegated `pointerover` on the board host triggers the core Page-preview popover for

@@ -71,6 +71,21 @@ describe('normalizeStatusValue', () => {
         expect(normalizeStatusValue(undefined)).toBeNull()
         expect(normalizeStatusValue({})).toBeNull()
     })
+
+    it('reads a list-typed status from its first usable entry (issue #219)', () => {
+        expect(normalizeStatusValue(['working-on-it'])).toBe('working-on-it')
+        expect(normalizeStatusValue([' x '])).toBe('x')
+        expect(normalizeStatusValue(['x', 'y'])).toBe('x')
+        expect(normalizeStatusValue([null, '', '  ', 'x'])).toBe('x')
+        expect(normalizeStatusValue([3])).toBe('3')
+    })
+
+    it('treats an empty list as no status', () => {
+        expect(normalizeStatusValue([])).toBeNull()
+        expect(normalizeStatusValue([null])).toBeNull()
+        expect(normalizeStatusValue([''])).toBeNull()
+        expect(normalizeStatusValue([{}, ['x']])).toBeNull()
+    })
 })
 
 describe('resolveColumnId', () => {

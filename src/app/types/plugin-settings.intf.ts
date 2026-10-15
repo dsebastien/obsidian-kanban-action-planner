@@ -261,6 +261,12 @@ export const pluginSettingsSchema = z.object({
      */
     archiveGraceDays: z.number().int().min(0).default(DEFAULT_ARCHIVE_GRACE_DAYS),
     /**
+     * Tidy manual order in the background (unset, tied or too-close
+     * `manual_order` values, repaired a few notes at a time when a board loads
+     * and after a drop). `.default()` so older `data.json` still parses.
+     */
+    autoNormalizeOrder: z.boolean().default(true),
+    /**
      * Global default status values (columns) used when neither the view nor a
      * Starter Kit note type defines them. Order is the column order.
      */
@@ -357,6 +363,7 @@ export function createDefaultSettings(): PluginSettings {
         dueCountdownStyle: 'title',
         triageCelebrateOnComplete: true,
         archiveGraceDays: DEFAULT_ARCHIVE_GRACE_DAYS,
+        autoNormalizeOrder: true,
         defaultStatuses: [],
         noteTypes: []
     }

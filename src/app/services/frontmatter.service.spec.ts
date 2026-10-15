@@ -5,9 +5,11 @@ import {
     appendRecordToListProperty,
     coerceOrder,
     findKeyCaseInsensitive,
+    keepListShape,
     queueFrontmatterWrite,
     replaceInListProperty,
-    setProperties
+    setProperties,
+    setStatusProperty
 } from './frontmatter.service'
 
 describe('findKeyCaseInsensitive', () => {
@@ -27,29 +29,28 @@ describe('findKeyCaseInsensitive', () => {
     })
 })
 
-describe('setProperties', () => {
-    /** A stub App whose processFrontMatter hands the callback the given object. */
-    const appFor = (fm: Record<string, unknown>): { app: App; calls: () => number } => {
-        let calls = 0
-        const app = {
-            fileManager: {
-                processFrontMatter: (
-                    _file: TFile,
-                    cb: (frontmatter: Record<string, unknown>) => void
-                ): Promise<void> => {
-                    calls += 1
-                    cb(fm)
-                    return Promise.resolve()
-                }
-            }
-        } as unknown as App
-        return { app, calls: () => calls }
+/** A stub App whose processFrontMatter hands the callback the given object. */
+const stubApp = (fm: Record<string, unknown>): { app: App; calls: () => number } => {
+    let calls = 0
+    const fileManager: Pick<App['fileManager'], 'processFrontMatter'> = {
+        processFrontMatter: (
+            _file: TFile,
+            cb: (frontmatter: Record<string, unknown>) => void
+        ): Promise<void> => {
+            calls += 1
+            cb(fm)
+            return Promise.resolve()
+        }
     }
+    return { app: { fileManager } as App, calls: () => calls }
+}
+
+describe('setProperties', () => {
     const file = Object.assign(new TFile(), { path: 'Notes/Card.md' })
 
     it('writes every entry in ONE processFrontMatter transaction', async () => {
         const fm: Record<string, unknown> = {}
-        const { app, calls } = appFor(fm)
+        const { app, calls } = stubApp(fm)
         await setProperties(app, file, { date_scheduled: '2026-07-14', estimate: 3 })
         expect(fm).toEqual({ date_scheduled: '2026-07-14', estimate: 3 })
         expect(calls()).toBe(1)
@@ -57,7 +58,7 @@ describe('setProperties', () => {
 
     it('reuses an existing differently-cased key instead of duplicating', async () => {
         const fm: Record<string, unknown> = { Estimate: 5 }
-        const { app } = appFor(fm)
+        const { app } = stubApp(fm)
         await setProperties(app, file, { estimate: 2 })
         expect(fm).toEqual({ Estimate: 2 })
     })
@@ -67,7 +68,7 @@ describe('setProperties', () => {
             const fm: Record<string, unknown> = {
                 milestones: ['2026-09-01 Beta', '2026-10-15 GA', '2026-12-01 Sunset']
             }
-            const { app } = appFor(fm)
+            const { app } = stubApp(fm)
             await replaceInListProperty(app, file, 'milestones', '2026-10-15 GA', '2026-10-22 GA')
             expect(fm['milestones']).toEqual([
                 '2026-09-01 Beta',
@@ -78,7 +79,7 @@ describe('setProperties', () => {
 
         it('replaces a scalar equal to the entry', async () => {
             const fm: Record<string, unknown> = { milestones: '2026-09-01 Beta' }
-            const { app } = appFor(fm)
+            const { app } = stubApp(fm)
             await replaceInListProperty(
                 app,
                 file,
@@ -91,7 +92,7 @@ describe('setProperties', () => {
 
         it('is a no-op on a miss or a missing property', async () => {
             const fm: Record<string, unknown> = { milestones: ['2026-09-01 Beta'] }
-            const { app } = appFor(fm)
+            const { app } = stubApp(fm)
             await replaceInListProperty(app, file, 'milestones', 'not there', 'x')
             expect(fm['milestones']).toEqual(['2026-09-01 Beta'])
             await replaceInListProperty(app, file, 'other', '2026-09-01 Beta', 'x')
@@ -186,26 +187,17 @@ describe('queueFrontmatterWrite (per-file write serialization)', () => {
 })
 
 describe('appendRecordToListProperty (issue #172)', () => {
-    const appFor = (fm: Record<string, unknown>): App => {
-        const fileManager: Pick<App['fileManager'], 'processFrontMatter'> = {
-            processFrontMatter: (
-                _file: TFile,
-                cb: (frontmatter: Record<string, unknown>) => void
-            ): Promise<void> => {
-                cb(fm)
-                return Promise.resolve()
-            }
-        }
-        return { fileManager } as App
-    }
     const file = Object.assign(new TFile(), { path: 'Daily/2026-09-09.md' })
 
     it('creates the list, drops a template placeholder, and appends the object', async () => {
         const fm: Record<string, unknown> = { pomodoros: [null] }
-        await appendRecordToListProperty(appFor(fm), file, 'pomodoros', { id: 'a', type: 'work' })
+        await appendRecordToListProperty(stubApp(fm).app, file, 'pomodoros', {
+            id: 'a',
+            type: 'work'
+        })
         expect(fm['pomodoros']).toEqual([{ id: 'a', type: 'work' }])
         const empty: Record<string, unknown> = {}
-        await appendRecordToListProperty(appFor(empty), file, 'pomodoros', { id: 'b' })
+        await appendRecordToListProperty(stubApp(empty).app, file, 'pomodoros', { id: 'b' })
         expect(empty['pomodoros']).toEqual([{ id: 'b' }])
     })
 
@@ -215,10 +207,50 @@ describe('appendRecordToListProperty (issue #172)', () => {
             (id: string) =>
             (item: unknown): boolean =>
                 (item as { id?: unknown }).id === id
-        await appendRecordToListProperty(appFor(fm), file, 'pomodoros', { id: 'a' }, sameId('a'))
+        await appendRecordToListProperty(
+            stubApp(fm).app,
+            file,
+            'pomodoros',
+            { id: 'a' },
+            sameId('a')
+        )
         expect(fm['Pomodoros']).toEqual([{ id: 'a' }])
         expect('pomodoros' in fm).toBe(false)
-        await appendRecordToListProperty(appFor(fm), file, 'pomodoros', { id: 'b' }, sameId('b'))
+        await appendRecordToListProperty(
+            stubApp(fm).app,
+            file,
+            'pomodoros',
+            { id: 'b' },
+            sameId('b')
+        )
         expect(fm['Pomodoros']).toEqual([{ id: 'a' }, { id: 'b' }])
+    })
+})
+
+describe('keepListShape / setStatusProperty (issue #219)', () => {
+    const file = Object.assign(new TFile(), { path: 'Notes/Status.md' })
+
+    it('wraps a scalar in a list only when the current value is a list', () => {
+        expect(keepListShape(['todo'], 'done')).toEqual(['done'])
+        expect(keepListShape([], 'done')).toEqual(['done'])
+        expect(keepListShape(['a', 'b'], 'done')).toEqual(['done'])
+        expect(keepListShape('todo', 'done')).toBe('done')
+        expect(keepListShape(undefined, 'done')).toBe('done')
+        expect(keepListShape(null, 'done')).toBe('done')
+    })
+
+    it('keeps a list-typed status a list', async () => {
+        const fm: Record<string, unknown> = { Progress: ['working-on-it'] }
+        await setStatusProperty(stubApp(fm).app, file, 'progress', 'done')
+        expect(fm).toEqual({ Progress: ['done'] })
+    })
+
+    it('keeps a text status text, and creates a missing one as text', async () => {
+        const fm: Record<string, unknown> = { status: 'todo' }
+        await setStatusProperty(stubApp(fm).app, file, 'status', 'done')
+        expect(fm).toEqual({ status: 'done' })
+        const empty: Record<string, unknown> = {}
+        await setStatusProperty(stubApp(empty).app, file, 'status', 'done')
+        expect(empty).toEqual({ status: 'done' })
     })
 })

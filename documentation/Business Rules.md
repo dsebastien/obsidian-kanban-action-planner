@@ -46,15 +46,25 @@ When a new business rule is mentioned:
    created in a Default lane) use the board's detected property (issue #188, `resolveWriteStatusProperty`).
    In the UI the status property is labelled **Column property** (values: **Column values**); the
    stored keys (`statusProperty`, `statuses`, `defaultStatusProperty`, `defaultStatuses`) are
-   unchanged for backward compatibility. Consequences: the card menu's Set status lists the card's own
+   unchanged for backward compatibility. A **List-typed status property** (`status: [Doing]`,
+   issue #219) reads as its first non-empty entry (later entries ignored); every status write
+   keeps the property's shape (`[value]` for a list, `setStatusProperty`). Consequences: the card menu's Set status lists the card's own
    type's values; bulk multi-select Set status requires a single-type selection (mixed
    selections get a Notice); drops resolve the value from the target lane's own column set.
 3. **No state machine (for now).** All status transitions are allowed (drag or right-click).
    The data model stays open to add an allowed-transitions layer later, but none is built.
 4. **Order persisted to the note, not plugin data.** Manual order is written to a
    configurable property (default `manual_order`) using **fractional float midpoints**
-   (one note write per move; silent per-column renumber only on float-precision exhaustion).
-   Ordering scope is per-column.
+   (one note write per move). Orders the plugin ASSIGNS (new cards, rebalanced runs, the
+   normalizer) are spaced `ORDER_STEP` = 1024 apart; values are rounded to the fewest decimals
+   that keep `MIN_ORDER_GAP` (1e-6) between neighbours (no float tails), and a gap below it counts
+   as no room. When no midpoint exists (duplicate/unset orders, float-precision
+   exhaustion) only the **smallest run of cards around the drop point** is rewritten
+   (`planInsertion`), never the whole column: a full renumber of a large column flooded the
+   metadata cache (re-parses ~30s late) and snapped cards back. Unordered cards sort last; a drop
+   below more than `MAX_NUMBERED_UNORDERED` (20) of them lands at the top of the unordered group
+   instead of numbering them all. Ordering scope is per-column. See rule 66 for the background
+   normalizer.
 5. **Note types + Starter Kit.** Config uses reusable note types. When the Obsidian
    Starter Kit plugin (`obsidian-starter-kit`) is present, its note-type config is the
    **read-only source of truth**, but always **mirrored into a local snapshot** so note types
@@ -423,12 +433,27 @@ When a new business rule is mentioned:
     land. **Pending status writes** (`domain/pending-write.ts`): the optimistic model is recreated
     from the metadata cache by every rebuild, and Obsidian re-parses a written note on its own
     schedule — so a rebuild landing in that window used to re-derive the OLD status and snap the
-    card back to the column it was dragged out of. `applyMove` records `{value, previous, until}`
-    per card and `toCard` prefers the written value **only** while the cache still holds exactly
-    the superseded value, dropping the record as soon as the cache reports anything else (our
-    write, or an edit made elsewhere — never masked) or after a 5s deadline (a write that never
-    landed must not pin the board to a value that isn't on disk). A failed write clears it before
-    re-deriving.
+    card back to the column it was dragged out of. `applyMove` records a `PendingWrite` per card
+    (status) and per order write (`manual_order` of the moved card and any rewritten neighbour);
+    `toCard` prefers the written value while the cache holds nothing or exactly the superseded
+    value, and settles at once on any OTHER value (an edit made elsewhere is never masked). While
+    the move's own write sequence runs (`activeWrites`), the mask holds unconditionally. The
+    deadline (60s from sequence end) does not give up blindly: past it, or once the cache has shown
+    the written value (`observed`) and the 1s on-disk verification passed (`verified`), a
+    null/previous cached value is checked against the FILE: disk = written value → cache lag, keep
+    showing it (re-arm); else another writer reverted/changed the note → settle, rebuild, log a
+    warning naming the note (not re-applied: a later change may be deliberate). The 1s
+    verification is scheduled from the status write itself, not the end of the sequence. A failed
+    write, or a verification that gives up, clears the record before re-deriving. Every status
+    write path masks the same way (card menu / triage `setCardProperty`, bulk Set status via the
+    selection host's `beginStatusWrite`/`endStatusWrite`); the pending-ORDER map is plugin-wide
+    (`plugin.pendingOrderWrites`) so every open view of a Base sees an order another view wrote.
+    **Render first (hard rule):** each user action mutates the model and renders synchronously,
+    before awaiting any I/O; writes, verification and normalization run after. Cross-lane drops
+    start the lane write unawaited (`startLaneChange`) so `applyMove` renders in the same tick; menu
+    and triage enum writes render before awaiting the write (failure → Notice + re-derive).
+    Documented exceptions: status-triggered auto-archive (write-then-rebuild, above) and quick
+    capture (the card appears when the created note enters the Base's results).
 33. **Card title source (issue #4).** The card heading is the **note name by default**, or a
     **per-view `titleProperty`** (Configure view → Cards; any `note.*`/`formula.*`/`file.*` id,
     read-only) when set. Resolution is `resolveCardTitle` in `card-display.service.ts`
@@ -1221,3 +1246,22 @@ Markdown)`, `Export ideal week (JSON)`, `Export ideal week (Markdown)`); the for
     view's own 250 ms rebuild debounce, so a burst of mutations costs one rebuild. There is no
     mirrored-type cache to clear: `resolveAndRebuild` re-reads the Starter Kit and re-mirrors
     (writing only on change) on every rebuild.
+66. **Background manual-order normalizer.** A column needs repair when a card has no order or two
+    adjacent orders are closer than `MIN_ORDER_GAP` (ties included; `columnNeedsNormalization`).
+    `planColumnNormalization` keeps every order that clears the previous kept one, gives the rest
+    spaced values between their kept neighbours (unset tail: appended after the last ordered card,
+    `ORDER_STEP` apart), pulls in the next kept card when a run has no room, preserves the displayed
+    sequence exactly, skips unchanged cards, and is idempotent (re-planning its result is empty —
+    no write loops). Triggers: after every board rebuild for columns holding unset orders (board
+    load, a new note), after a drop for its destination column, and the **Normalize card order on
+    this board** command (runs even with the setting off; Notice summary). Only on the manual sort
+    (`cardSort: order`), only for cards in the board's card set (columns built over ALL cards,
+    ignoring the text filter and embed restrictions), and the automatic triggers only while the
+    `autoNormalizeOrder` setting is on (default on). Never on a drop's critical path: one
+    plugin-wide queue (`OrderNormalizerQueue`) runs one write at a time, 200 ms apart (a pause
+    before every write; scheduling never runs a step synchronously). Jobs are per column per view,
+    deduplicated by key, and re-plan from the current state before each write; a newer move in the
+    column cancels its job (rescheduled after the move), unloading the view cancels its jobs, and a
+    step stops when the sort leaves manual or the setting is turned off. Each write goes through the
+    shared pending-order mask, so nothing moves on screen while the cache lags, and a second open
+    view of the same Base plans nothing for notes the first one already fixed.

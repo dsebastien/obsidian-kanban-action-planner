@@ -40,7 +40,7 @@ hidden. The defaults below are used today; per-view overrides may arrive in late
 
 | Property        | Default                    | What it does                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 | --------------- | -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Status          | `status`                   | Its value places a card in a column. Auto-detected: this name, else a property named `status`; never guessed from another property.                                                                                                                                                                                                                                                                                                                                                 |
+| Status          | `status`                   | Its value places a card in a column. Auto-detected: this name, else a property named `status`; never guessed from another property. Text or List: a List property uses its first value, and moves keep it a List.                                                                                                                                                                                                                                                                   |
 | Manual order    | `manual_order`             | Stores a card's position within its column (a number). Written when you drag to reorder.                                                                                                                                                                                                                                                                                                                                                                                            |
 | Estimate        | `estimate`                 | How long you expect a note to take. A number of **days** by default. A note type can associate its **own property and unit** (days or **minutes**, e.g. a tasknotes-compatible `time_estimate`) in **Configure → Estimate**; minute values convert to days everywhere via **Minutes per day** (default 480 = an 8-hour workday). With a start date it gives a card its span on the timeline. Written when you resize a bar or via **Set estimate…**, always in the note's own unit. |
 | Milestones      | `milestones`               | List of `<date> <label>` entries rendered as diamond markers on the timeline. Set globally with **Milestones property**.                                                                                                                                                                                                                                                                                                                                                            |
@@ -96,8 +96,19 @@ all, every card sits in Unmapped.
 ## Manual order
 
 When you reorder cards, the plugin assigns a numeric `manual_order`. It uses fractional
-midpoints, so a single move usually rewrites only the card you moved. A column is renumbered
-to whole numbers only when it has to be (e.g. when some cards have no order yet).
+midpoints, so a single move usually rewrites only the card you moved. When cards share the
+same order or have none, only the few cards around the drop point are rewritten, never the
+whole column. Dropping a card below many cards that have no order yet puts it at the top of
+that unordered group.
+
+Orders the plugin gives out are spaced 1024 apart, so later moves fit in between. Numbers in the
+middle can have decimals (for example `1536` or `7.5`); they stay short.
+
+**Tidy card order automatically** (plugin settings, on by default): when a board opens, cards
+without a `manual_order` get one, and after a drop, duplicate values in that column are spread
+out. It runs in the background, a few notes at a time, never changes what you see, and only on
+boards sorted by **Manual order**. Switch it off to keep your notes untouched until you run the
+**Normalize card order on this board** command yourself.
 
 ## Note types and the Obsidian Starter Kit
 

@@ -66,8 +66,23 @@ export function compareStatusValues(a: string, b: string): number {
     return sa < sb ? -1 : sa > sb ? 1 : 0
 }
 
-/** Normalize a raw frontmatter value into a status string, or `null`. */
+/**
+ * Normalize a raw frontmatter value into a status string, or `null`.
+ *
+ * A status property typed List in Obsidian holds an array (`status: [Doing]`,
+ * issue #219). Its FIRST usable entry (non-empty string, number or boolean) is
+ * the status; later entries are ignored, so a multi-value status lands in the
+ * column of its first value. `[]` and `[null]` mean no status.
+ */
 export function normalizeStatusValue(raw: unknown): string | null {
+    if (Array.isArray(raw)) {
+        for (const entry of raw) {
+            if (Array.isArray(entry)) continue
+            const value = normalizeStatusValue(entry)
+            if (value !== null) return value
+        }
+        return null
+    }
     if (typeof raw === 'string') {
         const trimmed = raw.trim()
         return trimmed.length > 0 ? trimmed : null

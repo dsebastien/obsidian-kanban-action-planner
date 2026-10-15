@@ -126,6 +126,10 @@ until you define your statuses.
 
 - Values can carry a numeric prefix to control order. `10 Todo`, `20 Doing`, `30 Done` show
   in that order, and the number is hidden on the column header.
+- The status property can be a **Text** or a **List** property. With a List (for example
+  `status: [Doing]`), the board reads one value: the first one. A note listing several values
+  sits in the column of its first value. Moving the card writes the new status as a one-item
+  list, so the property stays a List.
 - Notes whose status isn't one of the defined columns gather in **Unmapped** (shown first by
   default, hidden when empty).
 - **Collapse a column** with the chevron in its header. It shrinks to a slim labelled bar so you
@@ -150,6 +154,26 @@ until you define your statuses.
   column stays put (its side is set by the **Unmapped column position** option).
 
 Manual ordering is stored in your notes, not in plugin data, so it travels with the vault.
+
+**Moves are instant.** A card lands in its new column and position the moment you drop it. The
+plugin saves the note in the background and keeps showing the card where you put it while
+Obsidian catches up, even on a big board where that takes a while. If something else changes the
+note back afterwards (an undo in the editor, a sync, another plugin), the board follows the note.
+
+**How the order is stored.** Each card gets a number in its `manual_order` property, and cards are
+sorted by that number. The plugin leaves big gaps between the numbers it gives out (1024, 2048,
+3072, …), so dropping a card between two others normally gives the card a number in the middle
+and rewrites **only that one note**. When two neighbours have the same number, or no number at
+all, the plugin rewrites just the few cards around the drop, never the whole column.
+
+**Tidy-up in the background.** Some cards may have no order yet (a new note, a note created
+outside the board), or share the same number. When a board opens, the plugin gives every card
+without an order a number, and after a drop it spreads out duplicates in that column. This happens
+in the background, a few notes at a time, so the board stays usable and nothing moves on screen:
+each card keeps the exact position it already had. On a big board with many unordered notes, the
+first opening can take a minute or two of quiet background saving. Turn this off with **Tidy card
+order automatically** in the plugin settings, and run the **Normalize card order on this board**
+command whenever you want instead. Only boards using **Manual order** (see below) are touched.
 
 **Touch screens.** On the board, **press and hold** a card to pick it up, then drag it. Lift your
 finger without moving to open the card's menu instead. Swiping over cards in any direction just
@@ -1826,6 +1850,9 @@ is active, and each can be given a hotkey in **Settings → Hotkeys**):
 - **Focus filter**: jump to the filter box
 - **Clear filter**
 - **Go to next swimlane** / **Go to previous swimlane**
+- **Normalize card order on this board**: give a `manual_order` to every card that lacks one and
+  spread out duplicates, in the background, keeping every card where it is. A message tells you
+  how many notes were updated. Works even when **Tidy card order automatically** is off.
 
 One command acts on **every open Kanban view** instead:
 

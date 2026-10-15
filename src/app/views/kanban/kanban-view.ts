@@ -89,7 +89,13 @@ import {
 import type { RelatedNote } from '../../services/relationships.service'
 import { RELATIONSHIP_ROLES, ancestorPaths } from '../../domain/relationships'
 import { RelationshipTargetModal } from '../../ui/relationship-target-modal'
-import { ORDER_STEP, planInsertion } from '../../domain/ordering'
+import {
+    ORDER_STEP,
+    columnNeedsNormalization,
+    planColumnNormalization,
+    planInsertion
+} from '../../domain/ordering'
+import type { NormalizeStepResult } from '../../services/order-normalizer.service'
 import { collectFilterFacts, emptyFilterFacts, narrowestFolder } from '../../domain/base-filters'
 import type { BaseFilterFacts } from '../../domain/base-filters'
 import {
@@ -114,7 +120,8 @@ import {
     findKeyCaseInsensitive,
     getFrontmatterValue,
     removeFromListProperty,
-    setProperty
+    setProperty,
+    setStatusProperty
 } from '../../services/frontmatter.service'
 import {
     DEFAULT_NOTE_TYPE_ID,
@@ -187,7 +194,7 @@ import {
 } from '../../domain/filter-query'
 import type { CardSearchRecord, FilterContext, FilterQuery } from '../../domain/filter-query'
 import { resolvePendingWrite } from '../../domain/pending-write'
-import type { PendingWrite } from '../../domain/pending-write'
+import type { PendingValue, PendingWrite } from '../../domain/pending-write'
 import { parseEmbedParams } from '../../domain/embed-params'
 import { VIEW_MODE_LABELS, modeEnabled } from '../../domain/embed-params'
 import type { EmbedParams } from '../../domain/embed-params'
@@ -325,20 +332,27 @@ interface ObsidianSettings {
 const REVEAL_NEW_CARD_TIMEOUT_MS = 5000
 
 /**
- * How long a card move's status write outranks the metadata cache (issue #64
- * follow-up). Long enough to cover a slow re-parse, short enough that a write
- * which never landed corrects itself instead of leaving the board lying.
+ * How long after a card move's write sequence ends its written status and
+ * order outrank a metadata cache still showing nothing or the old value
+ * (issue #64 follow-up), before the file on disk is asked (see
+ * {@link resolvePendingWrite}). Not a give-up deadline: disk still holding the
+ * written value re-arms it. Long because a burst of writes with indexing
+ * plugins installed delayed re-parses by 30s+ (a 5s deadline snapped cards
+ * back); a write that never landed is caught earlier by the 1s verification.
  */
-const PENDING_STATUS_WRITE_TIMEOUT_MS = 5000
+const PENDING_WRITE_TIMEOUT_MS = 60_000
 
 /**
- * How long after a card move's writes settle before the status is verified
+ * How long after a card move's status write before the status is verified
  * against the note on disk (see {@link KanbanView.verifyStatusWrite}). Long
  * enough for a concurrent writer that overlapped with the move (another
  * plugin's `processFrontMatter` on the same note) to have finished, so a
  * clobbered write is re-applied on top of its result rather than under it.
  */
 const STATUS_WRITE_VERIFY_DELAY_MS = 1000
+
+/** Counter giving each view instance its own normalizer job keys. */
+let normalizerViews = 0
 
 /**
  * Floor for a board sized to its Canvas node (issue #154). A node dragged
@@ -596,6 +610,22 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
      * (see {@link resolvePendingWrite}).
      */
     private readonly pendingStatusWrites = new Map<string, PendingWrite>()
+    /**
+     * Manual-order writes (a move's, or the background normalizer's) not yet
+     * observed in the metadata cache — without it, a lagging cache re-sorts
+     * cards inside their column. Shared plugin-wide (see the plugin's map).
+     */
+    private get pendingOrderWrites(): Map<string, PendingWrite<number | null>> {
+        return this.plugin.pendingOrderWrites
+    }
+    /** Masks of the bulk status writes in flight (see the selection host). */
+    private readonly bulkStatusWrites = new Map<string, PendingWrite>()
+    /** This view's id in normalizer job keys (one job per column per view). */
+    private readonly normalizerId = String(++normalizerViews)
+    /** False once unloaded: background normalizer steps stop. */
+    private alive = true
+    /** Pending writes being checked against the file (see {@link confirmPendingWrite}). */
+    private readonly diskChecks = new WeakSet<PendingWrite<PendingValue>>()
 
     // Multi-select + bulk actions (issue #18) — owned by the BoardSelection controller.
     private selectionBarEl: HTMLElement | null = null
@@ -777,6 +807,23 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
                 this.applyFilterAndRender()
             },
             runExclusiveWrites: (writes) => this.withRebuildsSuppressed(writes),
+            beginStatusWrite: (card, statusValue) => {
+                const live = this.liveCard(card)
+                this.bulkStatusWrites.set(
+                    live.key,
+                    this.beginStatusWrite(live, statusValue, live.statusValue)
+                )
+            },
+            endStatusWrite: (card, landed) => {
+                const pending = this.bulkStatusWrites.get(card.key)
+                if (!pending) return
+                this.bulkStatusWrites.delete(card.key)
+                if (landed) pending.verified = true
+                else if (this.pendingStatusWrites.get(card.key) === pending) {
+                    this.pendingStatusWrites.delete(card.key)
+                }
+                this.endWrite(pending)
+            },
             runStatusAutomations: (card, from, to) =>
                 this.runStatusAutomations(card, from, to).then(() => undefined),
             runArchiveAutomations: (card) => this.runArchiveAutomations(card)
@@ -1108,6 +1155,8 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
     }
 
     override onunload(): void {
+        this.alive = false
+        this.plugin.orderNormalizer.cancelOwner(this)
         // Pops the pushed Esc keymap scope (a leaked scope outlives the view).
         this.exitColumnTriage(false)
         this.plugin.untrackKanbanView(this)
@@ -1336,6 +1385,9 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             this.sweptOnLoad = true
             void this.runArchiveSweep()
         }
+        // Cards without a manual order (first load, or a note created since)
+        // get one in the background; the board above already rendered.
+        this.scheduleMissingOrderRepair()
     }
 
     /** Recognize each file's note type (Starter Kit, then local mapping rules). */
@@ -3150,8 +3202,20 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         // The card's own type's status property (mixed boards) — per-view
         // override and board default fall out of statusPropertyForFile.
         const statusProperty = this.statusPropertyForFile(file)
-        const statusValue = this.settledStatus(file.path, this.cachedStatus(file, statusProperty))
-        const order = coerceOrder(getFrontmatterValue(this.app, file, this.orderProperty))
+        const statusValue = this.settledValue(
+            this.pendingStatusWrites,
+            file,
+            this.cachedStatus(file, statusProperty),
+            'status',
+            statusProperty === null ? null : () => this.statusOnDisk(file, statusProperty)
+        )
+        const order = this.settledValue(
+            this.pendingOrderWrites,
+            file,
+            coerceOrder(getFrontmatterValue(this.app, file, this.orderProperty)),
+            'order',
+            () => this.orderOnDisk(file)
+        )
         const display = this.cardDisplayFor(file)
         const laneValue =
             this.laneGrouping.kind === 'none' ? null : (this.laneValueByPath.get(file.path) ?? null)
@@ -3180,17 +3244,76 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
     }
 
     /**
-     * The status to render for a note: the cached one, unless a move's write is
-     * still in flight and the cache has not caught up yet — see
-     * {@link resolvePendingWrite}. A settled write is forgotten here, so the
-     * override lives exactly as long as the staleness it covers.
+     * The value to render for a note's status or order: the cached one, unless
+     * a move's write is still in flight and the cache has not caught up yet —
+     * see {@link resolvePendingWrite}. A settled write is forgotten here, so
+     * the override lives exactly as long as the staleness it covers. When lag
+     * no longer explains the cache, the file decides
+     * ({@link confirmPendingWrite}).
      */
-    private settledStatus(path: string, cached: string | null): string | null {
-        const pending = this.pendingStatusWrites.get(path)
+    private settledValue<T extends PendingValue>(
+        pendingWrites: Map<string, PendingWrite<T>>,
+        file: TFile,
+        cached: T,
+        what: string,
+        readDisk: (() => Promise<T>) | null
+    ): T {
+        const pending = pendingWrites.get(file.path)
         if (!pending) return cached
         const resolved = resolvePendingWrite(pending, cached, window.performance.now())
-        if (resolved.settled) this.pendingStatusWrites.delete(path)
+        pending.observed = resolved.observed
+        if (resolved.settled) pendingWrites.delete(file.path)
+        else if (resolved.confirmOnDisk && readDisk) {
+            void this.confirmPendingWrite(pendingWrites, file, pending, what, readDisk)
+        }
         return resolved.value
+    }
+
+    /**
+     * Read a pending write's property from the FILE when the cache shows
+     * nothing or the old value and lag no longer explains it. Disk holding the
+     * written value means the cache is just slow (a write burst delays
+     * re-parses by tens of seconds): keep showing it and re-arm the deadline.
+     * Anything else means another writer changed the note after the move (an
+     * editor undo, a sync, another plugin) or the write never landed: stop
+     * masking and rebuild, rather than keep the card where disk says it is not
+     * and let it jump at some unrelated later rebuild. Not re-applied: unlike
+     * the clobber {@link verifyStatusWrite} repairs, a later change may be
+     * deliberate.
+     */
+    private async confirmPendingWrite<T extends PendingValue>(
+        pendingWrites: Map<string, PendingWrite<T>>,
+        file: TFile,
+        pending: PendingWrite<T>,
+        what: string,
+        readDisk: () => Promise<T>
+    ): Promise<void> {
+        if (this.diskChecks.has(pending)) return
+        this.diskChecks.add(pending)
+        let onDisk: T
+        try {
+            onDisk = await readDisk()
+        } catch (error) {
+            log(`Could not check a card's ${what} on disk.`, 'warn', error)
+            return
+        } finally {
+            this.diskChecks.delete(pending)
+        }
+        if (pendingWrites.get(file.path) !== pending) return
+        if (onDisk === pending.value) {
+            const now = window.performance.now()
+            if (now >= pending.until) pending.until = now + PENDING_WRITE_TIMEOUT_MS
+            return
+        }
+        pendingWrites.delete(file.path)
+        log(
+            onDisk === pending.previous
+                ? `The ${what} written to "${file.path}" was reverted by another write; showing the value on disk.`
+                : `The ${what} of "${file.path}" changed on disk after the card move; showing the value on disk.`,
+            'warn',
+            { path: file.path, written: pending.value, previous: pending.previous, onDisk }
+        )
+        this.debouncedRebuild()
     }
 
     /** A note's GTD contexts (original casing, note order), or `[]` when unset. */
@@ -3233,9 +3356,13 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         // Cross-lane drag: reassign the grouping value to the target lane (for
         // property grouping) before applying the in-column move. Note-type lanes
         // cannot be safely reassigned, so a cross-lane drop there is ignored.
+        // The lane write is STARTED, not awaited, before applyMove: the move
+        // renders the card in its target lane and column synchronously, and
+        // both writes run in the background (serialized per file).
+        let laneWrite: Promise<void> | null = null
         if (this.board.isMultiLane && target.laneId !== this.laneIdOf(card)) {
-            const reassigned = await this.applyLaneChange(card, target.laneId)
-            if (!reassigned) return
+            laneWrite = this.startLaneChange(card, target.laneId)
+            if (!laneWrite) return
         }
 
         // Resolve the dropped column's status from the TARGET LANE's own set
@@ -3245,27 +3372,29 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             target.columnId === UNMAPPED_COLUMN_ID
                 ? null
                 : (this.columnStatusValue(target.columnId, target.laneId) ?? card.statusValue)
-        await this.applyMove(card, newStatus, target.laneId, target.columnId, target.index)
+        const move = this.applyMove(card, newStatus, target.laneId, target.columnId, target.index)
+        await Promise.all([laneWrite, move])
     }
 
     /**
      * Reassign a card's swimlane by writing the grouping property to the target
-     * lane's value (or clearing it for the Ungrouped lane). Returns false when
-     * the change can't be applied (note-type grouping), so the caller aborts the
-     * whole move and the card snaps back.
+     * lane's value (or clearing it for the Ungrouped lane). The model changes
+     * synchronously; the returned promise is the background write. Returns null
+     * when the change can't be applied (note-type / computed grouping), so the
+     * caller aborts the whole move.
      */
-    private async applyLaneChange(cardRef: KanbanCard, targetLaneId: string): Promise<boolean> {
+    private startLaneChange(cardRef: KanbanCard, targetLaneId: string): Promise<void> | null {
         const card = this.liveCard(cardRef)
         if (this.laneGrouping.kind !== 'property') {
             log('Cross-lane drag is only supported for property swimlanes; ignoring.', 'warn')
-            return false
+            return null
         }
         // A `formula.*`/`file.*` grouping is read-only — there's no property to
         // write — so cross-lane drag is ignored, like note-type lanes (#50).
         const ref = parsePropertyRef(this.laneGrouping.property)
         if (!ref || ref.kind !== 'note') {
             log('Cross-lane drag is not supported for computed swimlanes; ignoring.', 'warn')
-            return false
+            return null
         }
         const property = ref.name
         // Optimistic model mutation (issue #105, finding 4.1): update the
@@ -3280,27 +3409,24 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         const previousMapped = this.laneValueByPath.get(card.key) ?? null
         card.laneValue = laneValue
         this.laneValueByPath.set(card.key, laneValue)
-        try {
-            await this.withRebuildsSuppressed(async () => {
-                if (targetLaneId === UNGROUPED_LANE_ID) {
-                    await deleteProperty(this.app, card.file, property)
-                } else {
-                    await setProperty(this.app, card.file, property, targetLaneId)
-                }
-            })
-        } catch (error) {
+        // Returned unawaited (the caller renders first); never rejects.
+        return this.withRebuildsSuppressed(async () => {
+            if (targetLaneId === UNGROUPED_LANE_ID) {
+                await deleteProperty(this.app, card.file, property)
+            } else {
+                await setProperty(this.app, card.file, property, targetLaneId)
+            }
+        }).catch((error: unknown) => {
             // A failed write fires no echo, and laneValueByPath is only
             // re-derived in resolveAndRebuild — without this revert the card
             // would render in a lane the disk does not hold indefinitely
-            // (issue #105 review).
+            // (issue #105 review). The status/order part of the move stands.
             card.laneValue = previousLaneValue
             this.laneValueByPath.set(card.key, previousMapped)
             this.applyFilterAndRender()
             log('Cross-lane write failed; reverted the optimistic lane change.', 'error', error)
             new Notice('Failed to move the card to the target lane.')
-            return false
-        }
-        return true
+        })
     }
 
     /**
@@ -3330,7 +3456,8 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
 
     /**
      * Persist a move: set the status (when changed) and the manual order. Order
-     * uses a single midpoint write when possible, else renumbers the column.
+     * uses a single midpoint write when possible, else rewrites the smallest run
+     * of cards around the drop point (never the whole column; see planInsertion).
      */
     private async applyMove(
         cardRef: KanbanCard,
@@ -3356,7 +3483,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             // debouncer would otherwise render a torn mid-sequence state.
             await this.withRebuildsSuppressed(async () => {
                 if (newStatus === null) await deleteProperty(this.app, card.file, statusProperty)
-                else await setProperty(this.app, card.file, statusProperty, newStatus)
+                else await setStatusProperty(this.app, card.file, statusProperty, newStatus)
                 // Automations run on the note BEFORE it moves to the archive,
                 // so property/tag actions land on the archived note too. The
                 // archive owns the final location — rule moves are skipped.
@@ -3377,8 +3504,15 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         // the card lands in its new column/position at once — no snap-back while the
         // file write round-trips (issue #64). The frontmatter writes follow; the
         // rebuild they trigger re-derives the same state, so the reconciler no-ops.
-        const orderWrites: Array<{ file: TFile; order: number }> = []
+        const orderWrites: Array<{
+            file: TFile
+            order: number
+            pending: PendingWrite<number | null>
+        }> = []
         if (manualOrder) {
+            // A newer move in the column supersedes its background repair
+            // (rescheduled from the new state once this move's writes end).
+            this.plugin.orderNormalizer.cancel(this.normalizerKey(destLaneId, destColumnId))
             const destCards = this.columnCards(destLaneId, destColumnId).filter(
                 (c) => c.key !== card.key
             )
@@ -3387,23 +3521,14 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
                 destCards.map((c) => c.order),
                 clamped
             )
-            if (plan.kind === 'single') {
-                card.order = plan.order
-                orderWrites.push({ file: card.file, order: plan.order })
-            } else {
-                const arrangement = [
-                    ...destCards.slice(0, clamped),
-                    card,
-                    ...destCards.slice(clamped)
-                ]
-                for (let i = 0; i < arrangement.length; i++) {
-                    const c = arrangement[i]
-                    const o = plan.orders[i]
-                    if (c && o !== undefined && c.order !== o) {
-                        c.order = o
-                        orderWrites.push({ file: c.file, order: o })
-                    }
-                }
+            const arrangement = [...destCards.slice(0, clamped), card, ...destCards.slice(clamped)]
+            const planned =
+                plan.kind === 'single'
+                    ? [{ card, order: plan.order }]
+                    : plan.orders.map((order, k) => ({ card: arrangement[plan.start + k], order }))
+            for (const { card: c, order } of planned) {
+                if (!c || c.order === order) continue
+                orderWrites.push({ file: c.file, order, pending: this.beginOrderWrite(c, order) })
             }
         }
 
@@ -3420,19 +3545,27 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             // note is still being re-parsed), the model's value is the best
             // knowledge of what the cache will come back with — recording
             // null there would let that stale echo un-mask the move.
+            // `activeWrites` holds the mask (no deadline, no revert reading)
+            // until this move's whole write sequence below has finished.
             this.pendingStatusWrites.set(card.key, {
                 value: newStatus,
                 previous: this.cachedStatus(card.file, statusProperty) ?? previousStatus,
-                until: window.performance.now() + PENDING_STATUS_WRITE_TIMEOUT_MS
+                until: window.performance.now() + PENDING_WRITE_TIMEOUT_MS,
+                activeWrites: 1,
+                verified: false,
+                observed: false
             })
         }
         const pendingWrite = this.pendingStatusWrites.get(card.key)
+        // Only THIS move's pending write is held by its sequence (a move that
+        // keeps the status can still see an earlier move's pending write).
+        const ownPendingWrite = statusChanged ? pendingWrite : undefined
         this.applyFilterAndRender()
 
         // Persist. Each write triggers onDataUpdated → a debounced rebuild that
         // re-derives this exact state, so there is no visual change (issue #64).
-        // The whole sequence runs with data rebuilds suppressed: the renumber
-        // path writes N files, and the non-resetting 250ms debouncer would
+        // The whole sequence runs with data rebuilds suppressed: a windowed
+        // renumber writes several files, and the non-resetting 250ms debouncer would
         // otherwise fire mid-sequence and re-derive a PARTIAL on-disk state,
         // visibly reverting the optimistic render (issue #105 review).
         try {
@@ -3440,7 +3573,13 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
                 if (statusChanged && statusProperty) {
                     if (newStatus === null)
                         await deleteProperty(this.app, card.file, statusProperty)
-                    else await setProperty(this.app, card.file, statusProperty, newStatus)
+                    else await setStatusProperty(this.app, card.file, statusProperty, newStatus)
+                    // Verify relative to the status write itself, not to the
+                    // end of the sequence: order writes and automations run
+                    // one by one after it and would push the check by seconds.
+                    if (ownPendingWrite) {
+                        this.scheduleStatusWriteVerification(card, statusProperty, ownPendingWrite)
+                    }
                 }
                 for (const write of orderWrites) {
                     await setProperty(this.app, write.file, this.orderProperty, write.order)
@@ -3450,9 +3589,6 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
                     await this.stampDeferredDoneDate(card, newStatus, written)
                 }
             })
-            if (statusChanged && statusProperty && pendingWrite) {
-                this.scheduleStatusWriteVerification(card, statusProperty, pendingWrite)
-            }
             return true
         } catch (error) {
             // A failed write leaves disk behind the optimistic model, and no
@@ -3460,10 +3596,214 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             // cache so the board shows what actually landed. Drop the pending
             // write first, or it would mask the very state being re-derived.
             this.pendingStatusWrites.delete(card.key)
+            for (const write of orderWrites) {
+                if (this.pendingOrderWrites.get(write.file.path) === write.pending) {
+                    this.pendingOrderWrites.delete(write.file.path)
+                }
+            }
             log('Card move write failed; re-deriving the board state.', 'error', error)
             new Notice('Failed to save the card move.')
             void this.resolveAndRebuild()
             return false
+        } finally {
+            // Release the mask's hold and measure its deadline from the end
+            // of the sequence, so a long sequence cannot outlive its mask.
+            for (const pending of [ownPendingWrite, ...orderWrites.map((w) => w.pending)]) {
+                if (pending) this.endWrite(pending)
+            }
+            // Tidy the destination column in the background when the drop
+            // left (or found) ties, unset or too-close orders there.
+            if (manualOrder) this.scheduleColumnRepair(destLaneId, destColumnId)
+        }
+    }
+
+    /**
+     * Record an order write in the shared pending-order mask and the model
+     * (masked until the cache reports it; see {@link resolvePendingWrite}).
+     * Held until {@link endWrite}. No disk verification for orders, so it is
+     * armed (`verified`) from the start.
+     */
+    private beginOrderWrite(card: KanbanCard, order: number): PendingWrite<number | null> {
+        const pending: PendingWrite<number | null> = {
+            value: order,
+            previous:
+                coerceOrder(getFrontmatterValue(this.app, card.file, this.orderProperty)) ??
+                card.order,
+            until: window.performance.now() + PENDING_WRITE_TIMEOUT_MS,
+            activeWrites: 1,
+            verified: true,
+            observed: false
+        }
+        this.pendingOrderWrites.set(card.key, pending)
+        card.order = order
+        return pending
+    }
+
+    /** Release a write sequence's hold on a pending write; its deadline runs from now. */
+    private endWrite(pending: PendingWrite<PendingValue>): void {
+        pending.activeWrites--
+        pending.until = window.performance.now() + PENDING_WRITE_TIMEOUT_MS
+    }
+
+    // ── Background order normalization ────────────────────────
+
+    /** A card's order as last written by the plugin (any view), else as derived. */
+    private effectiveOrder(card: KanbanCard): number | null {
+        const pending = this.pendingOrderWrites.get(card.key)
+        return pending ? pending.value : card.order
+    }
+
+    /** The normalizer job key of one column of this view. */
+    private normalizerKey(laneId: string, columnId: string): string {
+        return `${this.normalizerId}\u0000${laneId}\u0000${columnId}`
+    }
+
+    /**
+     * Every column of the board over ALL its cards (the text filter and embed
+     * restrictions ignored), in manual-order display order. The normalizer
+     * works on these: re-spacing only the visible subset of a column would
+     * interleave it wrongly with the hidden cards.
+     */
+    private orderCells(): Array<{ laneId: string; columnId: string; cards: KanbanCard[] }> {
+        const board = buildBoard(this.allCards, this.columns, {
+            grouped: this.laneGrouping.kind !== 'none',
+            unmappedPosition: this.unmappedPosition(),
+            columnsForLane: this.perLaneColumnsActive()
+                ? (laneId) => this.laneColumns(laneId)
+                : undefined
+        })
+        return board.lanes.flatMap((lane) =>
+            lane.columns.map((column) => ({
+                laneId: lane.lane.id,
+                columnId: column.column.id,
+                cards: column.cards
+            }))
+        )
+    }
+
+    /** Whether order may be written: a live view on the manual sort, automatic repairs enabled. */
+    private canNormalizeOrder(onDemand: boolean): boolean {
+        return (
+            this.alive &&
+            this.cardSortMode() === 'order' &&
+            (onDemand || this.plugin.settings.autoNormalizeOrder)
+        )
+    }
+
+    /** Queue a background repair of each given column that needs one (deduplicated). */
+    private scheduleNormalization(
+        cells: ReadonlyArray<{ laneId: string; columnId: string; cards: KanbanCard[] }>
+    ): void {
+        const queue = this.plugin.orderNormalizer
+        for (const { laneId, columnId, cards } of cells) {
+            const key = this.normalizerKey(laneId, columnId)
+            if (queue.has(key)) continue
+            if (!columnNeedsNormalization(cards.map((c) => this.effectiveOrder(c)))) continue
+            queue.schedule(key, this, () => this.normalizeStep(laneId, columnId, false))
+        }
+    }
+
+    /**
+     * Board load / rebuild: give every card without a manual order one, in
+     * the background. Writes land in the pending-order mask, so the rebuilds
+     * they trigger find nothing left to do (no write loop).
+     */
+    private scheduleMissingOrderRepair(): void {
+        if (!this.canNormalizeOrder(false)) return
+        if (!this.allCards.some((c) => this.effectiveOrder(c) === null)) return
+        this.scheduleNormalization(
+            this.orderCells().filter((cell) =>
+                cell.cards.some((c) => this.effectiveOrder(c) === null)
+            )
+        )
+    }
+
+    /** After a drop: repair the destination column in the background if it needs it. */
+    private scheduleColumnRepair(laneId: string, columnId: string): void {
+        if (!this.canNormalizeOrder(false)) return
+        this.scheduleNormalization(
+            this.orderCells().filter((c) => c.laneId === laneId && c.columnId === columnId)
+        )
+    }
+
+    /**
+     * One normalizer step for a column: re-plan from the CURRENT state (a
+     * move, a rebuild or another view may have changed it) and write the
+     * first planned order, masked like a move's. Never touches a note outside
+     * the board's card set; stops when the view unloads, the sort is no longer
+     * manual, or automatic repairs were switched off.
+     */
+    private async normalizeStep(
+        laneId: string,
+        columnId: string,
+        onDemand: boolean
+    ): Promise<NormalizeStepResult> {
+        if (!this.canNormalizeOrder(onDemand)) return 'stop'
+        const cell = this.orderCells().find((c) => c.laneId === laneId && c.columnId === columnId)
+        if (!cell) return 'idle'
+        const next = planColumnNormalization(cell.cards.map((c) => this.effectiveOrder(c)))[0]
+        if (!next) return 'idle'
+        const card = cell.cards[next.index]
+        if (!card || !this.fileStillExists(card.file)) return 'stop'
+        const pending = this.beginOrderWrite(card, next.order)
+        try {
+            await setProperty(this.app, card.file, this.orderProperty, next.order)
+        } catch (error) {
+            if (this.pendingOrderWrites.get(card.key) === pending) {
+                this.pendingOrderWrites.delete(card.key)
+            }
+            log(`Normalizing the card order failed on "${card.key}".`, 'warn', error)
+            return 'stop'
+        } finally {
+            this.endWrite(pending)
+        }
+        return 'wrote'
+    }
+
+    /**
+     * "Normalize card order on this board" command: repair every column's
+     * manual order now (even with automatic repairs off), in the background,
+     * then summarize in a Notice.
+     */
+    normalizeCardOrder(): void {
+        if (this.cardSortMode() !== 'order') {
+            new Notice('This board sorts cards by name or a property, so it has no manual order.')
+            return
+        }
+        const cells = this.orderCells().filter((cell) =>
+            columnNeedsNormalization(cell.cards.map((c) => this.effectiveOrder(c)))
+        )
+        if (cells.length === 0) {
+            new Notice('Card order is already tidy on this board.')
+            return
+        }
+        const columns = cells.length
+        new Notice(
+            `Normalizing card order in ${String(columns)} column${columns === 1 ? '' : 's'} in the background…`
+        )
+        let remaining = columns
+        let writes = 0
+        let stopped = false
+        const queue = this.plugin.orderNormalizer
+        for (const { laneId, columnId } of cells) {
+            const key = this.normalizerKey(laneId, columnId)
+            queue.cancel(key)
+            queue.schedule(
+                key,
+                this,
+                () => this.normalizeStep(laneId, columnId, true),
+                (outcome) => {
+                    writes += outcome.writes
+                    stopped ||= outcome.cancelled
+                    if (--remaining > 0) return
+                    const notes = `${String(writes)} note${writes === 1 ? '' : 's'} updated`
+                    new Notice(
+                        stopped
+                            ? `Card order normalization stopped early: ${notes}.`
+                            : `Card order normalized: ${notes}.`
+                    )
+                }
+            )
         }
     }
 
@@ -3476,6 +3816,10 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
      * modify, a linter) can still straddle the move — observed live: the
      * card landed, then the note came back with its old status. The delay
      * lets that writer finish so the re-apply lands on top of its result.
+     * Scheduled from the status write itself, so it can run while the move's
+     * order writes and automations are still in flight (they never touch the
+     * status, so they cannot make it fail). A passed check arms the
+     * revert detection (see {@link resolvePendingWrite}).
      * Skipped when a newer move superseded this one (its own verification
      * covers it) or the pending write was already discarded.
      */
@@ -3504,7 +3848,10 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             log('Could not verify the card move on disk.', 'warn', error)
             return
         }
-        if (onDisk === pendingWrite.value) return
+        if (onDisk === pendingWrite.value) {
+            pendingWrite.verified = true
+            return
+        }
         if (retried) {
             log('Card move was overwritten by another write twice; giving up.', 'error', {
                 path: card.key,
@@ -3512,6 +3859,9 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
                 onDisk
             })
             new Notice('Another write keeps overriding the card move — check the note.')
+            // Show what disk holds rather than mask it until the deadline.
+            this.pendingStatusWrites.delete(card.key)
+            this.debouncedRebuild()
             return
         }
         log('Card move was overwritten by a concurrent write; re-applying.', 'warn', {
@@ -3519,21 +3869,25 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             expected: pendingWrite.value,
             onDisk
         })
+        // The re-apply reopens the re-parse windows: hold the mask meanwhile.
+        pendingWrite.activeWrites++
         try {
             await this.withRebuildsSuppressed(async () => {
                 if (pendingWrite.value === null) {
                     await deleteProperty(this.app, card.file, statusProperty)
                 } else {
-                    await setProperty(this.app, card.file, statusProperty, pendingWrite.value)
+                    await setStatusProperty(this.app, card.file, statusProperty, pendingWrite.value)
                 }
             })
         } catch (error) {
             log('Re-applying the card move failed.', 'error', error)
             return
+        } finally {
+            pendingWrite.activeWrites--
+            // Give the mask a fresh deadline: the re-apply reopens the
+            // re-parse windows the original deadline may no longer cover.
+            pendingWrite.until = window.performance.now() + PENDING_WRITE_TIMEOUT_MS
         }
-        // Give the mask a fresh deadline: the re-apply reopens the re-parse
-        // windows the original deadline may no longer cover.
-        pendingWrite.until = window.performance.now() + PENDING_STATUS_WRITE_TIMEOUT_MS
         window.setTimeout(() => {
             void this.verifyStatusWrite(card, statusProperty, pendingWrite, true)
         }, STATUS_WRITE_VERIFY_DELAY_MS)
@@ -3545,14 +3899,24 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
      * like {@link getFrontmatterValue}.
      */
     private async statusOnDisk(file: TFile, statusProperty: string): Promise<string | null> {
+        return normalizeStatusValue(await this.propertyOnDisk(file, statusProperty))
+    }
+
+    /** A note's manual order ON DISK (see {@link statusOnDisk}). */
+    private async orderOnDisk(file: TFile): Promise<number | null> {
+        return coerceOrder(await this.propertyOnDisk(file, this.orderProperty))
+    }
+
+    /** A raw frontmatter value read from the file, not the cache (case-insensitive). */
+    private async propertyOnDisk(file: TFile, propertyName: string): Promise<unknown> {
         const content = await this.app.vault.read(file)
         const info = getFrontMatterInfo(content)
-        if (!info.exists) return null
+        if (!info.exists) return undefined
         const parsed: unknown = parseYaml(info.frontmatter)
-        if (typeof parsed !== 'object' || parsed === null) return null
+        if (typeof parsed !== 'object' || parsed === null) return undefined
         const fm = parsed as Record<string, unknown>
-        const key = findKeyCaseInsensitive(fm, statusProperty)
-        return key === null ? null : normalizeStatusValue(fm[key])
+        const key = findKeyCaseInsensitive(fm, propertyName)
+        return key === null ? undefined : fm[key]
     }
 
     // ── Quick capture (issue #46) ─────────────────────────────
@@ -5080,12 +5444,62 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         const isStatusWrite =
             statusProperty !== null && propertyName.toLowerCase() === statusProperty.toLowerCase()
         const previousStatus = live.statusValue
-        if (value === null) await deleteProperty(this.app, live.file, propertyName)
-        else await setProperty(this.app, live.file, propertyName, value)
-        if (isStatusWrite && value !== previousStatus) {
-            live.statusValue = value
-            await this.runStatusAutomations(live, previousStatus, value)
+        const transition = isStatusWrite && value !== previousStatus
+        // Optimistic: the model (and the status mask, so a lagging cache
+        // cannot snap the card back) change synchronously, before the write;
+        // callers render before awaiting.
+        const pending = transition ? this.beginStatusWrite(live, value, previousStatus) : null
+        try {
+            try {
+                if (value === null) await deleteProperty(this.app, live.file, propertyName)
+                else if (isStatusWrite) {
+                    await setStatusProperty(this.app, live.file, propertyName, value)
+                } else await setProperty(this.app, live.file, propertyName, value)
+            } catch (error) {
+                if (pending) this.dropStatusWrite(live, pending, previousStatus)
+                throw error
+            }
+            // Landed: arms revert detection (this path does not re-apply).
+            if (pending) pending.verified = true
+            if (transition) await this.runStatusAutomations(live, previousStatus, value)
+        } finally {
+            if (pending) this.endWrite(pending)
         }
+    }
+
+    /**
+     * Mask a status write outside {@link applyMove} (menu, triage, bulk): the
+     * model takes the value now, the mask holds until {@link endWrite}.
+     */
+    private beginStatusWrite(
+        card: KanbanCard,
+        value: string | null,
+        previousStatus: string | null
+    ): PendingWrite {
+        const statusProperty = this.statusPropertyFor(card)
+        const pending: PendingWrite = {
+            value,
+            previous: this.cachedStatus(card.file, statusProperty) ?? previousStatus,
+            until: window.performance.now() + PENDING_WRITE_TIMEOUT_MS,
+            activeWrites: 1,
+            verified: false,
+            observed: false
+        }
+        this.pendingStatusWrites.set(card.key, pending)
+        card.statusValue = value
+        return pending
+    }
+
+    /** A masked status write failed: forget the mask and restore the model. */
+    private dropStatusWrite(
+        card: KanbanCard,
+        pending: PendingWrite,
+        previousStatus: string | null
+    ): void {
+        if (this.pendingStatusWrites.get(card.key) === pending) {
+            this.pendingStatusWrites.delete(card.key)
+        }
+        card.statusValue = previousStatus
     }
 
     /**
@@ -5098,8 +5512,16 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         propertyName: string,
         value: string | null
     ): Promise<void> {
-        await this.setCardProperty(card, propertyName, value)
+        // Start the write (its model change is synchronous), render, THEN wait.
+        const write = this.setCardProperty(card, propertyName, value)
         this.applyCardWrite(card, propertyName, value)
+        try {
+            await write
+        } catch (error) {
+            log('Card property write failed; re-deriving the board state.', 'error', error)
+            new Notice('Failed to save the change.')
+            void this.resolveAndRebuild()
+        }
     }
 
     /**
@@ -5594,8 +6016,9 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         // fresh once the write resolves (same read the re-render below relies on).
         const cfg = readTriageConfig(this.viewConfig)
         const wasComplete = this.cardUnsetCount(card, cfg) === 0
-        await this.setCardProperty(card, name, value)
-        // Use the value we just wrote everywhere below — the metadata cache
+        // Started, not awaited: the triage view renders the new value first.
+        const write = this.setCardProperty(card, name, value)
+        // Use the value being written everywhere below — the metadata cache
         // hasn't reparsed yet, so re-reading it here would still see the old
         // value. Without the override the immediate render recomputes data
         // identical to the pre-write screen, the signature guard skips it, and
@@ -5609,6 +6032,13 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             this.triageAdvance(override)
         } else {
             this.renderTriage(override)
+        }
+        try {
+            await write
+        } catch (error) {
+            log('Triage write failed; re-deriving the triage view.', 'error', error)
+            new Notice('Failed to save the change.')
+            this.renderTriage()
         }
     }
 

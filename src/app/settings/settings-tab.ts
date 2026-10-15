@@ -456,7 +456,9 @@ const TOGGLE_SCOPES = {
     pomodoroNotificationCue: 'chrome',
     weekTargetFollowsPlanned: 'cards',
     // Read live when triage completes
-    triageCelebrateOnComplete: 'chrome'
+    triageCelebrateOnComplete: 'chrome',
+    // Read live by the normalizer; the next board refresh picks it up
+    autoNormalizeOrder: 'chrome'
 } as const satisfies Partial<Record<keyof PluginSettings, SettingsRefreshScope>>
 
 type ToggleKey = keyof typeof TOGGLE_SCOPES
@@ -523,6 +525,11 @@ export class KanbanActionPlannerSettingTab extends PluginSettingTab {
                 heading: 'Default property names',
                 items: [
                     ...PROPERTY_SETTINGS.map((setting) => this.textItem(setting)),
+                    this.toggleItem(
+                        'autoNormalizeOrder',
+                        'Tidy card order automatically',
+                        'Fill in missing manual order values and spread out duplicate ones in the background, a few notes at a time, so dragging a card only ever rewrites that card. Off: run the "Normalize card order on this board" command when you want it.'
+                    ),
                     this.numberItem(MINUTES_PER_DAY),
                     ...PROGRESS_SETTINGS.map((setting) => this.textItem(setting)),
                     {

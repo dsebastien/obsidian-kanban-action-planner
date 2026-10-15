@@ -2,7 +2,7 @@ import { Menu, Notice } from 'obsidian'
 import type { App } from 'obsidian'
 import type { ArchiveConfig, ColumnDef } from '../../domain/note-type'
 import type { KanbanCard } from '../../ui/board/types'
-import { deleteProperty, setProperty } from '../../services/frontmatter.service'
+import { deleteProperty, setStatusProperty } from '../../services/frontmatter.service'
 import { archiveNote } from '../../services/archive.service'
 import { inclusiveKeyRange } from './selection-range'
 import { log } from '../../../utils/log'
@@ -57,6 +57,14 @@ export interface SelectionHost {
      * state mid-sequence and visibly revert the optimistic render.
      */
     runExclusiveWrites(writes: () => Promise<void>): Promise<void>
+    /**
+     * Mask a card's status write against a lagging metadata cache (and set
+     * the model value), so a rebuild before the cache catches up cannot snap
+     * the card back. Held until {@link endStatusWrite}.
+     */
+    beginStatusWrite(card: KanbanCard, statusValue: string | null): void
+    /** The card's status write (and its automations) ended; `landed` false drops the mask. */
+    endStatusWrite(card: KanbanCard, landed: boolean): void
     /**
      * Run the card's note type's automation rules for a status transition
      * (post-write; exactly once per actual transition). Bulk writes must
@@ -330,6 +338,7 @@ export class BoardSelection {
             }
             writes.push({ card, property, previous: card.statusValue })
         }
+        for (const { card } of writes) this.host.beginStatusWrite(card, statusValue)
         this.host.applyBulkStatus(writes.map(({ card }) => ({ card, statusValue })))
         let ok = 0
         const failedWrites: Array<{ card: KanbanCard; statusValue: string | null }> = []
@@ -338,11 +347,12 @@ export class BoardSelection {
                 try {
                     if (statusValue === null)
                         await deleteProperty(this.host.app, card.file, property)
-                    else await setProperty(this.host.app, card.file, property, statusValue)
+                    else await setStatusProperty(this.host.app, card.file, property, statusValue)
                     ok++
                 } catch {
                     failed++
                     failedWrites.push({ card, statusValue: previous })
+                    this.host.endStatusWrite(card, false)
                     continue
                 }
                 // Own guard: an automation failure after a LANDED write must
@@ -352,6 +362,8 @@ export class BoardSelection {
                     await this.host.runStatusAutomations(card, previous, statusValue)
                 } catch (error: unknown) {
                     log('Status automations failed after a bulk status write.', 'error', error)
+                } finally {
+                    this.host.endStatusWrite(card, true)
                 }
             }
         })

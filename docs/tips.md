@@ -40,8 +40,18 @@ you defined. Define your statuses in **Configure view → Statuses (columns)** (
 statuses**, or via the Starter Kit), then make sure each note's `status` matches one of them. The
 Unmapped column disappears once every note maps to a defined column.
 
-### Reordering writes a number to several notes at once
+### My notes' `manual_order` changed without me moving them
 
-The first time you reorder a column whose notes have no `manual_order` yet, the plugin
-assigns whole-number orders to that column. After that, moving a single card normally updates
-only that card.
+When a board opens, the plugin gives a `manual_order` to every card that has none, and after a
+drop it spreads out cards that share the same number. It does this in the background, a few
+notes at a time, and every card keeps its place on the board. The first time a big board opens,
+expect a short burst of saves (a minute or two with hundreds of unordered notes); after that,
+moving a card normally updates only that card. Don't want it? Turn off **Tidy card order
+automatically** in the plugin settings and use the **Normalize card order on this board** command
+when you choose.
+
+### Prefer a Text property for the status
+
+A status stored as a **List** property works: the board uses its first value, and moves keep it a
+list. A **Text** property is still simpler: one note, one status, nothing to keep in sync. If your
+notes hold several status values in a list, only the first one decides the column.

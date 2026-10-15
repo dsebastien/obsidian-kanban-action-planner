@@ -29,8 +29,9 @@ every change written straight back into your notes.
   placed by their status property, and notes with no or unknown status collect in an **Unmapped**
   column that disappears when empty.
 - **Drag, reorder, sort.** Drag a card to another column to change its status, or reorder within a
-  column (saved to the note). Auto-sort each column by name or any property, ascending or
-  descending. Full keyboard support too.
+  column (saved to the note). Moves show instantly and save in the background, usually rewriting
+  only the card you moved; missing or duplicate orders are tidied up quietly in the background.
+  Auto-sort each column by name or any property, ascending or descending. Full keyboard support too.
 - **Swimlanes.** Split the board into horizontal lanes by note type or any property, with
   collapsible lanes and columns. A board mixing note types auto-groups by type, each lane with
   its own type's columns — a card's own type is authoritative for its status.

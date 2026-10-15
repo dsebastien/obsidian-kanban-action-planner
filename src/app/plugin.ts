@@ -36,6 +36,8 @@ import {
 import { isPaused } from './domain/pomodoro'
 import { onStarterKitNoteTypesChanged } from './services/starter-kit.service'
 import { produce } from 'immer'
+import { OrderNormalizerQueue } from './services/order-normalizer.service'
+import type { PendingWrite } from './domain/pending-write'
 
 export class KanbanActionPlannerPlugin extends Plugin {
     /**
@@ -51,6 +53,16 @@ export class KanbanActionPlannerPlugin extends Plugin {
      * themselves on load/unload.
      */
     private readonly openKanbanViews = new Set<KanbanActionPlannerView>()
+
+    /**
+     * Manual-order writes not yet observed in the metadata cache, by note
+     * path — shared by every open view, so a view never re-plans (or shows)
+     * an order another view of the same Base just wrote.
+     */
+    readonly pendingOrderWrites = new Map<string, PendingWrite<number | null>>()
+
+    /** The one background queue repairing manual order for every open view. */
+    readonly orderNormalizer = new OrderNormalizerQueue()
 
     /** Status-bar item showing the running session / pomodoro (issue #172). */
     private statusBarEl: HTMLElement | null = null
@@ -263,6 +275,11 @@ export class KanbanActionPlannerPlugin extends Plugin {
             callback: () => {
                 for (const view of this.openKanbanViews) void view.runArchiveSweep()
             }
+        })
+        this.addCommand({
+            id: 'normalize-card-order',
+            name: 'Normalize card order on this board',
+            checkCallback: onActiveView((view) => view.normalizeCardOrder())
         })
         this.addCommand({
             id: 'toggle-calendar-mode',

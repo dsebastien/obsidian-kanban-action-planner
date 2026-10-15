@@ -95,6 +95,34 @@ export async function setProperty(
 }
 
 /**
+ * The value to store when writing the scalar `value` over `current`: a list
+ * stays a list (`[value]`), anything else takes `value` as is. A status
+ * property typed List in Obsidian (issue #219) would otherwise be rewritten
+ * as text by every move, fighting the property's declared type.
+ */
+export function keepListShape(current: unknown, value: unknown): unknown {
+    return Array.isArray(current) && !Array.isArray(value) ? [value] : value
+}
+
+/**
+ * Write a STATUS value, keeping the property's current shape: a list-shaped
+ * status gets `[value]`, a text one `value` (see {@link keepListShape}). The
+ * shape is read inside the transaction, from what is on disk. Only status
+ * writes use this; other properties keep {@link setProperty}'s plain write.
+ */
+export async function setStatusProperty(
+    app: App,
+    file: TFile,
+    propertyName: string,
+    value: string
+): Promise<void> {
+    await processFrontMatter(app, file, (fm: Record<string, unknown>) => {
+        const key = findKeyCaseInsensitive(fm, propertyName) ?? propertyName
+        fm[key] = keepListShape(fm[key], value)
+    })
+}
+
+/**
  * Set several frontmatter properties in ONE `processFrontMatter` transaction
  * (each reusing an existing differently-cased key). Used where two sequential
  * {@link setProperty} calls would double-rebuild the board and leave a torn
