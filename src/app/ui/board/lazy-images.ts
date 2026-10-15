@@ -20,6 +20,9 @@ const SRC_KEY = 'kapSrc'
 export const LOADING_CLASS = 'kap-img-loading'
 /** How far ahead of a column's visible area images start loading. */
 const LOOKAHEAD = '800px 0px'
+/** Re-check cadence and cap while a board is not laid out yet. */
+const RETRY_MS = 200
+const RETRY_LIMIT = 50
 
 /** The element subset {@link deferImage} and {@link loadImage} touch (DOM-free tests). */
 export interface LazyImageEl {
@@ -60,6 +63,8 @@ export function loadImage(img: LazyImageEl): void {
  */
 export class LazyImages {
     private observers: IntersectionObserver[] = []
+    private retryTimer: number | null = null
+    private retries = 0
 
     /**
      * Re-observe every parked image under `rootEl`; call after each board
@@ -69,8 +74,9 @@ export class LazyImages {
      * entries are ignored and stay observed, and the reveal's resize re-syncs
      * with real dimensions.
      */
-    sync(rootEl: HTMLElement): void {
+    sync(rootEl: HTMLElement, retry = false): void {
         this.dispose()
+        if (!retry) this.retries = 0
         // The element's own window, so a board in a popout window is observed there.
         const Observer = (
             rootEl.win as Window & { IntersectionObserver: typeof IntersectionObserver }
@@ -81,6 +87,13 @@ export class LazyImages {
             const observer = new Observer(
                 (entries: IntersectionObserverEntry[]) => {
                     for (const entry of entries) {
+                        // The column itself is not laid out yet (a leaf still
+                        // hidden or opening): the observer will not report
+                        // again when it is, so look again shortly.
+                        if (entry.isIntersecting && !hasSize(entry.rootBounds)) {
+                            this.retryLater(rootEl)
+                            continue
+                        }
                         if (!isLaidOutHit(entry)) continue
                         observer.unobserve(entry.target)
                         loadImage(entry.target as HTMLImageElement)
@@ -97,6 +110,18 @@ export class LazyImages {
     dispose(): void {
         for (const observer of this.observers) observer.disconnect()
         this.observers = []
+        if (this.retryTimer !== null) window.clearTimeout(this.retryTimer)
+        this.retryTimer = null
+    }
+
+    /** Re-sync once the board has had time to lay out (bounded: ~10 s). */
+    private retryLater(rootEl: HTMLElement): void {
+        if (this.retryTimer !== null || this.retries >= RETRY_LIMIT) return
+        this.retries++
+        this.retryTimer = window.setTimeout(() => {
+            this.retryTimer = null
+            if (rootEl.isConnected) this.sync(rootEl, true)
+        }, RETRY_MS)
     }
 }
 
@@ -118,5 +143,10 @@ export function isLaidOutHit(entry: IntersectionLike): boolean {
     const target = entry.boundingClientRect
     const root = entry.rootBounds
     if (target.width === 0 || target.height === 0) return false
-    return root !== null && root.width > 0 && root.height > 0
+    return hasSize(root)
+}
+
+/** A laid-out box (non-null, non-zero in both dimensions). */
+function hasSize(box: { width: number; height: number } | null): boolean {
+    return box !== null && box.width > 0 && box.height > 0
 }
