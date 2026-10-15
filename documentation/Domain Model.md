@@ -41,7 +41,7 @@ column rule.
   labelled `CardFieldView` per property (read via `BasesEntry.getValue`, labelled via
   `getDisplayName`, empty/`null` skipped), plus the `dueState`, the `coverUrl` (rule 64) and
   the `cardColor` (a CSS color expression from the card color property, `domain/card-color.ts`,
-  rule 67). The `title` is filtered
+  rule 67) and the `accentColor` (same resolver, from the accent property, rule 68). The `title` is filtered
   through `domain/card-title.ts` first (see **TitleDisplayConfig**).
 - **TitleDisplayConfig** + **NamingConfig** (`domain/card-title.ts`) — per note type.
   `naming` is a read-only mirror of the Starter Kit type's `noteNamePrefix`/`noteNameSuffix`;

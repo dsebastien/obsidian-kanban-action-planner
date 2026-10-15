@@ -44,6 +44,7 @@ export function cardSignature(
         d.wrap ? 'w' : '',
         d.coverUrl ?? '',
         d.cardColor ?? '',
+        d.accentColor ?? '',
         d.dueState,
         card.deferred ? 'D' : '',
         cd,

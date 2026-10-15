@@ -524,6 +524,31 @@ timeline or triage.
 | **Card color property** | Per board | None              | Colors each card by this property's value.               |
 | **Card color style**    | Per board | Tinted background | Show the color as a background tint or as a card border. |
 
+## Card accent
+
+A lighter marker than the card color: per board, **Configure view → Cards → Accent property**
+marks each card with a colored stripe or dot from a property (or base formula). It is separate
+from the card color, so a board can tint cards by priority and mark them by project. Empty (the
+default) means no accents.
+
+The color is picked exactly like the [card color](#card-color): a color value as is, a ranked
+value like its field, any other value a stable palette color. A list property uses its first
+value, and a card without a value has no accent.
+
+**Accent style** sets the shape:
+
+- **Stripe on the left edge** (the default): a thin bar just inside the card's left edge.
+- **Dot before the title**: a small colored dot in front of the card title.
+
+Both stay visible in compact mode. The stripe is drawn next to the card's left edge, not on
+it: the edge itself keeps the column color, or red for a blocked card, so a blocked card is
+still easy to spot on a board striped by project.
+
+| Setting             | Scope     | Default                 | What it does                                          |
+| ------------------- | --------- | ----------------------- | ----------------------------------------------------- |
+| **Accent property** | Per board | None                    | Marks each card with this property's color.           |
+| **Accent style**    | Per board | Stripe on the left edge | Show the accent as a stripe or as a dot by the title. |
+
 ### Filtering the note type's name decoration
 
 Note types decorate file names so recognition rules can key off them: the Obsidian Starter

@@ -288,6 +288,7 @@ import {
     readCompactMode,
     readCoverLayout,
     readCardColorStyle,
+    readAccentStyle,
     COVER_ASPECTS,
     readIdArray,
     readLaneGroupingOverride,
@@ -3182,7 +3183,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
 
     /**
      * A per-view property option holding a Bases property id (`coverProperty`,
-     * `cardColorProperty`): the validated id, or null → the feature is off
+     * `cardColorProperty`, `accentProperty`): the validated id, or null → the feature is off
      * (the default).
      */
     private propertyIdOption(key: string): BasesPropertyId | null {
@@ -3232,7 +3233,8 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             this.titleAffixesByPath.get(file.path) ?? NO_TITLE_AFFIXES,
             {
                 cover: this.propertyIdOption('coverProperty'),
-                color: this.propertyIdOption('cardColorProperty')
+                color: this.propertyIdOption('cardColorProperty'),
+                accent: this.propertyIdOption('accentProperty')
             }
         )
     }
@@ -5725,7 +5727,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
 
     /**
      * Board-wide card presentation classes from the view options (cover fit and
-     * shape, card color style). Applied as classes on the board host, so the CSS does the layout:
+     * shape, card color style, accent style). Applied as classes on the board host, so the CSS does the layout:
      * no per-card inline styles, and a change needs no card rebuild. Their
      * values also go into the render and height signatures, so the pass that
      * follows a change re-measures the uniform card height.
@@ -5741,12 +5743,20 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         const colorStyle = readCardColorStyle(this.viewConfig)
         el.toggleClass('kap-card-color-tint', colorStyle === 'tint')
         el.toggleClass('kap-card-color-border', colorStyle === 'border')
+        const accentStyle = readAccentStyle(this.viewConfig)
+        el.toggleClass('kap-accent-stripe', accentStyle === 'stripe')
+        el.toggleClass('kap-accent-dot', accentStyle === 'dot')
     }
 
     /** The presentation inputs {@link applyCardPresentation} reads, for the signatures. */
     private cardPresentationKey(): string {
         const cover = readCoverLayout(this.viewConfig)
-        return `${cover.fit}|${cover.aspect}|${readCardColorStyle(this.viewConfig)}`
+        return [
+            cover.fit,
+            cover.aspect,
+            readCardColorStyle(this.viewConfig),
+            readAccentStyle(this.viewConfig)
+        ].join('|')
     }
 
     /** Whether compact cards (title only) are active (board mode). */

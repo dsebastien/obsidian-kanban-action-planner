@@ -318,7 +318,8 @@ When a new business rule is mentioned:
     change; lane/column collapse loads once in `rebuild()` and writes on toggle. **Compact mode**
     (`compactMode`, board toolbar toggle next to Select): off by default; when on, board cards show
     only the title (CSS `kap-compact` on the board host hides covers, fields, badges, relationship
-    chips); board mode only (calendar panel and triage keep full cards).
+    chips; the card color and the accent stripe / dot stay, rules 67-68); board mode only (calendar
+    panel and triage keep full cards).
 25. **In-column sort (issue #17).** A per-view **Card sort** option orders each column's cards by
     `order` (manual, default) / `name` / `property`, with a `cardSortDirection` (`asc`/`desc`) and a
     `cardSortProperty`. The pure `compareTabCards` (shared with the calendar panel,
@@ -1299,3 +1300,15 @@ Markdown)`, `Export ideal week (JSON)`, `Export ideal week (Markdown)`); the for
     selection highlight and hover border win (`:where()` keeps the rules at plain-card weight).
     Tint = `color-mix(… 14%, var(--background-primary))`. `cardColor` is in `cardSignature`, the
     style in the render-pass and card-height signatures. Board cards only.
+68. **Card accent by property (issue #150).** Configure view → Cards → **Accent property**
+    (`accentProperty`, read like rule 67; empty = off, the default) + **Accent style**
+    (`accentStyle`: `stripe` default | `dot`). Same resolver as the card color
+    (`resolveValueColor`), independent of it (a board can tint by one property and stripe by
+    another). The card gets `.kap-card-marked` + `--kap-card-mark`; a `.kap-card-mark-dot` span is
+    always rendered first in the title row and only shown under `kap-accent-dot`, so switching
+    styles needs no card rebuild. The stripe is a `::before` bar 3px INSIDE the left border, never
+    the border itself: the border keeps the status accent, or red when blocked (rule 18), so a
+    blocked card stays distinguishable on a striped board. `.kap-card-cover` is positioned so the
+    cover paints over the stripe (the corner countdown, z-index 1, stays above). Both shapes stay
+    visible in compact mode. `accentColor` is in `cardSignature`, the style in the render-pass and
+    card-height signatures. Board cards only.

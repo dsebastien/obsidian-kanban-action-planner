@@ -252,6 +252,28 @@ export function getKanbanViewOptions(app: App, settings: PluginSettings): BasesA
                     }
                 },
                 {
+                    // Accent by property (issue #150): a lighter marker than the
+                    // card color, independent of it (tint by priority, stripe by
+                    // project). Same value → color resolver. Read-only.
+                    type: 'property',
+                    key: 'accentProperty',
+                    displayName: 'Accent property',
+                    placeholder: 'None (no accents)',
+                    filter: readOnlyPropertyFilter
+                },
+                {
+                    // The stripe sits inside the left edge, so the status /
+                    // blocked left border stays visible (business rule 68).
+                    type: 'dropdown',
+                    key: 'accentStyle',
+                    displayName: 'Accent style',
+                    default: 'stripe',
+                    options: {
+                        stripe: 'Stripe on the left edge',
+                        dot: 'Dot before the title'
+                    }
+                },
+                {
                     type: 'toggle',
                     // Visibility is per-view (issue #62); the badge position and the
                     // "soon" color threshold are global (plugin settings).

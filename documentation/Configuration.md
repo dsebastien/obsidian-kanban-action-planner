@@ -48,7 +48,8 @@ Three places, by scope:
    The **Cards** group holds `titleProperty` (card heading source, issue #4; falls back to the
    note name), `coverProperty` (card cover image source; empty = no covers, business rule 64),
    `coverFit` / `coverAspect` (cover layout, rule 64), `cardColorProperty` / `cardColorStyle`
-   (card color, rule 67) and `showDueCountdown`.
+   (card color, rule 67), `accentProperty` / `accentStyle` (accent stripe or dot, rule 68) and
+   `showDueCountdown`.
 
 The note-type editor (`ui/configure-board-modal.ts`) — a two-pane dialog (Cards / Colors /
 Swimlanes / Relationships / Archiving; Archive-folder field has folder autocomplete via

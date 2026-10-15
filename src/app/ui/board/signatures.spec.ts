@@ -43,6 +43,7 @@ function display(over: Partial<CardDisplay> = {}): CardDisplay {
         fields: [],
         coverUrl: null,
         cardColor: null,
+        accentColor: null,
         wrap: false,
         dueState: 'none',
         budget: null,
@@ -72,6 +73,20 @@ describe('cardSignature', () => {
     it('is stable for identical content + accent', () => {
         const card = { display: display(), relationships: emptyRels }
         expect(cardSignature(card, '#abc')).toBe(cardSignature({ ...card }, '#abc'))
+    })
+
+    it('changes when the accent color changes (issue #150)', () => {
+        const base = { display: display(), relationships: emptyRels }
+        const sig = cardSignature(base, '#abc')
+        const marked = cardSignature(
+            { ...base, display: display({ accentColor: 'var(--color-blue)' }) },
+            '#abc'
+        )
+        expect(marked).not.toBe(sig)
+        // Accent and card color are separate inputs.
+        expect(
+            cardSignature({ ...base, display: display({ cardColor: 'var(--color-blue)' }) }, '#abc')
+        ).not.toBe(marked)
     })
 
     it('changes when the card color changes (issue #150)', () => {

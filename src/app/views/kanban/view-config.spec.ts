@@ -5,6 +5,7 @@ import {
     laneValueForLaneId,
     laneChangeBlockedReason,
     normalizeLaneValue,
+    readAccentStyle,
     readCardColorStyle,
     readCompactMode,
     readCoverLayout,
@@ -254,6 +255,16 @@ describe('readCoverLayout', () => {
             fit: 'cover',
             aspect: 'banner'
         })
+    })
+})
+
+describe('readAccentStyle (issue #150)', () => {
+    it('is a stripe by default and on unknown values', () => {
+        expect(readAccentStyle(config({}))).toBe('stripe')
+        expect(readAccentStyle(config({ accentStyle: 'bar' }))).toBe('stripe')
+    })
+    it('reads the dot style', () => {
+        expect(readAccentStyle(config({ accentStyle: 'dot' }))).toBe('dot')
     })
 })
 

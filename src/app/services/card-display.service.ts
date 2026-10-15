@@ -159,7 +159,7 @@ export function heatLevel(value: string, allowedValues: ReadonlyArray<string>): 
 }
 
 /**
- * Read the raw value of a card-visual property (cover, card color). A `note.*`
+ * Read the raw value of a card-visual property (cover, card color, accent). A `note.*`
  * property is read raw from the frontmatter (honoring just-written overrides)
  * so a `[[wikilink]]` keeps its brackets and a list stays a list; a
  * `formula.*` / `file.*` column is read from the Bases entry, unwrapped by
@@ -191,10 +191,12 @@ export interface CardVisualSources {
     cover?: BasesPropertyId | null
     /** `cardColorProperty`: the card color (see `domain/card-color.ts`). */
     color?: BasesPropertyId | null
+    /** `accentProperty`: the accent stripe / dot color (same resolver as the card color). */
+    accent?: BasesPropertyId | null
 }
 
 /**
- * A card-color value → CSS color (`domain/card-color.ts`). Enum values rank on
+ * A card-color / accent value → CSS color (`domain/card-color.ts`). Enum values rank on
  * the same heat scale as the field chips, using the property's allowed values.
  */
 function readCardColor(raw: unknown, allowedValues: ReadonlyArray<string>): string | null {
@@ -251,7 +253,7 @@ export function buildCardDisplay(
      * (`domain/card-title.ts`); defaults to none.
      */
     titleAffixes: CardTitleAffixes = NO_TITLE_AFFIXES,
-    /** Optional card visuals (cover, color) and the properties they read. */
+    /** Optional card visuals (cover, color, accent) and the properties they read. */
     visuals: CardVisualSources = {}
 ): CardDisplay {
     /** The override for a `note.*` property id, or undefined when none applies. */
@@ -334,6 +336,12 @@ export function buildCardDisplay(
             ? readCardColor(
                   readVisualRaw(app, file, entry, visuals.color, noteOverride),
                   allowedValuesFor(visuals.color)
+              )
+            : null,
+        accentColor: visuals.accent
+            ? readCardColor(
+                  readVisualRaw(app, file, entry, visuals.accent, noteOverride),
+                  allowedValuesFor(visuals.accent)
               )
             : null,
         wrap: true,

@@ -228,6 +228,18 @@ export function readCoverLayout(config: ConfigReader): CoverLayout {
  */
 export type CardColorStyle = 'tint' | 'border'
 
+/**
+ * How the accent property shows (view option `accentStyle`, issue #150):
+ * `stripe` is a bar inside the card's left edge (default), `dot` a small
+ * bullet before the title.
+ */
+export type AccentStyle = 'stripe' | 'dot'
+
+/** Read the per-view accent style, default-on-missing (`stripe`). */
+export function readAccentStyle(config: ConfigReader): AccentStyle {
+    return config.get('accentStyle') === 'dot' ? 'dot' : 'stripe'
+}
+
 /** Read the per-view card color style, default-on-missing (`tint`). */
 export function readCardColorStyle(config: ConfigReader): CardColorStyle {
     return config.get('cardColorStyle') === 'border' ? 'border' : 'tint'

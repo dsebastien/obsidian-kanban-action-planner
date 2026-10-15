@@ -73,6 +73,12 @@ export interface CardDisplay {
      * (`domain/card-color.ts`, issue #150).
      */
     cardColor: string | null
+    /**
+     * The accent stripe / dot color from the view's accent property (same
+     * resolver as {@link cardColor}); null when off or empty (issue #150).
+     * Independent of the status accent (the left border).
+     */
+    accentColor: string | null
     wrap: boolean
     /** Due-date urgency for at-a-glance emphasis. */
     dueState: DueState

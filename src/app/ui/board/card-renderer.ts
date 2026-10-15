@@ -67,6 +67,14 @@ export function renderCard(
         el.addClass('kap-card-colored')
         el.style.setProperty('--kap-card-color', card.display.cardColor)
     }
+    // Accent by property (issue #150): a stripe inside the left edge or a dot
+    // before the title, picked by the board's Accent style class. The status /
+    // blocked color keeps the left border itself.
+    const mark = card.display.accentColor
+    if (mark) {
+        el.addClass('kap-card-marked')
+        el.style.setProperty('--kap-card-mark', mark)
+    }
     if (card.display.wrap) el.addClass('kap-card-wrap')
     if (card.display.dueState === 'overdue') el.addClass('kap-card-overdue')
     else if (card.display.dueState === 'today') el.addClass('kap-card-due-today')
@@ -89,6 +97,8 @@ export function renderCard(
     // Title row is a flex line: the title takes the slack (ellipsis), the badge
     // (placement `title`) sits right-aligned and keeps its natural width.
     const titleEl = el.createDiv({ cls: 'kap-card-title' })
+    // Shown only under the dot accent style (CSS), so switching styles needs no rebuild.
+    if (mark) titleEl.createSpan({ cls: 'kap-card-mark-dot', attr: { 'aria-hidden': 'true' } })
     // Clamped to three lines in CSS (issue #207); the tooltip shows the full title.
     titleEl.createSpan({
         cls: 'kap-card-title-text',

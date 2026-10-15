@@ -1426,6 +1426,41 @@
         border-bottom-color: var(--kap-card-color);
     }
 
+    /* Accent by property (issue #150). The card carries `.kap-card-marked` and
+       `--kap-card-mark`; the board host's style class picks the shape. The
+       stripe is a separate bar just INSIDE the left border, so the border keeps
+       the status color, or red for a blocked card, and both stay readable. The
+       cover is positioned so it paints over the stripe (the corner countdown,
+       z-index 1, stays on top). Both shapes survive compact mode: the stripe is
+       a pseudo-element and the dot sits in the title row. */
+    .kap-card-cover {
+        position: relative;
+    }
+    .kap-accent-stripe :where(.kap-card-marked)::before {
+        content: '';
+        position: absolute;
+        top: var(--size-4-1, 0.25rem);
+        bottom: var(--size-4-1, 0.25rem);
+        left: 3px;
+        width: 3px;
+        border-radius: 2px;
+        background: var(--kap-card-mark);
+        pointer-events: none;
+    }
+    .kap-card-mark-dot {
+        display: none;
+    }
+    .kap-accent-dot .kap-card-mark-dot {
+        display: inline-block;
+        flex: none;
+        align-self: center;
+        width: 0.6em;
+        height: 0.6em;
+        margin-right: calc(-1 * var(--size-4-1, 0.25rem));
+        border-radius: 50%;
+        background: var(--kap-card-mark);
+    }
+
     /* ── Due countdown badge (issue #62). Visibility is per-view; the position
        (title / chip / corner / footer) and the "soon" color threshold are global
        settings. The badge is a compact tinted pill; `--kap-countdown-color` is the

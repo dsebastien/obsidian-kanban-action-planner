@@ -235,6 +235,25 @@ describe('buildCardDisplay card color property (issue #150)', () => {
     it('hashes other values, using the first list item', () => {
         expect(build('note.project')).toBe(paletteColor('[[Project A]]'))
     })
+    it('resolves the accent independently of the card color', () => {
+        const display = buildCardDisplay(
+            app,
+            file,
+            entry,
+            config,
+            null,
+            null,
+            TODAY,
+            { show: false, soonDays: 7, placement: 'title' },
+            allowed,
+            undefined,
+            undefined,
+            { color: 'note.priority', accent: 'note.project' }
+        )
+        expect(display.cardColor).toBe(HEAT_COLORS[0] ?? '')
+        expect(display.accentColor).toBe(paletteColor('[[Project A]]'))
+        expect(build('note.priority')).toBe(HEAT_COLORS[0] ?? '')
+    })
     it('follows a just-written value at once', () => {
         expect(build('note.priority', new Map([['priority', '30 - Low']]))).toBe(
             HEAT_COLORS[4] ?? ''

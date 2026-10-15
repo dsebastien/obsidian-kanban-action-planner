@@ -1520,9 +1520,10 @@ auto-archive and you never mass-archive by accident.
 ## Compact cards
 
 Press the **compact** button (the rows icon next to **Select**) to show **titles only**: covers,
-fields, badges, and relationship chips are hidden so far more cards fit on screen. Press it again
-to bring the details back. The toggle is **off by default** and is remembered **per view** (it's
-saved into the `.base` file, like the Board/Calendar/Triage mode).
+fields, badges, and relationship chips are hidden so far more cards fit on screen. Card colors and
+accent stripes or dots stay. Press it again to bring the details back. The toggle is **off by
+default** and is remembered **per view** (it's saved into the `.base` file, like the
+Board/Calendar/Triage mode).
 
 ## Other interactions
 
@@ -1615,6 +1616,10 @@ changing your notes. They're grouped:
   tint (the default) or a colored border. Color values (`#e5484d`, `red`) are used as is, ranked
   values (`10 - High`) follow the field colors, and any other value gets a stable color. See
   [Card color](configuration.md#card-color).
+- **Accent property** / **Accent style**: mark each card with a colored stripe on its left edge
+  (the default) or a dot before its title, from a property. Same colors as the card color, and
+  independent of it, so you can tint by priority and stripe by project. Shown in compact mode
+  too. See [Card accent](configuration.md#card-accent).
 - **Show due countdown**: show the `In 3d` / `2d overdue` badge on cards. Its position and the
   "soon" threshold are global plugin settings.
 - **Countdown counts down to**: whether that badge tracks the **deadline** (the due date, the
