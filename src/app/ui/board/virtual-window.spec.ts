@@ -1,11 +1,14 @@
 import { describe, expect, test } from 'bun:test'
 import {
     anchoredScrollTop,
+    captureKeyAnchor,
+    estimatedHeightUnits,
+    rangeBetween,
+    restoreKeyAnchor,
     cardTop,
     cardsExtent,
     dropSlot,
     effectiveScrollTop,
-    maxHeight,
     nextWindow,
     pickProbeIndices,
     revealScrollTop,
@@ -14,6 +17,7 @@ import {
     spacerHeights,
     visibleRange,
     VIRTUALIZE_MIN_CARDS,
+    VIRTUALIZE_OFF_BELOW,
     windowRange
 } from './virtual-window'
 import type { CardHeightFeatures, ColumnGeometry } from './virtual-window'
@@ -40,7 +44,13 @@ describe('shouldVirtualize', () => {
     test('long columns virtualize from the threshold on', () => {
         expect(shouldVirtualize(VIRTUALIZE_MIN_CARDS)).toBe(true)
         expect(shouldVirtualize(4888)).toBe(true)
-        expect(shouldVirtualize(10, 5)).toBe(true)
+    })
+
+    test('hysteresis: a virtual column stays virtual down to VIRTUALIZE_OFF_BELOW', () => {
+        expect(shouldVirtualize(VIRTUALIZE_OFF_BELOW, false)).toBe(false)
+        expect(shouldVirtualize(VIRTUALIZE_OFF_BELOW, true)).toBe(true)
+        expect(shouldVirtualize(VIRTUALIZE_OFF_BELOW - 1, true)).toBe(false)
+        expect(shouldVirtualize(VIRTUALIZE_MIN_CARDS - 1, true)).toBe(true)
     })
 })
 
@@ -307,9 +317,171 @@ describe('pickProbeIndices (height cache probes)', () => {
     })
 })
 
-describe('maxHeight', () => {
-    test('the tallest, 0 when empty', () => {
-        expect(maxHeight([76, 90, 12])).toBe(90)
-        expect(maxHeight([])).toBe(0)
+describe('nextWindow with no viewport (hidden leaf, tab switched away)', () => {
+    const g = geometry({ count: 4888, scrollTop: 84000, viewportHeight: 900 })
+
+    test('keeps the mounted window instead of unmounting everything', () => {
+        const mounted = nextWindow(null, g)
+        expect(mounted.end - mounted.start).toBeGreaterThan(20)
+        expect(nextWindow(mounted, { ...g, viewportHeight: 0 })).toEqual(mounted)
+    })
+
+    test('clamps a kept window to the cards left', () => {
+        const kept = nextWindow(
+            { start: 4870, end: 4888 },
+            { ...g, count: 4880, viewportHeight: 0 }
+        )
+        expect(kept).toEqual({ start: 4870, end: 4880 })
+    })
+
+    test('nothing mounted yet (or collapsed: current = null) mounts nothing', () => {
+        expect(nextWindow(null, { ...g, viewportHeight: 0 })).toEqual({ start: 0, end: 0 })
+    })
+})
+
+describe('padding', () => {
+    test('effectiveScrollTop and revealScrollTop honour an asymmetric bottom padding', () => {
+        const g = geometry({ count: 10, padBottom: 40, scrollTop: 9999 })
+        // 8 + 10*84 - 8 + 40 = 880 content, 400 viewport.
+        expect(effectiveScrollTop(g)).toBe(480)
+        const st = revealScrollTop(9, geometry({ count: 10, padBottom: 40 }))
+        expect((st ?? 0) + 400).toBe(cardTop(9, 76, 8, 8) + 76 + 40)
+    })
+})
+
+describe('key anchors (inserts / removals above the view)', () => {
+    const keys = Array.from({ length: 1000 }, (_, i) => `k${String(i)}`)
+    const keyAt = (list: string[]) => (i: number) => list[i]
+    const indexIn = (list: string[]) => (key: string) => list.indexOf(key)
+
+    test('no anchor at the top of the list (it stays at the top)', () => {
+        expect(captureKeyAnchor(keys.length, keyAt(keys), geometry())).toBeNull()
+    })
+
+    test('a card removed above the view: the view keeps showing the same cards', () => {
+        const scrollTop = cardTop(300, 76, 8, 8) + 20
+        const anchor = captureKeyAnchor(keys.length, keyAt(keys), geometry({ scrollTop }))
+        expect(anchor?.keys[0]).toBe('k300')
+        const after = keys.filter((k) => k !== 'k5')
+        const st = restoreKeyAnchor(anchor ?? { keys: [], offset: 0 }, indexIn(after), 76, 8, 8)
+        expect(st).toBe(scrollTop - 84)
+    })
+
+    test('a card inserted above the view moves the offset down one slot', () => {
+        const scrollTop = cardTop(300, 76, 8, 8) + 20
+        const anchor = captureKeyAnchor(keys.length, keyAt(keys), geometry({ scrollTop }))
+        const after = ['new', ...keys]
+        expect(restoreKeyAnchor(anchor ?? { keys: [], offset: 0 }, indexIn(after), 76, 8, 8)).toBe(
+            scrollTop + 84
+        )
+    })
+
+    test('a drag from card 5 to slot 210 while looking at slot 210 keeps the view', () => {
+        const scrollTop = cardTop(205, 76, 8, 8)
+        const anchor = captureKeyAnchor(keys.length, keyAt(keys), geometry({ scrollTop }))
+        const moved = keys.filter((k) => k !== 'k5')
+        moved.splice(210, 0, 'k5')
+        const st = restoreKeyAnchor(anchor ?? { keys: [], offset: 0 }, indexIn(moved), 76, 8, 8)
+        // k205 is now at index 204: the view moves up one slot with it.
+        expect(st).toBe(cardTop(204, 76, 8, 8))
+    })
+
+    test('the top card itself is gone: the next surviving card keeps its place', () => {
+        const scrollTop = cardTop(300, 76, 8, 8) + 10
+        const anchor = captureKeyAnchor(keys.length, keyAt(keys), geometry({ scrollTop }))
+        const after = keys.filter((k) => k !== 'k300' && k !== 'k301')
+        const st = restoreKeyAnchor(anchor ?? { keys: [], offset: 0 }, indexIn(after), 76, 8, 8)
+        // k302 was 2 slots below the top card and is now at index 300.
+        expect(st).toBe(cardTop(300, 76, 8, 8) + 10 - 2 * 84)
+    })
+
+    test('nothing left of the anchor: null (keep the raw offset)', () => {
+        expect(restoreKeyAnchor({ keys: ['gone'], offset: 3 }, () => -1, 76, 8, 8)).toBeNull()
+    })
+})
+
+// Brute-force equivalence with the full render (adversarial review of 0718a58).
+describe('equivalence with the full render (brute force)', () => {
+    /** Legacy full-render hit test: first non-dragged card whose middle is below y. */
+    function legacy(
+        count: number,
+        h: number,
+        gap: number,
+        pad: number,
+        y: number,
+        dragged: number
+    ) {
+        const cards: number[] = []
+        for (let i = 0; i < count; i++) if (i !== dragged) cards.push(i)
+        let index = cards.length
+        for (let k = 0; k < cards.length; k++) {
+            const top = cardTop(cards[k] ?? 0, h, gap, pad)
+            if (y < top + h / 2) {
+                index = k
+                break
+            }
+        }
+        return index
+    }
+
+    test('dropSlot == the legacy hit test', () => {
+        for (const count of [1, 2, 99, 100, 101, 250]) {
+            for (const h of [44, 76, 75.4]) {
+                for (const dragged of [-1, 0, 1, Math.floor(count / 2), count - 1]) {
+                    for (let y = -50; y < count * (h + 8) + 60; y += 3.7) {
+                        const got = dropSlot(
+                            { count, cardHeight: h, gap: 8, padTop: 8 },
+                            y,
+                            dragged
+                        )
+                        expect(got.index).toBe(legacy(count, h, 8, 8, y, dragged))
+                    }
+                }
+            }
+        }
+    })
+
+    test('rangeBetween == brute-force intersection', () => {
+        const h = 76
+        for (const count of [1, 100, 333]) {
+            for (let top = -900; top < count * 84; top += 13.3) {
+                const bottom = top + 517
+                const g = geometry({ count, viewportHeight: 1 })
+                const r = rangeBetween(g, top, bottom)
+                const hits: number[] = []
+                for (let i = 0; i < count; i++) {
+                    const t = cardTop(i, h, 8, 8)
+                    if (t + h > top && t < bottom) hits.push(i)
+                }
+                if (hits.length === 0) expect(r.start).toBe(r.end)
+                else
+                    expect(r).toEqual({
+                        start: hits[0] ?? -1,
+                        end: (hits[hits.length - 1] ?? -1) + 1
+                    })
+            }
+        }
+    })
+
+    test('probes include a card tallest only by COMBINING features', () => {
+        const f: CardHeightFeatures[] = []
+        const add = (n: number, x: CardHeightFeatures): void => {
+            for (let i = 0; i < n; i++) f.push(x)
+        }
+        add(10, { titleLength: 200, hasCover: false, bodyRows: 0, bodyLength: 0 })
+        add(10, { titleLength: 5, hasCover: false, bodyRows: 4, bodyLength: 40 })
+        add(10, { titleLength: 120, hasCover: true, bodyRows: 0, bodyLength: 0 })
+        add(100, { titleLength: 10, hasCover: false, bodyRows: 0, bodyLength: 0 })
+        const tallest = f.length
+        f.push({ titleLength: 110, hasCover: true, bodyRows: 3, bodyLength: 30 })
+        expect(pickProbeIndices(f, 8)).toContain(tallest)
+        expect(
+            estimatedHeightUnits(
+                f[tallest] ??
+                    f[0] ?? { titleLength: 0, hasCover: false, bodyRows: 0, bodyLength: 0 }
+            )
+        ).toBeGreaterThan(
+            estimatedHeightUnits({ titleLength: 120, hasCover: true, bodyRows: 0, bodyLength: 0 })
+        )
     })
 })

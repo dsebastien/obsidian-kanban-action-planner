@@ -23,6 +23,13 @@
 /** A column virtualizes only from this many cards: smaller columns render every card, as before. */
 export const VIRTUALIZE_MIN_CARDS = 100
 
+/**
+ * A virtualized column stays virtualized down to this many cards
+ * (hysteresis), so a column hovering around the threshold does not flip
+ * between the two renderings on every card that comes and goes.
+ */
+export const VIRTUALIZE_OFF_BELOW = 90
+
 /** How far (px) beyond a column's visible area cards stay mounted, on each side. */
 export const OVERSCAN_PX = 800
 
@@ -45,15 +52,25 @@ export interface ColumnGeometry {
     gap: number
     /** The card list's top padding (px). */
     padTop: number
+    /** The card list's bottom padding (px); defaults to {@link padTop}. */
+    padBottom?: number
     /** The card list's current `scrollTop`. */
     scrollTop: number
     /** The card list's visible height (`clientHeight`). */
     viewportHeight: number
 }
 
-/** Whether a column of `count` cards is virtualized. */
-export function shouldVirtualize(count: number, threshold = VIRTUALIZE_MIN_CARDS): boolean {
-    return count >= threshold
+/**
+ * Whether a column of `count` cards is virtualized: from `threshold` cards
+ * on, and, once virtualized (`wasVirtual`), until it drops below `offBelow`.
+ */
+export function shouldVirtualize(
+    count: number,
+    wasVirtual = false,
+    threshold = VIRTUALIZE_MIN_CARDS,
+    offBelow = VIRTUALIZE_OFF_BELOW
+): boolean {
+    return count >= threshold || (wasVirtual && count >= Math.min(offBelow, threshold))
 }
 
 /** Distance (px) from one card's top to the next card's top. */
@@ -76,8 +93,8 @@ function clamp(n: number, lo: number, hi: number): number {
  * longer list is clamped by the browser to the new extent (content shrank:
  * filtering, a move out), so the window is computed against that.
  */
-export function effectiveScrollTop(g: ColumnGeometry, padBottom = g.padTop): number {
-    const content = g.padTop + cardsExtent(g.count, g.cardHeight, g.gap) + padBottom
+export function effectiveScrollTop(g: ColumnGeometry): number {
+    const content = g.padTop + cardsExtent(g.count, g.cardHeight, g.gap) + (g.padBottom ?? g.padTop)
     return clamp(g.scrollTop, 0, Math.max(0, content - g.viewportHeight))
 }
 
@@ -113,6 +130,11 @@ export function windowRange(g: ColumnGeometry, overscan = OVERSCAN_PX): IndexRan
  * while it still covers every visible card with `margin` px to spare, so a
  * scroll does not touch the DOM on every frame: it remounts (a full overscan
  * window) only once the visible area nears the window's edge.
+ *
+ * No viewport (a hidden leaf, a tab switched away) keeps the mounted window
+ * (clamped to the cards left), so coming back shows the same nodes, covers
+ * loaded, instead of rebuilding everything. A collapsed column passes
+ * `current = null` and mounts nothing.
  */
 export function nextWindow(
     current: IndexRange | null,
@@ -120,8 +142,14 @@ export function nextWindow(
     overscan = OVERSCAN_PX,
     margin = overscan / 4
 ): IndexRange {
+    if (g.viewportHeight <= 0) {
+        if (current === null) return { start: 0, end: 0 }
+        if (current.end <= g.count) return current
+        const end = g.count
+        return { start: Math.min(current.start, end), end }
+    }
     const wanted = windowRange(g, overscan)
-    if (current === null || g.viewportHeight <= 0) return wanted
+    if (current === null) return wanted
     if (current.end > g.count) return wanted
     const top = effectiveScrollTop(g)
     const needed = rangeBetween(g, top - margin, top + g.viewportHeight + margin)
@@ -207,10 +235,11 @@ export function revealScrollTop(index: number, g: ColumnGeometry): number | null
     const viewTop = g.scrollTop
     const viewBottom = g.scrollTop + g.viewportHeight
     if (top >= viewTop && bottom <= viewBottom) return null
-    if (top < viewTop || g.cardHeight + 2 * g.padTop > g.viewportHeight) {
+    const padBottom = g.padBottom ?? g.padTop
+    if (top < viewTop || g.cardHeight + g.padTop + padBottom > g.viewportHeight) {
         return Math.max(0, top - g.padTop)
     }
-    return Math.max(0, bottom + g.padTop - g.viewportHeight)
+    return Math.max(0, bottom + padBottom - g.viewportHeight)
 }
 
 /** Where a dragged card would land in a virtual column, and the insertion line's neighbors. */
@@ -290,12 +319,81 @@ export function pickProbeIndices(
     take((f) => f.titleLength)
     take((f) => f.bodyRows * 1000 + f.bodyLength)
     take((f) => (f.hasCover ? 1_000_000 : 0) + f.titleLength)
+    // A card can be tallest by COMBINING features while ranking below the
+    // top few on each one alone: also rank by an estimate of its total height.
+    take((f) => estimatedHeightUnits(f))
     return [...picked].sort((a, b) => a - b)
 }
 
-/** The tallest of `heights` (0 when empty). */
-export function maxHeight(heights: Iterable<number>): number {
-    let max = 0
-    for (const h of heights) if (h > max) max = h
-    return max
+/**
+ * A rough height estimate in "text lines", only good for ranking: the title
+ * wraps up to three lines (~30 characters each), a cover counts as four
+ * lines, each body row as one plus one per ~40 characters of field text.
+ */
+export function estimatedHeightUnits(f: CardHeightFeatures): number {
+    const titleLines = Math.min(3, Math.max(1, Math.ceil(f.titleLength / 30)))
+    return titleLines + (f.hasCover ? 4 : 0) + f.bodyRows + Math.floor(f.bodyLength / 40)
+}
+
+/**
+ * A column's scroll position tied to the cards at the top of its viewport,
+ * so it survives cards being inserted or removed above the view (a drop
+ * from higher up, an archive, a live update): `keys` are the first visible
+ * card and the ones after it (fallbacks when it is gone), `offset` is how far
+ * into the first one the viewport starts.
+ */
+export interface KeyAnchor {
+    keys: string[]
+    offset: number
+}
+
+/** How many following cards a {@link KeyAnchor} keeps as fallbacks. */
+const KEY_ANCHOR_FALLBACKS = 64
+
+/**
+ * Capture a {@link KeyAnchor} for the list's current scroll offset, or null
+ * when the list is at its top (it stays at the top, like the browser's own
+ * scroll anchoring) or holds no card.
+ */
+export function captureKeyAnchor(
+    count: number,
+    keyAt: (index: number) => string | undefined,
+    g: ColumnGeometry
+): KeyAnchor | null {
+    const geo = { ...g, count }
+    const top = effectiveScrollTop(geo)
+    if (top <= 0 || count === 0) return null
+    const index = rangeBetween(geo, top, top + 1).start
+    if (index >= count) return null
+    const keys: string[] = []
+    for (let i = index; i < Math.min(count, index + KEY_ANCHOR_FALLBACKS); i++) {
+        const key = keyAt(i)
+        if (key !== undefined) keys.push(key)
+    }
+    return { keys, offset: top - cardTop(index, g.cardHeight, g.gap, g.padTop) }
+}
+
+/**
+ * The `scrollTop` that keeps a {@link KeyAnchor}'s cards where they were on
+ * screen after the column's cards changed: the first anchor card that is
+ * still in the column goes back to its old screen position (a card that was
+ * `k` slots below the top one keeps that distance). Null when none of them
+ * is left (keep the raw offset).
+ */
+export function restoreKeyAnchor(
+    anchor: KeyAnchor,
+    indexOf: (key: string) => number,
+    cardHeight: number,
+    gap: number,
+    padTop: number
+): number | null {
+    const pitch = cardPitch(cardHeight, gap)
+    for (let k = 0; k < anchor.keys.length; k++) {
+        const key = anchor.keys[k]
+        if (key === undefined) continue
+        const index = indexOf(key)
+        if (index < 0) continue
+        return Math.max(0, cardTop(index, cardHeight, gap, padTop) + anchor.offset - k * pitch)
+    }
+    return null
 }
