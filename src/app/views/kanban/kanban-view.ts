@@ -202,6 +202,7 @@ import type { EmbedParams } from '../../domain/embed-params'
 import { CalendarDnd } from '../../ui/calendar/calendar-dnd'
 import { formatDate } from '../../utils/momentjs'
 import { boardStructureWillChange, patchBoard } from '../../ui/board/board-renderer'
+import { LazyImages } from '../../ui/board/lazy-images'
 import {
     anchorScrollDelta,
     captureBoardScroll,
@@ -465,6 +466,8 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
     private filterBar: FilterBar | null = null
     private boardEl: HTMLElement | null = null
     private dnd: BoardDnd | null = null
+    /** Loads card covers as they near view (see {@link LazyImages}). */
+    private readonly lazyImages = new LazyImages()
     private columnDnd: ColumnDnd | null = null
     /** Phone-only column chips above the board (issue #194). */
     private columnSwitcher: ColumnSwitcher | null = null
@@ -1173,6 +1176,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
 
     override onunload(): void {
         this.alive = false
+        this.lazyImages.dispose()
         this.plugin.orderNormalizer.cancelOwner(this)
         // Pops the pushed Esc keymap scope (a leaked scope outlives the view).
         this.exitColumnTriage(false)
@@ -1984,6 +1988,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         )
         if (scrolls) restoreBoardScroll(this.boardEl, scrolls)
         if (anchors) this.restoreColumnAnchors(anchors)
+        this.lazyImages.sync(this.boardEl)
         this.selection?.refresh()
 
         // All cards share one height (the tallest card's). Synchronous (before

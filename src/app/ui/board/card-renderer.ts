@@ -3,6 +3,7 @@ import type { CardRelationships } from '../../services/relationships.service'
 import { hasAnyRelationship } from '../../services/relationships.service'
 import type { BudgetRing } from '../../domain/budget'
 import type { CardCountdown, KanbanCard } from './types'
+import { deferImage } from './lazy-images'
 
 /** Append the due-countdown badge to `parent`, tagged by placement + tone (issue #62). */
 function renderCountdown(parent: HTMLElement, cd: CardCountdown): void {
@@ -89,9 +90,11 @@ export function renderCard(
 
     if (card.display.coverUrl) {
         const cover = el.createDiv({ cls: 'kap-card-cover' })
-        cover.createEl('img', {
-            attr: { src: card.display.coverUrl, alt: card.display.title, loading: 'lazy' }
-        })
+        // Loaded when it nears view (LazyImages), placeholder until then.
+        deferImage(
+            cover.createEl('img', { attr: { alt: card.display.title } }),
+            card.display.coverUrl
+        )
     }
 
     // Title row is a flex line: the title takes the slack (ellipsis), the badge
@@ -99,11 +102,10 @@ export function renderCard(
     const titleEl = el.createDiv({ cls: 'kap-card-title' })
     // Compact mode's cover: a small thumbnail before the title, so a titles-only
     // board stays recognizable. Hidden outside compact mode (CSS), so toggling
-    // compact needs no rebuild; a hidden lazy image is not fetched.
+    // compact needs no rebuild; a hidden image is never fetched (LazyImages).
     if (card.display.coverUrl) {
-        titleEl
-            .createSpan({ cls: 'kap-card-thumb', attr: { 'aria-hidden': 'true' } })
-            .createEl('img', { attr: { src: card.display.coverUrl, alt: '', loading: 'lazy' } })
+        const thumb = titleEl.createSpan({ cls: 'kap-card-thumb', attr: { 'aria-hidden': 'true' } })
+        deferImage(thumb.createEl('img', { attr: { alt: '' } }), card.display.coverUrl)
     }
     // Shown only under the dot accent style (CSS), so switching styles needs no rebuild.
     if (mark) titleEl.createSpan({ cls: 'kap-card-mark-dot', attr: { 'aria-hidden': 'true' } })

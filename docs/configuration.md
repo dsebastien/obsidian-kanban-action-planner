@@ -484,7 +484,9 @@ Two more options shape the cover, like in the core Cards view:
 ![A compact board game board: each cover becomes a thumbnail before the title]({{ '/images/card-cover-thumbnails.png' | relative_url }})
 
 The box has its size before the image loads, so cards don't jump around while images come in,
-and images of different sizes all get the same box. On very wide columns, the box stops growing
+and images of different sizes all get the same box. Images load as you scroll: only the covers
+near the visible part of each column are fetched, and the box pulses softly until its image
+arrives, so a board with thousands of covers opens without loading all of them. On very wide columns, the box stops growing
 at about half the screen height.
 
 | Setting                | Scope     | Default      | What it does                                                           |

@@ -1103,6 +1103,25 @@
     .kap-compact .kap-card-title:has(.kap-card-thumb) {
         align-items: center;
     }
+    /* Card image placeholder (LazyImages): the box already has its final size,
+       so it just shows a soft pulse until its image arrives; no reflow. */
+    .kap-img-loading {
+        background: var(--background-modifier-hover);
+    }
+    .kap-img-loading img {
+        visibility: hidden;
+    }
+    @media (prefers-reduced-motion: no-preference) {
+        .kap-img-loading {
+            animation: kap-img-pulse 1.4s ease-in-out infinite;
+        }
+    }
+    @keyframes kap-img-pulse {
+        50% {
+            opacity: 0.55;
+        }
+    }
+
     .kap-card-thumb img {
         display: block;
         width: 100%;
