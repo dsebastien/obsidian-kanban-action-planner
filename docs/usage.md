@@ -1522,7 +1522,9 @@ auto-archive and you never mass-archive by accident.
 Press the **compact** button (the rows icon next to **Select**) to show **titles only**: fields,
 badges, and relationship chips are hidden so far more cards fit on screen. Card colors and accent
 stripes or dots stay, and a cover shrinks to a small thumbnail before the title, so a media board
-stays easy to scan. Press it again to bring the details back. The toggle is **off by
+stays easy to scan.
+
+![A compact board game board with cover thumbnails]({{ '/images/card-cover-thumbnails.png' | relative_url }}) Press it again to bring the details back. The toggle is **off by
 default** and is remembered **per view** (it's saved into the `.base` file, like the
 Board/Calendar/Triage mode).
 

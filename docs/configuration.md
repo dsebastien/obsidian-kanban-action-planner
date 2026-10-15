@@ -479,6 +479,10 @@ Two more options shape the cover, like in the core Cards view:
   to the column width. Pick **2:3** for movie posters, book covers and comics, **3:4** for game box art, **1:1** for
   album art.
 
+![A movie board with whole 2:3 posters as covers]({{ '/images/card-covers.png' | relative_url }})
+
+![A compact board game board: each cover becomes a thumbnail before the title]({{ '/images/card-cover-thumbnails.png' | relative_url }})
+
 The box has its size before the image loads, so cards don't jump around while images come in,
 and images of different sizes all get the same box. On very wide columns, the box stops growing
 at about half the screen height.
@@ -508,6 +512,8 @@ The color comes from the card's value:
    `[[Project A|A]]` count as the same value.
 
 A list property uses its first value. A card without a value keeps the normal look.
+
+![A task board tinted by priority, with a stripe per project]({{ '/images/card-colors.png' | relative_url }})
 
 **Card color style** sets how the color shows:
 
