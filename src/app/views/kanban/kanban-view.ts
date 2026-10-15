@@ -286,6 +286,8 @@ import {
     laneValueForLaneId,
     normalizeLaneValue,
     readCompactMode,
+    readCoverLayout,
+    COVER_ASPECTS,
     readIdArray,
     readLaneGroupingOverride,
     readSortMode,
@@ -1782,6 +1784,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         // Compact cards apply to the board only (the calendar's scheduling panel
         // and the triage card keep their full layout).
         this.boardEl.toggleClass('kap-compact', this.compactMode() && this.viewMode() === 'board')
+        this.applyCardPresentation()
 
         // Resolve the column set BEFORE the mode branches: `cardColumns` (the
         // menu's Set-status list, the WBS status dots) reads `this.columns`,
@@ -2072,7 +2075,8 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
      * {@link applyFilterAndRender} and the mode renderers:
      *
      * - All gated modes: the view mode, the filter query (drives the card
-     *   set, the match count and the zoom chip) and the compact flag.
+     *   set, the match count and the zoom chip), the compact flag and the
+     *   card presentation options ({@link cardPresentationKey}).
      * - Board: the grouped/sorted board model — lane/column structure,
      *   labels, counts, colors, WIP limits, lane/column collapse state, and
      *   every card's rendered content signature in position
@@ -2087,7 +2091,12 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
      */
     private renderPassSignature(mode: ViewMode, cards: KanbanCard[]): string | null {
         if (mode !== 'board' && mode !== 'calendar' && mode !== 'timeline') return null
-        const common: unknown[] = [mode, this.filterQuery, this.compactMode()]
+        const common: unknown[] = [
+            mode,
+            this.filterQuery,
+            this.compactMode(),
+            this.cardPresentationKey()
+        ]
         if (mode === 'board') {
             return renderPassSignature([
                 ...common,
@@ -2336,6 +2345,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         contents.sort()
         return [
             this.compactMode() && this.viewMode() === 'board' ? 'c' : '',
+            this.cardPresentationKey(),
             structureSignature(board),
             [...this.collapsedLanes].sort().join(','),
             [...this.collapsedColumns].sort().join(','),
@@ -5706,6 +5716,29 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             this.wbs?.resetNarrow()
             this.wbs?.evaluatePanelAutoCollapse()
         }
+    }
+
+    /**
+     * Board-wide card presentation classes from the view options (cover fit and
+     * shape). Applied as classes on the board host, so the CSS does the layout:
+     * no per-card inline styles, and a change needs no card rebuild. Their
+     * values also go into the render and height signatures, so the pass that
+     * follows a change re-measures the uniform card height.
+     */
+    private applyCardPresentation(): void {
+        const el = this.boardEl
+        if (!el) return
+        const cover = readCoverLayout(this.viewConfig)
+        el.toggleClass('kap-cover-fit-contain', cover.fit === 'contain')
+        for (const aspect of COVER_ASPECTS) {
+            el.toggleClass(`kap-cover-ratio-${aspect}`, cover.aspect === aspect)
+        }
+    }
+
+    /** The presentation inputs {@link applyCardPresentation} reads, for the signatures. */
+    private cardPresentationKey(): string {
+        const cover = readCoverLayout(this.viewConfig)
+        return `${cover.fit}|${cover.aspect}`
     }
 
     /** Whether compact cards (title only) are active (board mode). */

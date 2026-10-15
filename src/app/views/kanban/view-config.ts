@@ -185,6 +185,44 @@ export function readCompactMode(config: ConfigReader): boolean {
 }
 
 /**
+ * How a card cover fills its box (view option `coverFit`): `cover` crops the
+ * image to fill it (default), `contain` shows the whole image, letterboxed.
+ */
+export type CoverFit = 'cover' | 'contain'
+
+/**
+ * The cover box shape (view option `coverAspect`). `banner` is a fixed-height
+ * strip (the look covers had before the option existed, and the default); the
+ * others are width:height ratios, `2x3` being the poster shape.
+ */
+export type CoverAspect = 'banner' | '16x9' | '3x2' | '4x3' | '1x1' | '2x3'
+
+export const COVER_ASPECTS: ReadonlyArray<CoverAspect> = [
+    'banner',
+    '16x9',
+    '3x2',
+    '4x3',
+    '1x1',
+    '2x3'
+]
+
+/** The per-view cover layout; unknown or missing values fall back to the defaults. */
+export interface CoverLayout {
+    fit: CoverFit
+    aspect: CoverAspect
+}
+
+/** Read the per-view cover layout (`coverFit`, `coverAspect`), default-on-missing. */
+export function readCoverLayout(config: ConfigReader): CoverLayout {
+    const fit = config.get('coverFit')
+    const aspect = config.get('coverAspect')
+    return {
+        fit: fit === 'contain' ? 'contain' : 'cover',
+        aspect: COVER_ASPECTS.find((a) => a === aspect) ?? 'banner'
+    }
+}
+
+/**
  * Normalize a raw frontmatter value into a swimlane key, or `null` (→
  * Ungrouped). Same rules as a status: a List-typed property groups on its
  * first usable entry (issue #219).

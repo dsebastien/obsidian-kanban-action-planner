@@ -201,6 +201,35 @@ export function getKanbanViewOptions(app: App, settings: PluginSettings): BasesA
                     filter: readOnlyPropertyFilter
                 },
                 {
+                    // Mirrors the core Cards view's image fit. Read by
+                    // readCoverLayout (view-config.ts).
+                    type: 'dropdown',
+                    key: 'coverFit',
+                    displayName: 'Cover fit',
+                    default: 'cover',
+                    options: {
+                        cover: 'Crop to fill',
+                        contain: 'Show the whole image'
+                    }
+                },
+                {
+                    // `banner` keeps the fixed-height strip covers always had;
+                    // the ratios reserve the box up front so cards don't jump
+                    // while images load. `2x3` suits posters and book covers.
+                    type: 'dropdown',
+                    key: 'coverAspect',
+                    displayName: 'Cover aspect ratio',
+                    default: 'banner',
+                    options: {
+                        'banner': 'Banner (fixed height)',
+                        '16x9': '16:9',
+                        '3x2': '3:2',
+                        '4x3': '4:3',
+                        '1x1': '1:1 (square)',
+                        '2x3': '2:3 (poster)'
+                    }
+                },
+                {
                     type: 'toggle',
                     // Visibility is per-view (issue #62); the badge position and the
                     // "soon" color threshold are global (plugin settings).

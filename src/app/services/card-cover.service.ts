@@ -1,5 +1,5 @@
 import { TFile } from 'obsidian'
-import type { TAbstractFile } from 'obsidian'
+import type { TAbstractFile, Value } from 'obsidian'
 
 /**
  * What a card-cover property value points at (pure parse, no vault access):
@@ -12,6 +12,55 @@ export type CoverReference =
     | { kind: 'url'; url: string }
     | { kind: 'link'; linkpath: string }
     | { kind: 'path'; path: string }
+
+/** The list surface of a Bases `ListValue` (public API: `length()` + `get(i)`). */
+interface ListValueLike {
+    length(): number
+    get(index: number): unknown
+}
+
+function isListValueLike(value: object): value is ListValueLike {
+    return (
+        'length' in value &&
+        typeof value.length === 'function' &&
+        'get' in value &&
+        typeof value.get === 'function'
+    )
+}
+
+/** At most this many list items are inspected (a cover only needs the first usable one). */
+const MAX_LIST_ITEMS = 50
+
+/**
+ * Turn a Bases `Value` (as returned by `BasesEntry.getValue`) into the raw
+ * shape {@link firstCoverText} reads: a string, or an array for a list.
+ *
+ * Reading `toString()` on the value as a whole is not enough: a `ListValue`
+ * joins its items (`[[a.jpg]], [[b.jpg]]`), which is no longer one link. So a
+ * list is unwrapped item by item (nested lists too). Every other value uses its
+ * own string form, which Bases makes parseable for the image-bearing types:
+ * `ImageValue` (the `image()` formula) → `![](https://…)` or `![[path]]`,
+ * `LinkValue` → `[[path|display]]`, `FileValue` → the vault path,
+ * `UrlValue` → the URL. `NullValue` → "null" (no cover).
+ */
+export function coverRawFromValue(value: unknown, depth = 0): unknown {
+    if (value === null || value === undefined) return null
+    if (typeof value === 'string' || Array.isArray(value)) return value
+    if (typeof value !== 'object') return null
+    if (isListValueLike(value)) {
+        if (depth > 3) return null
+        const count = Math.min(value.length(), MAX_LIST_ITEMS)
+        const items: unknown[] = []
+        for (let i = 0; i < count; i++) items.push(coverRawFromValue(value.get(i), depth + 1))
+        return items
+    }
+    return isBasesValue(value) ? value.toString() : null
+}
+
+/** A Bases `Value`: every one has its own string form (structural check, no `instanceof`). */
+function isBasesValue(value: object): value is Value {
+    return 'toString' in value && typeof value.toString === 'function'
+}
 
 /** First non-empty string of a raw frontmatter / Bases value (lists → first item). */
 export function firstCoverText(raw: unknown): string | null {
@@ -45,7 +94,8 @@ export function parseCoverReference(raw: unknown): CoverReference | null {
         return linkpath ? { kind: 'link', linkpath } : null
     }
 
-    const md = /^!\[[^\]]*\]\(([^)]+)\)$/.exec(text)
+    // Greedy target: a URL may itself hold parentheses (`File:Poster_(1999).jpg`).
+    const md = /^!\[[^\]]*\]\((.+)\)$/.exec(text)
     if (md?.[1] !== undefined) {
         let target = md[1].trim()
         if (target.startsWith('<') && target.endsWith('>')) target = target.slice(1, -1)

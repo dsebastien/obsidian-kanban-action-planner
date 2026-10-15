@@ -6,6 +6,7 @@ import {
     laneChangeBlockedReason,
     normalizeLaneValue,
     readCompactMode,
+    readCoverLayout,
     readIdArray,
     readLaneGroupingOverride,
     readSortMode,
@@ -231,6 +232,26 @@ describe('resolveEffectiveLaneGrouping (mixed-type boards)', () => {
         ).toEqual({ kind: 'property', property: 'note.area' })
         expect(resolveEffectiveLaneGrouping(null, { kind: 'note-type' }, 2)).toEqual({
             kind: 'note-type'
+        })
+    })
+})
+
+describe('readCoverLayout', () => {
+    it('defaults to a cropped banner (the look before the options existed)', () => {
+        expect(readCoverLayout(config({}))).toEqual({ fit: 'cover', aspect: 'banner' })
+    })
+    it('reads the stored fit and aspect ratio', () => {
+        expect(readCoverLayout(config({ coverFit: 'contain', coverAspect: '2x3' }))).toEqual({
+            fit: 'contain',
+            aspect: '2x3'
+        })
+        expect(readCoverLayout(config({ coverAspect: '16x9' })).aspect).toBe('16x9')
+        expect(readCoverLayout(config({ coverAspect: '1x1' })).aspect).toBe('1x1')
+    })
+    it('falls back to the defaults for unknown values', () => {
+        expect(readCoverLayout(config({ coverFit: 'stretch', coverAspect: '21x9' }))).toEqual({
+            fit: 'cover',
+            aspect: 'banner'
         })
     })
 })

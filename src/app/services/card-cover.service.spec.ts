@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'bun:test'
 import { TFile, TFolder } from 'obsidian'
-import { firstCoverText, parseCoverReference, resolveCoverUrl } from './card-cover.service'
+import {
+    coverRawFromValue,
+    firstCoverText,
+    parseCoverReference,
+    resolveCoverUrl
+} from './card-cover.service'
 import type { CoverApp } from './card-cover.service'
 
 const fileAt = (path: string): TFile => Object.assign(new TFile(), { path })
@@ -25,6 +30,43 @@ function appWith(
         }
     }
 }
+
+/** A Bases value double: anything with a string form (Image/Link/File/Url/NullValue). */
+const valueOf = (text: string): { toString(): string } => ({ toString: (): string => text })
+
+/** A Bases `ListValue` double (public surface: `length()` + `get(i)`). */
+const listOf = (...items: unknown[]): { length(): number; get(i: number): unknown } => ({
+    length: (): number => items.length,
+    get: (i: number): unknown => items[i] ?? valueOf('null')
+})
+
+describe('coverRawFromValue (Bases values)', () => {
+    it('uses the string form of single values', () => {
+        // image("https://…") and image("path") as Bases prints them
+        expect(coverRawFromValue(valueOf('![](https://x/y.png)'))).toBe('![](https://x/y.png)')
+        expect(coverRawFromValue(valueOf('![[att/Poster.jpg]]'))).toBe('![[att/Poster.jpg]]')
+        // LinkValue, FileValue
+        expect(coverRawFromValue(valueOf('[[Poster.jpg|Poster.jpg]]'))).toBe(
+            '[[Poster.jpg|Poster.jpg]]'
+        )
+        expect(coverRawFromValue(valueOf('att/Poster.jpg'))).toBe('att/Poster.jpg')
+    })
+    it('unwraps lists item by item instead of their joined string', () => {
+        const list = listOf(valueOf('[[a.jpg]]'), valueOf('[[b.jpg]]'))
+        expect(coverRawFromValue(list)).toEqual(['[[a.jpg]]', '[[b.jpg]]'])
+        expect(firstCoverText(coverRawFromValue(list))).toBe('[[a.jpg]]')
+        expect(
+            firstCoverText(coverRawFromValue(listOf(valueOf('null'), listOf(valueOf('x.png')))))
+        ).toBe('x.png')
+    })
+    it('passes raw strings and arrays through and drops the rest', () => {
+        expect(coverRawFromValue('a.jpg')).toBe('a.jpg')
+        expect(coverRawFromValue(['a.jpg'])).toEqual(['a.jpg'])
+        expect(coverRawFromValue(null)).toBeNull()
+        expect(coverRawFromValue(undefined)).toBeNull()
+        expect(coverRawFromValue(42)).toBeNull()
+    })
+})
 
 describe('firstCoverText', () => {
     it('trims strings and drops empties / "null"', () => {
@@ -68,6 +110,22 @@ describe('parseCoverReference', () => {
         expect(parseCoverReference('![](a/My%20Cover.png)')).toEqual({
             kind: 'link',
             linkpath: 'a/My Cover.png'
+        })
+    })
+    it('keeps parentheses inside a Markdown image target', () => {
+        expect(parseCoverReference('![](https://x/File:Poster_(1999).jpg)')).toEqual({
+            kind: 'url',
+            url: 'https://x/File:Poster_(1999).jpg'
+        })
+    })
+    it('parses what the image() formula prints', () => {
+        expect(parseCoverReference('![](https://img.example/p.jpg)')).toEqual({
+            kind: 'url',
+            url: 'https://img.example/p.jpg'
+        })
+        expect(parseCoverReference('![[att/My Poster.jpg]]')).toEqual({
+            kind: 'link',
+            linkpath: 'att/My Poster.jpg'
         })
     })
     it('treats anything else as a vault path', () => {

@@ -1606,8 +1606,11 @@ changing your notes. They're grouped:
 - **Title property**: show a property as the card heading instead of the note name (falls back
   to the note name when it is missing or empty). Formulas allowed.
 - **Cover property**: show an image at the top of each card, from a property or formula holding
-  an `http(s)` URL, a `[[wikilink]]` / `![[embed]]` or a vault path. Empty = no covers; hidden in
-  compact mode. See [Card cover](configuration.md#card-cover).
+  an `http(s)` URL, a `[[wikilink]]` / `![[embed]]`, a vault path, or an `image()` formula.
+  Empty = no covers; hidden in compact mode. See [Card cover](configuration.md#card-cover).
+- **Cover fit** / **Cover aspect ratio**: crop covers to fill their box (the default) or show the
+  whole image, and pick the box shape: a fixed-height banner (the default) or 16:9, 3:2, 4:3, 1:1
+  or 2:3 for posters.
 - **Show due countdown**: show the `In 3d` / `2d overdue` badge on cards. Its position and the
   "soon" threshold are global plugin settings.
 - **Countdown counts down to**: whether that badge tracks the **deadline** (the due date, the

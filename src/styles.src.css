@@ -1086,7 +1086,15 @@
         display: none;
     }
 
+    /* Card cover. The BOX is sized up front (a fixed-height banner by default,
+       or an aspect ratio from the board's Cover aspect ratio option), so a card
+       never changes height when its lazy image arrives and images of different
+       sizes all get the same box. The image fills the box: cropped by default,
+       letterboxed with `.kap-cover-fit-contain`. The board-level classes live on
+       the board host (applyCardPresentation). */
     .kap-card-cover {
+        flex: none;
+        height: 7rem;
         margin: calc(-1 * var(--size-4-2, 0.5rem)) calc(-1 * var(--size-4-3, 0.75rem))
             var(--size-4-2, 0.5rem);
         overflow: hidden;
@@ -1097,8 +1105,42 @@
     .kap-card-cover img {
         display: block;
         width: 100%;
-        height: 7rem;
+        height: 100%;
         object-fit: cover;
+    }
+
+    .kap-cover-ratio-16x9 .kap-card-cover,
+    .kap-cover-ratio-3x2 .kap-card-cover,
+    .kap-cover-ratio-4x3 .kap-card-cover,
+    .kap-cover-ratio-1x1 .kap-card-cover,
+    .kap-cover-ratio-2x3 .kap-card-cover {
+        height: auto;
+        aspect-ratio: var(--kap-cover-ratio);
+        /* Very wide columns would make square and poster covers huge: past this
+           cap the box stops growing and the image is cropped (or letterboxed). */
+        max-height: min(32rem, 70vh);
+    }
+    .kap-cover-ratio-16x9 {
+        --kap-cover-ratio: 16 / 9;
+    }
+    .kap-cover-ratio-3x2 {
+        --kap-cover-ratio: 3 / 2;
+    }
+    .kap-cover-ratio-4x3 {
+        --kap-cover-ratio: 4 / 3;
+    }
+    .kap-cover-ratio-1x1 {
+        --kap-cover-ratio: 1 / 1;
+    }
+    .kap-cover-ratio-2x3 {
+        --kap-cover-ratio: 2 / 3;
+    }
+
+    .kap-cover-fit-contain .kap-card-cover {
+        background: var(--background-secondary);
+    }
+    .kap-cover-fit-contain .kap-card-cover img {
+        object-fit: contain;
     }
 
     .kap-card-fields {

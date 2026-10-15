@@ -1,3 +1,8 @@
+### Card covers and colors
+
+- **Cover fit and shape** ([#220](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/220)): two new options next to **Cover property** in **Configure view → Cards**. **Cover fit** crops the image to fill the box (as before) or shows the whole image. **Cover aspect ratio** keeps the fixed-height banner (as before) or gives the box a 16:9, 3:2, 4:3, 1:1 or 2:3 shape. 2:3 suits movie posters, book covers and comics. The box is sized before the image loads, so cards don't jump while images come in.
+- **More cover sources**: a base formula built with `image()` works as the cover property, a formula or property that returns a list of links shows its first usable image, and image URLs that contain parentheses load.
+
 ### Cards stay where you drop them
 
 - **No more cards jumping back to their old column**: on large boards, a card could return to the column it came from a while after a drop, even though the note held the new status. Dropping a card into a column whose cards shared the same order (or had none) rewrote every note in that column, which kept Obsidian busy re-reading notes for half a minute. A drop now rewrites only the card you moved, or the few cards around it when it has to. The board also keeps showing a move until Obsidian has caught up, checking the note itself when that takes long.

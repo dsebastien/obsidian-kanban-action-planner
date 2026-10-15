@@ -460,16 +460,32 @@ value can be:
 - an `http(s)` URL, shown as is;
 - a `[[wikilink]]` or `![[embed]]` to an image in your vault, resolved like any link from the
   card's note;
-- a plain vault path (`Attachments/Cover.jpg`), or a bare file name.
+- a Markdown image (`![](https://…)`);
+- a plain vault path (`Attachments/Cover.jpg`), or a bare file name;
+- a base formula built with `image()`, `link()` or `file()`, e.g. `image(cover)`.
 
-Anything else, or a link that doesn't resolve, shows no cover. A list property uses its first
-item. A base formula is the easiest way to prefer a local file and fall back to a URL, e.g.
-`if(local_cover && file(local_cover), file(local_cover).path, cover)`. Covers are hidden in
-compact mode (titles only).
+Anything else, or a link that doesn't resolve, shows no cover. A list property (or a formula that
+returns a list) uses its first usable item. A base formula is the easiest way to prefer a local
+file and fall back to a URL, e.g. `if(local_cover && file(local_cover), file(local_cover).path, cover)`.
+Covers are hidden in compact mode (titles only).
 
-| Setting            | Scope     | Default | What it does                                     |
-| ------------------ | --------- | ------- | ------------------------------------------------ |
-| **Cover property** | Per board | None    | Shows this property's image at the top of cards. |
+Two more options shape the cover, like in the core Cards view:
+
+- **Cover fit**: **Crop to fill** (the default) fills the box and trims the edges. **Show the
+  whole image** fits the entire image in the box, with bars on the sides or top and bottom.
+- **Cover aspect ratio**: **Banner** (the default) is a fixed-height strip across the top of the
+  card. **16:9**, **3:2**, **4:3**, **1:1** and **2:3 (poster)** give the box that shape, scaled
+  to the column width. Pick **2:3** for movie posters, book covers and comics.
+
+The box has its size before the image loads, so cards don't jump around while images come in,
+and images of different sizes all get the same box. On very wide columns, the box stops growing
+at about half the screen height.
+
+| Setting                | Scope     | Default      | What it does                                                           |
+| ---------------------- | --------- | ------------ | ---------------------------------------------------------------------- |
+| **Cover property**     | Per board | None         | Shows this property's image at the top of cards.                       |
+| **Cover fit**          | Per board | Crop to fill | Crop the image to fill the box, or show the whole image.               |
+| **Cover aspect ratio** | Per board | Banner       | Shape of the cover box: a fixed-height banner or a width:height ratio. |
 
 ### Filtering the note type's name decoration
 

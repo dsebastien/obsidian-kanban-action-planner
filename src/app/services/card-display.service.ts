@@ -2,7 +2,7 @@ import type { App, BasesEntry, BasesPropertyId, TFile } from 'obsidian'
 import { getFrontmatterValue } from './frontmatter.service'
 import { parseFrontmatterDate, startOfDay } from '../domain/calendar'
 import { NO_TITLE_AFFIXES, stripTitleAffixes, type CardTitleAffixes } from '../domain/card-title'
-import { resolveCoverUrl } from './card-cover.service'
+import { coverRawFromValue, resolveCoverUrl } from './card-cover.service'
 import type { CoverApp } from './card-cover.service'
 import type {
     CardCountdown,
@@ -161,7 +161,9 @@ export function heatLevel(value: string, allowedValues: ReadonlyArray<string>): 
  * Resolve the card cover (view option `coverProperty`). A `note.*` property is
  * read raw from the frontmatter (honoring just-written overrides) so a
  * `[[wikilink]]` keeps its brackets; a `formula.*` / `file.*` column is read
- * from the Bases entry. See {@link resolveCoverUrl} for the accepted forms.
+ * from the Bases entry, unwrapped by {@link coverRawFromValue} so an `image()`
+ * formula, a link, a file or a list of them each yield their target. See
+ * {@link resolveCoverUrl} for the accepted forms.
  */
 function readCoverUrl(
     app: CardDisplayApp,
@@ -179,7 +181,7 @@ function readCoverUrl(
                 ? override
                 : getFrontmatterValue(app, file, coverProperty.slice('note.'.length))
     } else {
-        raw = entryText(entry, coverProperty)
+        raw = coverRawFromValue(entry?.getValue(coverProperty))
     }
     return resolveCoverUrl(app, raw, file.path)
 }

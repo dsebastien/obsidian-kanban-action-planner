@@ -1238,13 +1238,23 @@ Markdown)`, `Export ideal week (JSON)`, `Export ideal week (Markdown)`); the for
 64. **Card covers (per-view `coverProperty`).** Configure view → Cards → **Cover property**: any
     `note.*` / `formula.*` / `file.*` id, read-only; empty (the default) = no covers. A `note.*`
     value is read raw from the frontmatter (just-written overrides honoured) so a wikilink keeps
-    its brackets; computed columns come from the Bases entry. `resolveCoverUrl`
+    its brackets; computed columns come from the Bases entry through `coverRawFromValue`: a
+    `ListValue` is unwrapped item by item (its joined string is not one link), every other value
+    uses its string form (`image()` → `![](url)` / `![[path]]`, `LinkValue` → `[[path|display]]`,
+    `FileValue` → path). `resolveCoverUrl`
     (`card-cover.service.ts`): first non-empty list item; `http(s)` URL as is; `[[link]]` /
     `![[embed]]` / `![](path)` → `metadataCache.getFirstLinkpathDest` relative to the card note
     (alias and `#subpath` dropped); a plain path → `vault.getAbstractFileByPath`, falling back
     to link resolution for a bare file name; local files → `vault.getResourcePath`; any other
-    scheme, a folder, or nothing resolved → no cover. Compact mode hides covers (it shows titles
-    only). The URL is part of the card render signature.
+    scheme, a folder, or nothing resolved → no cover. A Markdown image target is matched greedily
+    (URLs may hold parentheses). Compact mode hides covers (it shows titles only). The URL is part
+    of the card render signature. **Layout** (per view, `readCoverLayout`): `coverFit` `cover`
+    (crop, default) | `contain` (whole image, letterboxed on `--background-secondary`);
+    `coverAspect` `banner` (fixed 7rem strip, default = the look before the option) | `16x9` |
+    `3x2` | `4x3` | `1x1` | `2x3` (poster). The box is sized before the image loads (height or
+    `aspect-ratio`, capped at `min(32rem, 70vh)`), so lazy images never change a card's height.
+    Both are classes on the board host (`kap-cover-fit-contain`, `kap-cover-ratio-*`), no inline
+    styles, and both go into the render-pass and card-height signatures.
 65. **Live Starter Kit note type sync.** The plugin listens to the workspace event
     `obsidian-starter-kit:note-types-changed` (triggered by the Starter Kit after any note type
     mutation; custom name, subscribed through the generic `Events.on`) and asks every open board

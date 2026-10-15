@@ -17,11 +17,12 @@ import {
 const TODAY = new Date(2026, 5, 28)
 
 /** A minimal BasesEntry double: `getValue` returns a `toString`-able Value or null. */
-const entryOf = (values: Record<string, string>): BasesEntry =>
+const entryOf = (values: Record<string, string | object>): BasesEntry =>
     ({
         getValue: (id: BasesPropertyId) => {
             const v = values[id]
-            return v === undefined ? null : { toString: (): string => v }
+            if (v === undefined) return null
+            return typeof v === 'string' ? { toString: (): string => v } : v
         }
     }) as unknown as BasesEntry
 
@@ -129,9 +130,18 @@ describe('buildCardDisplay cover property', () => {
             getResourcePath: (f: TFile) => `app://res/${f.path}`
         }
     }
+    const textValue = (text: string): { toString(): string } => ({ toString: () => text })
     const entry = entryOf({
         'formula.cover_image': 'att/Movie.jpg',
-        'formula.web': 'https://x/movie.jpg'
+        'formula.web': 'https://x/movie.jpg',
+        // What Bases' image() formula returns, printed: a Markdown image / embed.
+        'formula.image_url': '![](https://x/poster.jpg)',
+        'formula.image_local': '![[Movie.jpg]]',
+        // A list of links (ListValue): its first usable item is the cover.
+        'formula.images': {
+            length: (): number => 2,
+            get: (i: number) => textValue(i === 0 ? 'null' : '[[Movie.jpg|Movie]]')
+        }
     })
     const build = (cover: BasesPropertyId | null, overrides?: ReadonlyMap<string, string | null>) =>
         buildCardDisplay(
@@ -158,6 +168,11 @@ describe('buildCardDisplay cover property', () => {
     it('reads formulas from the Bases entry (path or URL)', () => {
         expect(build('formula.cover_image')).toBe('app://res/att/Movie.jpg')
         expect(build('formula.web')).toBe('https://x/movie.jpg')
+    })
+    it('reads image() formulas and lists of links', () => {
+        expect(build('formula.image_url')).toBe('https://x/poster.jpg')
+        expect(build('formula.image_local')).toBe('app://res/att/Movie.jpg')
+        expect(build('formula.images')).toBe('app://res/att/Movie.jpg')
     })
     it('is null when the value does not resolve', () => {
         expect(build('formula.missing')).toBeNull()
