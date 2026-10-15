@@ -12,7 +12,7 @@ export const KANBAN_VIEW_TYPE = 'kanban-action-planner'
 export const KANBAN_VIEW_ICON = 'kanban-square'
 
 /** Human-readable view name shown in the Bases view picker. */
-export const KANBAN_VIEW_NAME = 'Kanban'
+export const KANBAN_VIEW_NAME = 'Kanban Action Planner'
 
 /**
  * CSS scoping. Every DOM node the plugin renders lives under `.kap-root`, and

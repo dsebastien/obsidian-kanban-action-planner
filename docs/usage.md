@@ -14,7 +14,8 @@ Prefer watching? Here's a full walkthrough of the plugin (~25 minutes), covering
 ## Add a Kanban view to a Base
 
 1. Open a **Base** (or create one).
-2. Add a new view and choose **Kanban** from the view-type picker.
+2. Add a new view and choose **Kanban Action Planner** from the view-type picker. (Older versions
+   called it **Kanban**, the name Obsidian 1.14 now gives its own built-in layout.)
 3. The Base's filters decide which notes appear, and each note becomes a card.
 
 You can add several Kanban views to the same Base. Each one is independent.

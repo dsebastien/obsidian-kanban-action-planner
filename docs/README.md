@@ -18,7 +18,7 @@ every change written straight back into your notes.
 
 ## Key Features
 
-- **Kanban view inside Bases.** Add a "Kanban" view to any Base. The Base's filters choose the
+- **Kanban view inside Bases.** Add a "Kanban Action Planner" view to any Base. The Base's filters choose the
   notes, and each note becomes a card.
 - **Embed a board in any note.** `![[Tasks.base#Kanban]]` renders the view inside a markdown
   note, with a bounded height and internal scrolling. The alias overrides mode, height, and
@@ -140,7 +140,7 @@ every change written straight back into your notes.
 ## Quick Start
 
 1. Install and enable the plugin.
-2. Open or create a **Base**, then add a view and pick **Kanban**.
+2. Open or create a **Base**, then add a view and pick **Kanban Action Planner**.
 3. Give your notes a `status` property. **Define your columns** by listing the status values in
    **Configure view → Statuses (columns)** (one per line, e.g. `10 Todo`, `20 Doing`, `30 Done`).
    You can also set vault-wide **Default statuses** in the plugin settings, or let the Starter Kit

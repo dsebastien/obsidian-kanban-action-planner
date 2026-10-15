@@ -112,7 +112,7 @@ Configure statuses, colors, relationships, and archiving per note type, synced f
 
 **Manually:** download `main.js`, `manifest.json`, and `styles.css` from the [latest release](https://github.com/dsebastien/obsidian-kanban-action-planner/releases) into `<vault>/.obsidian/plugins/kanban-action-planner/`, then enable the plugin in **Settings → Community plugins**.
 
-Then add a **Kanban** view to any [Base](https://help.obsidian.md/bases). That's it. The [usage guide](./docs/usage.md) walks you through the rest.
+Then add a **Kanban Action Planner** view to any [Base](https://help.obsidian.md/bases). That's it. The [usage guide](./docs/usage.md) walks you through the rest.
 
 ## Highlights
 

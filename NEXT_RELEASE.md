@@ -8,3 +8,7 @@
 - **List swimlane properties work**: when the property you group swimlanes by is a List, cards now go to the lane of their first value instead of Ungrouped. Dragging a card to another lane replaces that value and keeps the others.
 - **List status properties work** ([#219](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/219)): when your status property is a List in Obsidian (e.g. `progress: [working-on-it]`), cards now land in the right column instead of Unmapped. The first value counts. Moving a card keeps the property a List.
 - **Changes made elsewhere show up right away**: when something else puts a note back to its previous status after you moved its card (an undo in the editor, a sync, another plugin), the board now follows instead of keeping the card in the new column.
+
+### View renamed to "Kanban Action Planner"
+
+- **Easier to find in the view picker** ([#221](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/221)): Obsidian 1.14 added its own Bases layout called **Kanban**, so the picker showed two "Kanban" entries. This plugin's view is now called **Kanban Action Planner**. Only the label changed: your existing boards, embeds and their settings keep working, and there's nothing to migrate.
