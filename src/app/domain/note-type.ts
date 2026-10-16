@@ -23,9 +23,7 @@ import { defaultNamingConfig, namingConfigSchema, titleDisplaySchema } from './c
  * as absent, instead of failing the whole settings parse and silently
  * resetting the plugin to defaults.
  */
-function nullToAbsent<T extends z.ZodType>(
-    schema: T
-): z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodOptional<T>> {
+function nullToAbsent<T extends z.ZodType>(schema: T): z.ZodPreprocess<z.ZodOptional<T>> {
     return z.preprocess((value) => (value === null ? undefined : value), schema.optional())
 }
 
