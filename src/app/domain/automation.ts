@@ -126,7 +126,11 @@ export function propertyConditionMet(
         const first: unknown = raw[0]
         return first === undefined ? false : propertyConditionMet(first, operator, expected)
     }
-    const actual = String(raw as string | number | boolean).trim()
+    // Nested objects have no meaningful scalar form: they never satisfy a comparison.
+    if (typeof raw !== 'string' && typeof raw !== 'number' && typeof raw !== 'boolean') {
+        return false
+    }
+    const actual = String(raw).trim()
     const expectedTrimmed = expected.trim()
     const actualNum = Number(actual)
     const expectedNum = Number(expectedTrimmed)

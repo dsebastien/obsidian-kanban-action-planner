@@ -38,9 +38,11 @@ export function resolveDoneConfig(
 export function isDoneValue(raw: unknown, values: string[]): boolean {
     if (raw === null || raw === undefined) return false
     if (Array.isArray(raw)) return raw.some((item) => isDoneValue(item, values))
-    const normalized = String(raw as string | number | boolean)
-        .trim()
-        .toLowerCase()
+    // Nested objects have no meaningful scalar form: never done.
+    if (typeof raw !== 'string' && typeof raw !== 'number' && typeof raw !== 'boolean') {
+        return false
+    }
+    const normalized = String(raw).trim().toLowerCase()
     if (normalized.length === 0) return false
     if (values.length === 0) return normalized === 'true' || normalized === 'yes'
     return values.some((value) => value.trim().toLowerCase() === normalized)
