@@ -1,5 +1,36 @@
 # Release Notes
 
+## 2.5.0 (2026-10-16)
+
+### Card covers and colors
+
+- **Cover fit and shape** ([#220](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/220)): two new options next to **Cover property** in **Configure view → Cards**. **Cover fit** crops the image to fill the box (as before) or shows the whole image. **Cover aspect ratio** keeps the fixed-height banner (as before) or gives the box a 16:9, 3:2, 4:3, 1:1 or 2:3 shape. 2:3 suits movie posters, book covers and comics. The box is sized before the image loads, so cards don't jump while images come in.
+- **More cover sources**: a base formula built with `image()` works as the cover property, a formula or property that returns a list of links shows its first usable image, and image URLs that contain parentheses load.
+- **Covers in compact mode**: compact boards (titles only) now show each cover as a small thumbnail before the title, so a big media board stays dense and you can still spot a poster at a glance.
+- **Big boards open fast** ([#111](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/111)): a column with 100 cards or more now only builds the cards near the part you can see, and builds the rest as you scroll. The scrollbar, dragging (including auto-scroll and drops far down a column), the keyboard, selection and search behave as if every card were there, and all cards keep the same height. A movie board with almost 5,000 cards opened in 8 to 9 seconds and now opens in under 3, and the work of drawing the board itself went from 3.6 seconds to under 0.2. Smaller columns are not affected.
+- **Big boards stay fast with covers**: covers now load as you scroll, column by column, instead of all at once. Each cover keeps its space while it loads and shows a soft placeholder, so nothing jumps. A movie board with almost 5,000 posters used to load every one of them when it opened.
+- **Card color by property** ([#150](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/150)): color cards by any property or base formula, separately from the column colors (e.g. by priority while the columns stay statuses). Pick it in **Configure view → Cards → Card color property**, and choose a tinted background or a colored border. A color value (`#e5484d`, `red`) is used as is, a ranked value such as `10 - High` gets the same color as its field, and any other value gets a stable color from your theme. Blocked, overdue and due-today cards keep their own markings.
+- **Accent stripes and dots** ([#150](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/150)): a lighter way to mark cards. **Accent property** in **Configure view → Cards** adds a colored stripe inside the card's left edge, or a dot before the title, picked with the same colors as the card color. It is separate from the card color, so you can tint by priority and stripe by project. Stripes and dots stay in compact mode, and blocked cards keep their red edge.
+
+### Cards stay where you drop them
+
+- **No more cards jumping back to their old column**: on large boards, a card could return to the column it came from a while after a drop, even though the note held the new status. Dropping a card into a column whose cards shared the same order (or had none) rewrote every note in that column, which kept Obsidian busy re-reading notes for half a minute. A drop now rewrites only the card you moved, or the few cards around it when it has to. The board also keeps showing a move until Obsidian has caught up, checking the note itself when that takes long.
+- **Room to move**: the order numbers the plugin gives out are now spread 1024 apart, so a drop between two cards almost always saves only the card you moved.
+- **Card order tidies itself up**: when a board opens, cards without an order get one, and after a drop, cards sharing the same number are spread out. It happens quietly in the background, a few notes at a time, and nothing moves on screen. The first time a big board opens you may see a short burst of saves. Turn it off with **Tidy card order automatically** in the settings, and use the new **Normalize card order on this board** command when you want it.
+- **Instant everywhere**: moving a card to another swimlane, and changing a status from the card menu or in triage, now shows at once while the note saves in the background. A card moved to another swimlane also stays there while Obsidian catches up, like a column move.
+- **Clear feedback when a card can't change lanes**: on boards grouped by note type, or by a formula or file property, dragging a card over another lane now shows a "not allowed" cursor instead of a drop line, and letting go there says why. Before, the card quietly stayed put.
+- **List swimlane properties work**: when the property you group swimlanes by is a List, cards now go to the lane of their first value instead of Ungrouped. Dragging a card to another lane replaces that value and keeps the others.
+- **List status properties work** ([#219](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/219)): when your status property is a List in Obsidian (e.g. `progress: [working-on-it]`), cards now land in the right column instead of Unmapped. The first value counts. Moving a card keeps the property a List.
+- **Changes made elsewhere show up right away**: when something else puts a note back to its previous status after you moved its card (an undo in the editor, a sync, another plugin), the board now follows instead of keeping the card in the new column.
+
+### View renamed to "Kanban Action Planner"
+
+- **Easier to find in the view picker** ([#221](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/221)): Obsidian 1.14 added its own Bases layout called **Kanban**, so the picker showed two "Kanban" entries. This plugin's view is now called **Kanban Action Planner**. Only the label changed: your existing boards, embeds and their settings keep working, and there's nothing to migrate.
+
+### Time tracking
+
+- **Recompute tracked time repairs empty entries** ([#218](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/218)): Starter Kit templates before v5.1.0 left an empty `- ` item under `time_entries`, and TaskNotes skips any note that has one. **Recompute tracked time from entries** now removes those items too, even when the list has nothing else in it, so the note shows up in TaskNotes again.
+
 ## 2.4.0 (2026-10-07)
 
 ### Covers on cards, a timer that keeps your minutes, live Starter Kit sync
