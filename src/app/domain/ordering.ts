@@ -148,8 +148,7 @@ export function computeInsertOrder(sortedOrders: number[], targetIndex: number):
  *   orders that changed.
  */
 export type InsertionPlan =
-    | { kind: 'single'; order: number }
-    | { kind: 'window'; start: number; orders: number[] }
+    { kind: 'single'; order: number } | { kind: 'window'; start: number; orders: number[] }
 
 /** Cheap pre-check for {@link spacedOrders} between two bounds (no allocation). */
 function mayFit(low: number | null, high: number | null, count: number): boolean {

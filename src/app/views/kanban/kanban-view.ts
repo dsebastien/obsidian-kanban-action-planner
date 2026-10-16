@@ -4707,8 +4707,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
     private columnTriageDecide(
         card: KanbanCard,
         decision:
-            | { kind: 'move'; target: ColumnDef; direction: 'left' | 'right' }
-            | { kind: 'keep' }
+            { kind: 'move'; target: ColumnDef; direction: 'left' | 'right' } | { kind: 'keep' }
     ): void {
         const state = this.columnTriage
         if (!state || state.busy || !this.rootEl) return
