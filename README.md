@@ -28,6 +28,14 @@ Split the board into swimlanes by note type or any property (here, by priority):
 
 ![Swimlanes](docs/images/swimlanes.png)
 
+Big boards stay fast. My movie board has 4,888 notes with a poster on each card, and it opens in under 3 seconds: long columns only build the cards near the screen, and covers load as you scroll. Show the whole poster in a 2:3 box, or switch to compact mode for a small thumbnail before each title:
+
+![A movie board with 2:3 posters as covers](docs/images/card-covers.png)
+
+Color cards by any property, apart from the column colors. Here, tasks are tinted by priority and get a stripe per project:
+
+![A task board tinted by priority, with a stripe per project](docs/images/card-colors.png)
+
 Flip that exact board into a calendar to schedule the work. Scheduled dates and deadlines, plotted together:
 
 ![Calendar mode](docs/images/calendar.png)
@@ -116,7 +124,8 @@ Then add a **Kanban Action Planner** view to any [Base](https://help.obsidian.md
 
 ## Highlights
 
-- **Kanban view in Bases.** Add one or more Kanban views to any Base. The Base's own filters select the notes.
+- **Kanban view in Bases.** Add one or more **Kanban Action Planner** views to any Base. The Base's own filters select the notes.
+- **Big boards stay fast.** A column with 100 cards or more only builds the cards near the part you can see, and covers load as you scroll, with a placeholder holding their space. A 4,888-card movie board opens in under 3 seconds instead of 8 to 9, and a 2,338-card board game board in 2.3 instead of 5.
 - **Embed a board in any note.** `![[Tasks.base#Kanban]]` renders the view inside a markdown note, sized to its content up to a scrollable height cap. The wikilink alias overrides that one embed (`|mode=wbs height=400 filter=status:active`) without ever touching the saved view: mode switches and filter edits inside an embed stay in the embed. The same embed works in an [Obsidian Canvas](https://help.obsidian.md/plugins/canvas) card: drag and drop works as usual, and the canvas card's size controls the board (`height=` is ignored there), so resizing the card resizes the board. `columns=` and `lanes=` narrow a board embed to a subset of its columns or swimlanes, by substring, or by whole name with an `=` prefix, as in `columns==doing`.
 - **Status to columns, defined not guessed.** Your status property places cards into columns you define (per view, from the Starter Kit, or in settings), so a typo can never create a stray column. Unmapped notes collect in an "Unmapped" column that hides itself when empty.
 - **Move, reorder, sort.** Drag a card to another column to change its status, or reorder within a column (written to a configurable `manual_order` property). Moves show instantly and usually save only the card you moved; missing or duplicate orders are tidied in the background. Send a card straight to the top or bottom of its column from the right-click menu. Auto-sort each column by name or any property, including a base formula like a `priority_score`, ascending or descending. Full keyboard support (move, reorder, menu) and command-palette commands.

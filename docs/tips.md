@@ -21,9 +21,9 @@ trailing space — the plugin trims surrounding whitespace, but not other differ
 
 ## Let the Base do the filtering
 
-A Kanban view shows exactly the notes the Base selects. Use the Base's filters to scope a
-board to one project, area, or note type, and add several Kanban views to the same Base for
-different slices of the same notes.
+A Kanban Action Planner view shows exactly the notes the Base selects. Use the Base's filters to
+scope a board to one project, area, or note type, and add several of these views to the same Base
+for different slices of the same notes.
 
 ## Common use cases
 

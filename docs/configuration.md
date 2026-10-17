@@ -17,7 +17,7 @@ Settings live in three places, by scope:
   reconfigure a type board by board. When the Obsidian Starter Kit is present, its note types are
   synchronized into this list automatically; the **Default** entry covers notes with no
   recognized type. Click **Configure** next to a type to edit it.
-- **Per-board configuration** (**Configure view**, the Bases view options for the Kanban view).
+- **Per-board configuration** (**Configure view**, the Bases view options for the Kanban Action Planner view).
   Settings for **this board only**, grouped into **Columns**, **Cards**, **Swimlanes**,
   **Filters**, and **Calendar**. Pickers for properties the board **writes** (status, order,
   grouping) list only your notes' **frontmatter** properties; read-only pickers (card sort,
@@ -488,6 +488,8 @@ and images of different sizes all get the same box. Images load as you scroll: o
 near the visible part of each column are fetched, and the box pulses softly until its image
 arrives, so a board with thousands of covers opens without loading all of them. On very wide columns, the box stops growing
 at about half the screen height.
+
+![Cover boxes keep their size and pulse while their posters load]({{ '/images/cover-placeholders.png' | relative_url }})
 
 | Setting                | Scope     | Default      | What it does                                                           |
 | ---------------------- | --------- | ------------ | ---------------------------------------------------------------------- |

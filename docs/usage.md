@@ -18,7 +18,9 @@ Prefer watching? Here's a full walkthrough of the plugin (~25 minutes), covering
    called it **Kanban**, the name Obsidian 1.14 now gives its own built-in layout.)
 3. The Base's filters decide which notes appear, and each note becomes a card.
 
-You can add several Kanban views to the same Base. Each one is independent.
+![The layout picker: Obsidian's own Kanban next to Kanban Action Planner]({{ '/images/view-picker.png' | relative_url }})
+
+You can add several Kanban Action Planner views to the same Base. Each one is independent.
 
 ![A Base read as a Kanban board]({{ '/images/board.png' | relative_url }})
 
@@ -191,7 +193,10 @@ Drag-and-drop also works in popped-out (separate) Obsidian windows.
 **Big boards.** A column with 100 cards or more only builds the cards near the part you can see,
 and builds the rest as you scroll. The scrollbar, dragging, the keyboard and search work as if
 every card were there, so a board with thousands of notes opens in a few seconds and stays
-responsive. Smaller columns are not affected.
+responsive. My movie board (4,888 notes, a poster on each card) opens in under 3 seconds, and my
+board game board (2,338 notes) in 2.3. Smaller columns are not affected.
+
+![A compact movie board with 4,888 cards and a poster thumbnail on each]({{ '/images/big-board.png' | relative_url }})
 
 **Auto-sort a column by a property.** Instead of hand-curated manual order, a board can sort the
 cards inside every column by **name** or by any **property** (priority, due date, created, and so
@@ -1825,7 +1830,7 @@ When the Starter Kit plugin is installed and recognizes a note's type:
 | The type's **allowed values** for any other property                              | Powers the card right-click **"Set …"** quick-set menu and the one-click controls in triage mode                                                                                                                                                  |
 | The type's **associated folder**, **template**, and **note name prefix / suffix** | Drives [quick capture](#creating-cards-from-the-board-quick-capture): the **Add card** button creates a note exactly where a note of that type belongs, with the same template you would get from the Starter Kit's own "Create new note" command |
 
-In short: point a Base at your tasks, add a Kanban view, and you already have the right columns
+In short: point a Base at your tasks, add a Kanban Action Planner view, and you already have the right columns
 in the right order, the right template on new notes, and the right lanes on a mixed board,
 without configuring anything.
 
