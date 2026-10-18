@@ -52,14 +52,27 @@ column rule.
   templates matched by SHAPE (`{{date}} - ` matches `2026-09-22 - `), never returning ''.
   Presentational only: no write path ever sees the filtered title.
 - **RelationshipRule** — a `role` (`parent`/`sibling`/`child`/`blocked_by`), a primary
-  `linkProperty`, and an optional secondary tag+link `heuristic`. Resolved at runtime by
+  `linkProperty` (a list of wikilinks), an optional `targetTypeIds` (this plugin's note type
+  ids the rule links to; absent/empty = any type), an optional `mirrored` flag, and an optional
+  secondary tag+link `heuristic`. **A role has any number of rules** (a task's parents may sit
+  in `related_projects` AND `related_goals`); `NoteType.relationshipsMirrored` says the
+  Starter Kit declares them (`getNoteTypeRelationships`: `mirrored` rules are the only link
+  properties, read-only; local rules keep only their heuristic and come back if the Starter
+  Kit stops declaring them). Pure model in `domain/relationship-rules.ts`: `roleLinkRules`
+  (effective `LinkRule[]` per role), `roleProperties` (distinct properties: what reads union
+  over), `selectLinkProperty` (the ONE property for a new link by the TARGET's type id: scoped
+  rules, else unscoped; 0 or several = refused). A missing role uses the per-role default
+  property (local config only); an explicit empty `linkProperty` ("None" marker) disables link
+  detection for that role (heuristic still applies). Resolved at runtime by
   `domain/relationships.ts` into a **RelationshipSet** per note (`Record<role, string[]>`):
-  direct link targets, **inverse** reverse lookup (`parent`↔`child`, `sibling` symmetric;
-  `blocked_by` has no inverse), and the link-scoped heuristic (a tagged note linking to a
-  source stands in that role). A missing rule uses the per-role default property; an explicit
-  empty `linkProperty` disables link detection for that role (heuristic still applies).
-  Relationships are read-only (never written back). `domain/filtering.ts` adds the **blocked
-  filter** (`all`/`only`/`hide`) over the resolved sets.
+  direct link targets (union over the role's properties), **inverse** reverse lookup
+  (`parent`↔`child`, `sibling` symmetric; `blocked_by` has no inverse), and the link-scoped
+  heuristic (a tagged note linking to a source stands in that role). Resolution is read-only;
+  links are written only by the explicit add/remove actions (rule 14/71) and by quick capture
+  (rule 72, `domain/parent-link.ts`). `domain/relationship-edit.ts` holds the pure rule-list
+  edits of the Configure board editor, `domain/relationship-mirror.ts` the Starter Kit
+  reconcile. `domain/filtering.ts` adds the **blocked filter** (`all`/`only`/`hide`) over the
+  resolved sets.
 - **ArchiveConfig** (issue #7) — `archiveFolder` (supports `{{year}}`/`{{month}}`/`{{week}}`/
   `{{quarter}}`/`{{day}}`/`{{date}}`/`{{datetime}}`/`{{uuid}}` placeholders, resolved by the
   pure `utils/expressions.ts`) and an optional `triggerStatus`. Archiving is **per note type**

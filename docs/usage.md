@@ -234,6 +234,15 @@ goal, in the goals folder, landing in the column you clicked:
   branch has no single right answer, so nothing is guessed from it.
 - **A manual order** placing it after the last card in the column (manual sort only). No other
   note is rewritten.
+- **The parent your search names.** On a project note, a board embedded with
+  `filter=parent:"My project"` (or any board whose search box holds a `parent:` term) only
+  shows tasks linked to that project, so a new card is linked to it too: the dialog says
+  `Linked to [[My project]] via related_projects.` and the card appears in the column. The
+  property is chosen from the new card's parent properties and the project's note type (see
+  [Relationships](#relationships)). If the term cannot be honored (no note with that name,
+  several notes match, or no single parent property fits), the dialog says why, nothing is
+  linked, and the notice after creation tells you the card does not appear here. An `ancestor:`
+  term is never written, since it names a whole subtree rather than one parent.
 
 ### Where the note goes, and with which template
 
@@ -305,6 +314,9 @@ The **?** cheat-sheet, always one click away:
 **`property:value` qualifiers**
 
 - Quote values with spaces: `parent:"PKM Library"`.
+- `parent:`, `ancestor:` and `child:` look through **all** of a role's link properties, so a task
+  linked to a project and a goal matches both. A `parent:` term also decides the parent a card
+  created from the board gets (see [Creating cards from the board](#creating-cards-from-the-board-quick-capture)).
 - **Comma = OR** within one property: `status:active,done`.
 - Recognized names: `title`, `status` (matches the value or its column label), `parent`,
   `ancestor` (any **transitive** parent: the parent, its parent, and so on), `child`,
@@ -647,6 +659,25 @@ task can point at its project via `related_projects` while that project points a
 via `related_goals`, and the whole chain resolves (badges, WBS tree, zoom). Edits work the
 same way: adding, removing, or drag-re-parenting always writes the owning note's own
 property.
+
+**A role can use several properties, each limited to some note types.** A task's parent might be
+a project (`related_projects`), an activity (`related_activities`), a plan or a goal
+(`related_goals`). In **Configure board → Relationships**, each role lists its properties; give
+each one the note types it links to (or leave **Any note type**). Then:
+
+- **Reading** merges them all: a task linked to a project AND a goal shows both as parents
+  (**▲ 2**), the search terms `parent:`, `ancestor:` and `child:` see both, and the WBS lists the
+  task under each parent (marked ⧉).
+- **Writing** picks the property from the note you link to: the properties scoped to that note's
+  type, else the ones with no type. Exactly one candidate writes. If none fits, or several do,
+  nothing is written and a notice says why (scope the properties to note types to fix it).
+  Removing a link always removes it from whichever property holds it. Dragging a row in the WBS
+  onto another parent replaces only the link to the row's current parent and leaves its other
+  parents alone.
+- **With the Obsidian Starter Kit**, when a note type declares its relationships there, they are
+  mirrored here read-only ("Mirrored from the Obsidian Starter Kit"). Edit them in the kit. The
+  **Detect children by tag** option stays yours. Without a declaration, the properties are edited
+  here.
 
 ![Editing relationships and statuses from the card menu]({{ '/images/card-menu.png' | relative_url }})
 
@@ -1828,6 +1859,7 @@ When the Starter Kit plugin is installed and recognizes a note's type:
 | The type's **status property** and its **allowed values**                         | Builds the columns, in the type's defined order, including the empty ones, so a board of Tasks shows every task status, not only the ones in use                                                                                                  |
 | The type's **recognition rules** (tag / folder / regex)                           | Recognizes each card's type, so a mixed board can give **each type its own lane with its own columns**. A project can never be given a task status                                                                                                |
 | The type's **allowed values** for any other property                              | Powers the card right-click **"Set …"** quick-set menu and the one-click controls in triage mode                                                                                                                                                  |
+| The type's **relationships** (when the kit declares them)                         | Which property links a note to a parent, child, sibling or blocker, and to which note types. Shown read-only in **Configure board → Relationships**, used for reading and for choosing where a new link is written                                |
 | The type's **associated folder**, **template**, and **note name prefix / suffix** | Drives [quick capture](#creating-cards-from-the-board-quick-capture): the **Add card** button creates a note exactly where a note of that type belongs, with the same template you would get from the Starter Kit's own "Create new note" command |
 
 In short: point a Base at your tasks, add a Kanban Action Planner view, and you already have the right columns
@@ -1838,7 +1870,7 @@ without configuring anything.
 
 Everything this plugin adds on top is stored **locally**, per note type, and keeps working if
 the Starter Kit is ever disabled or removed: colors, WIP limits, swimlane grouping,
-relationships, estimates, done states, automation rules, archiving, card display, and any
+relationships (unless the kit declares them, then they are mirrored), estimates, done states, automation rules, archiving, card display, and any
 creation overrides. The Starter Kit is the source of truth for the note-type facts; the board is
 the source of truth for how they are shown and acted on.
 

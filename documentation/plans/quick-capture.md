@@ -105,6 +105,7 @@ suggesters and placeholders showing the inherited Starter Kit values.
 3. the manual-order property → end of the target column (manual sort only)
 4. the note type's enabled **tag** recognition mappings (merged into `tags`, deduped)
 5. the Base's filter-implied tags + property equalities
+6. the parent link a `parent:` search term names (2.6.0, rule 72; `plans/relationships-multi-rule.md`)
 
 ## Status: DONE
 

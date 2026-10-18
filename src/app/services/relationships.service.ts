@@ -6,12 +6,7 @@ import type { HeuristicRule, NoteRecord, RelationshipSet } from '../domain/relat
 import { isArchivedPath } from '../domain/archive-paths'
 import { formatWikiLink, parseWikiLinkTarget, toLinkStringList } from '../domain/wikilinks'
 import { findKeyCaseInsensitive, queueFrontmatterWrite } from './frontmatter.service'
-import {
-    DEFAULT_BLOCKED_BY_PROPERTY,
-    DEFAULT_CHILD_PROPERTY,
-    DEFAULT_PARENT_PROPERTY,
-    DEFAULT_SIBLING_PROPERTY
-} from '../constants'
+import { roleProperties } from '../domain/relationship-rules'
 
 /**
  * Bridges Obsidian's metadata cache to the pure relationship domain.
@@ -20,29 +15,10 @@ import {
  * role's link-property (`frontmatterLinks` + `getFirstLinkpathDest`), and all
  * outgoing links (`metadataCache.resolvedLinks`), then runs
  * {@link resolveRelationships}. Role link-property names come from the note type's
- * relationship rules, falling back to per-role defaults so it works out of the
- * box. Nothing here is written — relationships are read-only this milestone.
+ * relationship rules (several per role, unioned: `domain/relationship-rules.ts`),
+ * falling back to per-role defaults so it works out of the box. The only writes
+ * are the explicit add/remove helpers below.
  */
-
-const DEFAULT_ROLE_PROPERTY: Record<RelationshipRole, string> = {
-    parent: DEFAULT_PARENT_PROPERTY,
-    child: DEFAULT_CHILD_PROPERTY,
-    sibling: DEFAULT_SIBLING_PROPERTY,
-    blocked_by: DEFAULT_BLOCKED_BY_PROPERTY
-}
-
-/**
- * Effective link-property name per role. A missing rule uses the per-role
- * default; a present rule uses its value verbatim — so an explicit empty value
- * disables link-based detection for that role (heuristics still apply).
- */
-export function roleProperties(noteType: NoteType): Record<RelationshipRole, string> {
-    const map = { ...DEFAULT_ROLE_PROPERTY }
-    for (const rule of noteType.relationships) {
-        map[rule.role] = rule.linkProperty.trim()
-    }
-    return map
-}
 
 /**
  * The roles that are turned on for a note type. A role is active when it has a
@@ -51,7 +27,7 @@ export function roleProperties(noteType: NoteType): Record<RelationshipRole, str
  */
 export function activeRoles(
     noteType: NoteType,
-    props: Record<RelationshipRole, string>
+    props: Record<RelationshipRole, string[]>
 ): Set<RelationshipRole> {
     const withHeuristic = new Set(
         noteType.relationships.filter((r) => r.heuristic).map((r) => r.role)
@@ -107,9 +83,16 @@ export function directLinkTargets(app: App, file: TFile, property: string): Dire
     return out
 }
 
-/** Resolve the targets of one frontmatter link-property (case-insensitive key match). */
-function linkPropertyTargets(app: App, file: TFile, property: string): string[] {
-    return directLinkTargets(app, file, property).map((d) => d.path)
+/**
+ * Resolve the targets of a role's link-properties: the UNION over every rule's
+ * property (a task linked to a project AND a goal has two parents), deduped.
+ */
+function linkPropertyTargets(app: App, file: TFile, properties: ReadonlyArray<string>): string[] {
+    const seen = new Set<string>()
+    for (const property of properties) {
+        for (const link of directLinkTargets(app, file, property)) seen.add(link.path)
+    }
+    return [...seen]
 }
 
 /**
@@ -162,7 +145,7 @@ export async function removeRelationshipLink(
 }
 
 /** Build a {@link NoteRecord} for one file. */
-function toRecord(app: App, file: TFile, props: Record<RelationshipRole, string>): NoteRecord {
+function toRecord(app: App, file: TFile, props: Record<RelationshipRole, string[]>): NoteRecord {
     const cache = app.metadataCache.getFileCache(file)
     const tags = (cache ? (getAllTags(cache) ?? []) : [])
         .map(normalizeTag)
@@ -203,7 +186,7 @@ export function resolveBoardRelationships(
 ): Map<string, RelationshipSet> {
     interface TypeFacts {
         typeId: string
-        props: Record<RelationshipRole, string>
+        props: Record<RelationshipRole, string[]>
         active: ReadonlySet<RelationshipRole>
     }
     const factsFor = (t: NoteType): TypeFacts => {

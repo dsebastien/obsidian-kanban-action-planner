@@ -52,11 +52,17 @@ export type RelationshipRole = z.infer<typeof relationshipRoleSchema>
 
 /**
  * A relationship rule: primary detection via an explicit link-property, with an
- * optional secondary tag+link heuristic.
+ * optional secondary tag+link heuristic. A role may carry SEVERAL rules (a task
+ * links its parents through `related_projects`, `related_goals`, ...); each rule
+ * may be scoped to target note types (`targetTypeIds`, this plugin's note type
+ * ids; absent / empty = any type). `mirrored` marks a rule mirrored from the
+ * Starter Kit's note type relationships (read-only; see `relationshipsMirrored`).
  */
 export const relationshipRuleSchema = z.object({
     role: relationshipRoleSchema,
     linkProperty: z.string(),
+    targetTypeIds: z.array(z.string()).optional(),
+    mirrored: z.boolean().optional(),
     heuristic: z
         .object({
             allowedTypeTags: z.array(z.string()),
@@ -325,6 +331,14 @@ export const noteTypeSchema = z.object({
     }),
     archive: archiveConfigSchema,
     relationships: z.array(relationshipRuleSchema),
+    /**
+     * True when the Starter Kit declares this type's relationships
+     * (`getNoteTypeRelationships`, non-null): the `mirrored` rules are then the
+     * only link-properties, read-only; local rules only keep their heuristic
+     * (and come back as the editable config if the Starter Kit stops declaring
+     * it). Absent on plugin-owned configs (older stored types, no backfill).
+     */
+    relationshipsMirrored: z.boolean().optional(),
     calendar: calendarConfigSchema,
     /**
      * Planning role per open status value (issue #172), mirrored from the

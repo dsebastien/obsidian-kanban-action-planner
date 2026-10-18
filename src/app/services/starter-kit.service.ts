@@ -2,6 +2,7 @@ import { debounce } from 'obsidian'
 import type { App, EventRef, Events, TFile } from 'obsidian'
 import { STARTER_KIT_PLUGIN_ID } from '../constants'
 import type { NamingConfig } from '../domain/card-title'
+import type { RelationshipRole } from '../domain/note-type'
 import type { InheritedCreationDefaults } from '../domain/note-creation'
 
 /**
@@ -57,6 +58,11 @@ interface SkApiLike {
     getNoteTypeStatus?: (ref: string) => unknown
     /** Starter Kit ≥ 1.19: the type's archive (folder template, delay, archiving statuses). */
     getNoteTypeArchive?: (ref: string) => unknown
+    /**
+     * Starter Kit with note type relationships: the type's relationship rules
+     * (null = not configured). Detected by method presence only.
+     */
+    getNoteTypeRelationships?: (ref: string) => unknown
     /** Starter Kit: the plugin settings (`globalSettings.enableAutomations` ≥ 1.15). */
     getSettings?: () => unknown
 }
@@ -185,6 +191,64 @@ export function getNoteTypeArchive(app: App, id: string): SkArchive | null {
     } catch {
         return null
     }
+}
+
+/** One relationship rule of a Starter Kit note type, as `getNoteTypeRelationships` resolves it. */
+export interface SkRelationshipRule {
+    role: RelationshipRole
+    /** The list property's NAME. */
+    property: string
+    /** Starter Kit note type ids this rule links to; empty = any type. */
+    targetTypeIds: string[]
+}
+
+/**
+ * The Starter Kit's relationship rules for a note type, or `null` when the
+ * installed Starter Kit has no such method, the type has none configured, or
+ * the call fails. `[]` is a real answer ("configured, with no rules"). Entries
+ * with an unknown role or a blank property are skipped. Starter Kit note type
+ * ids ARE this plugin's mirrored note type ids (a mirrored type is keyed by the
+ * Starter Kit's id), so the target ids pass through unchanged.
+ */
+export function getNoteTypeRelationships(app: App, id: string): SkRelationshipRule[] | null {
+    const api = getStarterKitApi(app)
+    if (!api?.getNoteTypeRelationships) return null
+    try {
+        const raw = unwrap<unknown>(api.getNoteTypeRelationships(id))
+        if (!Array.isArray(raw)) return null
+        const rules: SkRelationshipRule[] = []
+        for (const entry of raw as unknown[]) {
+            const rule = toSkRelationshipRule(entry)
+            if (rule) rules.push(rule)
+        }
+        return rules
+    } catch {
+        return null
+    }
+}
+
+function isRelationshipRole(value: unknown): value is RelationshipRole {
+    return value === 'parent' || value === 'child' || value === 'sibling' || value === 'blocked_by'
+}
+
+/** Defensive normalization of one Starter Kit relationship entry. */
+function toSkRelationshipRule(entry: unknown): SkRelationshipRule | null {
+    if (typeof entry !== 'object' || entry === null) return null
+    const { role, property, targetTypes } = entry as {
+        role?: unknown
+        property?: unknown
+        targetTypes?: unknown
+    }
+    if (!isRelationshipRole(role)) return null
+    if (typeof property !== 'string' || property.trim().length === 0) return null
+    const ids: string[] = []
+    if (Array.isArray(targetTypes)) {
+        for (const target of targetTypes as unknown[]) {
+            const id = (target as { id?: unknown } | null)?.id
+            if (typeof id === 'string' && id.length > 0 && !ids.includes(id)) ids.push(id)
+        }
+    }
+    return { role, property: property.trim(), targetTypeIds: ids }
 }
 
 export function getNoteTypeStatus(app: App, id: string): SkResolvedStatus | null {

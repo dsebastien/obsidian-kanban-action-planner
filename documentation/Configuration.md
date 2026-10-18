@@ -12,7 +12,8 @@ Effective value for any setting resolves in this order (first match wins):
    drives card fields (`getOrder()`, #50), calendar toggle, range, sort, relational filters,
    panel state.
 2. **Local note types** — the `noteTypes` store in plugin settings, edited via the
-   Configure-board modal: colors, swimlane grouping, relationships, archiving, calendar
+   Configure-board modal: colors, swimlane grouping, relationships (several rules per role,
+   each with optional `targetTypeIds`: rule 70), archiving, calendar
    mappings, estimate property/unit, done-state definition (rule 39: `done` config —
    property + values marking a note done; WBS rollups read done cards as 100%), automation
    rules (rule 40: `automations` — status/done/archived/property-condition triggers →
@@ -20,7 +21,10 @@ Effective value for any setting resolves in this order (first match wins):
    mirrored fields.
 3. **Starter Kit mirror** — when `obsidian-starter-kit` is installed and enabled, its
    note-type config (status `allowedValues` → columns, property names, recognition mappings)
-   is the read-only source of truth, mirrored into the local snapshot.
+   is the read-only source of truth, mirrored into the local snapshot. That includes the
+   type's **relationships** when the installed kit exposes `getNoteTypeRelationships` and
+   returns a declaration for the type (rule 71): `relationships` holds `mirrored` rules,
+   `relationshipsMirrored: true`, and Configure board → Relationships turns read-only.
 4. **Built-in defaults** — `DEFAULT_SETTINGS` and the constants below.
 
 **Per-embed overrides (issue #103)** sit above the per-view layer for exactly three things —

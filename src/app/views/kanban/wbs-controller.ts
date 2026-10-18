@@ -140,10 +140,18 @@ export interface WbsHost {
      * resolved from the note's OWN recognized type (per-type resolution:
      * a task stores its parent in `related_projects` while a project uses
      * `related_goals` on the same board; context-ancestor climbing needs the
-     * same lookup for off-board notes). '' = role disabled.
+     * same lookup for off-board notes). A role may have several (rule 70):
+     * reads/climbs union them; [] = role disabled.
      */
-    parentPropertyForPath(path: string): string
-    childPropertyForPath(path: string): string
+    parentPropertiesForPath(path: string): string[]
+    childPropertiesForPath(path: string): string[]
+    /**
+     * The ONE property to write when `path` gets `parentPath` as a parent
+     * (resp. `childPath` as a child), picked by the other note's recognized
+     * type (rule 71); '' when no rule fits or several do (the write is refused).
+     */
+    parentPropertyFor(path: string, parentPath: string): string
+    childPropertyFor(path: string, childPath: string): string
     dateFormat(): string
     noteTypeFor(card: KanbanCard): { id: string; name: string } | null
     /** Resolved status column color/label for the row's dot (null = neutral). */
@@ -274,10 +282,16 @@ export class WbsController {
             [...byKey.keys()],
             (path) => rels.get(path)?.parent ?? [],
             (path) => {
-                const prop = this.host.parentPropertyForPath(path)
-                if (prop === '') return []
+                const props = this.host.parentPropertiesForPath(path)
                 const file = this.host.app.vault.getFileByPath(path)
-                return file ? directLinkTargets(this.host.app, file, prop).map((t) => t.path) : []
+                if (props.length === 0 || !file) return []
+                return [
+                    ...new Set(
+                        props.flatMap((prop) =>
+                            directLinkTargets(this.host.app, file, prop).map((t) => t.path)
+                        )
+                    )
+                ]
             },
             (path) => this.host.app.vault.getFileByPath(path) !== null
         )
@@ -735,10 +749,11 @@ export class WbsController {
         if (target.kind === 'paneGroup') return false
         if (sourceKey === target.targetKey) return false
         // The fresh edge lands on the source's parent property or the
-        // target's children property — each per its OWN note type.
+        // target's children property — each per its OWN note type, picked by
+        // the OTHER note's type (rule 71); no single fitting property = refused.
         if (
-            this.host.parentPropertyForPath(sourceKey) === '' &&
-            this.host.childPropertyForPath(target.targetKey) === ''
+            this.host.parentPropertyFor(sourceKey, target.targetKey) === '' &&
+            this.host.childPropertyFor(target.targetKey, sourceKey) === ''
         ) {
             return false
         }
@@ -758,29 +773,41 @@ export class WbsController {
     /**
      * Where the `sourceKey` → `oldParentKey` edge is physically stored: as a
      * parent link on the child, a children link on the old parent, both
-     * (redundant convention), or neither (heuristic — not removable).
+     * (redundant convention), or neither (heuristic — not removable). With
+     * several rules per role (rule 70) the edge may sit in any of them, so the
+     * result names the properties that actually HOLD it: removals target those,
+     * never the property a fresh edge would be written to.
      */
     private edgeStorage(
         sourceKey: string,
         oldParentKey: string
-    ): { childOwned: boolean; parentOwned: boolean } {
-        const parentProp = this.host.parentPropertyForPath(sourceKey)
-        const childProp = this.host.childPropertyForPath(oldParentKey)
+    ): { childOwned: boolean; parentOwned: boolean; parentProps: string[]; childProps: string[] } {
         const source = this.host.allCardForKey(sourceKey)
         const oldParent = this.host.allCardForKey(oldParentKey)
-        const childOwned =
-            parentProp !== '' &&
-            source !== undefined &&
-            directLinkTargets(this.host.app, source.file, parentProp).some(
-                (t) => t.path === oldParentKey
-            )
-        const parentOwned =
-            childProp !== '' &&
-            oldParent !== undefined &&
-            directLinkTargets(this.host.app, oldParent.file, childProp).some(
-                (t) => t.path === sourceKey
-            )
-        return { childOwned, parentOwned }
+        const parentProps = source
+            ? this.host
+                  .parentPropertiesForPath(sourceKey)
+                  .filter((prop) =>
+                      directLinkTargets(this.host.app, source.file, prop).some(
+                          (t) => t.path === oldParentKey
+                      )
+                  )
+            : []
+        const childProps = oldParent
+            ? this.host
+                  .childPropertiesForPath(oldParentKey)
+                  .filter((prop) =>
+                      directLinkTargets(this.host.app, oldParent.file, prop).some(
+                          (t) => t.path === sourceKey
+                      )
+                  )
+            : []
+        return {
+            childOwned: parentProps.length > 0,
+            parentOwned: childProps.length > 0,
+            parentProps,
+            childProps
+        }
     }
 
     /**
@@ -834,20 +861,21 @@ export class WbsController {
         if (!targetFile) return
         const targetLabel = target?.display.title ?? labelForPath(targetKey)
         const oldParent = sourceParentKey ? this.host.cardForKey(sourceParentKey) : undefined
-        // Every write targets the OWNING note's role property: the source's
-        // parent property, the old parent's children property, the new
-        // target's children property — each per its own type.
-        const parentProp = this.host.parentPropertyForPath(sourceKey)
-        const oldChildProp = sourceParentKey ? this.host.childPropertyForPath(sourceParentKey) : ''
-        const targetChildProp = this.host.childPropertyForPath(targetKey)
+        // New links go to the property the OTHER note's type selects (rule 71):
+        // the source's parent property for this target, the target's children
+        // property for this source. Old links are removed from whichever
+        // properties actually hold them (`edgeStorage`).
+        const parentProp = this.host.parentPropertyFor(sourceKey, targetKey)
+        const targetChildProp = this.host.childPropertyFor(targetKey, sourceKey)
 
         // Where is the old edge physically stored? A redundantly stored edge
         // (parent link on the child AND a children link on the old parent)
         // must be removed from BOTH sides, or the surviving side's inverse
         // resurrects it on the echo rebuild.
-        const { childOwned, parentOwned } = sourceParentKey
+        const storage = sourceParentKey
             ? this.edgeStorage(sourceKey, sourceParentKey)
-            : { childOwned: false, parentOwned: false }
+            : { childOwned: false, parentOwned: false, parentProps: [], childProps: [] }
+        const { childOwned, parentOwned } = storage
         const heuristicEdge = sourceParentKey !== null && !childOwned && !parentOwned
 
         // Optimistic: mutate the resolved sets + badges, re-render, then write.
@@ -860,16 +888,15 @@ export class WbsController {
         this.host.refresh()
 
         void (async () => {
-            if (childOwned && sourceParentKey) {
-                await removeRelationshipLink(
-                    this.host.app,
-                    source.file,
-                    parentProp,
-                    sourceParentKey
-                )
+            if (sourceParentKey) {
+                for (const prop of storage.parentProps) {
+                    await removeRelationshipLink(this.host.app, source.file, prop, sourceParentKey)
+                }
             }
-            if (parentOwned && oldParent && oldChildProp !== '') {
-                await removeRelationshipLink(this.host.app, oldParent.file, oldChildProp, sourceKey)
+            if (oldParent) {
+                for (const prop of storage.childProps) {
+                    await removeRelationshipLink(this.host.app, oldParent.file, prop, sourceKey)
+                }
             }
             // Recreate the edge where it was stored (both sides when it was
             // redundant, preserving the vault's convention); a fresh edge
@@ -879,7 +906,7 @@ export class WbsController {
                 await addRelationshipLink(this.host.app, targetFile, targetChildProp, source.file)
                 wrote = true
             }
-            if ((childOwned || !parentOwned) && parentProp !== '') {
+            if ((childOwned || !parentOwned || !wrote) && parentProp !== '') {
                 await addRelationshipLink(this.host.app, source.file, parentProp, targetFile)
                 wrote = true
             }
@@ -905,7 +932,10 @@ export class WbsController {
         const source = this.host.cardForKey(sourceKey)
         const oldParent = this.host.cardForKey(oldParentKey)
         if (!source) return
-        const { childOwned, parentOwned } = this.edgeStorage(sourceKey, oldParentKey)
+        const { childOwned, parentOwned, parentProps, childProps } = this.edgeStorage(
+            sourceKey,
+            oldParentKey
+        )
         if (!childOwned && !parentOwned) return // heuristic — canDrop blocks this
 
         // Optimistic: drop the edge from the live sets + badges, re-render.
@@ -925,21 +955,13 @@ export class WbsController {
         this.host.refresh()
 
         void (async () => {
-            if (childOwned) {
-                await removeRelationshipLink(
-                    this.host.app,
-                    source.file,
-                    this.host.parentPropertyForPath(sourceKey),
-                    oldParentKey
-                )
+            for (const prop of parentProps) {
+                await removeRelationshipLink(this.host.app, source.file, prop, oldParentKey)
             }
-            if (parentOwned && oldParent) {
-                await removeRelationshipLink(
-                    this.host.app,
-                    oldParent.file,
-                    this.host.childPropertyForPath(oldParentKey),
-                    sourceKey
-                )
+            if (oldParent) {
+                for (const prop of childProps) {
+                    await removeRelationshipLink(this.host.app, oldParent.file, prop, sourceKey)
+                }
             }
             new Notice(
                 `"${source.display.title}" detached from "${oldParent?.display.title ?? labelForPath(oldParentKey)}".`
@@ -1002,7 +1024,7 @@ export class WbsController {
      * `kap-wbs` section so the sectioned menu groups them at the end.
      */
     private extendCardMenu(menu: Menu, card: KanbanCard): void {
-        if (this.host.parentPropertyForPath(card.key) !== '') {
+        if (this.host.parentPropertiesForPath(card.key).length > 0) {
             menu.addItem((item) =>
                 item
                     .setTitle('Set parent…')

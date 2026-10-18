@@ -465,8 +465,21 @@ note picker in `ui/relationship-target-modal.ts`). **Per-type resolution (mixed 
 `resolveBoardRelationships` takes a `noteTypeForPath` resolver — each file's role properties,
 active roles (per-record `NoteRecord.activeRoles`), and heuristics (scoped via
 `HeuristicRule.targetTypeId`) come from its own recognized type, falling back to the active type.
-Writes use the owning card's own type's `roleProperties` (`relationshipPropertiesForPath`)
-and the metadata-cache listener refreshes the board; inverse/heuristic relations stay read-only.
+Writes use the owning card's own type's rules (`relationshipRulesForPath`): a role has
+SEVERAL rules (`domain/relationship-rules.ts`, rules 70-71), reads union their properties, and a
+new link goes to the one property `selectLinkProperty` picks from the TARGET note's recognized
+type (`targetTypeId`: board recognition map, local rules, then Starter Kit recognition);
+removals go to whichever property holds the link (`directLinkTargets` per property). The WBS
+host exposes `parentPropertiesForPath`/`childPropertiesForPath` (all) and
+`parentPropertyFor`/`childPropertyFor` (the one to write). When the Starter Kit exposes
+`getNoteTypeRelationships` (`starter-kit.service.ts`, by method presence) the rules are
+mirrored (`mirrorNoteType` + `domain/relationship-mirror.ts`, Starter Kit type id = note type
+id) and Configure board → Relationships (`renderRelationships`: a row per rule with property,
+target-type menu and delete, built on `domain/relationship-edit.ts`) turns read-only. Quick
+capture (`planNewCardParentLink` in the view) turns a `parent:` search term into one note
+(`services/parent-link.service.ts` `resolveParentNote` + `domain/parent-link.ts`), picks the
+property the same way and merges the link in the single post-template write (rule 72). The
+metadata-cache listener refreshes the board; inverse/heuristic relations stay read-only.
 **Off-board blockers count; archived ones drop (issue #13):** direct links resolve against the whole vault, so a task
 `blocked_by` a project on another board still shows blocked. `resolveBoardRelationships` then drops
 any `blocked_by` target whose note lives under a configured archive folder — `domain/archive-paths.ts`

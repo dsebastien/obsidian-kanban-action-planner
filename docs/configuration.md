@@ -167,6 +167,15 @@ Each relationship role reads a link-property (frontmatter wikilinks), configured
 | Child      | `children`       | Notes that are children of this. |
 | Blocked by | `blocked_by`     | Notes blocking this one.         |
 
+A role can have **several properties**, each limited to the note types it links to (a task's
+parents: `related_projects` for projects, `related_goals` for goals). Add rows with the
+**Add … property** button, pick the property and, in the note types menu, the types it links to
+(none selected = any type). Reads merge every property of the role. A new link goes to the one
+property whose types include the linked note's type, else to the one property with no types;
+when none or several fit, nothing is written and a notice says why. When the Obsidian Starter
+Kit declares a type's relationships, they are mirrored read-only and re-synced on every board
+load; **Detect children by tag** stays editable.
+
 Inverse relations are derived automatically (a declared child gives the target a parent, and so
 on). Setting a role's property to **None** turns that role **fully off**: its badge never
 appears, no direct links, no inverse of an active opposite role, no heuristic. The **Detect

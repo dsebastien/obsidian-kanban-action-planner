@@ -83,11 +83,18 @@ import {
     labelForPath,
     removeRelationshipLink,
     resolveBoardRelationships,
-    roleProperties,
     toCardRelationships
 } from '../../services/relationships.service'
 import type { RelatedNote } from '../../services/relationships.service'
 import { RELATIONSHIP_ROLES, ancestorPaths } from '../../domain/relationships'
+import {
+    choiceProblem,
+    chosenProperty,
+    roleLinkRules,
+    roleProperties,
+    selectLinkProperty
+} from '../../domain/relationship-rules'
+import type { RoleLinkRules } from '../../domain/relationship-rules'
 import { RelationshipTargetModal } from '../../ui/relationship-target-modal'
 import {
     ORDER_STEP,
@@ -112,6 +119,10 @@ import { createNote } from '../../services/note-creation.service'
 import type { CreateNoteResult } from '../../services/note-creation.service'
 import { autoTemplatePathFor } from '../../services/templater.service'
 import { CreateNoteModal } from '../../ui/create-note-modal'
+import { formatWikiLink } from '../../domain/wikilinks'
+import { parentLinkSubtitle, parentLinkUnmet, planParentLink } from '../../domain/parent-link'
+import type { ParentLinkPlan, ParentMatch, ParentTerm } from '../../domain/parent-link'
+import { resolveParentNote } from '../../services/parent-link.service'
 import type { CreateNotePreview } from '../../ui/create-note-modal'
 import {
     appendToListProperty,
@@ -255,6 +266,7 @@ import { resolveAllowedValues } from '../../services/enum.service'
 import {
     creationDefaults,
     getNoteTypeById,
+    isStarterKitAvailable,
     listNoteTypes
 } from '../../services/starter-kit.service'
 import { FilterBar } from '../../ui/filter-bar'
@@ -1044,8 +1056,12 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             dueSoonDays: () => this.plugin.settings.dueSoonThresholdDays,
             // Per-path role properties: each note's OWN type decides where its
             // parent/children links live (mixed boards + context ancestors).
-            parentPropertyForPath: (path) => this.relationshipPropertiesForPath(path).parent,
-            childPropertyForPath: (path) => this.relationshipPropertiesForPath(path).child,
+            parentPropertiesForPath: (path) => this.relationshipPropertiesForPath(path).parent,
+            childPropertiesForPath: (path) => this.relationshipPropertiesForPath(path).child,
+            parentPropertyFor: (path, parentPath) =>
+                this.relationshipPropertyFor('parent', path, parentPath),
+            childPropertyFor: (path, childPath) =>
+                this.relationshipPropertyFor('child', path, childPath),
             dateFormat: () =>
                 this.noteType.calendar.dateFormat || this.plugin.settings.defaultDateFormat,
             noteTypeFor: (card) => this.noteTypeByPath.get(card.key) ?? null,
@@ -4150,15 +4166,71 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         // `{{uuid}}` (and `{{date}}` across midnight) would otherwise resolve to
         // different values, so the previewed path would not be the created one.
         const ctx = liveExpressionContext()
-        new CreateNoteModal(
-            this.app,
-            `New ${noteType.name === 'Default' ? 'note' : noteType.name}`,
-            this.createNoteSubtitle(laneId, columnId, config, ctx),
-            (title) => this.previewCreatedNote(title, config, ctx),
-            (title) => {
-                void this.createCard(title, laneId, columnId, noteType, facts, config, ctx)
-            }
-        ).open()
+        const open = (parentLink: ParentLinkPlan): void => {
+            new CreateNoteModal(
+                this.app,
+                `New ${noteType.name === 'Default' ? 'note' : noteType.name}`,
+                this.createNoteSubtitle(laneId, columnId, config, ctx, parentLink),
+                (title) => this.previewCreatedNote(title, config, ctx),
+                (title) => {
+                    void this.createCard(
+                        title,
+                        laneId,
+                        columnId,
+                        noteType,
+                        facts,
+                        config,
+                        ctx,
+                        parentLink
+                    )
+                }
+            ).open()
+        }
+        // The search box (or the embed's `filter=`) may name a parent: the new
+        // card is then linked to it, or the modal says why it can not be.
+        // The dialog opens at once; it only waits when the parent's type can be
+        // recognized by the Starter Kit alone.
+        const term = getZoomTerm(this.filterQuery)
+        if (term === null) {
+            open({ kind: 'none' })
+            return
+        }
+        const resolved =
+            term.field === 'parent'
+                ? resolveParentNote(this.app, term.title, this.filePathForNewNote())
+                : { match: { kind: 'missing' } as const, file: null }
+        const plan = (typeId: string | null): ParentLinkPlan =>
+            this.planNewCardParentLink(noteType, term, resolved, typeId)
+        const typeId = resolved.file ? this.targetTypeIdSync(resolved.file.path) : null
+        if (resolved.file === null || typeId !== null || !isStarterKitAvailable(this.app)) {
+            open(plan(typeId))
+        } else {
+            void this.targetTypeId(resolved.file).then((id) => open(plan(id)))
+        }
+    }
+
+    /**
+     * What a new card does about the active `parent:` / `ancestor:` search term
+     * (rule 72): given the ONE note the term resolved to and its type, pick the
+     * property by the NEW card's parent rules. The same
+     * plan feeds the modal sentence, the single post-template write and the
+     * "does not appear here" notice.
+     */
+    private planNewCardParentLink(
+        noteType: NoteType,
+        term: ParentTerm,
+        resolved: { match: ParentMatch; file: TFile | null },
+        parentTypeId: string | null
+    ): ParentLinkPlan {
+        return planParentLink({
+            term,
+            match: resolved.match,
+            parentTypeId,
+            rules: roleLinkRules(noteType).parent,
+            link: resolved.file
+                ? formatWikiLink(this.app.metadataCache.fileToLinktext(resolved.file, ''))
+                : ''
+        })
     }
 
     /** The modal's subtitle: which column (and lane) the note will land in. */
@@ -4166,7 +4238,8 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         laneId: string,
         columnId: string,
         config: ResolvedCreationConfig,
-        ctx: ExpressionContext
+        ctx: ExpressionContext,
+        parentLink: ParentLinkPlan = { kind: 'none' }
     ): string {
         const column = this.laneColumns(laneId).find((c) => c.id === columnId)
         const where = column ? `“${column.label}”` : 'this column'
@@ -4175,9 +4248,10 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
                 ? ` in the “${laneId}” swimlane`
                 : ''
         const folder = normalizeCreationFolder(resolvePlaceholders(config.folder, ctx))
+        const parent = parentLinkSubtitle(parentLink)
         return `The note is created in ${
             folder.length > 0 ? `“${folder}”` : 'the vault root'
-        } and lands in ${where}${lane}.`
+        } and lands in ${where}${lane}.${parent.length > 0 ? ` ${parent}` : ''}`
     }
 
     /** Live preview for the modal: the exact path + template that will be used. */
@@ -4212,9 +4286,19 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         noteType: NoteType,
         facts: BaseFilterFacts,
         config: ResolvedCreationConfig,
-        ctx: ExpressionContext
+        ctx: ExpressionContext,
+        parentLink: ParentLinkPlan = { kind: 'none' }
     ): Promise<void> {
         const properties: Record<string, unknown> = { ...facts.properties }
+        // The parent link joins the Base's list facts and is written in the same
+        // single post-template transaction (rule 44), merged into whatever the
+        // template put there.
+        const listProperties: Record<string, string[]> = { ...facts.listProperties }
+        if (parentLink.kind === 'link') {
+            const key = findKeyCaseInsensitive(listProperties, parentLink.property)
+            const name = key ?? parentLink.property
+            listProperties[name] = [...(listProperties[name] ?? []), parentLink.link]
+        }
 
         // The status the card must end up with, resolved exactly like every other
         // status write (`statusPropertyForFile`): the per-view override wins, then
@@ -4251,7 +4335,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
                     title,
                     properties,
                     tags: this.creationTags(noteType, facts),
-                    listProperties: facts.listProperties
+                    listProperties
                 },
                 ctx
             )
@@ -4282,6 +4366,8 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         // construction. Say so instead of leaving the user hunting for a card that
         // never appears.
         const unmet = this.unmetFilterFacts(file, facts, properties)
+        const unlinked = parentLinkUnmet(parentLink)
+        if (unlinked !== null) unmet.push(unlinked)
         if (unmet.length > 0) {
             new Notice(
                 `Created “${file.basename}” in “${
@@ -5114,23 +5200,68 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
     // ── Relationship editing (issue #14) ──────────────────────
 
     /**
-     * The role→link-property map for a vault path, resolved from the note's
-     * OWN recognized type so reads and writes agree per card on mixed boards
+     * The stored note type governing a vault path, resolved from the note's OWN
+     * recognized type so reads and writes agree per card on mixed boards
      * (issue #14 + per-type resolution). Board files use the recognition map;
      * off-board paths (WBS context ancestors) recognize on demand; both fall
      * back to the active note type.
      */
-    private relationshipPropertiesForPath(path: string): Record<RelationshipRole, string> {
+    private relationshipTypeForPath(path: string): NoteType {
         let type = this.noteTypeByPath.get(path) ?? null
         if (type === null && !this.noteTypeByPath.has(path)) {
             const file = this.app.vault.getFileByPath(path)
             type = file ? recognizeLocalNoteType(this.app, this.plugin, file) : null
         }
         const noteType = type ? findNoteType(this.plugin, type.id) : undefined
-        return roleProperties(noteType ?? this.noteType)
+        return noteType ?? this.noteType
     }
 
-    /** Roles whose link-property is non-empty for THIS card's own type. */
+    /** The role -> link rules (property + target type scope) for a vault path's own type. */
+    private relationshipRulesForPath(path: string): RoleLinkRules {
+        return roleLinkRules(this.relationshipTypeForPath(path))
+    }
+
+    /** The role -> distinct link properties for a vault path's own type (reads union them). */
+    private relationshipPropertiesForPath(path: string): Record<RelationshipRole, string[]> {
+        return roleProperties(this.relationshipTypeForPath(path))
+    }
+
+    /**
+     * The recognized note type id of a link target, synchronously: the board's
+     * recognition map, else the local rules (mirrored Starter Kit mappings
+     * included). null = unrecognized (or recognizable only by the Starter Kit).
+     */
+    private targetTypeIdSync(path: string): string | null {
+        const known = this.noteTypeByPath.get(path)
+        if (known) return known.id
+        if (this.noteTypeByPath.has(path)) return null
+        const file = this.app.vault.getFileByPath(path)
+        return file ? (recognizeLocalNoteType(this.app, this.plugin, file)?.id ?? null) : null
+    }
+
+    /** {@link targetTypeIdSync}, falling back to the Starter Kit's recognition. */
+    private async targetTypeId(file: TFile): Promise<string | null> {
+        const sync = this.targetTypeIdSync(file.path)
+        if (sync !== null || !isStarterKitAvailable(this.app)) return sync
+        return (await recognizeNoteTypeFor(this.app, this.plugin, file))?.id ?? null
+    }
+
+    /**
+     * The property to write a `role` link on `ownerPath` towards `targetPath`
+     * (by the TARGET's type, rule 71); '' when none fits or several do. The
+     * WBS drag path: synchronous, so it only sees types the plugin can
+     * recognize locally.
+     */
+    private relationshipPropertyFor(
+        role: RelationshipRole,
+        ownerPath: string,
+        targetPath: string
+    ): string {
+        const rules = this.relationshipRulesForPath(ownerPath)[role]
+        return chosenProperty(selectLinkProperty(rules, this.targetTypeIdSync(targetPath)))
+    }
+
+    /** Roles that have at least one link property for THIS card's own type. */
     private addableRelationshipRoles(card: KanbanCard): ReadonlySet<RelationshipRole> {
         const props = this.relationshipPropertiesForPath(card.key)
         const roles = new Set<RelationshipRole>()
@@ -5140,67 +5271,97 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         return roles
     }
 
-    /** Removable direct links currently stored on the card, per role. */
+    /** Removable direct links currently stored on the card, per role (one entry per target). */
     private directRelationships(
         card: KanbanCard
     ): Array<{ role: RelationshipRole; target: { path: string; label: string } }> {
         const props = this.relationshipPropertiesForPath(card.key)
         const out: Array<{ role: RelationshipRole; target: { path: string; label: string } }> = []
         for (const role of RELATIONSHIP_ROLES) {
-            const property = props[role]
-            if (property.length === 0) continue
-            for (const target of directLinkTargets(this.app, card.file, property)) {
-                out.push({ role, target })
+            const seen = new Set<string>()
+            for (const property of props[role]) {
+                for (const target of directLinkTargets(this.app, card.file, property)) {
+                    if (seen.has(target.path)) continue
+                    seen.add(target.path)
+                    out.push({ role, target })
+                }
             }
         }
         return out
     }
 
-    /** Open a note picker and link the chosen note in `role`'s property. */
+    /** Open a note picker and link the chosen note in the `role` property that fits its type. */
     private addRelationship(cardRef: KanbanCard, role: RelationshipRole): void {
-        const property = this.relationshipPropertiesForPath(cardRef.key)[role]
-        if (property.length === 0) return
+        const properties = this.relationshipPropertiesForPath(cardRef.key)[role]
+        if (properties.length === 0) return
         const exclude = new Set<string>([cardRef.file.path])
-        for (const target of directLinkTargets(this.app, cardRef.file, property)) {
-            exclude.add(target.path)
+        for (const property of properties) {
+            for (const target of directLinkTargets(this.app, cardRef.file, property)) {
+                exclude.add(target.path)
+            }
         }
         new RelationshipTargetModal(this.app, role, exclude, (target) => {
-            // Resolve the live card at COMMIT time — a rebuild can land while
-            // the picker is open, orphaning the captured object (issue #105
-            // review). Optimistic: show the new badge at once, then write
-            // (issue #64).
-            const card = this.liveCard(cardRef)
-            if (!card.relationships[role].some((r) => r.key === target.path)) {
-                card.relationships[role] = [
-                    ...card.relationships[role],
-                    { key: target.path, label: target.basename }
-                ]
-                this.applyFilterAndRender()
-            }
-            void addRelationshipLink(this.app, card.file, property, target).then((added) => {
-                new Notice(
-                    added
-                        ? `Linked "${target.basename}" as ${role.replace('_', ' ')}.`
-                        : `"${target.basename}" is already linked.`
-                )
-            })
+            void this.linkRelationship(cardRef, role, target)
         }).open()
     }
 
-    /** Remove the link to `targetPath` from `role`'s property. */
+    /**
+     * Link `target` in the property rule 71 picks for its type: exactly one
+     * candidate writes, none or several refuse with a Notice that says why.
+     * The type resolves synchronously when the plugin can recognize it; only
+     * an unrecognized target asks the Starter Kit first.
+     */
+    private async linkRelationship(
+        cardRef: KanbanCard,
+        role: RelationshipRole,
+        target: TFile
+    ): Promise<void> {
+        const rules = this.relationshipRulesForPath(cardRef.key)[role]
+        const typeId = await this.targetTypeId(target)
+        const choice = selectLinkProperty(rules, typeId)
+        const property = chosenProperty(choice)
+        if (property.length === 0) {
+            new Notice(`Not linked: ${choiceProblem(choice, role, `"${target.basename}"`)}.`, 8000)
+            return
+        }
+        // Resolve the live card at COMMIT time: a rebuild can land while the
+        // picker is open, orphaning the captured object (issue #105 review).
+        // Optimistic: show the new badge at once, then write (issue #64).
+        const card = this.liveCard(cardRef)
+        if (!card.relationships[role].some((r) => r.key === target.path)) {
+            card.relationships[role] = [
+                ...card.relationships[role],
+                { key: target.path, label: target.basename }
+            ]
+            this.applyFilterAndRender()
+        }
+        const added = await addRelationshipLink(this.app, card.file, property, target)
+        new Notice(
+            added
+                ? `Linked "${target.basename}" as ${role.replace('_', ' ')} (${property}).`
+                : `"${target.basename}" is already linked.`
+        )
+    }
+
+    /** Remove the link to `targetPath` from every `role` property that holds it. */
     private async removeRelationship(
         cardRef: KanbanCard,
         role: RelationshipRole,
         targetPath: string
     ): Promise<void> {
         const card = this.liveCard(cardRef)
-        const property = this.relationshipPropertiesForPath(card.key)[role]
-        if (property.length === 0) return
+        const properties = this.relationshipPropertiesForPath(card.key)[role]
+        if (properties.length === 0) return
         // Optimistic: drop the badge immediately, then write (issue #64).
         const before = card.relationships[role]
         card.relationships[role] = before.filter((r) => r.key !== targetPath)
         if (card.relationships[role].length !== before.length) this.applyFilterAndRender()
-        await removeRelationshipLink(this.app, card.file, property, targetPath)
+        for (const property of properties) {
+            const holds = directLinkTargets(this.app, card.file, property).some(
+                (t) => t.path === targetPath
+            )
+            if (holds) await removeRelationshipLink(this.app, card.file, property, targetPath)
+        }
     }
 
     // ── Keyboard move & reorder (issue #20) ───────────────────

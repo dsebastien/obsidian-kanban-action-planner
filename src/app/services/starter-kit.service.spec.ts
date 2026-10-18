@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'bun:test'
+import { App } from 'obsidian'
 import type { EventRef, Events } from 'obsidian'
 import {
     STARTER_KIT_NOTE_TYPES_CHANGED,
@@ -7,6 +8,7 @@ import {
     enumPropertyDefs,
     findProperty,
     findStatusProperty,
+    getNoteTypeRelationships,
     isStaleGuessedStatus,
     legacyGuessedStatusProperty,
     namingOf,
@@ -246,5 +248,95 @@ describe('onStarterKitNoteTypesChanged', () => {
         expect(calls).toBe(0)
         events.trigger('obsidian-starter-kit:note-types-changed')
         expect(calls).toBe(1)
+    })
+})
+
+describe('getNoteTypeRelationships (feature-detected by method presence)', () => {
+    function appWithApi(api: Record<string, unknown>): App {
+        return Object.assign(new App(), {
+            plugins: { plugins: { 'obsidian-starter-kit': { api } } }
+        })
+    }
+    const listNoteTypes = (): unknown[] => []
+
+    it('is null when the installed Starter Kit has no such method (no version check)', () => {
+        expect(getNoteTypeRelationships(appWithApi({ listNoteTypes }), 'tasks')).toBeNull()
+    })
+
+    it('is null without a Starter Kit at all', () => {
+        expect(getNoteTypeRelationships(Object.assign(new App(), {}), 'tasks')).toBeNull()
+    })
+
+    it('unwraps an ApiResult and maps target types to ids', () => {
+        const calls: string[] = []
+        const app = appWithApi({
+            listNoteTypes,
+            getNoteTypeRelationships: (ref: string) => {
+                calls.push(ref)
+                return {
+                    success: true,
+                    data: [
+                        {
+                            role: 'parent',
+                            property: 'related_projects',
+                            propertyId: 'p1',
+                            targetTypes: [{ id: 'projects', name: 'Projects' }]
+                        },
+                        { role: 'parent', property: 'related_goals', targetTypes: [] },
+                        {
+                            role: 'sibling',
+                            property: ' related_tasks ',
+                            targetTypes: [{ id: 'x' }, { id: 'x' }]
+                        }
+                    ]
+                }
+            }
+        })
+        expect(getNoteTypeRelationships(app, 'tasks')).toEqual([
+            { role: 'parent', property: 'related_projects', targetTypeIds: ['projects'] },
+            { role: 'parent', property: 'related_goals', targetTypeIds: [] },
+            { role: 'sibling', property: 'related_tasks', targetTypeIds: ['x'] }
+        ])
+        expect(calls).toEqual(['tasks'])
+    })
+
+    it('null (not configured) stays null, while an empty array is a real answer', () => {
+        const nullApp = appWithApi({
+            listNoteTypes,
+            getNoteTypeRelationships: () => ({ success: true, data: null })
+        })
+        expect(getNoteTypeRelationships(nullApp, 'tasks')).toBeNull()
+        const emptyApp = appWithApi({
+            listNoteTypes,
+            getNoteTypeRelationships: () => ({ success: true, data: [] })
+        })
+        expect(getNoteTypeRelationships(emptyApp, 'tasks')).toEqual([])
+    })
+
+    it('skips unusable entries and survives errors and failed results', () => {
+        const messy = appWithApi({
+            listNoteTypes,
+            getNoteTypeRelationships: () => [
+                { role: 'boss', property: 'x' },
+                { role: 'parent', property: '' },
+                null,
+                { role: 'blocked_by', property: 'blocked_by' }
+            ]
+        })
+        expect(getNoteTypeRelationships(messy, 't')).toEqual([
+            { role: 'blocked_by', property: 'blocked_by', targetTypeIds: [] }
+        ])
+        const failed = appWithApi({
+            listNoteTypes,
+            getNoteTypeRelationships: () => ({ success: false, error: 'nope' })
+        })
+        expect(getNoteTypeRelationships(failed, 't')).toBeNull()
+        const throwing = appWithApi({
+            listNoteTypes,
+            getNoteTypeRelationships: () => {
+                throw new Error('boom')
+            }
+        })
+        expect(getNoteTypeRelationships(throwing, 't')).toBeNull()
     })
 })

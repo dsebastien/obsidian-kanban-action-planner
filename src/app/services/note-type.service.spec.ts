@@ -4,8 +4,10 @@ import {
     columnsFromValues,
     createDefaultNoteType,
     DEFAULT_NOTE_TYPE_ID,
+    mirrorNoteType,
     resolveNaming
 } from './note-type.service'
+import { roleLinkRules } from '../domain/relationship-rules'
 import type { SkNoteType } from './starter-kit.service'
 import { defaultNamingConfig } from '../domain/card-title'
 import { noteTypeSchema } from '../domain/note-type'
@@ -98,5 +100,68 @@ describe('resolveNaming (mirror refresh, Starter Kit >= 1.22)', () => {
         expect(resolveNaming({ id: 'a', name: 'A' }, defaultNamingConfig())).toEqual(
             defaultNamingConfig()
         )
+    })
+})
+
+describe('mirrorNoteType (Starter Kit relationships)', () => {
+    const defaults = {
+        statusProperty: 'status',
+        orderProperty: 'manual_order',
+        scheduledDateProperty: '',
+        dueDateProperty: '',
+        dateFormat: ''
+    }
+    const skTask: SkNoteType = { id: 'tasks', name: 'Tasks' }
+    const rules = [
+        { role: 'parent' as const, property: 'related_projects', targetTypeIds: ['projects'] },
+        { role: 'parent' as const, property: 'related_goals', targetTypeIds: ['goals'] }
+    ]
+
+    it('mirrors the Starter Kit rules (OSK type ids are KAP type ids) and marks the type', () => {
+        const base = createDefaultNoteType('tasks', 'Tasks', 'starter-kit')
+        const out = mirrorNoteType(base, skTask, null, defaults, null, false, null, rules)
+        expect(out.relationshipsMirrored).toBe(true)
+        expect(roleLinkRules(out).parent).toEqual([
+            { property: 'related_projects', targetTypeIds: ['projects'] },
+            { property: 'related_goals', targetTypeIds: ['goals'] }
+        ])
+        // roles the Starter Kit does not mention are off (its declaration is complete)
+        expect(roleLinkRules(out).child).toEqual([])
+        expect(noteTypeSchema.parse(out)).toEqual(out)
+    })
+
+    it('without the API (null) the local config stays the source, defaults included', () => {
+        const base = createDefaultNoteType('tasks', 'Tasks', 'starter-kit')
+        const out = mirrorNoteType(base, skTask, null, defaults, null, false, null, null)
+        expect(out.relationshipsMirrored).toBeUndefined()
+        expect(roleLinkRules(out).parent).toEqual([{ property: 'parent', targetTypeIds: [] }])
+    })
+
+    it('hands the local config back when the Starter Kit stops declaring relationships', () => {
+        const base = createDefaultNoteType('tasks', 'Tasks', 'starter-kit')
+        const mirrored = mirrorNoteType(base, skTask, null, defaults, null, false, null, rules)
+        const back = mirrorNoteType(mirrored, skTask, null, defaults, null, false, null, null)
+        expect(back.relationshipsMirrored).toBeUndefined()
+        expect(back.relationships).toEqual(base.relationships)
+    })
+
+    it('keeps the plugin-owned child heuristic while mirrored', () => {
+        const heuristic = { allowedTypeTags: ['#task'], requiresLinkToSource: true }
+        const base = {
+            ...createDefaultNoteType('projects', 'Projects', 'starter-kit'),
+            relationships: [{ role: 'child' as const, linkProperty: '', heuristic }]
+        }
+        const out = mirrorNoteType(
+            base,
+            { id: 'projects', name: 'Projects' },
+            null,
+            defaults,
+            null,
+            false,
+            null,
+            []
+        )
+        expect(out.relationshipsMirrored).toBe(true)
+        expect(out.relationships.find((r) => r.heuristic)?.heuristic).toEqual(heuristic)
     })
 })

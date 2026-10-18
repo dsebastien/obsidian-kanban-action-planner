@@ -69,11 +69,16 @@ When a new business rule is mentioned:
    Starter Kit plugin (`obsidian-starter-kit`) is present, its note-type config is the
    **read-only source of truth**, but always **mirrored into a local snapshot** so note types
    survive SK being disabled/removed and support local overrides. When SK is absent,
-   note types are fully local read/write. SK is feature-detected (no API versioning).
+   note types are fully local read/write. SK is feature-detected (no API versioning): every
+   SK capability, `getNoteTypeRelationships` (rule 71) included, is used by **method presence**
+   only, never by version check.
 6. **Kanban-owned presentation.** Colors (theme-aware palette + custom hex; column bg =
-   translucent shade of card color), relationships, calendar mappings, and swimlane grouping
-   are owned by this plugin (SK does not define them). Card _field_ content is **not** owned —
-   it comes from the Bases view's own property selection (rule 8).
+   translucent shade of card color), calendar mappings, and swimlane grouping are owned by
+   this plugin (SK does not define them). **Relationships are plugin-owned until the Starter
+   Kit declares them** (`getNoteTypeRelationships`, rule 71): a type whose SK declares
+   relationships mirrors them read-only; otherwise the local rules apply and are editable; the
+   tag heuristic ("Detect children by tag") is always plugin-owned. Card _field_ content is
+   **not** owned — it comes from the Bases view's own property selection (rule 8).
 7. **Configurable swimlanes (issue #2).** Lanes are grouped by a configurable key: none /
    note type / an arbitrary property; an **Ungrouped** lane collects missing values and is
    hidden when empty. **Mixed-board auto-grouping** (owner-approved): with no per-view override
@@ -170,8 +175,10 @@ When a new business rule is mentioned:
    **targets of their owning type** (`HeuristicRule.targetTypeId`). Every relationship
    WRITE (menus, WBS re-parent/detach, Set parent…) targets the owning note's own role
    property (`relationshipPropertiesForPath`); the WBS host exposes
-   `parentPropertyForPath`/`childPropertyForPath` so drag writes pick the source's parent
-   property and the (old/new) parent's children property, each per its own type.
+   `parentPropertiesForPath`/`childPropertiesForPath` (every property of the role: reads and
+   removals) and `parentPropertyFor`/`childPropertyFor` (the ONE property a new link goes to,
+   rule 71), each per the note's own type. **A role may have several link properties, each
+   scoped to target note types: rules 70-71.**
 10. **Calendar mode.** A toggle adds a collapsible "Scheduling" panel (Unplanned /
     No-Deadline tabs; title always visible, vertical when collapsed; each tab's backlog is
     **grouped by note type → status** via `groupByTypeAndStatus`, type headers only on
@@ -935,6 +942,9 @@ When a new business rule is mentioned:
     - **Quick capture writes exactly one file.** The new card takes the order after the last
       card in its column — it never renumbers the column's other notes — and order is only
       written under the manual sort.
+    - **The parent a `parent:` search term names is linked (rule 72).** The wikilink goes in
+      the SAME single post-template write, as a list value merged into whatever the template
+      put there (empty `[null]` placeholders are dropped). An `ancestor:` term is never written.
 
 45. **Column aggregates (issue #23).** A view can roll one numeric property up per column
     (`columnAggregate` = `none` (default) / `sum` / `avg` / `min` / `max`, over
@@ -1348,3 +1358,58 @@ Markdown)`, `Export ideal week (JSON)`, `Export ideal week (Markdown)`); the for
     the classes that change card heights (compact, cover layout, chip / color / accent style,
     mobile, embed), the font size or the zoom, and on Obsidian's `css-change` (theme, font,
     snippet), which also re-measures the board at once.
+
+70. **Relationship rules are many per role, each scoped to target note types (multi-rule
+    model).** A note type's `relationships` holds any number of rules per role
+    (`parent`/`sibling`/`child`/`blocked_by`); a rule = a link property (a list of wikilinks), an
+    optional `targetTypeIds` (this plugin's note type ids; absent/empty = any type), an optional
+    tag heuristic, and `mirrored` (rule 71). A task can therefore have a project parent in
+    `related_projects` AND a goal parent in `related_goals`. Pure model in
+    `domain/relationship-rules.ts`. **Reads take the UNION:** a role's links are the deduped
+    targets of every rule's property (`roleProperties`, `toRecord`), so resolution, inverses,
+    the `parent:`/`ancestor:`/`child:` search terms, badges and the WBS see all of them.
+    Role semantics are unchanged: a role with NO rule uses its default property; a role whose
+    rules all have an empty property ("None" marker `{role, linkProperty: ''}`) is off (rule 9).
+    Older data.json needs no migration (no `targetTypeIds` = any type; a hand-edited file with
+    two same-role rules now unions them instead of keeping the last). **WBS with several
+    parents:** the hierarchy is unchanged from rule 36: a note with several in-set parents
+    appears under EACH (⧉ marker); a re-parent drag removes the dragged
+    row's edge to its CONTEXT parent only (from whichever property holds it) and leaves its
+    other parents alone; "Set parent…" adds one more.
+
+71. **Where relationship rules come from, and which property a new link is written to.**
+    **Source:** when the installed Starter Kit exposes `getNoteTypeRelationships` (method
+    presence, rule 5) and it returns non-null for the type, that declaration is mirrored
+    (read-only in Configure board → Relationships, `relationshipsMirrored: true`, rules marked
+    `mirrored`, re-synced on every board resolution; `domain/relationship-mirror.ts`
+    `reconcileRelationships`). Starter Kit note type ids ARE this plugin's mirrored type ids
+    (mirrored types are keyed by the Starter Kit id), so target ids map 1:1. Once mirrored,
+    ONLY the mirrored rules are link properties and a role the Starter Kit does not mention is
+    off (its declaration is complete); local rules are kept in storage and contribute only
+    their tag heuristic. `null` (not configured, or no such method) hands the local rules back
+    unchanged. Without a Starter Kit declaration the local rules are editable (role, property,
+    target types, add/remove). **Write selection** (`selectLinkProperty`), for every write that
+    adds a link: take the role's rules whose `targetTypeIds` contain the TARGET note's
+    recognized type id; if none, the rules with no targets; **exactly one distinct property
+    writes; zero or several never write** and a Notice says why (no property fits / several
+    fit: scope the rules). Applies to card menu "Add <role>…", WBS "Set parent…" and drag
+    re-parent (the drag is refused with the red highlight; types are recognized synchronously
+    there, Starter Kit-only recognition is not consulted). **Removals** go to whichever
+    property of the role actually holds the link (menu "Remove <role>: X", WBS un-parent and
+    the old edge of a re-parent), never to the property a new link would use. Every write stays
+    optimistic (rule 49).
+
+72. **Add card links the parent a `parent:` search term names.** The board's search query
+    (`filterQuery`, seeded by an embed's `filter=`) may carry a positive `parent:` term
+    (`getZoomTerm`, field `parent`). Quick capture resolves it to exactly ONE note: the link
+    resolution of the embedding note (`getFirstLinkpathDest(title, hostPath)`), else the unique
+    case-insensitive basename, else a unique basename containing the term (the filter itself is
+    a substring match); several candidates or none = not resolved, never a guess
+    (`domain/parent-link.ts`, `services/parent-link.service.ts`). The property is picked by rule
+    71 from the NEW card's own parent rules and the parent's recognized type (Starter Kit
+    recognition is consulted, and the dialog waits for it, only when local rules cannot tell),
+    and the wikilink is written in the same single post-template write (rule 44). The create
+    dialog says so (`Linked to [[X]] via related_projects.`); when the term cannot be honored
+    (no/ambiguous note, no or several matching rules) the dialog says why and the post-create
+    "does not appear here" notice lists it. An `ancestor:` term is never written (it names a
+    whole subtree, not one direct parent) and is explained the same way.

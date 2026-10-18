@@ -1,4 +1,4 @@
-import { Modal, Setting, setIcon } from 'obsidian'
+import { Menu, Modal, Setting, setIcon } from 'obsidian'
 import type { App } from 'obsidian'
 import type { KanbanActionPlannerPlugin } from '../plugin'
 import type {
@@ -24,6 +24,16 @@ import { creationDefaults, getNoteTypeById } from '../services/starter-kit.servi
 import { isTemplaterAvailable, templaterTemplatesFolder } from '../services/templater.service'
 import { splitStatusValue } from '../domain/status'
 import { isMirroredRule } from '../domain/status-mirror'
+import { roleLinkRules } from '../domain/relationship-rules'
+import {
+    addLinkRule,
+    childHeuristicTags,
+    linkRuleIndexes,
+    materializeRules,
+    removeLinkRule,
+    setChildHeuristic,
+    updateLinkRule
+} from '../domain/relationship-edit'
 import { resolveDoneConfig } from '../domain/done'
 import { doneIsStatusBased } from '../domain/automation'
 import { isValidHex, paletteTokens, resolveColor } from '../services/colors.service'
@@ -1655,33 +1665,147 @@ export class ConfigureBoardModal extends Modal {
         new Setting(this.body).setName('Relationships').setHeading()
         this.body.createEl('p', {
             cls: 'kap-modal-subtitle',
-            text: 'Link-properties whose wikilinks define each relationship. Inverse relations are detected automatically.'
+            text:
+                'Link-properties whose wikilinks define each relationship. A role can use several ' +
+                'properties, each limited to the note types it links to (a task can have a project ' +
+                'parent AND a goal parent). Inverse relations are detected automatically.'
         })
 
-        for (const { role, label } of RELATIONSHIP_ROLES_UI) {
-            const current = noteType.relationships.find((r) => r.role === role)
-            new Setting(this.body).setName(label).addDropdown((dd) => {
-                dd.addOption(NONE, 'None')
-                for (const prop of this.availableProperties) dd.addOption(prop, prop)
-                dd.setValue(
-                    current && current.linkProperty.length > 0 ? current.linkProperty : NONE
-                )
-                dd.onChange((value) => {
-                    void this.mutate(() =>
-                        setRelationships(
-                            this.plugin,
-                            this.noteTypeId,
-                            upsertRule(noteType.relationships, role, (rule) => ({
-                                ...rule,
-                                linkProperty: value === NONE ? '' : value
-                            }))
-                        )
-                    )
-                })
-            })
+        const mirrored = noteType.relationshipsMirrored === true
+        if (mirrored) this.renderMirroredRelationships(noteType)
+        else {
+            for (const { role, label } of RELATIONSHIP_ROLES_UI) {
+                this.renderRoleRules(noteType, role, label)
+            }
         }
+        this.renderChildHeuristic(noteType, mirrored)
+    }
 
-        const childRule = noteType.relationships.find((r) => r.role === 'child')
+    /** The Starter Kit owns the link-properties: show them read-only. */
+    private renderMirroredRelationships(noteType: NoteType): void {
+        const rules = roleLinkRules(noteType)
+        const names = new Map(this.plugin.settings.noteTypes.map((t) => [t.id, t.name]))
+        const lines: string[] = []
+        for (const { role, label } of RELATIONSHIP_ROLES_UI) {
+            const parts = rules[role].map((rule) => {
+                const targets = rule.targetTypeIds.map((id) => names.get(id) ?? id)
+                return targets.length > 0
+                    ? `${rule.property} → ${targets.join(', ')}`
+                    : `${rule.property} (any type)`
+            })
+            lines.push(`${label}: ${parts.length > 0 ? parts.join('; ') : 'none'}`)
+        }
+        const setting = new Setting(this.body)
+            .setName('Mirrored from the Obsidian Starter Kit')
+            .setDesc(
+                `The Starter Kit declares how ${noteType.name} notes link to each other ` +
+                    '(Settings → Obsidian Starter Kit → Note types → Edit → Relationships). ' +
+                    'Edit them there; this plugin re-syncs on every board load.'
+            )
+        const list = setting.descEl.createEl('ul')
+        for (const line of lines) list.createEl('li', { text: line })
+    }
+
+    /** One role: a row per link rule (property + target types + delete), then an add button. */
+    private renderRoleRules(noteType: NoteType, role: RelationshipRole, label: string): void {
+        const rules = materializeRules(noteType.relationships)
+        const indexes = linkRuleIndexes(rules, role)
+        new Setting(this.body).setName(label).setHeading()
+        if (indexes.length === 0) {
+            this.body.createDiv({ cls: 'kap-modal-empty', text: 'None: this role is off.' })
+        }
+        for (const index of indexes) {
+            const rule = rules[index]
+            if (rule) this.renderRuleRow(rules, index, rule)
+        }
+        new Setting(this.body).addButton((btn) =>
+            btn.setButtonText(`Add ${label.toLowerCase()} property`).onClick(() => {
+                const used = new Set(indexes.map((i) => rules[i]?.linkProperty ?? ''))
+                const property =
+                    this.availableProperties.find((p) => !used.has(p)) ??
+                    this.availableProperties[0] ??
+                    ''
+                if (property.length === 0) return
+                void this.writeRelationships(addLinkRule(rules, role, property))
+            })
+        )
+    }
+
+    private renderRuleRow(
+        rules: ReadonlyArray<RelationshipRule>,
+        index: number,
+        rule: RelationshipRule
+    ): void {
+        const setting = new Setting(this.body).addDropdown((dd) => {
+            const options = this.availableProperties.includes(rule.linkProperty)
+                ? this.availableProperties
+                : [rule.linkProperty, ...this.availableProperties]
+            for (const prop of options) dd.addOption(prop, prop)
+            dd.setValue(rule.linkProperty)
+            dd.onChange((value) => {
+                void this.writeRelationships(updateLinkRule(rules, index, { linkProperty: value }))
+            })
+        })
+        const selected = rule.targetTypeIds ?? []
+        const names = new Map(this.plugin.settings.noteTypes.map((t) => [t.id, t.name]))
+        setting.addButton((btn) =>
+            btn
+                .setButtonText(
+                    selected.length === 0
+                        ? 'Any note type'
+                        : selected.map((id) => names.get(id) ?? id).join(', ')
+                )
+                .setTooltip('Note types this property links to')
+                .onClick((evt) => {
+                    const menu = new Menu()
+                    const choices = [
+                        ...this.plugin.settings.noteTypes
+                            .filter((t) => t.id !== DEFAULT_NOTE_TYPE_ID)
+                            .map((t) => ({ id: t.id, name: t.name })),
+                        ...selected.filter((id) => !names.has(id)).map((id) => ({ id, name: id }))
+                    ].sort((a, b) => a.name.localeCompare(b.name))
+                    for (const choice of choices) {
+                        menu.addItem((item) =>
+                            item
+                                .setTitle(choice.name)
+                                .setChecked(selected.includes(choice.id))
+                                .onClick(() => {
+                                    const next = selected.includes(choice.id)
+                                        ? selected.filter((id) => id !== choice.id)
+                                        : [...selected, choice.id]
+                                    void this.writeRelationships(
+                                        updateLinkRule(rules, index, { targetTypeIds: next })
+                                    )
+                                })
+                        )
+                    }
+                    if (selected.length > 0) {
+                        menu.addSeparator()
+                        menu.addItem((item) =>
+                            item
+                                .setTitle('Any note type')
+                                .setIcon('x')
+                                .onClick(() => {
+                                    void this.writeRelationships(
+                                        updateLinkRule(rules, index, { targetTypeIds: [] })
+                                    )
+                                })
+                        )
+                    }
+                    menu.showAtMouseEvent(evt)
+                })
+        )
+        setting.addExtraButton((btn) =>
+            btn
+                .setIcon('trash')
+                .setTooltip('Remove this property')
+                .onClick(() => {
+                    void this.writeRelationships(removeLinkRule(rules, index))
+                })
+        )
+    }
+
+    private renderChildHeuristic(noteType: NoteType, mirrored: boolean): void {
         new Setting(this.body)
             .setName('Detect children by tag')
             .setDesc(
@@ -1690,27 +1814,26 @@ export class ConfigureBoardModal extends Modal {
             .addText((input) => {
                 input
                     .setPlaceholder('#task, #action')
-                    .setValue((childRule?.heuristic?.allowedTypeTags ?? []).join(', '))
+                    .setValue(childHeuristicTags(noteType.relationships).join(', '))
                     .onChange((value) => {
                         const tags = value
                             .split(',')
                             .map((t) => t.trim())
                             .filter((t) => t.length > 0)
-                        void this.mutate(() =>
-                            setRelationships(
-                                this.plugin,
-                                this.noteTypeId,
-                                upsertRule(noteType.relationships, 'child', (rule) => ({
-                                    ...rule,
-                                    heuristic:
-                                        tags.length > 0
-                                            ? { allowedTypeTags: tags, requiresLinkToSource: true }
-                                            : undefined
-                                }))
-                            )
-                        )
+                        // Persist without re-rendering so typing keeps focus.
+                        const current = this.noteType()?.relationships ?? noteType.relationships
+                        void setRelationships(
+                            this.plugin,
+                            this.noteTypeId,
+                            setChildHeuristic(current, tags, mirrored)
+                        ).then(() => this.onChange())
                     })
             })
+    }
+
+    /** Persist a new rule list, refresh the boards and re-render the section. */
+    private async writeRelationships(rules: RelationshipRule[]): Promise<void> {
+        await this.mutate(() => setRelationships(this.plugin, this.noteTypeId, rules))
     }
 
     // ── Swimlanes ─────────────────────────────────────────────
@@ -1851,23 +1974,11 @@ export class ConfigureBoardModal extends Modal {
 
 /** Relationship roles shown in the modal, in order. */
 const RELATIONSHIP_ROLES_UI: Array<{ role: RelationshipRole; label: string }> = [
-    { role: 'parent', label: 'Parents property' },
-    { role: 'sibling', label: 'Siblings property' },
-    { role: 'child', label: 'Children property' },
-    { role: 'blocked_by', label: 'Blocked-by property' }
+    { role: 'parent', label: 'Parents' },
+    { role: 'sibling', label: 'Siblings' },
+    { role: 'child', label: 'Children' },
+    { role: 'blocked_by', label: 'Blocked by' }
 ]
-
-/** Replace (or insert) a role's rule via a mutator, returning the new rule list. */
-function upsertRule(
-    rules: ReadonlyArray<RelationshipRule>,
-    role: RelationshipRole,
-    mutator: (rule: RelationshipRule) => RelationshipRule
-): RelationshipRule[] {
-    const existing = rules.find((r) => r.role === role) ?? { role, linkProperty: '' }
-    const next = mutator(existing)
-    const others = rules.filter((r) => r.role !== role)
-    return [...others, next]
-}
 
 /** Example value text for a recognition rule, by kind. */
 /** Split a textarea into affixes: one per line, blanks dropped, spacing kept. */

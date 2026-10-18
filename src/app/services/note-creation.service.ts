@@ -297,10 +297,15 @@ function isArray(value: unknown): value is unknown[] {
 /**
  * Merge `additions` into an existing frontmatter list value without disturbing
  * what is already there (a template's own tags stay, in their order). A scalar is
- * promoted to a list; `null`/absent starts a fresh one.
+ * promoted to a list; `null`/absent starts a fresh one, and empty placeholder
+ * items (`[null]`) are dropped.
  */
-function mergeList(raw: unknown, additions: string[], caseInsensitive: boolean): unknown[] {
-    const existing = isArray(raw) ? [...raw] : raw === null || raw === undefined ? [] : [raw]
+export function mergeList(raw: unknown, additions: string[], caseInsensitive: boolean): unknown[] {
+    // A template's empty placeholders (`related_projects: [null]`) make way for
+    // the real values instead of sitting in front of them.
+    const existing = (isArray(raw) ? [...raw] : [raw]).filter(
+        (item) => item !== null && item !== undefined && item !== ''
+    )
     const seen = new Set(
         existing
             .filter((item): item is string => typeof item === 'string')

@@ -29,6 +29,7 @@ import { log } from '../../utils/log'
 import type { SkArchive } from './starter-kit.service'
 import {
     getNoteTypeArchive,
+    getNoteTypeRelationships,
     getNoteTypeById,
     findStatusProperty,
     getNoteTypeStatus,
@@ -48,6 +49,8 @@ import {
     reconcileArchive,
     reconcileDone
 } from '../domain/status-mirror'
+import { reconcileRelationships } from '../domain/relationship-mirror'
+import type { MirroredRelationshipSource } from '../domain/relationship-mirror'
 import {
     DEFAULT_BLOCKED_BY_PROPERTY,
     DEFAULT_CHILD_PROPERTY,
@@ -625,6 +628,7 @@ export async function mirrorStarterKitType(
     // Kit resolves it. Same rule whatever the Starter Kit's version.
     const skStatus = getNoteTypeStatus(app, skType.id)
     const skArchive = getNoteTypeArchive(app, skType.id)
+    const skRelationships = getNoteTypeRelationships(app, skType.id)
     const skRunsAutomations = starterKitRunsAutomations(app)
     const status = skStatus?.explicit
         ? { name: skStatus.property, allowedValues: skStatus.values.map((v) => v.value) }
@@ -637,7 +641,8 @@ export async function mirrorStarterKitType(
         defaults,
         skStatus,
         skRunsAutomations,
-        skArchive
+        skArchive,
+        skRelationships
     )
     if (!noteTypesEqual(base, merged)) await upsertNoteType(plugin, merged)
     return { noteType: merged, statusValues: status?.allowedValues ?? null }
@@ -795,14 +800,15 @@ async function recognizeDominantNoteType(app: App, files: TFile[]): Promise<SkNo
  * unless the Starter Kit runs its own automation rules, in which case the
  * stale mirrored rules are dropped and none are generated (one executor).
  */
-function mirrorNoteType(
+export function mirrorNoteType(
     base: NoteType,
     noteType: SkNoteType,
     status: { name: string; allowedValues: string[] } | null,
     defaults: NoteTypeDefaults,
     skStatus: SkResolvedStatus | null = null,
     skRunsAutomations = false,
-    skArchive: SkArchive | null = null
+    skArchive: SkArchive | null = null,
+    skRelationships: ReadonlyArray<MirroredRelationshipSource> | null = null
 ): NoteType {
     return produce(base, (draft) => {
         draft.name = noteType.name
@@ -832,6 +838,14 @@ function mirrorNoteType(
         // The Starter Kit's Archive section (≥ 1.19) is the one declaration of
         // where this type archives; mirror it (read-only) when present.
         draft.archive = reconcileArchive(draft.archive, skArchive, skStatus)
+        // The Starter Kit's relationships (when it declares them) are the one
+        // source of the link-properties; local rules stay for the hand-back and
+        // for the plugin-owned tag heuristic. Starter Kit note type ids are
+        // this plugin's note type ids, so the rules' targets map 1:1.
+        const relationships = reconcileRelationships(draft.relationships, skRelationships)
+        draft.relationships = relationships.relationships
+        if (relationships.relationshipsMirrored) draft.relationshipsMirrored = true
+        else delete draft.relationshipsMirrored
     })
 }
 
