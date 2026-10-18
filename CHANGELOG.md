@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.7.0](https://github.com/dsebastien/obsidian-kanban-action-planner/compare/2.6.0...2.7.0) (2026-10-18)
+
+### Single-link relationship properties
+
+Some notes link to their parent through one text property rather than a list: a season's
+`show: "[[My Show]]"`, a comic album's `series`, a board game expansion's `base_game`. The
+plugin now keeps those as a single link. **Set parent…**, dragging in the WBS and **Add card**
+on a board filtered with `parent:"My Show"` write the one wikilink (replacing the previous
+parent when there is one), and removing it clears the property. A season now shows up under its
+show in the WBS, and the show lists its seasons, even though the show stores nothing.
+
+The Starter Kit tells the plugin which properties are single-link; for relationships you set up
+in the plugin, a property that Obsidian types as Text is treated the same way.
+
 ## [2.6.0](https://github.com/dsebastien/obsidian-kanban-action-planner/compare/2.5.0...2.6.0) (2026-10-18)
 
 ### Add card now links the parent your board is filtered on
@@ -767,6 +781,7 @@ Claude-Session: https://claude.ai/code/session_01LM4hi11kohPVqgZNLpjRgh
 
 * **plugin:** match Starter Kit's {{quarter}} placeholder format (Q2, not 2) ([4fde618](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/4fde6185c5956e3f6fd2ca3a9b03e70cf5e16840))
 * **plugin:** persist discovered statuses so Show empty columns works ([cf91b81](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/cf91b81a1b0786e35c73f4885882e2dc33564c62))
+
 
 
 
