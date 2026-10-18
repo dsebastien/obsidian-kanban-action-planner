@@ -300,6 +300,27 @@ describe('getNoteTypeRelationships (feature-detected by method presence)', () =>
         expect(calls).toEqual(['tasks'])
     })
 
+    it("passes a valid 'cardinality' through and ignores anything else", () => {
+        const app = appWithApi({
+            listNoteTypes,
+            getNoteTypeRelationships: () => ({
+                success: true,
+                data: [
+                    { role: 'parent', property: 'show', cardinality: 'one', targetTypes: [] },
+                    { role: 'sibling', property: 'related_media', cardinality: 'many' },
+                    { role: 'child', property: 'episodes', cardinality: 'few' },
+                    { role: 'child', property: 'seasons' }
+                ]
+            })
+        })
+        expect(getNoteTypeRelationships(app, 'tv_seasons')).toEqual([
+            { role: 'parent', property: 'show', targetTypeIds: [], cardinality: 'one' },
+            { role: 'sibling', property: 'related_media', targetTypeIds: [], cardinality: 'many' },
+            { role: 'child', property: 'episodes', targetTypeIds: [] },
+            { role: 'child', property: 'seasons', targetTypeIds: [] }
+        ])
+    })
+
     it('null (not configured) stays null, while an empty array is a real answer', () => {
         const nullApp = appWithApi({
             listNoteTypes,

@@ -14,6 +14,8 @@ export interface MirroredRelationshipSource {
     role: RelationshipRule['role']
     property: string
     targetTypeIds: string[]
+    /** Absent when the Starter Kit does not say (older versions): the plugin infers it. */
+    cardinality?: 'one' | 'many'
 }
 
 export interface RelationshipState {
@@ -29,6 +31,7 @@ export function mirroredRelationshipRules(
         role: rule.role,
         linkProperty: rule.property,
         ...(rule.targetTypeIds.length > 0 ? { targetTypeIds: [...rule.targetTypeIds] } : {}),
+        ...(rule.cardinality ? { cardinality: rule.cardinality } : {}),
         mirrored: true
     }))
 }

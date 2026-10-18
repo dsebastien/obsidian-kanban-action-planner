@@ -52,7 +52,8 @@ column rule.
   templates matched by SHAPE (`{{date}} - ` matches `2026-09-22 - `), never returning ''.
   Presentational only: no write path ever sees the filtered title.
 - **RelationshipRule** — a `role` (`parent`/`sibling`/`child`/`blocked_by`), a primary
-  `linkProperty` (a list of wikilinks), an optional `targetTypeIds` (this plugin's note type
+  `linkProperty` (a list of wikilinks, or ONE scalar wikilink when `cardinality` is `'one'`,
+  rule 73), an optional `targetTypeIds` (this plugin's note type
   ids the rule links to; absent/empty = any type), an optional `mirrored` flag, and an optional
   secondary tag+link `heuristic`. **A role has any number of rules** (a task's parents may sit
   in `related_projects` AND `related_goals`); `NoteType.relationshipsMirrored` says the

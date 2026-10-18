@@ -7,6 +7,7 @@ import { isArchivedPath } from '../domain/archive-paths'
 import { formatWikiLink, parseWikiLinkTarget, toLinkStringList } from '../domain/wikilinks'
 import { findKeyCaseInsensitive, queueFrontmatterWrite } from './frontmatter.service'
 import { roleProperties } from '../domain/relationship-rules'
+import type { LinkCardinality } from '../domain/relationship-rules'
 
 /**
  * Bridges Obsidian's metadata cache to the pure relationship domain.
@@ -24,11 +25,17 @@ import { roleProperties } from '../domain/relationship-rules'
  * The roles that are turned on for a note type. A role is active when it has a
  * non-empty link-property or a configured heuristic; a role with neither is
  * "None" and is fully suppressed (no direct, inverse, or heuristic relations).
+ * A type mirrored from the Starter Kit receives every role (inverses included).
  */
 export function activeRoles(
     noteType: NoteType,
     props: Record<RelationshipRole, string[]>
 ): Set<RelationshipRole> {
+    // A Starter Kit declaration lists the links each type STORES (children point
+    // to parents; parents declare no child rule). It has no "None" marker, so a
+    // mirrored type receives every role: the inverse of a child's parent link
+    // must reach the parent (rule 73), though the parent stores no property.
+    if (noteType.relationshipsMirrored === true) return new Set(RELATIONSHIP_ROLES)
     const withHeuristic = new Set(
         noteType.relationships.filter((r) => r.heuristic).map((r) => r.role)
     )
@@ -99,15 +106,32 @@ function linkPropertyTargets(app: App, file: TFile, properties: ReadonlyArray<st
  * Add a wikilink to `target` into `file`'s `property` (issue #14). Stores the
  * canonical wikilink form (so it works regardless of the user's markdown-link
  * setting). Deduped by resolved path — returns false when already linked.
+ *
+ * `cardinality` 'one' (a single-link property, rule 73) writes the wikilink as a
+ * SCALAR and REPLACES whatever the property held (a natural re-parent); it
+ * returns false only when the property already holds exactly that one link.
  */
 export async function addRelationshipLink(
     app: App,
     file: TFile,
     property: string,
-    target: TFile
+    target: TFile,
+    cardinality: LinkCardinality = 'many'
 ): Promise<boolean> {
-    if (directLinkTargets(app, file, property).some((d) => d.path === target.path)) return false
+    const existing = directLinkTargets(app, file, property)
     const linkString = formatWikiLink(app.metadataCache.fileToLinktext(target, file.path))
+    if (cardinality === 'one') {
+        const [only] = existing
+        if (existing.length === 1 && only?.path === target.path) return false
+        await queueFrontmatterWrite(file, () =>
+            app.fileManager.processFrontMatter(file, (fm: Record<string, unknown>) => {
+                const key = findKeyCaseInsensitive(fm, property) ?? property
+                fm[key] = linkString
+            })
+        )
+        return true
+    }
+    if (existing.some((d) => d.path === target.path)) return false
     await queueFrontmatterWrite(file, () =>
         app.fileManager.processFrontMatter(file, (fm: Record<string, unknown>) => {
             const key = findKeyCaseInsensitive(fm, property) ?? property
@@ -133,13 +157,15 @@ export async function removeRelationshipLink(
         app.fileManager.processFrontMatter(file, (fm: Record<string, unknown>) => {
             const key = findKeyCaseInsensitive(fm, property)
             if (key === null) return
-            const kept = toLinkStringList(fm[key]).filter((linkString) => {
+            const before = toLinkStringList(fm[key])
+            const kept = before.filter((linkString) => {
                 const linkpath = parseWikiLinkTarget(linkString)
                 const dest = app.metadataCache.getFirstLinkpathDest(linkpath, file.path)
                 return (dest?.path ?? linkpath) !== targetPath
             })
             if (kept.length === 0) delete fm[key]
-            else fm[key] = kept
+            // Nothing matched: leave the value as it is (a scalar stays a scalar).
+            else if (kept.length !== before.length) fm[key] = kept
         })
     )
 }

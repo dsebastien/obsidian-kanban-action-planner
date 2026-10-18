@@ -176,6 +176,11 @@ when none or several fit, nothing is written and a notice says why. When the Obs
 Kit declares a type's relationships, they are mirrored read-only and re-synced on every board
 load; **Detect children by tag** stays editable.
 
+A property can hold **a single link** instead of a list (a season's `show: "[[My Show]]"`).
+The Starter Kit says so when it declares the relationship; for relationships you configure
+here, a property that Obsidian types as **Text** is treated as single-link. Writing to it
+replaces the current value and never turns it into a list.
+
 Inverse relations are derived automatically (a declared child gives the target a parent, and so
 on). Setting a role's property to **None** turns that role **fully off**: its badge never
 appears, no direct links, no inverse of an active opposite role, no heuristic. The **Detect

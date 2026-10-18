@@ -674,6 +674,12 @@ each one the note types it links to (or leave **Any note type**). Then:
   Removing a link always removes it from whichever property holds it. Dragging a row in the WBS
   onto another parent replaces only the link to the row's current parent and leaves its other
   parents alone.
+- **Single-link properties** (a `text` property holding one link, like a season's `show` or an
+  album's `series`) stay a single link: adding a parent there **replaces** the current one (so
+  **Set parent…** on a season already linked to a show moves it), and removing it clears the
+  property. Dragging in the WBS and **Add card** on a filtered board write the single link too.
+  The plugin knows a property is single-link from the Starter Kit, or from the property's type
+  in Obsidian (`text`).
 - **With the Obsidian Starter Kit**, when a note type declares its relationships there, they are
   mirrored here read-only ("Mirrored from the Obsidian Starter Kit"). Edit them in the kit. The
   **Detect children by tag** option stays yours. Without a declaration, the properties are edited

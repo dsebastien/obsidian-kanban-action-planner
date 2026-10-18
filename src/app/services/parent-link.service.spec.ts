@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 import { App, TFile } from 'obsidian'
-import { resolveParentNote } from './parent-link.service'
+import { placeParentLink, resolveParentNote } from './parent-link.service'
+import type { ParentLinkPlan } from '../domain/parent-link'
 
 const file = (path: string): TFile =>
     Object.assign(new TFile(), { path, basename: path.replace(/^.*\//, '').replace(/\.md$/, '') })
@@ -43,5 +44,39 @@ describe('resolveParentNote', () => {
         expect(out.file).toBeNull()
         expect(out.match.kind).toBe('missing')
         expect(resolveParentNote(appWith([project]), '  ', '').match.kind).toBe('missing')
+    })
+})
+
+describe('placeParentLink (quick capture facts)', () => {
+    const plan = (cardinality: 'one' | 'many'): ParentLinkPlan => ({
+        kind: 'link',
+        term: 'Severance (TV Show)',
+        property: 'show',
+        cardinality,
+        link: '[[Severance (TV Show)]]'
+    })
+
+    it("a 'one' rule writes the scalar into properties, replacing a Base fact", () => {
+        const properties: Record<string, unknown> = { Show: '[[Old]]', status: 'Todo' }
+        const lists: Record<string, string[]> = {}
+        placeParentLink(properties, lists, plan('one'))
+        expect(properties).toEqual({ Show: '[[Severance (TV Show)]]', status: 'Todo' })
+        expect(lists).toEqual({})
+    })
+
+    it("a 'many' rule appends to listProperties", () => {
+        const properties: Record<string, unknown> = {}
+        const lists: Record<string, string[]> = { show: ['[[Other]]'] }
+        placeParentLink(properties, lists, plan('many'))
+        expect(lists).toEqual({ show: ['[[Other]]', '[[Severance (TV Show)]]'] })
+        expect(properties).toEqual({})
+    })
+
+    it('does nothing without a link plan', () => {
+        const properties: Record<string, unknown> = {}
+        const lists: Record<string, string[]> = {}
+        placeParentLink(properties, lists, { kind: 'none' })
+        expect(properties).toEqual({})
+        expect(lists).toEqual({})
     })
 })

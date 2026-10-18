@@ -89,12 +89,14 @@ import type { RelatedNote } from '../../services/relationships.service'
 import { RELATIONSHIP_ROLES, ancestorPaths } from '../../domain/relationships'
 import {
     choiceProblem,
+    chosenCardinality,
     chosenProperty,
     roleLinkRules,
     roleProperties,
     selectLinkProperty
 } from '../../domain/relationship-rules'
-import type { RoleLinkRules } from '../../domain/relationship-rules'
+import type { LinkCardinality, RoleLinkRules } from '../../domain/relationship-rules'
+import { propertyTypeLookup } from '../../services/property-types.service'
 import { RelationshipTargetModal } from '../../ui/relationship-target-modal'
 import {
     ORDER_STEP,
@@ -122,7 +124,7 @@ import { CreateNoteModal } from '../../ui/create-note-modal'
 import { formatWikiLink } from '../../domain/wikilinks'
 import { parentLinkSubtitle, parentLinkUnmet, planParentLink } from '../../domain/parent-link'
 import type { ParentLinkPlan, ParentMatch, ParentTerm } from '../../domain/parent-link'
-import { resolveParentNote } from '../../services/parent-link.service'
+import { placeParentLink, resolveParentNote } from '../../services/parent-link.service'
 import type { CreateNotePreview } from '../../ui/create-note-modal'
 import {
     appendToListProperty,
@@ -1062,6 +1064,10 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
                 this.relationshipPropertyFor('parent', path, parentPath),
             childPropertyFor: (path, childPath) =>
                 this.relationshipPropertyFor('child', path, childPath),
+            parentCardinalityFor: (path, parentPath) =>
+                this.relationshipCardinalityFor('parent', path, parentPath),
+            childCardinalityFor: (path, childPath) =>
+                this.relationshipCardinalityFor('child', path, childPath),
             dateFormat: () =>
                 this.noteType.calendar.dateFormat || this.plugin.settings.defaultDateFormat,
             noteTypeFor: (card) => this.noteTypeByPath.get(card.key) ?? null,
@@ -4226,7 +4232,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             term,
             match: resolved.match,
             parentTypeId,
-            rules: roleLinkRules(noteType).parent,
+            rules: roleLinkRules(noteType, propertyTypeLookup(this.app)).parent,
             link: resolved.file
                 ? formatWikiLink(this.app.metadataCache.fileToLinktext(resolved.file, ''))
                 : ''
@@ -4290,15 +4296,11 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         parentLink: ParentLinkPlan = { kind: 'none' }
     ): Promise<void> {
         const properties: Record<string, unknown> = { ...facts.properties }
-        // The parent link joins the Base's list facts and is written in the same
-        // single post-template transaction (rule 44), merged into whatever the
-        // template put there.
+        // The parent link joins the Base's facts (a list property's values, or a
+        // single-link property's scalar) and is written in the same single
+        // post-template transaction (rule 44), over whatever the template put there.
         const listProperties: Record<string, string[]> = { ...facts.listProperties }
-        if (parentLink.kind === 'link') {
-            const key = findKeyCaseInsensitive(listProperties, parentLink.property)
-            const name = key ?? parentLink.property
-            listProperties[name] = [...(listProperties[name] ?? []), parentLink.link]
-        }
+        placeParentLink(properties, listProperties, parentLink)
 
         // The status the card must end up with, resolved exactly like every other
         // status write (`statusPropertyForFile`): the per-view override wins, then
@@ -5218,7 +5220,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
 
     /** The role -> link rules (property + target type scope) for a vault path's own type. */
     private relationshipRulesForPath(path: string): RoleLinkRules {
-        return roleLinkRules(this.relationshipTypeForPath(path))
+        return roleLinkRules(this.relationshipTypeForPath(path), propertyTypeLookup(this.app))
     }
 
     /** The role -> distinct link properties for a vault path's own type (reads union them). */
@@ -5259,6 +5261,16 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
     ): string {
         const rules = this.relationshipRulesForPath(ownerPath)[role]
         return chosenProperty(selectLinkProperty(rules, this.targetTypeIdSync(targetPath)))
+    }
+
+    /** The cardinality of the property {@link relationshipPropertyFor} picks ('many' when none). */
+    private relationshipCardinalityFor(
+        role: RelationshipRole,
+        ownerPath: string,
+        targetPath: string
+    ): LinkCardinality {
+        const rules = this.relationshipRulesForPath(ownerPath)[role]
+        return chosenCardinality(selectLinkProperty(rules, this.targetTypeIdSync(targetPath)))
     }
 
     /** Roles that have at least one link property for THIS card's own type. */
@@ -5320,6 +5332,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         const typeId = await this.targetTypeId(target)
         const choice = selectLinkProperty(rules, typeId)
         const property = chosenProperty(choice)
+        const cardinality = chosenCardinality(choice)
         if (property.length === 0) {
             new Notice(`Not linked: ${choiceProblem(choice, role, `"${target.basename}"`)}.`, 8000)
             return
@@ -5328,14 +5341,25 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         // picker is open, orphaning the captured object (issue #105 review).
         // Optimistic: show the new badge at once, then write (issue #64).
         const card = this.liveCard(cardRef)
-        if (!card.relationships[role].some((r) => r.key === target.path)) {
+        // A single-link property is REPLACED (rule 73): the links it held stop
+        // being badges, links held by the role's other properties stay.
+        const replaced =
+            cardinality === 'one'
+                ? new Set(
+                      directLinkTargets(this.app, card.file, property)
+                          .map((t) => t.path)
+                          .filter((path) => path !== target.path)
+                  )
+                : new Set<string>()
+        const hasBadge = card.relationships[role].some((r) => r.key === target.path)
+        if (!hasBadge || replaced.size > 0) {
             card.relationships[role] = [
-                ...card.relationships[role],
-                { key: target.path, label: target.basename }
+                ...card.relationships[role].filter((r) => !replaced.has(r.key)),
+                ...(hasBadge ? [] : [{ key: target.path, label: target.basename }])
             ]
             this.applyFilterAndRender()
         }
-        const added = await addRelationshipLink(this.app, card.file, property, target)
+        const added = await addRelationshipLink(this.app, card.file, property, target, cardinality)
         new Notice(
             added
                 ? `Linked "${target.basename}" as ${role.replace('_', ' ')} (${property}).`

@@ -28,6 +28,32 @@ describe('mirroredRelationshipRules', () => {
     })
 })
 
+describe('mirrored cardinality', () => {
+    it('carries the Starter Kit cardinality onto the mirrored rule, absent stays absent', () => {
+        const rules = mirroredRelationshipRules([
+            { role: 'parent', property: 'show', targetTypeIds: ['tv_shows'], cardinality: 'one' },
+            { role: 'sibling', property: 'related_media', targetTypeIds: [], cardinality: 'many' },
+            { role: 'child', property: 'episodes', targetTypeIds: [] }
+        ])
+        expect(rules[0]?.cardinality).toBe('one')
+        expect(rules[1]?.cardinality).toBe('many')
+        expect(rules[2] && 'cardinality' in rules[2]).toBe(false)
+    })
+
+    it('a refreshed mirror takes the new cardinality', () => {
+        const stale = reconcileRelationships(
+            [],
+            [{ role: 'parent', property: 'show', targetTypeIds: [] }]
+        )
+        const fresh = reconcileRelationships(stale.relationships, [
+            { role: 'parent', property: 'show', targetTypeIds: [], cardinality: 'one' }
+        ])
+        expect(fresh.relationships).toEqual([
+            { role: 'parent', linkProperty: 'show', cardinality: 'one', mirrored: true }
+        ])
+    })
+})
+
 describe('reconcileRelationships', () => {
     const local: RelationshipRule[] = [
         { role: 'parent', linkProperty: 'parent' },

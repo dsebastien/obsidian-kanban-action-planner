@@ -200,6 +200,8 @@ export interface SkRelationshipRule {
     property: string
     /** Starter Kit note type ids this rule links to; empty = any type. */
     targetTypeIds: string[]
+    /** Absent when the Starter Kit predates single-link properties (1.39). */
+    cardinality?: 'one' | 'many'
 }
 
 /**
@@ -234,10 +236,11 @@ function isRelationshipRole(value: unknown): value is RelationshipRole {
 /** Defensive normalization of one Starter Kit relationship entry. */
 function toSkRelationshipRule(entry: unknown): SkRelationshipRule | null {
     if (typeof entry !== 'object' || entry === null) return null
-    const { role, property, targetTypes } = entry as {
+    const { role, property, targetTypes, cardinality } = entry as {
         role?: unknown
         property?: unknown
         targetTypes?: unknown
+        cardinality?: unknown
     }
     if (!isRelationshipRole(role)) return null
     if (typeof property !== 'string' || property.trim().length === 0) return null
@@ -248,7 +251,12 @@ function toSkRelationshipRule(entry: unknown): SkRelationshipRule | null {
             if (typeof id === 'string' && id.length > 0 && !ids.includes(id)) ids.push(id)
         }
     }
-    return { role, property: property.trim(), targetTypeIds: ids }
+    return {
+        role,
+        property: property.trim(),
+        targetTypeIds: ids,
+        ...(cardinality === 'one' || cardinality === 'many' ? { cardinality } : {})
+    }
 }
 
 export function getNoteTypeStatus(app: App, id: string): SkResolvedStatus | null {

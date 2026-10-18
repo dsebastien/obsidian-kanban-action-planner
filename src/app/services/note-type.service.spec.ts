@@ -122,11 +122,22 @@ describe('mirrorNoteType (Starter Kit relationships)', () => {
         const out = mirrorNoteType(base, skTask, null, defaults, null, false, null, rules)
         expect(out.relationshipsMirrored).toBe(true)
         expect(roleLinkRules(out).parent).toEqual([
-            { property: 'related_projects', targetTypeIds: ['projects'] },
-            { property: 'related_goals', targetTypeIds: ['goals'] }
+            { property: 'related_projects', cardinality: 'many', targetTypeIds: ['projects'] },
+            { property: 'related_goals', cardinality: 'many', targetTypeIds: ['goals'] }
         ])
         // roles the Starter Kit does not mention are off (its declaration is complete)
         expect(roleLinkRules(out).child).toEqual([])
+        expect(noteTypeSchema.parse(out)).toEqual(out)
+    })
+
+    it('mirrors a single-link rule: cardinality survives and drives the rule', () => {
+        const base = createDefaultNoteType('tv_seasons', 'TV Seasons', 'starter-kit')
+        const out = mirrorNoteType(base, skTask, null, defaults, null, false, null, [
+            { role: 'parent', property: 'show', targetTypeIds: ['tv_shows'], cardinality: 'one' }
+        ])
+        expect(roleLinkRules(out).parent).toEqual([
+            { property: 'show', cardinality: 'one', targetTypeIds: ['tv_shows'] }
+        ])
         expect(noteTypeSchema.parse(out)).toEqual(out)
     })
 
@@ -134,7 +145,9 @@ describe('mirrorNoteType (Starter Kit relationships)', () => {
         const base = createDefaultNoteType('tasks', 'Tasks', 'starter-kit')
         const out = mirrorNoteType(base, skTask, null, defaults, null, false, null, null)
         expect(out.relationshipsMirrored).toBeUndefined()
-        expect(roleLinkRules(out).parent).toEqual([{ property: 'parent', targetTypeIds: [] }])
+        expect(roleLinkRules(out).parent).toEqual([
+            { property: 'parent', cardinality: 'many', targetTypeIds: [] }
+        ])
     })
 
     it('hands the local config back when the Starter Kit stops declaring relationships', () => {

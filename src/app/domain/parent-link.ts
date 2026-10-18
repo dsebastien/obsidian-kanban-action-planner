@@ -1,5 +1,10 @@
-import { choiceProblem, chosenProperty, selectLinkProperty } from './relationship-rules'
-import type { LinkRule } from './relationship-rules'
+import {
+    choiceProblem,
+    chosenCardinality,
+    chosenProperty,
+    selectLinkProperty
+} from './relationship-rules'
+import type { LinkCardinality, LinkRule } from './relationship-rules'
 
 /**
  * Quick capture writes the parent link a `parent:` search term asks for
@@ -44,8 +49,11 @@ export interface ParentTerm {
 export type ParentLinkPlan =
     /** No such term: nothing to link. */
     | { kind: 'none' }
-    /** Write `link` into `property` (a list of wikilinks) of the new note. */
-    | { kind: 'link'; term: string; property: string; link: string }
+    /**
+     * Write `link` into `property` of the new note: appended to a list ('many') or
+     * set as the single scalar wikilink ('one', rule 73).
+     */
+    | { kind: 'link'; term: string; property: string; cardinality: LinkCardinality; link: string }
     /** The term can not be honored; `reason` says why. */
     | { kind: 'blocked'; field: ParentTerm['field']; term: string; reason: string }
 
@@ -99,7 +107,13 @@ export function planParentLink(input: PlanParentLinkInput): ParentLinkPlan {
             reason: choiceProblem(choice, 'parent', input.match.note.basename)
         }
     }
-    return { kind: 'link', term: term.title, property, link: input.link }
+    return {
+        kind: 'link',
+        term: term.title,
+        property,
+        cardinality: chosenCardinality(choice),
+        link: input.link
+    }
 }
 
 /** The create modal's sentence about the plan ('' when there is no term). */

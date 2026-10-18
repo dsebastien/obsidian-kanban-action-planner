@@ -1,6 +1,7 @@
 import type { App, TFile } from 'obsidian'
 import { matchParentTitle } from '../domain/parent-link'
-import type { ParentMatch } from '../domain/parent-link'
+import type { ParentLinkPlan, ParentMatch } from '../domain/parent-link'
+import { findKeyCaseInsensitive } from './frontmatter.service'
 
 /**
  * Resolve the note a `parent:` search term names (business rule 72): the link
@@ -30,4 +31,25 @@ export function resolveParentNote(
     if (match.kind !== 'found') return { match, file: null }
     const { path } = match.note
     return { match, file: files.find((f) => f.path === path) ?? null }
+}
+
+/**
+ * Add a planned parent link to the new note's creation facts (rule 72 + 73).
+ * A 'one' (single-link) property goes into `properties` as the scalar wikilink,
+ * REPLACING any value the Base facts put there; a 'many' property joins
+ * `listProperties`, appended to the Base's list facts. Both are written in the
+ * single post-template frontmatter transaction (rule 44). Mutates the maps.
+ */
+export function placeParentLink(
+    properties: Record<string, unknown>,
+    listProperties: Record<string, string[]>,
+    plan: ParentLinkPlan
+): void {
+    if (plan.kind !== 'link') return
+    if (plan.cardinality === 'one') {
+        properties[findKeyCaseInsensitive(properties, plan.property) ?? plan.property] = plan.link
+        return
+    }
+    const name = findKeyCaseInsensitive(listProperties, plan.property) ?? plan.property
+    listProperties[name] = [...(listProperties[name] ?? []), plan.link]
 }

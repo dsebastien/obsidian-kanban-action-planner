@@ -1413,3 +1413,26 @@ Markdown)`, `Export ideal week (JSON)`, `Export ideal week (Markdown)`); the for
     (no/ambiguous note, no or several matching rules) the dialog says why and the post-create
     "does not appear here" notice lists it. An `ancestor:` term is never written (it names a
     whole subtree, not one direct parent) and is explained the same way.
+
+73. **A relationship property may hold ONE link (single-link, `cardinality: 'one'`).** Media
+    types link child to parent through a text property holding one wikilink (`show:
+"[[Severance (TV Show)]]"`); templates, Base formulas and Dataview tables read it as a plain
+    value, so it must stay a SCALAR. `RelationshipRule.cardinality` (`'one' | 'many'`, optional)
+    says which. **Precedence** (`effectiveCardinality`): the rule's own value (mirrored from the
+    Starter Kit, which derives it from the property type) wins; absent (older Starter Kit,
+    local rule), the Obsidian property type decides (`services/property-types.service.ts`:
+    `getAssignedWidget`, else `getPropertyInfo().widget`; `text` = 'one'); else 'many' (no
+    backfill, nothing changes for list setups). Reads are unchanged (`directLinkTargets` reads
+    `prop` and `prop.N`). **Writes to a 'one' property REPLACE the value** with the scalar
+    wikilink (`addRelationshipLink(..., 'one')`; a stray list becomes the scalar; re-linking
+    the same target is a no-op): menu "Add parent" on a note that already has a parent is a
+    re-parent, and the WBS drag skips the separate removal for that property
+    (`propertiesToClear`), so the old inverse edge disappears with one write. Links held by the
+    role's OTHER properties are untouched (optimistic UI drops only the replaced badges, rule
+    49). **Removal** deletes the property when it becomes empty, as for lists (a scalar is
+    never turned into a list: removing a link the property does not hold writes nothing).
+    **Add card** with a `parent:` term and a matching 'one' rule puts the scalar in
+    `properties` (not `listProperties`) of the single post-template write (rule 44,
+    `placeParentLink`); the dialog text is unchanged (`Linked to [[X]] via show.`). A type
+    mirrored from the Starter Kit receives every role (`activeRoles`): the Starter Kit declares
+    only the child-to-parent links, and the parent must still get its inverse children.

@@ -40,6 +40,8 @@ import {
 } from '../../services/frontmatter.service'
 import { formatTrackedMinutes } from '../../services/time-tracking.service'
 import type { TrackingProperties } from '../../services/time-tracking.service'
+import { propertiesToClear } from '../../domain/relationship-rules'
+import type { LinkCardinality } from '../../domain/relationship-rules'
 import {
     addRelationshipLink,
     directLinkTargets,
@@ -152,6 +154,12 @@ export interface WbsHost {
      */
     parentPropertyFor(path: string, parentPath: string): string
     childPropertyFor(path: string, childPath: string): string
+    /**
+     * Whether the property {@link parentPropertyFor} / {@link childPropertyFor} picks holds
+     * ONE link ('one': a scalar wikilink the write replaces, rule 73) or a list.
+     */
+    parentCardinalityFor(path: string, parentPath: string): LinkCardinality
+    childCardinalityFor(path: string, childPath: string): LinkCardinality
     dateFormat(): string
     noteTypeFor(card: KanbanCard): { id: string; name: string } | null
     /** Resolved status column color/label for the row's dot (null = neutral). */
@@ -887,9 +895,18 @@ export class WbsController {
         )
         this.host.refresh()
 
+        const parentCardinality = this.host.parentCardinalityFor(sourceKey, targetKey)
+        const childCardinality = this.host.childCardinalityFor(targetKey, sourceKey)
+
         void (async () => {
             if (sourceParentKey) {
-                for (const prop of storage.parentProps) {
+                // A single-link property that gets the new parent is replaced by
+                // the write below: no separate removal (one write, not two).
+                for (const prop of propertiesToClear(
+                    storage.parentProps,
+                    parentProp,
+                    parentCardinality
+                )) {
                     await removeRelationshipLink(this.host.app, source.file, prop, sourceParentKey)
                 }
             }
@@ -903,15 +920,33 @@ export class WbsController {
             // (pane drop / heuristic) prefers the child's parent property.
             let wrote = false
             if (parentOwned && targetChildProp !== '') {
-                await addRelationshipLink(this.host.app, targetFile, targetChildProp, source.file)
+                await addRelationshipLink(
+                    this.host.app,
+                    targetFile,
+                    targetChildProp,
+                    source.file,
+                    childCardinality
+                )
                 wrote = true
             }
             if ((childOwned || !parentOwned || !wrote) && parentProp !== '') {
-                await addRelationshipLink(this.host.app, source.file, parentProp, targetFile)
+                await addRelationshipLink(
+                    this.host.app,
+                    source.file,
+                    parentProp,
+                    targetFile,
+                    parentCardinality
+                )
                 wrote = true
             }
             if (!wrote && targetChildProp !== '') {
-                await addRelationshipLink(this.host.app, targetFile, targetChildProp, source.file)
+                await addRelationshipLink(
+                    this.host.app,
+                    targetFile,
+                    targetChildProp,
+                    source.file,
+                    childCardinality
+                )
                 wrote = true
             }
             if (!wrote) return

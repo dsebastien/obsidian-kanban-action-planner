@@ -56,8 +56,8 @@ describe('planParentLink', () => {
         match: { kind: 'found', note: project },
         parentTypeId: 'projects',
         rules: [
-            { property: 'related_projects', targetTypeIds: ['projects'] },
-            { property: 'related_goals', targetTypeIds: ['goals'] }
+            { property: 'related_projects', cardinality: 'many', targetTypeIds: ['projects'] },
+            { property: 'related_goals', cardinality: 'many', targetTypeIds: ['goals'] }
         ],
         link: '[[AI Tooling (Project)]]'
     }
@@ -74,6 +74,7 @@ describe('planParentLink', () => {
             kind: 'link',
             term: 'AI Tooling (Project)',
             property: 'related_projects',
+            cardinality: 'many',
             link: '[[AI Tooling (Project)]]'
         })
         expect(parentLinkSubtitle(plan)).toBe(
@@ -91,7 +92,7 @@ describe('planParentLink', () => {
         const plan = planParentLink({
             ...base,
             parentTypeId: null,
-            rules: [{ property: 'parent', targetTypeIds: [] }]
+            rules: [{ property: 'parent', cardinality: 'many', targetTypeIds: [] }]
         })
         expect(plan.kind === 'link' && plan.property).toBe('parent')
     })
@@ -107,8 +108,8 @@ describe('planParentLink', () => {
         const plan = planParentLink({
             ...base,
             rules: [
-                { property: 'a', targetTypeIds: [] },
-                { property: 'b', targetTypeIds: [] }
+                { property: 'a', cardinality: 'many', targetTypeIds: [] },
+                { property: 'b', cardinality: 'many', targetTypeIds: [] }
             ]
         })
         expect(plan.kind === 'blocked' && plan.reason).toContain('a, b')

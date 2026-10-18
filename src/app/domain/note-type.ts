@@ -62,6 +62,12 @@ export const relationshipRuleSchema = z.object({
     role: relationshipRoleSchema,
     linkProperty: z.string(),
     targetTypeIds: z.array(z.string()).optional(),
+    /**
+     * 'one' = the property holds a single link (a scalar wikilink: writes
+     * REPLACE it); 'many' = a list. Absent = inferred (the local Obsidian
+     * property type, else 'many'). Mirrored from the Starter Kit when it says.
+     */
+    cardinality: z.enum(['one', 'many']).optional(),
     mirrored: z.boolean().optional(),
     heuristic: z
         .object({
