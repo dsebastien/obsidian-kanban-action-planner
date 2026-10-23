@@ -155,6 +155,8 @@ import {
     parseProgressField
 } from '../../services/card-display.service'
 import { listEnumProperties } from '../../services/enum.service'
+import { mergeBoardEnumProperties } from '../../domain/property-filter'
+import type { BoardEnumProperty } from '../../domain/property-filter'
 import { buildCardSearchRecord, stringifyForSearch } from '../../services/card-search.service'
 import {
     elapsedSessionMinutes,
@@ -200,6 +202,7 @@ import {
 } from '../../domain/calendar'
 import type { DateDimension } from '../../domain/calendar'
 import {
+    RESERVED_QUALIFIER_NAMES,
     getContextTerms,
     getWindowTerm,
     getZoomTerm,
@@ -6924,6 +6927,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
                 compactMode: this.compactMode(),
                 contextsAvailable: this.hasAnyContextValue(),
                 contextCount: getContextTerms(this.filterQuery, this.contextsProperty()).length,
+                ...this.propertyPickerState(),
                 disabledModes: this.plugin.settings.disabledModes
             },
             {
@@ -6933,7 +6937,8 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
                 onLaneNext: () => this.scrollLane(1),
                 onToggleSelectionMode: () => this.selection?.toggleMode(),
                 onToggleCompactMode: () => this.toggleCompactMode(),
-                onOpenContextMenu: (anchorEl) => this.openContextMenu(anchorEl)
+                onOpenContextMenu: (anchorEl) => this.openContextMenu(anchorEl),
+                onOpenPropertyMenu: (anchorEl) => this.openPropertyMenu(anchorEl)
             }
         )
     }
@@ -7099,6 +7104,111 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
     /** Whether any built card carries a GTD context (drives the switcher's empty state). */
     private hasAnyContextValue(): boolean {
         return this.allCards.some((card) => card.contexts.length > 0)
+    }
+
+    // ── Property picker ───────────────────────────────────────
+
+    /**
+     * The enum properties the board's note types define (the board's type and
+     * every type recognized on its cards), merged by name. The status and
+     * contexts properties and reserved qualifier names are left out: they have
+     * their own controls or a built-in meaning.
+     */
+    private boardEnumProperties(): BoardEnumProperty[] {
+        const types = new Map<string, string>([[this.noteType.id, this.noteType.name]])
+        for (const type of this.noteTypeByPath.values()) {
+            if (type) types.set(type.id, type.name)
+        }
+        const excluded = new Set<string>([
+            ...RESERVED_QUALIFIER_NAMES,
+            'context',
+            this.contextsProperty().toLowerCase()
+        ])
+        if (this.statusProperty) excluded.add(this.statusProperty.toLowerCase())
+        return mergeBoardEnumProperties(
+            [...types].map(([id, name]) => ({
+                type: name,
+                properties: listEnumProperties(this.app, this.plugin, id)
+            })),
+            excluded
+        )
+    }
+
+    /** Whether the picker shows, and how many of its properties the query filters on. */
+    private propertyPickerState(): { propertiesAvailable: boolean; propertyFilterCount: number } {
+        const properties = this.boardEnumProperties()
+        return {
+            propertiesAvailable: properties.length > 0,
+            propertyFilterCount: properties.filter(
+                (p) => getContextTerms(this.filterQuery, p.name).length > 0
+            ).length
+        }
+    }
+
+    /**
+     * The property picker, step one: the board's enum properties. On a mixed
+     * board each entry names the note types defining it, since a property
+     * term hides the cards that lack the property.
+     */
+    private openPropertyMenu(anchorEl: HTMLElement): void {
+        const properties = this.boardEnumProperties()
+        const mixed = new Set(properties.flatMap((p) => p.types)).size > 1
+        const menu = new Menu()
+        for (const property of properties) {
+            const selected = getContextTerms(this.filterQuery, property.name).length
+            const types = mixed ? ` · ${property.types.join(', ')}` : ''
+            const count = selected > 0 ? ` (${String(selected)})` : ''
+            menu.addItem((item) => {
+                item.setTitle(`${property.displayName}${count}${types}`)
+                    .setChecked(selected > 0)
+                    .onClick(() => this.openPropertyValueMenu(anchorEl, property))
+            })
+        }
+        const rect = anchorEl.getBoundingClientRect()
+        menu.showAtPosition({ x: rect.left, y: rect.bottom })
+    }
+
+    /**
+     * Step two: the property's allowed values as checkboxes (labels without
+     * their sort prefix). Picks live as ONE managed `<prop>:="v1","v2"` term in
+     * the query, the same helpers as the context term, so they OR together,
+     * combine with the typed query, show in the box and are saved with the view.
+     */
+    private openPropertyValueMenu(anchorEl: HTMLElement, property: BoardEnumProperty): void {
+        const selected = getContextTerms(this.filterQuery, property.name)
+        const selectedLower = new Set(selected.map((v) => v.toLowerCase()))
+        const menu = new Menu()
+        menu.addItem((item) => item.setTitle(property.displayName).setIsLabel(true))
+        for (const value of property.values) {
+            menu.addItem((item) => {
+                item.setTitle(splitStatusValue(value).label)
+                    .setChecked(selectedLower.has(value.toLowerCase()))
+                    .onClick(() => this.togglePropertyValue(property.name, value))
+            })
+        }
+        if (selected.length > 0) {
+            menu.addSeparator()
+            menu.addItem((item) =>
+                item
+                    .setTitle(`Clear ${property.displayName}`)
+                    .setIcon('x')
+                    .onClick(() =>
+                        this.setFilterQuery(setContextTerms(this.filterQuery, property.name, []))
+                    )
+            )
+        }
+        const rect = anchorEl.getBoundingClientRect()
+        menu.showAtPosition({ x: rect.left, y: rect.bottom })
+    }
+
+    /** Add or remove one value of a property in its managed filter term. */
+    private togglePropertyValue(name: string, value: string): void {
+        const current = getContextTerms(this.filterQuery, name)
+        const lower = value.toLowerCase()
+        const next = current.some((v) => v.toLowerCase() === lower)
+            ? current.filter((v) => v.toLowerCase() !== lower)
+            : [...current, value]
+        this.setFilterQuery(setContextTerms(this.filterQuery, name, next))
     }
 
     /**

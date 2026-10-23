@@ -20,6 +20,10 @@ export interface ViewToolbarState {
     contextsAvailable: boolean
     /** Number of GTD contexts currently selected (0 = inactive/no count badge). */
     contextCount: number
+    /** Whether the board's note types define enum properties (else the property picker is hidden). */
+    propertiesAvailable: boolean
+    /** Number of properties the picker currently filters on. */
+    propertyFilterCount: number
     /** Modes switched off in the plugin settings (their buttons are not rendered). */
     disabledModes: readonly string[]
 }
@@ -39,6 +43,8 @@ export interface ViewToolbarCallbacks {
     onToggleCompactMode: () => void
     /** Open the GTD context switcher menu, anchored to the toolbar button. */
     onOpenContextMenu: (anchorEl: HTMLElement) => void
+    /** Open the property picker (filter by a note-type property's values). */
+    onOpenPropertyMenu: (anchorEl: HTMLElement) => void
 }
 
 /**
@@ -101,6 +107,19 @@ export function renderViewToolbar(
             () => callbacks.onOpenContextMenu(contextBtn)
         )
         if (state.contextCount > 0) contextBtn.addClass('kap-nav-btn-active')
+    }
+    // Property picker: filter by the allowed values of any enum property the
+    // board's note types define, shown when there is at least one.
+    if (state.propertiesAvailable) {
+        const propertyBtn = addIconButton(
+            rightEl,
+            'list-filter',
+            state.propertyFilterCount > 0
+                ? `Properties (${String(state.propertyFilterCount)} filtered)`
+                : 'Filter by property',
+            () => callbacks.onOpenPropertyMenu(propertyBtn)
+        )
+        if (state.propertyFilterCount > 0) propertyBtn.addClass('kap-nav-btn-active')
     }
     renderGearButton(rightEl, callbacks.onConfigure)
 }

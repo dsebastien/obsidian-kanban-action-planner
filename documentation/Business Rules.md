@@ -1490,3 +1490,13 @@ Markdown)`, `Export ideal week (JSON)`, `Export ideal week (Markdown)`); the for
     only once it has a last-reviewed date or its own review interval, and only then can it be
     due (the default interval applies to a reviewed note without its own). `review:never` is
     the plain "no last-reviewed date" test. One read per card per rebuild feeds both.
+
+77. **The property picker filters by note-type enum values.** The toolbar's _Filter by property_
+    lists `mergeBoardEnumProperties` over the board's note type and every type recognized on
+    its cards (`listEnumProperties`: Starter Kit constrained properties and local
+    `enumProperties`), merged by name, minus reserved qualifier names and the board's status
+    and contexts properties. Ticked values live as ONE managed `<prop>:="v1","v2"` term per
+    property (the context-term helpers, keyed by the property name), so they OR together, AND
+    with the typed query and persist with `filterQuery`; the picker replaces whatever term the
+    user typed for that property. A `:=` term on a plain property also matches the value
+    without its sort prefix (`splitStatusValue`), like `status:` matches the column label.

@@ -761,3 +761,13 @@ describe('property terms on a board mixing note types', () => {
         expect(match(q, task)).toBe(true)
     })
 })
+
+describe('exact terms on sort-prefixed values', () => {
+    it('name:=value matches the whole value or the value without its prefix', () => {
+        const rec = record({ props: new Map([['necessity', ['20 - should']]]) })
+        expect(match('necessity:=should', rec)).toBe(true)
+        expect(match('necessity:="20 - SHOULD"', rec)).toBe(true)
+        expect(match('necessity:=shoul', rec)).toBe(false)
+        expect(match('necessity:=could,should', rec)).toBe(true)
+    })
+})

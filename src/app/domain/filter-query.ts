@@ -1,5 +1,6 @@
 import type { RelationshipRole } from './note-type'
 import { addDays, parseFrontmatterDate, startOfDay, toDateKey } from './calendar'
+import { splitStatusValue } from './status'
 
 /**
  * Pure "JQL-lite" filter query: parse + match. No Obsidian/DOM deps so it is
@@ -570,7 +571,14 @@ function matchQualifier(rec: CardSearchRecord, clause: FilterClause, ctx: Filter
     }
     const propValues = rec.props.get(name)
     if (!propValues) return false
-    return clause.values.some((v) => propValues.some((pv) => hits(pv, v)))
+    // An exact term also matches a value without its sort prefix, like
+    // `status:` matches the column label: `necessity:=should` finds
+    // `20 - SHOULD`.
+    const exactHit = (pv: string, v: string): boolean =>
+        pv === v || splitStatusValue(pv).label === v
+    return clause.values.some((v) =>
+        propValues.some((pv) => (clause.exact ? exactHit(pv, v) : hits(pv, v)))
+    )
 }
 
 /** Whether one clause matches (respecting negation). */

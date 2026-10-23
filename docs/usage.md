@@ -343,7 +343,20 @@ The **?** cheat-sheet, always one click away:
   remember the property's actual name.
 - **`:` matches substrings; `:=` matches the whole value.** `parent:app` matches children of
   both `App` and `App Backend`, while `parent:="App"` matches only `App` (still case-insensitive).
-  Works for every qualifier (`status:=done`, `tag:=work`, …).
+  Works for every qualifier (`status:=done`, `tag:=work`, …). On a value with a sort prefix,
+  `:=` also matches it without the prefix: `necessity:=should` finds `20 - SHOULD`.
+
+**Filter by property (no typing)**
+
+The **filter by property** button in the toolbar lists the properties your note types give a
+fixed set of values (necessity, urgency, effort, …, from the Starter Kit or your own note type
+settings). Pick one, then tick the values you want to see: the board keeps the cards with any
+of them. On a board mixing note types, each property names the types that define it.
+
+Your picks land in the filter box as one term per property (`necessity:="20 - SHOULD"`), so
+they combine with whatever you typed and are saved with the view. The button highlights while a
+property filters the board; **Clear** in a property's list removes its term. The status and
+contexts properties are not listed: the columns and the **@** switcher already cover them.
 
 **Boards with several note types**
 
