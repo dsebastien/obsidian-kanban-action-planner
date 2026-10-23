@@ -7,14 +7,15 @@ nav_order: 90
 
 ## Order your columns with numeric prefixes
 
-Prefix status values with a number to control column order, e.g. `10 Todo`, `20 Doing`,
-`30 Done`. The number sets the order and is hidden in the column header. Without a prefix,
-columns are ordered alphabetically.
+Columns appear in the order you list them (in **Column values**, the Starter Kit, or **Default
+column values**), and you can drag a column header to reorder a board. A number prefix such as
+`10 Todo`, `20 Doing`, `30 Done` keeps that order visible in your notes and is hidden in the
+column header.
 
 ## Match your notes' status values to your defined columns
 
-Columns are **defined** (the per-view **Statuses (columns)** list, the Starter Kit, or the global
-**Default statuses**) — they are never created from the values found in your notes. So a card only
+Columns are **defined** (the per-view **Column values** list, the Starter Kit, or the global
+**Default column values**) — they are never created from the values found in your notes. So a card only
 lands in a column when its status value **matches** a defined one; anything else goes to **Unmapped**.
 Keep your notes' status values consistent with the column definitions (mind `Doing` vs `doing` or a
 trailing space — the plugin trims surrounding whitespace, but not other differences).
@@ -36,8 +37,8 @@ for different slices of the same notes.
 ### All my notes are in the "Unmapped" column
 
 Either you haven't **defined any columns** yet, or your notes' status values don't match the ones
-you defined. Define your statuses in **Configure view → Statuses (columns)** (or the global **Default
-statuses**, or via the Starter Kit), then make sure each note's `status` matches one of them. The
+you defined. Define your statuses in **Configure view → Columns → Column values** (or the global **Default
+column values**, or via the Starter Kit), then make sure each note's `status` matches one of them. The
 Unmapped column disappears once every note maps to a defined column.
 
 ### My notes' `manual_order` changed without me moving them

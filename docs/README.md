@@ -13,17 +13,15 @@ every change written straight back into your notes.
 
 ![Kanban board]({{ '/images/board.png' | relative_url }})
 
-> In development. Features are delivered milestone by milestone, and this page reflects what
-> currently works.
-
 ## Key Features
 
 - **Kanban view inside Bases.** Add a "Kanban Action Planner" view to any Base. The Base's filters choose the
   notes, and each note becomes a card.
 - **Embed a board in any note.** `![[Tasks.base#Kanban]]` renders the view inside a markdown
-  note, with a bounded height and internal scrolling. The alias overrides mode, height, and
+  note, sized to its content up to a scrollable height cap. The alias overrides mode, height, and
   filter for that one embed (`|mode=wbs height=400 filter=status:active`) without touching the
-  saved view.
+  saved view. It works in a Canvas card too, and `columns=` and `lanes=` narrow an embed to some
+  columns or swimlanes.
 - **Status to columns.** Columns are defined explicitly (per view, from the Starter Kit, or in
   plugin settings), never guessed from your data, so a typo can't create a stray column. Cards are
   placed by their status property, and notes with no or unknown status collect in an **Unmapped**
@@ -39,15 +37,20 @@ every change written straight back into your notes.
 ![Swimlanes]({{ '/images/swimlanes.png' | relative_url }})
 
 - **Filter as you type.** A toolbar search box with a compact, Jira-like query language
-  (`status:active OR due:overdue`, `parent:"PKM" -tag:archived`), saved per view.
+  (`status:active OR due:overdue`, `parent:"PKM" -tag:archived`), saved per view. One-click
+  date-window chips (**Today**, **Next 7 days**, **Next 30 days**) keep what's due or scheduled
+  soon, `review:due` finds the cards due for review, and the **Filter by property** button lets
+  you tick a note type's property values without typing.
 - **Relationships.** See, navigate, and edit parent, sibling, child, and blocked-by links from
-  the card menu. A blocked card is flagged and filterable.
+  the card menu. A blocked card is flagged and filterable. A role can use several properties, each
+  scoped to the note types it links to, and the Starter Kit can supply them.
 - **Focus on a card's children or whole subtree.** Zoom into a project (card menu or the
   ▼ children badge) and the board re-filters to just its children — or all its descendants — or
   zoom up from a task via its ▲ parents badge to see the whole project's children at once. A
   dismissible chip next to the filter box shows the focus; zooming again drills down a level.
 - **Triage mode.** Work through an overwhelming backlog one card at a time, setting priority,
-  urgency, and effort from one-click controls. It doubles as a spaced-repetition review queue.
+  urgency, and effort from one-click controls. It doubles as a spaced-repetition review queue,
+  and cards due for review show a **Review** badge on every board.
 
 ![Triage mode]({{ '/images/triage.png' | relative_url }})
 
@@ -95,8 +98,11 @@ every change written straight back into your notes.
 
 ![Focus mode]({{ '/images/focus.png' | relative_url }})
 
-- **Time tracking.** Start or stop a session from any card menu; elapsed minutes accumulate
-  into a duration property, and the WBS rolls tracked time up the tree next to the estimates.
+- **Time tracking.** Start or stop a session from any card menu, from the active note, from a
+  **Switch time tracking to…** picker, or with a per-note shortcut you bind a hotkey to. Each
+  session is saved as a time entry and its minutes add up in a duration property. **Pomodoro
+  mode** runs timed work and break periods with a status-bar countdown and a visual timer, and
+  the WBS rolls tracked time up the tree next to the estimates.
 
 - **Archiving.** Move a finished note to a placeholder-driven archive folder, manually or
   automatically when it reaches a chosen status — at once, or after a grace period counted
@@ -109,16 +115,27 @@ every change written straight back into your notes.
   properties (with `{{date}}`-style placeholders), add or remove tags, or move the note to a
   placeholder-driven folder. Fires once per transition, from any write path, with no cascades.
 - **WIP limits, multi-select and bulk actions, compact mode, overdue emphasis, hover preview.**
-  Soft per-column limits, Shift-click selection with bulk set-status / archive / open, a
-  titles-only compact toggle, red and amber due-date washes, and a native note popover on card
-  hover.
+  Soft per-column limits, per-column aggregates (`Σ 13`), a Select mode (click, or Shift-click a
+  range) with bulk set-status / archive / open, a titles-only compact toggle, red and amber
+  due-date washes, a due countdown badge, and a native note popover on card hover.
+- **GTD contexts.** Tag notes with `@work`, `@home` and so on, filter with the toolbar **@**
+  switcher, and toggle contexts from the card menu.
+- **Cards show your view's properties.** Cards show the properties and formulas picked in the
+  Bases view, plus optional cover images, card colors from any property, and a title from any
+  property.
+- **Big boards stay fast.** Long columns only build the cards you can see, and covers load as
+  you scroll.
+- **Phones and tablets.** Long-press to drag, and one column at a time on a phone.
 - **Colors and per-type card display.** Give each status a color (palette or custom, theme-aware),
   and choose which fields show on cards, per note type.
 - **Quick capture.** Every column has a **+** in its header and an **Add card** button under its
   cards. Type a name and the note is created in the right folder, with the right template, and
   lands in that exact column — including whatever the Base filters on, so the card really does
   show up. Templates are applied through Templater (before the card's properties are written, so
-  a template that prompts for a status can't override the column you clicked).
+  a template that prompts for a status can't override the column you clicked). The new card
+  shows at once while the Base catches up. A board with no columns yet still offers **Add card**
+  and can save the status you pick as its first column. On a board filtered by `parent:"X"`, the
+  new card is linked to X.
 
 ![Quick capture]({{ '/images/quick-capture.png' | relative_url }})
 
@@ -139,11 +156,12 @@ every change written straight back into your notes.
 
 ## Quick Start
 
-1. Install and enable the plugin.
+1. Install and enable the plugin (Obsidian 1.13.0 or later): search for **Kanban Action
+   Planner** in **Settings → Community plugins → Browse**.
 2. Open or create a **Base**, then add a view and pick **Kanban Action Planner**.
 3. Give your notes a `status` property. **Define your columns** by listing the status values in
-   **Configure view → Statuses (columns)** (one per line, e.g. `10 Todo`, `20 Doing`, `30 Done`).
-   You can also set vault-wide **Default statuses** in the plugin settings, or let the Starter Kit
+   **Configure view → Columns → Column values** (one per entry, e.g. `10 Todo`, `20 Doing`,
+   `30 Done`). You can also set vault-wide **Default column values** in the plugin settings, or let the Starter Kit
    provide them. Until columns are defined, every card sits in **Unmapped**.
 4. Drag cards between columns to change status, reorder or sort them within a column, and right-click
    a card for scheduling, archiving, relationships, and more.

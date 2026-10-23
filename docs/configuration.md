@@ -11,37 +11,42 @@ Settings live in three places, by scope:
 
 - **Plugin settings** (**Settings → Community plugins → Kanban Action Planner**). Vault-wide
   **defaults** (property names, default statuses, date format) **plus a central "Note types"
-  list**. Each note type's shared config (statuses, colors, cards, card titles, relationships,
-  estimate property + unit, archiving)
+  list**. Each note type's shared config (statuses, colors, enums, WIP limits, swimlanes,
+  relationships, dates, estimate, time tracking, ideal week, done state, automations, creating
+  notes, card titles, archiving)
   is defined here once, and **every** board applies it to the notes it recognizes. You never
   reconfigure a type board by board. When the Obsidian Starter Kit is present, its note types are
   synchronized into this list automatically; the **Default** entry covers notes with no
   recognized type. Click **Configure** next to a type to edit it.
 - **Per-board configuration** (**Configure view**, the Bases view options for the Kanban Action Planner view).
   Settings for **this board only**, grouped into **Columns**, **Cards**, **Swimlanes**,
-  **Filters**, and **Calendar**. Pickers for properties the board **writes** (status, order,
-  grouping) list only your notes' **frontmatter** properties; read-only pickers (card sort,
-  panel sort, title) also offer `formula.*` and `file.*` columns. With the Obsidian Starter Kit
+  **Filters**, **Calendar**, **Timeline**, and **Triage**. Pickers for properties the board
+  **writes** (status, order) list only your notes' **frontmatter** properties; read-only pickers
+  (card sort, panel sort, title, cover, card color, accent, column aggregate, lane grouping) also
+  offer `formula.*` and `file.*` columns. With the Obsidian Starter Kit
   enabled, frontmatter pickers are further limited to your note types' known properties.
 
 The **gear** in the board's top-right is a shortcut to the plugin's **Note types** settings.
-Note-type config lives there, not on the board: colors, cards, card titles, relationships,
-estimate, archiving, default swimlane grouping.
+Note-type config lives there, not on the board: colors, card titles, relationships,
+estimate, archiving, default swimlane grouping, and the other note type sections.
 
 Precedence, most specific wins: a **view's** Configure-view setting → the **note type's** shared
 config (Settings → Note types) → the **global** default. Swimlane grouping is a good example. It
 has a shared default per note type, and any single view can override it in **Configure view →
-Swimlanes** (which defaults to "Use note type default").
+Swimlanes** (which defaults to "Use note type default (auto by type on mixed boards)").
 
 ## Property names
 
 The plugin reads and writes ordinary note properties (frontmatter). Nothing exotic, nothing
-hidden. The defaults below are used today; per-view overrides may arrive in later releases.
+hidden. These are the global defaults. A board can override the status and manual order
+properties in **Configure view → Columns** (**Column property**, **Manual order property**).
 
 | Property        | Default                    | What it does                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 | --------------- | -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Status          | `status`                   | Its value places a card in a column. Auto-detected: this name, else a property named `status`; never guessed from another property. Text or List: a List property uses its first value, and moves keep it a List.                                                                                                                                                                                                                                                                   |
+| Status          | `status`                   | Its value places a card in a column. Auto-detected: this name, else a property named `status`; never guessed from another property. Text or List: a List property uses its first value, and moves keep it a List. Set globally with **Default column property**.                                                                                                                                                                                                                    |
 | Manual order    | `manual_order`             | Stores a card's position within its column (a number). Written when you drag to reorder.                                                                                                                                                                                                                                                                                                                                                                                            |
+| Blocked by      | `blocked_by`               | Notes blocking this one. Set globally with **Blocked-by property**; per type in **Configure → Relationships**.                                                                                                                                                                                                                                                                                                                                                                      |
+| Defer date      | `date_defer`               | Date before which a note cannot start. Deferred cards render muted and are excluded by `is:available`. Set globally with **Defer date property**, per type in **Configure → Dates**.                                                                                                                                                                                                                                                                                                |
 | Estimate        | `estimate`                 | How long you expect a note to take. A number of **days** by default. A note type can associate its **own property and unit** (days or **minutes**, e.g. a tasknotes-compatible `time_estimate`) in **Configure → Estimate**; minute values convert to days everywhere via **Minutes per day** (default 480 = an 8-hour workday). With a start date it gives a card its span on the timeline. Written when you resize a bar or via **Set estimate…**, always in the note's own unit. |
 | Milestones      | `milestones`               | List of `<date> <label>` entries rendered as diamond markers on the timeline. Set globally with **Milestones property**.                                                                                                                                                                                                                                                                                                                                                            |
 | Contexts        | `contexts`                 | Optional list of GTD-style contexts (`@work`, `@home`, …). Drives the **@** context switcher in the toolbar; it filters only, the plugin never writes it. Set globally with **Contexts property**; must not be a reserved filter word (`parent`, `status`, `due`, …).                                                                                                                                                                                                               |
@@ -67,16 +72,16 @@ the day component of every displayed duration (`1d 2h`).
 
 ### Time tracking and pomodoro settings
 
-| Setting                                        | Default | What it does                                                                                                                                                                        |
-| ---------------------------------------------- | ------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Ask for a description when a session stops** | Off     | Prompt for the entry's `description` after a stop. The entry is written first; skipping loses nothing. The note's last description is prefilled.                                    |
-| **Idle detection (minutes)**                   | 30      | Minutes without activity in Obsidian before a running session asks: end when the activity stopped, keep running, or discard. 0 = off.                                               |
-| **Session cap (minutes)**                      | 480     | Longest session written without asking. Past it (and for a suspicious session found after a restart) you are asked to end at the cap, keep running, or discard. 0 = no cap.         |
-| **Chain phases automatically**                 | On      | A completed phase starts the next one: work → break (short, or long every Nth) → work on the same note. A phase stopped early never chains; **Skip to the next phase** always does. |
-| **Sound at phase boundaries**                  | Off     | A short two-tone cue when a phase completes.                                                                                                                                        |
-| **System notification at phase boundaries**    | Off     | A desktop notification when a phase completes (permission is requested once).                                                                                                       |
-| **Work / Short break / Long break (minutes)**  | 25/5/15 | Phase lengths.                                                                                                                                                                      |
-| **Long break interval**                        | 4       | Every Nth completed work pomodoro is followed by a long break.                                                                                                                      |
+| Setting                                                                            | Default | What it does                                                                                                                                                                        |
+| ---------------------------------------------------------------------------------- | ------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Ask for a description when a session stops**                                     | Off     | Prompt for the entry's `description` after a stop. The entry is written first; skipping loses nothing. The note's last description is prefilled.                                    |
+| **Idle detection (minutes)**                                                       | 30      | Minutes without activity in Obsidian before a running session asks: end when the activity stopped, keep running, or discard. 0 = off.                                               |
+| **Session cap (minutes)**                                                          | 480     | Longest session written without asking. Past it (and for a suspicious session found after a restart) you are asked to end at the cap, keep running, or discard. 0 = no cap.         |
+| **Chain phases automatically**                                                     | On      | A completed phase starts the next one: work → break (short, or long every Nth) → work on the same note. A phase stopped early never chains; **Skip to the next phase** always does. |
+| **Sound at phase boundaries**                                                      | Off     | A short two-tone cue when a phase completes.                                                                                                                                        |
+| **System notification at phase boundaries**                                        | Off     | A desktop notification when a phase completes (permission is requested once).                                                                                                       |
+| **Work pomodoro (minutes)** / **Short break (minutes)** / **Long break (minutes)** | 25/5/15 | Phase lengths.                                                                                                                                                                      |
+| **Long break interval**                                                            | 4       | Every Nth completed work pomodoro is followed by a long break.                                                                                                                      |
 
 ### Filter and review settings
 
@@ -93,9 +98,9 @@ the day component of every displayed duration (`1d 2h`).
 Columns are **defined**, never guessed from the values present in notes. A typo in a note can
 never create a stray column. A board takes its columns, in order of preference, from:
 
-1. the per-view **Statuses (columns)** list (view settings), then
+1. the per-view **Column values** list (**Configure view → Columns**), then
 2. the **Obsidian Starter Kit** note type's allowed status values (if installed), then
-3. the global **Default statuses** list (plugin settings, one per line).
+3. the global **Default column values** list (plugin settings, one per line).
 
 A leading number sets the order and is hidden in the header: `10 Todo`, `20 Doing`,
 `30 Done`. Notes whose status isn't a defined column go to the **Unmapped** column (shown
@@ -124,7 +129,8 @@ boards sorted by **Manual order**. Switch it off to keep your notes untouched un
 > The [**Obsidian Starter Kit**](https://store.dsebastien.net/product/obsidian-starter-kit) is optional. If you use it, everything below configures
 > itself. See [Using this plugin with the Obsidian Starter Kit]({{ '/usage.html#using-this-plugin-with-the-obsidian-starter-kit' | relative_url }}).
 
-Board configuration (currently: colors) is grouped into a **note type**. When the Obsidian
+Board configuration (statuses, colors, relationships, archiving and the other Configure
+sections) is grouped into a **note type**. When the Obsidian
 Starter Kit plugin is installed and recognizes your notes as a note type, the board uses that
 type as its note type. It takes the status property and its allowed values from the Starter Kit
 and builds columns in the defined order, including empty ones. The Starter Kit remains the
@@ -270,7 +276,9 @@ Three dates drive every mode: the **scheduled** date (when work is planned to st
 **due** date (the deadline), and the optional **defer** date (when it may start). Each is a
 frontmatter property name resolved at three levels, most specific wins:
 
-1. **Per board**: _Configure view_ (a board that reads different properties than the rest).
+1. **Per board**: a `scheduledDateProperty`, `dueDateProperty` or `deferDateProperty` key in the
+   view's `.base` config (a board that reads different properties than the rest). Configure view
+   has no picker for these.
 2. **Per note type**: _Settings → Note types → Configure →_ **Dates**. Also holds the date
    **format** used when writing.
 3. **Global default**: _Settings → Kanban Action Planner_.
@@ -286,7 +294,8 @@ Blank one out to go back to following the global setting.
 ## Calendar mode
 
 Calendar mode is toggled per view by the in-view **Board / Calendar** switch. It reads two date
-properties (their names are set in plugin settings) and writes them when you drag-schedule:
+properties (resolved as described in [Date properties](#date-properties)) and writes them when
+you drag-schedule:
 
 | Property       | Default          | Role                                                  |
 | -------------- | ---------------- | ----------------------------------------------------- |
@@ -307,7 +316,8 @@ archive placeholder stays ISO week numbering.
 
 Timeline mode places each card by a **start date plus an estimate**. There is no
 end-date property. The start is your scheduled-date property and the milestone list defaults
-to `milestones` (**Milestones property**), both global settings. The estimate defaults to the
+to `milestones` (**Milestones property**); the milestones property is global, the scheduled
+date follows [Date properties](#date-properties). The estimate defaults to the
 global **Estimate property** (`estimate`, days), and each note type can override the
 **property and unit** (days or minutes) in its **Configure → Estimate** section; minute
 estimates convert to days via the global **Minutes per day** setting and always span at least
@@ -335,7 +345,7 @@ you want to spend a week, not a plan for one particular week. Which statuses are
 the note type's status configuration mirrored from the Obsidian Starter Kit (the per-value
 planning **role**); without roles, every status not declared done counts. A note also has to
 carry the time blocks property to appear (tasks do not), and a dated note (a project with a
-start and a due date, as configured for its type in **Calendar**) only while today lies
+start and a due date, as configured for its type in **Dates**) only while today lies
 between them.
 
 Global settings under **Ideal week** start with the property names: **Time blocks property**,
@@ -347,10 +357,10 @@ Then come the two that decide how targets behave: **Target follows planned**
 planned minutes, and a note without a target gets one from its planned minutes instead of a
 prompt, with a notice; never lowered) and **Available hours per week** (the base of
 every share in the targets table; empty = the visible grid hours × 7, the whole week by
-default). The rest shape the grid: **Grid starts at** /
-**Grid ends at** (hours, the full day by default), **Work hours** (`09:00-17:00` by default;
+default). The rest shape the grid: **Grid starts at (hour)** /
+**Grid ends at (hour)** (the full day by default), **Work hours** (`09:00-17:00` by default;
 empty = no band) and **Work days** (`mon-fri` by default; the band's days), **New block
-length** (60 minutes), **Day window** (`06:00-22:00` by default: the hours that fill the pane,
+length (minutes)** (60), **Day window** (`06:00-22:00` by default: the hours that fill the pane,
 the scale follows the pane height; empty = the whole grid) and **Minimum pixels per hour**
 (the grid never gets denser than this and scrolls instead). There are no per-view
 options. The panel state, the grid / targets face and the two grouping choices are remembered
@@ -624,11 +634,13 @@ card.
 
 A card can show a compact **countdown to its due date** (`Today`, `In 3d`, `2d overdue`,
 `in 2w`, `in 3mo`; the unit auto-scales from days to weeks to months), color-coded by urgency
-(red overdue, amber today, orange soon, muted further out). It reuses the same **Due date**
-property as the overdue emphasis, so there is no extra property to configure.
+(red overdue, amber today, orange soon, muted further out). By default it counts down to the
+**Due date** property, the same one the overdue emphasis uses; **Countdown counts down to** can
+switch a board to the scheduled date.
 
-| Setting                         | Scope     | Default   | What it does                                                                                                       |
-| ------------------------------- | --------- | --------- | ------------------------------------------------------------------------------------------------------------------ |
-| **Show due countdown**          | Per board | Off       | Turns the badge on for this board (**Configure view → Cards**).                                                    |
-| **Due countdown position**      | Global    | Title row | Where the badge sits: **Title row** (right-aligned pill), **Field chip**, **Top-right corner**, or **Footer row**. |
-| **Due "soon" threshold (days)** | Global    | `7`       | Within how many days the badge turns warm (orange). Changes the **color**, not whether the badge shows.            |
+| Setting                         | Scope     | Default             | What it does                                                                                                       |
+| ------------------------------- | --------- | ------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| **Show due countdown**          | Per board | Off                 | Turns the badge on for this board (**Configure view → Cards**).                                                    |
+| **Countdown counts down to**    | Per board | Deadline (due date) | Count down to the due date or to the scheduled date (**Configure view → Cards**).                                  |
+| **Due countdown position**      | Global    | Title row           | Where the badge sits: **Title row** (right-aligned pill), **Field chip**, **Top-right corner**, or **Footer row**. |
+| **Due "soon" threshold (days)** | Global    | `7`                 | Within how many days the badge turns warm (orange). Changes the **color**, not whether the badge shows.            |

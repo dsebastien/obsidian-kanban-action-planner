@@ -116,7 +116,7 @@ Configure statuses, colors, relationships, and archiving per note type, synced f
 
 ## Install
 
-**From Community plugins** (once listed): go to **Settings → Community plugins → Browse**, search for **Kanban Action Planner**, install, and enable.
+**From Community plugins**: go to **Settings → Community plugins → Browse**, search for **Kanban Action Planner**, install, and enable.
 
 **Manually:** download `main.js`, `manifest.json`, and `styles.css` from the [latest release](https://github.com/dsebastien/obsidian-kanban-action-planner/releases) into `<vault>/.obsidian/plugins/kanban-action-planner/`, then enable the plugin in **Settings → Community plugins**.
 

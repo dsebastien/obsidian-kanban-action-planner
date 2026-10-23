@@ -1515,7 +1515,7 @@ export class ConfigureBoardModal extends Modal {
             text:
                 `Which frontmatter properties hold the dates of ${noteType.name} notes, in every mode ` +
                 '(board, calendar, timeline, WBS). Leave a field empty to use the global default ' +
-                'from the plugin settings. A single board can still override these in Configure view.'
+                'from the plugin settings.'
         })
 
         const fields: ReadonlyArray<{

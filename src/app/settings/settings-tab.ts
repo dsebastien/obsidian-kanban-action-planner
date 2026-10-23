@@ -754,7 +754,7 @@ export class KanbanActionPlannerSettingTab extends PluginSettingTab {
                     this.numberItem(ARCHIVE_GRACE),
                     {
                         name: 'Default column values',
-                        desc: 'One column property value per line, in column order. Used when a board does not define its own column values and no Starter Kit note type applies. Number prefixes (e.g. "10 Todo") set order and are hidden on the column header.',
+                        desc: 'One column property value per line, in column order. Used when a board does not define its own column values and no Starter Kit note type applies. A number prefix (e.g. "10 Todo") is hidden on the column header.',
                         control: {
                             type: 'textarea',
                             key: 'defaultStatuses',
