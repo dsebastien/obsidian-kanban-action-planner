@@ -104,6 +104,7 @@ export function renderCard(
     // board stays recognizable. Hidden outside compact mode (CSS), so toggling
     // compact needs no rebuild; a hidden image is never fetched (LazyImages).
     if (card.display.coverUrl) {
+        titleEl.addClass('kap-card-title-has-thumb')
         const thumb = titleEl.createSpan({ cls: 'kap-card-thumb', attr: { 'aria-hidden': 'true' } })
         deferImage(thumb.createEl('img', { attr: { alt: '' } }), card.display.coverUrl)
     }

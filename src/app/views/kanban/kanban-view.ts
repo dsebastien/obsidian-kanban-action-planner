@@ -1829,6 +1829,8 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         // Compact cards apply to the board only (the calendar's scheduling panel
         // and the triage card keep their full layout).
         this.boardEl.toggleClass('kap-compact', this.compactMode() && this.viewMode() === 'board')
+        // The week root needs its host as a flex column (see styles.src.css).
+        this.boardEl.toggleClass('kap-board-host-week', this.weekMode())
         this.applyCardPresentation()
 
         // Resolve the column set BEFORE the mode branches: `cardColumns` (the

@@ -214,18 +214,6 @@
         max-height: var(--kap-embed-height, 30rem);
     }
 
-    /* Every plugin button should read as clickable. Obsidian's unlayered <button>
-       rule sets a non-pointer cursor that outranks any layered rule, so without
-       !important they all show the default arrow. Covers the view buttons (mode
-       switch, ranges, ‹/Today/›, tabs, toggles, gear, nav) and our modals. */
-    /* stylelint-disable declaration-no-important -- beats Obsidian's unlayered button cursor */
-    .kap-root button,
-    .kap-config-modal button,
-    .kap-date-actions button {
-        cursor: pointer !important;
-    }
-    /* stylelint-enable declaration-no-important */
-
     /* Right-side toolbar actions: swimlane up/down nav + configure gear. */
     .kap-root .kap-toolbar-actions {
         @apply inline-flex items-center gap-1;
@@ -492,19 +480,6 @@
         @apply hidden;
     }
 
-    /* Active toggle (multi-select mode) on a toolbar icon button. */
-    /* stylelint-disable declaration-no-important -- the active accent must beat
-       Obsidian's unlayered <button> styles (which outrank our @layer rules
-       regardless of specificity), like .kap-mode-btn-active. Without it the Select
-       toggle never highlighted when on. */
-    .kap-root .kap-nav-btn-active,
-    .kap-root .kap-nav-btn-active:hover {
-        color: var(--text-on-accent) !important;
-        background: var(--interactive-accent) !important;
-        border-color: var(--interactive-accent) !important;
-    }
-    /* stylelint-enable declaration-no-important */
-
     /* Multi-select action bar (issue #18) — under the toolbar for the whole
        select session. It appears/disappears on the MODE toggle (the
        deliberate layout moment), never on first-select/last-deselect, so
@@ -543,10 +518,6 @@
     .kap-root .kap-selection-btn.kap-selection-btn:disabled {
         @apply opacity-50;
         background: var(--interactive-normal);
-        /* stylelint-disable-next-line declaration-no-important -- must beat the
-           `.kap-root button { cursor: pointer !important }` rule above (itself
-           !important to outrank Obsidian's unlayered button cursor). */
-        cursor: default !important;
     }
 
     /* Selected cards (multi-select): an inset accent ring. Uses box-shadow rather
@@ -620,16 +591,6 @@
         color: var(--text-normal);
         background: var(--background-modifier-border);
     }
-
-    /* stylelint-disable declaration-no-important -- the active indicator must beat
-       Obsidian's unlayered default <button> styles; unlayered declarations outrank
-       any layered rule regardless of specificity, so !important is the only lever. */
-    .kap-root .kap-mode-btn-active,
-    .kap-root .kap-mode-btn-active:hover {
-        color: var(--text-on-accent) !important;
-        background: var(--interactive-accent) !important;
-    }
-    /* stylelint-enable declaration-no-important */
 
     /* Board: horizontal row of columns, scrolls horizontally when needed.
        Positioned so the column drop indicator can overlay it without joining
@@ -847,28 +808,12 @@
 
     /* Quick capture (issue #46): the "+" in the column header, always in reach at
        the top of the column. Sized like the collapse chevron opposite it. */
-    /* stylelint-disable declaration-no-important -- Obsidian's unlayered <button>
-       rule paints a filled box here; unlayered declarations outrank every layered
-       rule regardless of specificity (see .kap-mode-btn-active). */
     .kap-root .kap-column-add {
         @apply flex flex-none items-center justify-center rounded cursor-pointer;
         transition:
             color var(--kap-transition) var(--kap-ease),
             background-color var(--kap-transition) var(--kap-ease);
-        width: var(--size-4-5, 1.25rem) !important;
-        height: var(--size-4-5, 1.25rem) !important;
-        padding: 0 !important;
-        background: transparent !important;
-        border: none !important;
-        box-shadow: none !important;
-        color: var(--text-muted) !important;
     }
-
-    .kap-root .kap-column-add:hover {
-        background: var(--background-modifier-hover) !important;
-        color: var(--text-normal) !important;
-    }
-    /* stylelint-enable declaration-no-important */
 
     .kap-root .kap-column-add .svg-icon {
         width: var(--icon-s, 1em);
@@ -892,31 +837,12 @@
         @apply hidden;
     }
 
-    /* stylelint-disable declaration-no-important -- a dashed "add" affordance has
-       to override the box Obsidian's unlayered <button> rule paints (background,
-       border, shadow, padding, size); unlayered declarations outrank every layered
-       rule regardless of specificity, so !important is the only lever here — same
-       rationale as .kap-mode-btn-active. */
     .kap-root .kap-add-card {
         @apply items-center justify-center gap-1.5 rounded;
         transition:
             color var(--kap-transition) var(--kap-ease),
             background-color var(--kap-transition) var(--kap-ease);
-        display: flex !important;
-        width: 100% !important;
-        padding: var(--size-4-1, 0.25rem) var(--size-4-2, 0.5rem) !important;
-        background: transparent !important;
-        border: 1px dashed var(--background-modifier-border) !important;
-        box-shadow: none !important;
-        color: var(--text-muted) !important;
-        font-size: 0.85em !important;
     }
-
-    .kap-root .kap-add-card:hover {
-        background: var(--background-modifier-hover) !important;
-        color: var(--text-normal) !important;
-    }
-    /* stylelint-enable declaration-no-important */
 
     .kap-root .kap-add-card-icon {
         @apply flex items-center;
@@ -1124,7 +1050,7 @@
         overflow: hidden;
         background: var(--background-secondary);
     }
-    .kap-compact .kap-card-title:has(.kap-card-thumb) {
+    .kap-compact .kap-card-title-has-thumb {
         align-items: center;
     }
     /* Card image placeholder (LazyImages): the box already has its final size,
@@ -1698,15 +1624,6 @@
         background: var(--background-modifier-border);
     }
 
-    /* stylelint-disable declaration-no-important -- beats Obsidian's unlayered
-       default <button> styles (see .kap-mode-btn-active for the rationale). */
-    .kap-panel-tab-active,
-    .kap-panel-tab-active:hover {
-        color: var(--text-on-accent) !important;
-        background: var(--interactive-accent) !important;
-    }
-    /* stylelint-enable declaration-no-important */
-
     .kap-panel-tab-count {
         @apply text-[0.8em] opacity-80;
     }
@@ -1769,15 +1686,6 @@
     .kap-range-btn:active {
         transform: scale(0.94);
     }
-
-    /* stylelint-disable declaration-no-important -- beats Obsidian's unlayered
-       default <button> styles (see .kap-mode-btn-active for the rationale). */
-    .kap-range-btn-active,
-    .kap-range-btn-active:hover {
-        color: var(--text-on-accent) !important;
-        background: var(--interactive-accent) !important;
-    }
-    /* stylelint-enable declaration-no-important */
 
     .kap-calendar-anchor {
         @apply font-medium;
@@ -2149,16 +2057,7 @@
         @apply mr-auto;
     }
 
-    /* Configure-board modal: a two-pane layout — section nav (left) + content.
-       Widen the dialog so both panes are comfortable. !important beats
-       Obsidian's unlayered `.modal` width (unlayered outranks any layered rule). */
-    /* stylelint-disable declaration-no-important -- see comment above */
-    .kap-config-modal {
-        width: min(48rem, 92vw) !important;
-        max-width: min(48rem, 92vw) !important;
-    }
-    /* stylelint-enable declaration-no-important */
-
+    /* Configure-board modal: a two-pane layout — section nav (left) + content. */
     .kap-config-modal .kap-settings {
         @apply flex gap-4 mt-3 min-w-0;
         min-height: 22rem;
@@ -2274,13 +2173,6 @@
         scroll-snap-type: none;
     }
 
-    /* The card cannot go to the column under the pointer (a lane of a
-       note-type or computed grouping): no insertion line, not-allowed cursor. */
-    .kap-board-host.kap-drop-forbidden,
-    .kap-board-host.kap-drop-forbidden * {
-        cursor: not-allowed !important;
-    }
-
     /* Phone: one column at a time. Every expanded column is as wide as the
        board (still equal widths, rule 12), the horizontal scroll snaps to
        columns, and the column switcher above the board jumps between them. A
@@ -2303,24 +2195,11 @@
         scrollbar-width: none;
     }
 
-    /* stylelint-disable declaration-no-important -- chips are <button>s; Obsidian's
-       unlayered button rule outranks every layered declaration (see .kap-mode-btn-active). */
     .kap-root .kap-column-switcher-chip {
         @apply inline-flex flex-none items-center gap-2 px-3 rounded-full cursor-pointer whitespace-nowrap;
         min-height: 2.25rem;
         font-size: var(--font-ui-small);
-        color: var(--text-muted) !important;
-        background: var(--background-secondary) !important;
-        border: 1px solid var(--background-modifier-border) !important;
-        box-shadow: none !important;
     }
-
-    .kap-root .kap-column-switcher-chip-active {
-        color: var(--text-on-accent) !important;
-        background: var(--interactive-accent) !important;
-        border-color: var(--interactive-accent) !important;
-    }
-    /* stylelint-enable declaration-no-important */
 
     .kap-column-switcher-count {
         font-variant-numeric: tabular-nums;
@@ -2477,8 +2356,9 @@
 
     /* In an embed the board host has no definite height for `h-full` to
        resolve against, and the week root grew with its grid: make the host a
-       column and let the root take the remaining height instead. */
-    .kap-board-host:has(> .kap-week-root) {
+       column and let the root take the remaining height instead. The view
+       marks the host while the week mode is on (`kap-board-host-week`). */
+    .kap-board-host.kap-board-host-week {
         @apply flex flex-col min-h-0;
     }
 
@@ -2637,7 +2517,6 @@
     }
 
     .kap-week-target-invalid {
-        border-color: var(--text-error) !important;
         box-shadow: 0 0 0 1px var(--text-error);
     }
 
@@ -2961,10 +2840,6 @@
         @page {
             size: A4 landscape;
             margin: 10mm;
-        }
-
-        body.kap-week-printing > *:not(.kap-week-print) {
-            display: none !important;
         }
 
         body.kap-week-printing .kap-week-print {
@@ -3301,15 +3176,10 @@
        treatment — same surface, hover, and a count badge), still collapsible.
        The calendar's scheduling panel reuses the exact same treatment
        (`kap-cal-ugroup`/`-usubgroup`) for backlog grouping parity. */
-    /* stylelint-disable declaration-no-important -- background/box-shadow beat
-       Obsidian's unlayered default <button> styles (see .kap-panel-tab-active
-       for the rationale). */
     .kap-root .kap-tl-ugroup,
     .kap-root .kap-cal-ugroup {
         @apply flex w-full items-center gap-1.5 h-7 px-2 mt-1 border-0 rounded cursor-pointer text-left text-[0.82em] font-medium;
         color: var(--text-muted);
-        background: var(--background-modifier-hover) !important;
-        box-shadow: none !important;
         transition:
             color var(--kap-transition) var(--kap-ease),
             background-color var(--kap-transition) var(--kap-ease);
@@ -3318,7 +3188,6 @@
     .kap-root .kap-tl-ugroup:hover,
     .kap-root .kap-cal-ugroup:hover {
         color: var(--text-normal);
-        background: var(--background-modifier-border) !important;
     }
 
     /* Expanded tab: accent tint + inset accent edge, like an active tab. */
@@ -3327,10 +3196,7 @@
     .kap-root .kap-cal-ugroup-open,
     .kap-root .kap-cal-ugroup-open:hover {
         color: var(--text-normal);
-        background: color-mix(in srgb, var(--interactive-accent) 14%, transparent) !important;
-        box-shadow: inset 2px 0 0 var(--interactive-accent) !important;
     }
-    /* stylelint-enable declaration-no-important */
 
     .kap-root .kap-tl-ugroup-chevron,
     .kap-root .kap-cal-ugroup-chevron {
@@ -3587,16 +3453,6 @@
         color: var(--text-normal);
     }
 
-    /* stylelint-disable declaration-no-important -- the active tab accent must beat
-       Obsidian's unlayered <button> styles (which win over our @layer rules
-       regardless of specificity), like .kap-mode-btn-active (issue #66). */
-    .kap-root .kap-triage-scope-btn-active,
-    .kap-root .kap-triage-scope-btn-active:hover {
-        background: var(--interactive-accent) !important;
-        color: var(--text-on-accent) !important;
-    }
-    /* stylelint-enable declaration-no-important */
-
     .kap-root .kap-triage-icon-btn {
         @apply inline-flex items-center justify-center w-7 h-7 rounded cursor-pointer border-0;
         background: var(--background-modifier-hover);
@@ -3645,15 +3501,6 @@
     .kap-root .kap-triage-queue-item-done .kap-triage-queue-item-title {
         color: var(--text-muted);
     }
-
-    /* stylelint-disable declaration-no-important -- beats Obsidian's unlayered
-       default <button> styles (see .kap-panel-tab-active for the rationale). */
-    .kap-root .kap-triage-queue-item-active,
-    .kap-root .kap-triage-queue-item-active:hover {
-        color: var(--text-on-accent) !important;
-        background: var(--interactive-accent) !important;
-    }
-    /* stylelint-enable declaration-no-important */
 
     .kap-root .kap-triage-queue-item-active .kap-triage-queue-item-title {
         color: var(--text-on-accent);
@@ -3822,16 +3669,6 @@
         border-color: var(--interactive-accent);
     }
 
-    /* stylelint-disable declaration-no-important -- the selected value's accent fill
-       must beat Obsidian's unlayered <button> styles, like .kap-mode-btn-active (#66). */
-    .kap-root .kap-triage-option-active,
-    .kap-root .kap-triage-option-active:hover {
-        background: var(--interactive-accent) !important;
-        border-color: var(--interactive-accent) !important;
-        color: var(--text-on-accent) !important;
-    }
-    /* stylelint-enable declaration-no-important */
-
     .kap-root .kap-triage-option-check {
         @apply inline-flex items-center justify-center;
     }
@@ -3864,19 +3701,6 @@
     .kap-root .kap-triage-skip:hover {
         color: var(--text-normal);
     }
-
-    /* stylelint-disable declaration-no-important -- the primary action must show the
-       accent fill, beating Obsidian's unlayered <button> styles (#65). */
-    .kap-root .kap-triage-next,
-    .kap-root .kap-triage-next:hover {
-        background: var(--interactive-accent) !important;
-        color: var(--text-on-accent) !important;
-    }
-
-    .kap-root .kap-triage-next:hover {
-        background: var(--interactive-accent-hover, var(--interactive-accent)) !important;
-    }
-    /* stylelint-enable declaration-no-important */
 
     .kap-root .kap-triage-empty {
         @apply flex flex-col items-center justify-center gap-2 h-full p-8 text-center;
@@ -4164,17 +3988,6 @@
         color: var(--text-muted);
     }
 
-    /* Context-row chips are read-only rollups (the note sits outside the
-       view's filters) — ghost them so a dead click reads as "not editable
-       here", not as a broken control (issue #167). */
-    /* stylelint-disable declaration-no-important -- must beat Obsidian's
-       unlayered `button:disabled` opacity, which wins over any layered rule. */
-    .kap-root .kap-wbs-row-context .kap-wbs-chip-btn:disabled {
-        opacity: 0.45 !important;
-        cursor: default !important;
-    }
-    /* stylelint-enable declaration-no-important */
-
     .kap-root .kap-wbs-context-badge {
         @apply shrink-0 rounded-full px-1.5 text-[0.7em] uppercase tracking-wide;
         color: var(--text-faint);
@@ -4280,7 +4093,7 @@
         @apply w-full items-center;
         display: grid;
         grid-template-columns: minmax(0, 1fr) 1.6rem 1.6rem 1.8rem;
-        column-gap: 0.1rem;
+        gap: 0 0.1rem;
     }
 
     .kap-root .kap-wbs-est-lead {
@@ -4987,6 +4800,154 @@
         .kap-root .kap-card.kap-card-lifted {
             transform: none;
         }
+    }
+}
+
+/* ========================================
+   OVERRIDES OF OBSIDIAN'S ELEMENT RULES
+   Obsidian's <button>, `button:disabled` and
+   `.modal` rules are unlayered, and an unlayered
+   declaration outranks every rule in the
+   kap-components layer whatever its specificity.
+   These rules live outside the layer, so they win
+   without !important. Against Obsidian's own
+   selectors only specificity and source order
+   count: `button:not(.clickable-icon)` is (0,1,1)
+   and its :hover (0,2,1), so a class is doubled
+   wherever a selector would otherwise only tie.
+   ======================================== */
+
+/* Every plugin button should read as clickable. Covers the view buttons (mode
+   switch, ranges, ‹/Today/›, tabs, toggles, gear, nav) and our modals. */
+.kap-root button,
+.kap-config-modal button,
+.kap-date-actions button {
+    @apply cursor-pointer;
+}
+
+/* Disabled buttons drop the pointer again: the doubled class outranks the
+   rule above. */
+.kap-root .kap-selection-btn.kap-selection-btn:disabled {
+    @apply cursor-default;
+}
+
+/* Context-row chips are read-only rollups (the note sits outside the view's
+   filters): ghost them so a dead click reads as "not editable here", not as a
+   broken control (issue #167). */
+.kap-root .kap-wbs-row-context .kap-wbs-chip-btn:disabled {
+    @apply cursor-default opacity-45;
+}
+
+/* The card cannot go to the column under the pointer (a lane of a note-type or
+   computed grouping): not-allowed cursor over everything, buttons included. */
+.kap-board-host.kap-drop-forbidden,
+.kap-board-host.kap-drop-forbidden * {
+    @apply cursor-not-allowed;
+}
+
+/* Active states of the toolbar, panel, range and triage buttons. */
+.kap-root .kap-mode-btn-active.kap-mode-btn-active,
+.kap-panel-tab.kap-panel-tab-active.kap-panel-tab-active,
+.kap-range-btn.kap-range-btn-active.kap-range-btn-active,
+.kap-root .kap-triage-scope-btn-active.kap-triage-scope-btn-active,
+.kap-root .kap-triage-queue-item-active.kap-triage-queue-item-active,
+.kap-root .kap-triage-next.kap-triage-next {
+    color: var(--text-on-accent);
+    background: var(--interactive-accent);
+}
+
+/* Active toggle (multi-select mode) on a toolbar icon button, and the selected
+   value of a triage field: the accent reaches the border too. */
+.kap-root .kap-nav-btn-active.kap-nav-btn-active,
+.kap-root .kap-triage-option-active.kap-triage-option-active {
+    color: var(--text-on-accent);
+    background: var(--interactive-accent);
+    border-color: var(--interactive-accent);
+}
+
+.kap-root .kap-triage-next.kap-triage-next:hover {
+    background: var(--interactive-accent-hover, var(--interactive-accent));
+}
+
+/* Quick capture (issue #46): the "+" in the column header, a bare icon rather
+   than the filled box Obsidian paints on a <button>. */
+.kap-root .kap-column-add.kap-column-add {
+    @apply p-0;
+    width: var(--size-4-5, 1.25rem);
+    height: var(--size-4-5, 1.25rem);
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    color: var(--text-muted);
+}
+
+/* The dashed "Add card" affordance under a column's cards. */
+.kap-root .kap-add-card.kap-add-card {
+    @apply flex w-full text-[0.85em];
+    padding: var(--size-4-1, 0.25rem) var(--size-4-2, 0.5rem);
+    background: transparent;
+    border: 1px dashed var(--background-modifier-border);
+    box-shadow: none;
+    color: var(--text-muted);
+}
+
+.kap-root .kap-column-add.kap-column-add:hover,
+.kap-root .kap-add-card.kap-add-card:hover {
+    background: var(--background-modifier-hover);
+    color: var(--text-normal);
+}
+
+/* Phone column switcher chips. */
+.kap-root .kap-column-switcher-chip.kap-column-switcher-chip {
+    color: var(--text-muted);
+    background: var(--background-secondary);
+    border: 1px solid var(--background-modifier-border);
+    box-shadow: none;
+}
+
+.kap-root .kap-column-switcher-chip.kap-column-switcher-chip-active {
+    color: var(--text-on-accent);
+    background: var(--interactive-accent);
+    border-color: var(--interactive-accent);
+}
+
+/* Timeline and calendar backlog groups: tab-like accordion headers. */
+.kap-root .kap-tl-ugroup.kap-tl-ugroup,
+.kap-root .kap-cal-ugroup.kap-cal-ugroup {
+    background: var(--background-modifier-hover);
+    box-shadow: none;
+}
+
+.kap-root .kap-tl-ugroup.kap-tl-ugroup:hover,
+.kap-root .kap-cal-ugroup.kap-cal-ugroup:hover {
+    background: var(--background-modifier-border);
+}
+
+/* Expanded group: accent tint + inset accent edge, like an active tab. */
+.kap-root .kap-tl-ugroup.kap-tl-ugroup-open,
+.kap-root .kap-tl-ugroup.kap-tl-ugroup-open:hover,
+.kap-root .kap-cal-ugroup.kap-cal-ugroup-open,
+.kap-root .kap-cal-ugroup.kap-cal-ugroup-open:hover {
+    background: color-mix(in srgb, var(--interactive-accent) 14%, transparent);
+    box-shadow: inset 2px 0 0 var(--interactive-accent);
+}
+
+/* An unparsable weekly target: the error border beats the input's own border,
+   focused or not (Obsidian's `input[type='text']:focus` is (0,2,1)). */
+.kap-week-target-input.kap-week-target-input.kap-week-target-invalid {
+    border-color: var(--text-error);
+}
+
+/* Configure-board modal: widen the dialog so both panes are comfortable. */
+.modal.kap-config-modal {
+    width: min(48rem, 92vw);
+    max-width: min(48rem, 92vw);
+}
+
+/* Printing (phase E): the static copy alone on paper. */
+@media print {
+    body.kap-week-printing > *:not(.kap-week-print) {
+        @apply hidden;
     }
 }
 
