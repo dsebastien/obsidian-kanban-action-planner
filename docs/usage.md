@@ -279,6 +279,10 @@ present in the name you typed is not added twice, so typing `Ship it (Task)` sta
 
 ### Notes
 
+- The new card shows **at once**, faded, in the column you clicked, while Obsidian indexes the
+  note and the Base catches up (that can take a while on a big vault). It turns into the real
+  card in place. If the note never shows up, because the view's filters leave it out, the
+  faded card goes away and a notice offers to open the note.
 - The **Unmapped** column has no Add button, since it has no status value to write.
 - A board with **no columns yet** (a fresh setup without the Starter Kit, say) still shows an
   **Add card** button under "No notes match this view." The dialog then also asks for the

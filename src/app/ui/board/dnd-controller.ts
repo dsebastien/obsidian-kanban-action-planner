@@ -150,6 +150,8 @@ export class BoardDnd {
         const target = e.target as HTMLElement | null
         const cardEl = target?.closest<HTMLElement>('.kap-card') ?? null
         if (!cardEl || !this.containerEl.contains(cardEl)) return
+        // A pending card (issue #223) has no note in the Base yet to write to.
+        if (cardEl.hasClass('kap-card-pending')) return
         claimPointerDrag(e)
 
         this.pointerId = e.pointerId

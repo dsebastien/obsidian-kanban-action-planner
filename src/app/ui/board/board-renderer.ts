@@ -577,6 +577,14 @@ function buildCardNode(
 ): HTMLElement {
     const cardEl = renderCard(card, accent, { onRelationship: callbacks.onRelationship })
     cardEl.dataset['cardSig'] = cardSignature(card, accent)
+    // A card still waiting for its note to reach the Base (issue #223) takes
+    // no input: no open, no menu, no drag, no keyboard move.
+    if (card.pending) {
+        cardEl.addClass('kap-card-pending')
+        cardEl.setAttribute('aria-busy', 'true')
+        cardEl.setAttribute('tabindex', '-1')
+        return cardEl
+    }
     cardEl.addEventListener('click', (e) => callbacks.onCardClick(card, e))
     cardEl.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' || e.key === ' ') {

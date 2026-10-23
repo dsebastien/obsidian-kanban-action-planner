@@ -945,6 +945,18 @@ When a new business rule is mentioned:
     - **The parent a `parent:` search term names is linked (rule 72).** The wikilink goes in
       the SAME single post-template write, as a list value merged into whatever the template
       put there (empty `[null]` placeholders are dropped). An `ancestor:` term is never written.
+    - **The new card shows before the Base returns it (issue #223).** From the moment the
+      empty note exists (`onFileCreated`, before it is opened and templated), the view keeps
+      a `PendingCreation` (path, the status / order / lane it is written with, a deadline) and
+      every rebuild adds it as a `pending` card built from the real file with those values
+      forced, since the metadata cache lags. Pending cards are inert (no click, menu, drag or
+      keyboard move). The real card has the same key and replaces it in place. After the
+      write, a note that misses the view's filter facts drops its pending card at once (the
+      existing notice); a pending card is otherwise dropped at its deadline (45 s, counted
+      from the end of the write and only while the board is shown, since Bases does not
+      refresh a background view) with a notice offering to open the note. The status
+      property of a new card falls back to the global default when none resolves: a board
+      with no notes yet has none to detect it from.
     - **A board with no columns still captures (issue #123).** Its empty state carries an
       **Add card** button (same `showAddCard` toggle). With no column to supply the status,
       the dialog asks for one (free text, suggesting the type's allowed values) and offers to

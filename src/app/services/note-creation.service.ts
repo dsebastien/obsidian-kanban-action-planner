@@ -60,6 +60,11 @@ export interface CreateNoteRequest {
     tags: string[]
     /** List properties whose values must be present (Base `contains` filters). */
     listProperties?: Record<string, string[]>
+    /**
+     * Called once the empty note exists, before it is opened and templated
+     * (issue #223): the board shows its pending card from that moment.
+     */
+    onFileCreated?: (file: TFile) => void
 }
 
 export type CreateNoteResult =
@@ -83,6 +88,7 @@ export async function createNote(
     try {
         await ensureFolder(app, folder)
         file = await createEmptyNote(app, folder, basename)
+        request.onFileCreated?.(file)
     } catch (error: unknown) {
         const message = error instanceof Error ? error.message : String(error)
         log(`Quick capture: could not create the note. ${message}`, 'error', error)

@@ -1084,6 +1084,21 @@
     .kap-img-loading img {
         visibility: hidden;
     }
+    /* A card created from the board, shown before its note reaches the Base
+       (issue #223): faded and inert until the real card replaces it. */
+    .kap-root .kap-card.kap-card-pending {
+        @apply pointer-events-none opacity-60;
+    }
+    @media (prefers-reduced-motion: no-preference) {
+        .kap-root .kap-card.kap-card-pending {
+            animation: kap-card-pending-pulse 1.4s ease-in-out infinite;
+        }
+    }
+    @keyframes kap-card-pending-pulse {
+        50% {
+            opacity: 0.35;
+        }
+    }
     @media (prefers-reduced-motion: no-preference) {
         .kap-img-loading {
             animation: kap-img-pulse 1.4s ease-in-out infinite;

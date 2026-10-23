@@ -106,4 +106,10 @@ export interface KanbanCard extends BoardCardBase {
      * (issue #113). Renders muted on the board.
      */
     deferred: boolean
+    /**
+     * A card just created from the board whose note has not reached the
+     * Base's results yet (issue #223): shown at once, inert until the real
+     * card replaces it.
+     */
+    pending?: boolean
 }

@@ -339,6 +339,8 @@ import { alarmNoticeDue, formatBudgetMinutes, isoWeekKey } from '../../domain/bu
 import { parseDay } from '../../domain/lifecycle'
 import type { LifecycleDates } from '../../domain/lifecycle'
 import { doneDateProperties } from '../../domain/archive-grace'
+import { PENDING_CREATION_TIMEOUT_MS, settlePendingCreations } from '../../domain/pending-creation'
+import type { PendingCreation } from '../../domain/pending-creation'
 import type { WeekProperties } from '../../services/week-properties.service'
 
 /** The (untyped) settings controller exposed on `app.setting`. */
@@ -617,6 +619,10 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
     private entriesByPath = new Map<string, BasesEntry>()
     // After a keyboard move/reorder rebuild, refocus this card so focus follows it.
     private refocusCardKey: string | null = null
+    // Notes created from the board that have not reached the Base's results
+    // yet, by path (issue #223): shown as pending cards until they do.
+    private readonly pendingCreations = new Map<string, PendingCreation>()
+    private pendingCreationTimer: number | null = null
     /**
      * Deadline (performance clock) until which {@link applyRefocus} keeps waiting
      * for a not-yet-rendered refocus target. 0 = drop it on the first miss (the
@@ -1219,6 +1225,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
 
     override onunload(): void {
         this.alive = false
+        if (this.pendingCreationTimer !== null) window.clearTimeout(this.pendingCreationTimer)
         this.lazyImages.dispose()
         if (this.boardEl) releaseVirtualColumns(this.boardEl)
         this.plugin.orderNormalizer.cancelOwner(this)
@@ -1628,6 +1635,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         this.allCards = files
             .map((file) => this.toCard(file))
             .filter((card) => passesFilter(this.relationshipsByPath.get(card.key), filter))
+        this.allCards.push(...this.pendingCards(files))
         this.searchByKey = new Map(
             this.allCards.map((c) => [
                 c.key,
@@ -4235,7 +4243,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         const facts = this.baseFilterFacts()
         const config = this.resolvedCreationConfig(noteType, facts)
         const ctx = liveExpressionContext()
-        const statusProperty = this.firstCardStatusProperty(noteType)
+        const statusProperty = this.newCardStatusProperty(noteType)
         const suggestions = statusProperty
             ? resolveAllowedValues(this.app, this.plugin, noteType.id, statusProperty)
             : []
@@ -4363,10 +4371,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         // configured property must not become a `''` frontmatter key.
         const statusValue =
             statusOverride === undefined ? this.columnStatusValue(columnId, laneId) : statusOverride
-        const statusProperty =
-            statusOverride === undefined
-                ? this.writeStatusPropertyFor(noteType)
-                : this.firstCardStatusProperty(noteType)
+        const statusProperty = this.newCardStatusProperty(noteType)
         if (statusValue !== null && statusProperty) properties[statusProperty] = statusValue
 
         const laneValue = this.laneValueForNewCard(laneId)
@@ -4381,6 +4386,15 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
 
         // Boxed so the assignment inside the closure stays visible to the type
         // narrower (a plain `let` narrows to `never` here).
+        // The pending card (issue #223) shows as soon as the empty note exists:
+        // opening and templating the note can take seconds.
+        const order = properties[this.orderProperty]
+        const pendingCard = {
+            statusValue: normalizeStatusValue(statusValue),
+            order: typeof order === 'number' ? order : null,
+            laneValue: laneId === UNGROUPED_LANE_ID || laneId.length === 0 ? null : laneId
+        }
+        let pendingPath: string | null = null
         const outcome: { value: CreateNoteResult | null } = { value: null }
         await this.withRebuildsSuppressed(async () => {
             outcome.value = await createNote(
@@ -4390,19 +4404,30 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
                     title,
                     properties,
                     tags: this.creationTags(noteType, facts),
-                    listProperties
+                    listProperties,
+                    onFileCreated: (file) => {
+                        pendingPath = file.path
+                        this.addPendingCreation({
+                            path: file.path,
+                            ...pendingCard,
+                            until: Date.now() + PENDING_CREATION_TIMEOUT_MS
+                        })
+                        this.rebuild()
+                    }
                 },
                 ctx
             )
         })
 
         const created = outcome.value
+        if (pendingPath !== null) this.pendingCreations.delete(pendingPath)
         if (!created || !created.ok) {
             new Notice(
                 created?.reason === 'empty-title'
                     ? 'Enter a name for the new note.'
                     : 'Could not create the note.'
             )
+            if (pendingPath !== null) this.rebuild()
             return
         }
 
@@ -4423,6 +4448,16 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         const unmet = this.unmetFilterFacts(file, facts, properties)
         const unlinked = parentLinkUnmet(parentLink)
         if (unlinked !== null) unmet.push(unlinked)
+        // Expected here: keep the pending card until the Base returns the note,
+        // under its final path (a template may have moved it), with the
+        // deadline counted from the end of the write (#223).
+        if (unmet.length === 0) {
+            this.addPendingCreation({
+                path: file.path,
+                ...pendingCard,
+                until: Date.now() + PENDING_CREATION_TIMEOUT_MS
+            })
+        }
         if (unmet.length > 0) {
             new Notice(
                 `Created “${file.basename}” in “${
@@ -4447,16 +4482,101 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
     }
 
     /**
-     * The status property of a board's first card (issue #123): the write
-     * property when one resolves, else the global default. An empty board has
-     * no notes to detect the property from, and the first note is what
-     * introduces it.
+     * The status property a new card is written with: the write property when
+     * one resolves, else the global default. A board with no notes yet has
+     * nothing to detect the property from (issues #123, #223), and the first
+     * note is what introduces it.
      */
-    private firstCardStatusProperty(noteType: NoteType): string | null {
+    private newCardStatusProperty(noteType: NoteType): string | null {
         return (
             this.writeStatusPropertyFor(noteType) ??
             (this.plugin.settings.defaultStatusProperty.trim() || null)
         )
+    }
+
+    /** Track a created note until the Base returns it, and re-check at its deadline. */
+    private addPendingCreation(creation: PendingCreation): void {
+        this.pendingCreations.set(creation.path, creation)
+        this.schedulePendingCreationCheck()
+    }
+
+    /** One timer, at the earliest deadline: an expired creation must leave the board. */
+    private schedulePendingCreationCheck(): void {
+        if (this.pendingCreationTimer !== null) window.clearTimeout(this.pendingCreationTimer)
+        this.pendingCreationTimer = null
+        if (this.pendingCreations.size === 0) return
+        const next = Math.min(...[...this.pendingCreations.values()].map((c) => c.until))
+        this.pendingCreationTimer = window.setTimeout(
+            () => {
+                this.pendingCreationTimer = null
+                if (this.alive) this.rebuild()
+            },
+            Math.max(0, next - Date.now())
+        )
+    }
+
+    /**
+     * The pending cards of this rebuild (issue #223): every created note the
+     * Base does not return yet, as a card in the column, lane and position
+     * it was written for. A note the Base now returns is dropped from the
+     * pending set (its real card has the same key, so it replaces the pending
+     * one in place). One that never arrived is dropped at its deadline with a
+     * notice: it was created, but this view's filters leave it out.
+     */
+    private pendingCards(files: TFile[]): KanbanCard[] {
+        if (this.pendingCreations.size === 0) return []
+        // Bases does not update a view in a background tab (quick capture
+        // opens the new note in front), so the deadline only runs while the
+        // board is shown: a note never misses it for lack of a refresh.
+        if (!this.rootEl?.isShown()) {
+            const until = Date.now() + PENDING_CREATION_TIMEOUT_MS
+            for (const [path, creation] of this.pendingCreations) {
+                this.pendingCreations.set(path, { ...creation, until })
+            }
+        }
+        const settled = settlePendingCreations(
+            [...this.pendingCreations.values()],
+            new Set(files.map((f) => f.path)),
+            Date.now()
+        )
+        for (const creation of [...settled.arrived, ...settled.expired]) {
+            this.pendingCreations.delete(creation.path)
+        }
+        for (const creation of settled.expired) this.noticeFilteredOut(creation.path)
+        this.schedulePendingCreationCheck()
+        const cards: KanbanCard[] = []
+        for (const creation of settled.waiting) {
+            const file = this.app.vault.getFileByPath(creation.path)
+            if (!file) {
+                this.pendingCreations.delete(creation.path)
+                continue
+            }
+            cards.push({
+                ...this.toCard(file),
+                statusValue: creation.statusValue,
+                order: creation.order,
+                laneValue: creation.laneValue,
+                pending: true
+            })
+        }
+        return cards
+    }
+
+    /** A created note that never reached this view: say so, with a way to open it. */
+    private noticeFilteredOut(path: string): void {
+        const file = this.app.vault.getFileByPath(path)
+        if (!file) return
+        const message = createFragment((frag) => {
+            frag.appendText(
+                `Created “${file.basename}”, but it has not appeared in this view: its filters may leave it out. `
+            )
+            const link = frag.createEl('a', { text: 'Open it', href: '#' })
+            link.addEventListener('click', (event) => {
+                event.preventDefault()
+                void this.app.workspace.getLeaf('tab').openFile(file)
+            })
+        })
+        new Notice(message, 10000)
     }
 
     /** The swimlane property + value a new card needs to land in `laneId`. */

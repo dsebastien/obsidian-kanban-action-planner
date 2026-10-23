@@ -26,7 +26,12 @@ export function structureSignature<T extends BoardCardBase>(board: Board<T>): st
 
 /** A signature of everything that affects a card's rendered content + accent. */
 export function cardSignature(
-    card: { display: CardDisplay; relationships: CardRelationships; deferred?: boolean },
+    card: {
+        display: CardDisplay
+        relationships: CardRelationships
+        deferred?: boolean
+        pending?: boolean
+    },
     accent: string
 ): string {
     const d = card.display
@@ -47,6 +52,7 @@ export function cardSignature(
         d.accentColor ?? '',
         d.dueState,
         card.deferred ? 'D' : '',
+        card.pending ? 'P' : '',
         cd,
         budget,
         fields,
