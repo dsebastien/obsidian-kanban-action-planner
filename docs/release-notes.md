@@ -1,5 +1,11 @@
 # Release Notes
 
+## 2.7.1 (2026-10-23)
+
+### Bug Fixes
+
+- **plugin:** beat Obsidian's button rules without !important or :has
+
 ## 2.7.0 (2026-10-18)
 
 ### Single-link relationship properties

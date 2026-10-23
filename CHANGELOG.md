@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.7.1](https://github.com/dsebastien/obsidian-kanban-action-planner/compare/2.7.0...2.7.1) (2026-10-23)
+
+### Bug Fixes
+
+* **plugin:** beat Obsidian's button rules without !important or :has ([1262dfe](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/1262dfe07a12f11704bffc65ed865f5ac6bd55bc))
+
 ## [2.7.0](https://github.com/dsebastien/obsidian-kanban-action-planner/compare/2.6.0...2.7.0) (2026-10-18)
 
 ### Single-link relationship properties
@@ -781,6 +787,7 @@ Claude-Session: https://claude.ai/code/session_01LM4hi11kohPVqgZNLpjRgh
 
 * **plugin:** match Starter Kit's {{quarter}} placeholder format (Q2, not 2) ([4fde618](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/4fde6185c5956e3f6fd2ca3a9b03e70cf5e16840))
 * **plugin:** persist discovered statuses so Show empty columns works ([cf91b81](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/cf91b81a1b0786e35c73f4885882e2dc33564c62))
+
 
 
 
