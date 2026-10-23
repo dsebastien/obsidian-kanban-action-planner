@@ -57,7 +57,14 @@
         --kap-ease: cubic-bezier(0.2, 0, 0, 1);
     }
 
-    /* ── Pomodoro timer view (issue #199) ─────────────────────────────
+    /* "Switch time tracking to…" picker (issue #228): the note tracked now. */
+    .kap-suggest-tracking {
+        @apply ml-2 rounded-full px-1.5 text-[0.75em];
+        color: var(--text-on-accent);
+        background: var(--interactive-accent);
+    }
+
+    /* ── Pomodoro timer view (issue #199)─────────────────────────────
        A standalone ItemView hosting its own .kap-root: a compact sidebar
        widget and a full-screen variant (`.kap-pomo-full`) sharing one
        renderer. Phase colour is a hint, never the only signal: the phase

@@ -172,6 +172,11 @@ import {
 } from '../../services/time-tracking.service'
 import type { TrackingProperties } from '../../services/time-tracking.service'
 import {
+    addTrackingCommand,
+    hasTrackingCommand,
+    removeTrackingCommand
+} from '../../services/tracking-commands.service'
+import {
     focusFocusView,
     removeFocusView,
     renderFocusView,
@@ -5182,6 +5187,11 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             isTrackingCard: (card) => isTrackingPath(this.plugin, card.key),
             startTracking: (card) => startTimeSession(this.plugin, card.key),
             stopTracking: () => stopTimeSession(this.plugin),
+            hasTrackingCommand: (card) => hasTrackingCommand(this.plugin, card.key),
+            toggleTrackingCommand: (card) =>
+                hasTrackingCommand(this.plugin, card.key)
+                    ? removeTrackingCommand(this.plugin, card.key)
+                    : addTrackingCommand(this.plugin, card.key),
             // Pomodoro mode (issue #172): a work pomodoro on the card.
             isPomodoroCard: (card) => isPomodoroOnPath(this.plugin, card.key),
             startPomodoro: (card) => startPomodoro(this.plugin, card.key, 'work'),

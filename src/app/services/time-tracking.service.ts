@@ -26,6 +26,7 @@ import {
 } from '../domain/pomodoro'
 import { guardVerdict, recoveryChoices } from '../domain/session-guard'
 import { withEntryDescription } from '../domain/time-entries'
+import { pushRecentPath } from '../domain/tracking-commands'
 import { DescriptionPromptModal } from '../ui/description-prompt-modal'
 import { SessionRecoveryModal } from '../ui/session-recovery-modal'
 import type { ActivePomodoro, PomodoroConfig, PomodoroType } from '../domain/pomodoro'
@@ -159,6 +160,7 @@ export async function startTimeSession(
     await stopTimeSession(plugin)
     plugin.settings = produce(plugin.settings, (draft) => {
         draft.activeTimeSession = { path, startedAt: Date.now() }
+        draft.recentTrackedPaths = pushRecentPath(draft.recentTrackedPaths, path)
     })
     await plugin.saveSettings('cards')
     new Notice(`Time tracking started: ${basename(path)}`)

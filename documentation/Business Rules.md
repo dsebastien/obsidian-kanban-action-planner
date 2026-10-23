@@ -1436,3 +1436,18 @@ Markdown)`, `Export ideal week (JSON)`, `Export ideal week (Markdown)`); the for
     `placeParentLink`); the dialog text is unchanged (`Linked to [[X]] via show.`). A type
     mirrored from the Starter Kit receives every role (`activeRoles`): the Starter Kit declares
     only the child-to-parent links, and the parent must still get its inverse children.
+
+74. **Time-tracking shortcuts start sessions without the board (issue #228).** Three entry
+    points, all through `startTimeSession`, so switching behaves exactly like the card menu
+    (the running session is stopped and written first; the note already tracked is a no-op):
+    **Start time tracking on the active note** (the editor's markdown note), **Switch time
+    tracking to…** (a note picker ordered recently tracked → recently opened → the rest,
+    `orderPickerPaths`; the recent list is `recentTrackedPaths`, pushed on every start, capped
+    at 20), and **per-note shortcuts**: `trackingCommands` holds `{id, path}` pairs, each
+    registered as a `Start time tracking: <note>` command. The **id is generated once and never
+    derived from the path**, because Obsidian keys hotkeys by command id: a rename or move
+    (archiving included) rewrites the stored path, re-registers the command under the same id
+    so its name shows the new note name, and the bound hotkey survives. A rename also carries
+    the recent list and the running session's path along (before, a session whose note was
+    archived mid-run was discarded on stop). Deleting a note removes its shortcut and its
+    recent entry; a renamed or deleted FOLDER applies to every note inside it.

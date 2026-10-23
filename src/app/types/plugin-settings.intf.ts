@@ -114,6 +114,14 @@ export const pluginSettingsSchema = z.object({
         .nullable()
         .default(null),
     /**
+     * Time-tracking shortcuts (issue #228): the notes given their own
+     * "Start time tracking: <note>" command (a generated id, stable across
+     * renames so a bound hotkey survives, and the note's current path), and
+     * the most recently tracked notes, which lead the switch picker.
+     */
+    trackingCommands: z.array(z.object({ id: z.string(), path: z.string() })).default([]),
+    recentTrackedPaths: z.array(z.string()).default([]),
+    /**
      * TaskNotes-compatible tracking (issue #172): the entries-list property
      * (`{startTime, endTime, description}` objects, the ledger the duration
      * cache is recomputed from) and the last-session date property. Global
@@ -316,6 +324,8 @@ export function createDefaultSettings(): PluginSettings {
         defaultDurationProperty: DEFAULT_DURATION_PROPERTY,
         defaultTotalDurationProperty: DEFAULT_TOTAL_DURATION_PROPERTY,
         activeTimeSession: null,
+        trackingCommands: [],
+        recentTrackedPaths: [],
         defaultTimeEntriesProperty: DEFAULT_TIME_ENTRIES_PROPERTY,
         defaultLastSessionProperty: DEFAULT_LAST_SESSION_PROPERTY,
         pomodoroWorkMinutes: DEFAULT_POMODORO_WORK_MINUTES,

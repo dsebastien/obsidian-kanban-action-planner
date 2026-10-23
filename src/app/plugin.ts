@@ -26,6 +26,7 @@ import {
     recoverSessionOnLoad,
     skipPomodoroPhase,
     startPomodoro,
+    startTimeSession,
     stopPomodoro,
     stopTimeSession,
     tickPomodoro,
@@ -33,6 +34,14 @@ import {
     togglePomodoroPause,
     trackerStatusText
 } from './services/time-tracking.service'
+import {
+    activeNote,
+    addTrackingCommand,
+    hasTrackingCommand,
+    openTrackingPicker,
+    registerTrackingCommands,
+    removeTrackingCommand
+} from './services/tracking-commands.service'
 import { isPaused } from './domain/pomodoro'
 import { onStarterKitNoteTypesChanged } from './services/starter-kit.service'
 import { produce } from 'immer'
@@ -390,6 +399,39 @@ export class KanbanActionPlannerPlugin extends Plugin {
                 return true
             }
         })
+        // Time-tracking shortcuts (issue #228): start on the note open in the
+        // editor, or switch through a picker; both global like the session.
+        this.addCommand({
+            id: 'start-time-tracking-active-note',
+            name: 'Start time tracking on the active note',
+            checkCallback: (checking: boolean): boolean => {
+                const file = activeNote(this)
+                if (!file) return false
+                if (!checking) void startTimeSession(this, file.path)
+                return true
+            }
+        })
+        this.addCommand({
+            id: 'switch-time-tracking',
+            name: 'Switch time tracking to…',
+            callback: () => openTrackingPicker(this)
+        })
+        this.addCommand({
+            id: 'toggle-tracking-shortcut-active-note',
+            name: 'Add or remove the time-tracking shortcut of the active note',
+            checkCallback: (checking: boolean): boolean => {
+                const file = activeNote(this)
+                if (!file) return false
+                if (!checking) {
+                    void (hasTrackingCommand(this, file.path)
+                        ? removeTrackingCommand(this, file.path)
+                        : addTrackingCommand(this, file.path))
+                }
+                return true
+            }
+        })
+        // The per-note "Start time tracking: <note>" commands.
+        registerTrackingCommands(this)
         // Pomodoro mode (issue #172): global like the session. A work
         // pomodoro from the palette runs on the tracked note when a session
         // is open, else on nothing; a card's own menu starts one on that card.

@@ -66,6 +66,8 @@ function makeHost(overrides: Partial<CardMenuHost> = {}): CardMenuHost {
         enterFocus: () => {},
         isTrackingCard: () => false,
         startTracking: () => Promise.resolve(),
+        hasTrackingCommand: () => false,
+        toggleTrackingCommand: () => Promise.resolve(),
         stopTracking: () => Promise.resolve(),
         isPomodoroCard: () => false,
         startPomodoro: () => Promise.resolve(),
@@ -184,6 +186,7 @@ describe('buildCardMenu — extend hook (issue #80)', () => {
         'Set deadline today',
         'Set deadline on a date…',
         'Start time tracking',
+        'Add time-tracking shortcut',
         'Start pomodoro'
     ]
 
@@ -274,6 +277,14 @@ describe('buildCardMenu — time tracking (issue #119)', () => {
         const running = menuItems(makeCard(), makeHost({ isPomodoroCard: () => true }))
         expect(running.some((i) => i.title === 'Stop pomodoro')).toBe(true)
         expect(running.some((i) => i.title === 'Start pomodoro')).toBe(false)
+    })
+
+    it('offers Add / Remove time-tracking shortcut (issue #228)', () => {
+        const none = menuItems(makeCard(), makeHost({ hasTrackingCommand: () => false }))
+        expect(none.some((i) => i.title === 'Add time-tracking shortcut')).toBe(true)
+        const added = menuItems(makeCard(), makeHost({ hasTrackingCommand: () => true }))
+        expect(added.some((i) => i.title === 'Remove time-tracking shortcut')).toBe(true)
+        expect(added.some((i) => i.title === 'Add time-tracking shortcut')).toBe(false)
     })
 
     it('offers Stop time tracking when the card is tracked', () => {

@@ -1382,6 +1382,22 @@ records), straight from the cards, on **any note type**:
 
     ![The status-bar readout while a session runs]({{ '/images/time-tracking-status-bar.png' | relative_url }})
 
+- **Switch without the board** (issue #228). Three ways to start or switch a session from
+  anywhere, each one bindable to a hotkey in **Settings → Hotkeys**:
+    - **Start time tracking on the active note**: tracks the note open in the editor.
+    - **Switch time tracking to…**: a note picker listing the notes you tracked most recently
+      first, then the ones you opened recently, then every other note. The note tracked right
+      now is marked.
+    - **A shortcut per note**, for the tasks you track every day: **Add time-tracking shortcut**
+      in a card's menu (or **Add or remove the time-tracking shortcut of the active note** from
+      the command palette) registers a **Start time tracking: _note_** command. Bind a hotkey to
+      it and one keystroke starts that note. The shortcut follows the note when you rename,
+      move or archive it, and its hotkey stays bound; **Remove time-tracking shortcut** takes it
+      away, and deleting the note removes it too.
+
+    They all behave like the card menu: the running session is stopped and written first, and
+    starting the note already tracked changes nothing.
+
 - Stopping appends a **time entry**, a `{startTime, endTime, description}` object with local
   ISO datetimes, exactly TaskNotes' shape, to the note's **time entries** list property
   (`time_entries` by default), then **adds** the session's minutes to the note's **duration**
@@ -1914,6 +1930,9 @@ is active, and each can be given a hotkey in **Settings → Hotkeys**):
 - **Import ideal week (JSON or Markdown)**
 - **Export ideal week (JSON)** / **Export ideal week (Markdown)**
 - **Stop time tracking** (only while a session runs)
+- **Start time tracking on the active note** / **Switch time tracking to…**
+- **Add or remove the time-tracking shortcut of the active note**, and one **Start time
+  tracking: _note_** command per note given a shortcut
 - **Start work pomodoro** (on the tracked note when a session runs, else on nothing)
 - **Start pomodoro break** (short, or long after every Nth completed work pomodoro)
 - **Stop pomodoro** (only while one runs)

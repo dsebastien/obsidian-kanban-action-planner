@@ -57,6 +57,10 @@ export interface CardMenuHost {
     startTracking(card: KanbanCard): Promise<void>
     /** Stop the active session, writing its elapsed minutes to the card. */
     stopTracking(card: KanbanCard): Promise<void>
+    /** Whether the card's note has its own tracking command (issue #228). */
+    hasTrackingCommand(card: KanbanCard): boolean
+    /** Add or remove the card's "Start time tracking: <note>" command. */
+    toggleTrackingCommand(card: KanbanCard): Promise<void>
     // Pomodoro mode of the tracker (issue #172).
     /** Whether the running pomodoro is a work pomodoro on THIS card. */
     isPomodoroCard(card: KanbanCard): boolean
@@ -392,6 +396,15 @@ function addTimeTrackingMenuItems(menu: Menu, card: KanbanCard, host: CardMenuHo
             .setIcon(tracking ? 'timer-off' : 'timer')
             .setSection('kap-track')
             .onClick(() => void (tracking ? host.stopTracking(card) : host.startTracking(card)))
+    )
+    // A command a hotkey can be bound to (issue #228), for notes tracked daily.
+    const hasCommand = host.hasTrackingCommand(card)
+    menu.addItem((i) =>
+        i
+            .setTitle(hasCommand ? 'Remove time-tracking shortcut' : 'Add time-tracking shortcut')
+            .setIcon('keyboard')
+            .setSection('kap-track')
+            .onClick(() => void host.toggleTrackingCommand(card))
     )
     const pomodoro = host.isPomodoroCard(card)
     menu.addItem((i) =>
