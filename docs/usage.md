@@ -328,15 +328,37 @@ The **?** cheat-sheet, always one click away:
 - **Comma = OR** within one property: `status:active,done`.
 - Recognized names: `title`, `status` (matches the value or its column label), `parent`,
   `ancestor` (any **transitive** parent: the parent, its parent, and so on), `child`,
-  `sibling`, `blocked`, `tag`, `due`, `defer`, `scheduled`, `is`, `estimate`, `progress`,
-  `order`, `context` / `contexts` (your GTD contexts, see below), **or any frontmatter
-  property** (e.g. `urgency:now`, `effort:large`), even properties not shown on the card.
+  `sibling`, `blocked`, `tag`, `due`, `defer`, `scheduled`, `when`, `review`, `is`,
+  `estimate`, `progress`, `order`, `context` / `contexts` (your GTD contexts, see below),
+  **or any frontmatter property** (e.g. `urgency:now`, `effort:large`), even properties not
+  shown on the card. That includes every property your note types define, Starter Kit ones
+  too: `necessity:should`, `priority:="50 - Low"`.
+- A frontmatter property whose name is one of the recognized names above (a property called
+  `status` or `due`, say) gets the built-in meaning, not a plain lookup.
+- Plain frontmatter properties match **text**: `:` (substring) and `:=` (whole value).
+  Comparisons (`<`, `>`, `<=`, `>=`) only work on the date and number qualifiers below
+  (`due`, `defer`, `scheduled`, `when`, `estimate`, `progress`, `order`).
 - **`context:` / `contexts:` always target your configured contexts property**, whatever
   it is called: `context:@work`, `context:@home,@errands` (comma = OR). You never need to
   remember the property's actual name.
 - **`:` matches substrings; `:=` matches the whole value.** `parent:app` matches children of
   both `App` and `App Backend`, while `parent:="App"` matches only `App` (still case-insensitive).
   Works for every qualifier (`status:=done`, `tag:=work`, …).
+
+**Boards with several note types**
+
+Each card is checked against **its own** frontmatter, whatever its note type. A property term
+therefore keeps only the cards that **have** that property with a matching value:
+`necessity:should` on a board mixing projects and tasks also hides every task whose type has
+no `necessity` property. An excluded term works the other way round: `-necessity:low` keeps
+the cards without the property.
+
+To apply a term to one note type only, scope it with that type's tag (or folder) and OR in
+everything else. With the Starter Kit's type tags:
+
+`tag:type/project necessity:should OR -tag:type/project`
+
+keeps the projects whose necessity is _should_, plus every card that is not a project.
 
 **`due:` dates**
 

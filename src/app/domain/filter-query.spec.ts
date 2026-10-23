@@ -742,3 +742,22 @@ describe('review: (issue #126)', () => {
         expect(RESERVED_QUALIFIER_NAMES.has('review')).toBe(true)
     })
 })
+
+describe('property terms on a board mixing note types', () => {
+    const project = (necessity: string): CardSearchRecord =>
+        record({ tags: ['type/project'], props: new Map([['necessity', [necessity]]]) })
+    const task = record({ tags: ['type/task'] })
+
+    it('a property term hides the cards that lack the property; an excluded one keeps them', () => {
+        expect(match('necessity:should', project('20 - should'))).toBe(true)
+        expect(match('necessity:should', task)).toBe(false)
+        expect(match('-necessity:low', task)).toBe(true)
+    })
+
+    it('a tag-scoped term applies to one note type only (the user guide example)', () => {
+        const q = 'tag:type/project necessity:should OR -tag:type/project'
+        expect(match(q, project('20 - should'))).toBe(true)
+        expect(match(q, project('30 - could'))).toBe(false)
+        expect(match(q, task)).toBe(true)
+    })
+})
