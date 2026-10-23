@@ -72,6 +72,16 @@ The status property is auto-detected, but the **columns are defined explicitly**
 | **Work / Short break / Long break (minutes)**  | 25/5/15 | Phase lengths.                                                                                                                                                                      |
 | **Long break interval**                        | 4       | Every Nth completed work pomodoro is followed by a long break.                                                                                                                      |
 
+### Filter and review settings
+
+| Setting                      | Default                  | What it does                                                                                                                                                                                                 |
+| ---------------------------- | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Date-window chips**        | `today, next7d, next30d` | The one-click chips next to the filter box, in order. Each keeps the cards due or scheduled in its window: `today`, `overdue`, `week`, `month`, `quarter`, `year`, or `next7d` / `next2w`. Empty = no chips. |
+| **Last-reviewed property**   | `last_reviewed`          | Date of a note's last review. Stamped by **Reviewed** in triage.                                                                                                                                             |
+| **Review-interval property** | `review_interval`        | Days between reviews of a note; the **Default review interval (days)** (30) applies when unset.                                                                                                              |
+| **Review-count property**    | `review_count`           | How many times a note was reviewed; incremented by **Reviewed**.                                                                                                                                             |
+| **Show the review badge**    | On                       | A **Review** badge on cards that are due for review. On a board, a note takes part once it has a last reviewed date or its own interval. `review:due` filters the same cards.                                |
+
 They are never inferred from the values your notes happen to carry.
 
 One related global setting is not a property name. **Minutes per day** (default 480 = an
