@@ -1,5 +1,16 @@
 # Release Notes
 
+## 2.8.0 (2026-10-23)
+
+### Features
+
+- **plugin:** filter by any note-type property from the toolbar
+- **plugin:** one-click date-window chips beside the filter
+- **plugin:** quick capture on a board with no columns
+- **plugin:** review:due filter and review badge outside triage
+- **plugin:** show a new card at once while the Base catches up
+- **plugin:** start or switch time tracking without the board
+
 ## 2.7.1 (2026-10-23)
 
 ### Bug Fixes

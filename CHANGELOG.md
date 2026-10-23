@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.8.0](https://github.com/dsebastien/obsidian-kanban-action-planner/compare/2.7.1...2.8.0) (2026-10-23)
+
+### Features
+
+* **plugin:** filter by any note-type property from the toolbar ([a9663b8](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/a9663b87ebdc250171183046f1035d783f87b928))
+* **plugin:** one-click date-window chips beside the filter ([f055972](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/f055972b882efe157a1627e5a5db7e493bd61dac)), closes [#145](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/145)
+* **plugin:** quick capture on a board with no columns ([5249891](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/5249891dc185036dc93f583a5b18bba3746db477)), closes [#123](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/123)
+* **plugin:** review:due filter and review badge outside triage ([d639c2c](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/d639c2cb945c924741c4c563bd22682cffeb0cf2)), closes [#126](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/126)
+* **plugin:** show a new card at once while the Base catches up ([a050f62](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/a050f62e111664e96c16d1cbabec124cbab7c60a)), closes [#223](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/223)
+* **plugin:** start or switch time tracking without the board ([909a507](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/909a507b683445c0768809571e15d191181cb1f0)), closes [#228](https://github.com/dsebastien/obsidian-kanban-action-planner/issues/228)
+
 ## [2.7.1](https://github.com/dsebastien/obsidian-kanban-action-planner/compare/2.7.0...2.7.1) (2026-10-23)
 
 ### Bug Fixes
@@ -787,6 +798,7 @@ Claude-Session: https://claude.ai/code/session_01LM4hi11kohPVqgZNLpjRgh
 
 * **plugin:** match Starter Kit's {{quarter}} placeholder format (Q2, not 2) ([4fde618](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/4fde6185c5956e3f6fd2ca3a9b03e70cf5e16840))
 * **plugin:** persist discovered statuses so Show empty columns works ([cf91b81](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/cf91b81a1b0786e35c73f4885882e2dc33564c62))
+
 
 
 
