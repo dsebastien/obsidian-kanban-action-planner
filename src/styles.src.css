@@ -2353,6 +2353,12 @@
         @apply inline-flex items-center gap-1;
     }
 
+    /* Due for review (issue #126). */
+    .kap-card-review {
+        @apply font-medium;
+        color: var(--text-accent);
+    }
+
     .kap-card-budget-alarm {
         color: var(--color-red);
     }

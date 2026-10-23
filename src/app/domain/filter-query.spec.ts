@@ -728,3 +728,17 @@ describe('date windows (issue #145)', () => {
         expect(windowLabel('nope')).toBeNull()
     })
 })
+
+describe('review: (issue #126)', () => {
+    it('review:due and review:never read the review state', () => {
+        const due = record({ review: { due: true, never: false } })
+        const fresh = record({ review: { due: false, never: true } })
+        expect(match('review:due', due)).toBe(true)
+        expect(match('review:due', fresh)).toBe(false)
+        expect(match('review:never', fresh)).toBe(true)
+        expect(match('-review:due', due)).toBe(false)
+        expect(match('review:due', record())).toBe(false)
+        expect(match('review:soon', due)).toBe(false)
+        expect(RESERVED_QUALIFIER_NAMES.has('review')).toBe(true)
+    })
+})

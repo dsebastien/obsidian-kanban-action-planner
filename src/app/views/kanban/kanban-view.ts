@@ -266,10 +266,11 @@ import {
     isPropUnset,
     pruneProcessedTriageQueue,
     pruneTriageQueue,
+    boardReviewState,
     reviewState,
     unsetCount
 } from './triage'
-import type { TriageRank } from './triage'
+import type { BoardReviewState, TriageRank } from './triage'
 import { TriageConfigModal } from '../../ui/triage/triage-config-modal'
 import type { TriageConfigData } from '../../ui/triage/triage-config-modal'
 import { resolveAllowedValues } from '../../services/enum.service'
@@ -1640,6 +1641,14 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             .map((file) => this.toCard(file))
             .filter((card) => passesFilter(this.relationshipsByPath.get(card.key), filter))
         this.allCards.push(...this.pendingCards(files))
+        // Review state (issue #126): one read per card, shared by the badge
+        // and the `review:` filter.
+        const reviews = new Map(this.allCards.map((c) => [c.key, this.cardBoardReviewState(c)]))
+        const badge = this.plugin.settings.showReviewBadge
+        for (const card of this.allCards) {
+            const due = badge && reviews.get(card.key)?.due === true
+            if (due || card.display.reviewDue) card.display = { ...card.display, reviewDue: due }
+        }
         this.searchByKey = new Map(
             this.allCards.map((c) => [
                 c.key,
@@ -1659,7 +1668,8 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
                         scheduledDateProperty: this.scheduledDateProperty,
                         estimateDays: this.estimateDaysFor(c),
                         progressProperty: this.resolveProgressProperty(),
-                        orderProperty: this.orderProperty
+                        orderProperty: this.orderProperty,
+                        review: reviews.get(c.key)
                     }
                 )
             ])
@@ -6770,6 +6780,17 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             coerceOrder(getFrontmatterValue(this.app, card.file, s.reviewIntervalProperty)) ??
             s.defaultReviewIntervalDays
         return reviewState(last, interval, startOfDay(new Date()))
+    }
+
+    /** A card's review state on the board: the `review:` filter and badge (issue #126). */
+    private cardBoardReviewState(card: KanbanCard): BoardReviewState {
+        const s = this.plugin.settings
+        return boardReviewState(
+            parseFrontmatterDate(getFrontmatterValue(this.app, card.file, s.reviewedDateProperty)),
+            coerceOrder(getFrontmatterValue(this.app, card.file, s.reviewIntervalProperty)),
+            s.defaultReviewIntervalDays,
+            startOfDay(new Date())
+        )
     }
 
     /** Stamp `last_reviewed` = today and increment `review_count`, then advance. */

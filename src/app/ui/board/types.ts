@@ -86,6 +86,8 @@ export interface CardDisplay {
     countdown: CardCountdown | null
     /** Weekly budget ring (issue #172, phase C); null when the note carries no weekly budget. */
     budget: BudgetRing | null
+    /** Due for review: shows the review badge (issue #126). */
+    reviewDue?: boolean
 }
 
 /** A card as rendered on the board: derived display data plus its note file. */

@@ -536,6 +536,12 @@ under **Review (triage)**. They default to `last_reviewed`, `review_interval`, a
 A **Default review interval (days)** (default **30**) is used for notes that don't set their own
 interval. Review works on **any** Kanban view via the scope switch, with no per-view setup needed.
 
+**Outside triage.** Cards that are due show a **Review** badge on every board, and the filter
+takes **`review:due`** (due or overdue) and **`review:never`** (never reviewed). On a board, a
+note only takes part in reviews once it has a **last reviewed** date or its **own review
+interval**; otherwise every note you never meant to review would be flagged. Turn the badge
+off with **Show the review badge** under **Review (triage)**; the filter keeps working.
+
 ### Column triage (board mode)
 
 Triage also comes to the board itself (issue #170): every column header carries a small

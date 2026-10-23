@@ -1482,3 +1482,11 @@ Markdown)`, `Export ideal week (JSON)`, `Export ideal week (Markdown)`); the for
     time: clicking the active chip removes the term, another chip replaces it. The chip set is
     the global `dateWindowChips` setting (keywords validated through `windowLabel`; an invalid
     one is skipped), refreshed on a chrome-scope settings change.
+
+76. **Review state outside triage (issue #126).** `boardReviewState` (`views/kanban/triage.ts`)
+    backs the `review:` qualifier (`due`, `never`; reserved name) and the card's **Review**
+    badge (`CardDisplay.reviewDue`, global `showReviewBadge`, default on). Unlike the triage
+    review scope, where a never-reviewed note is the most due, a note takes part on a board
+    only once it has a last-reviewed date or its own review interval, and only then can it be
+    due (the default interval applies to a reviewed note without its own). `review:never` is
+    the plain "no last-reviewed date" test. One read per card per rebuild feeds both.

@@ -457,6 +457,8 @@ const TOGGLE_SCOPES = {
     weekTargetFollowsPlanned: 'cards',
     // Read live when triage completes
     triageCelebrateOnComplete: 'chrome',
+    // Badges are derived at rebuild time
+    showReviewBadge: 'full',
     // Read live by the normalizer; the next board refresh picks it up
     autoNormalizeOrder: 'chrome'
 } as const satisfies Partial<Record<keyof PluginSettings, SettingsRefreshScope>>
@@ -705,6 +707,11 @@ export class KanbanActionPlannerSettingTab extends PluginSettingTab {
                 items: [
                     ...REVIEW_TEXT_SETTINGS.map((setting) => this.textItem(setting)),
                     this.numberItem(REVIEW_INTERVAL),
+                    this.toggleItem(
+                        'showReviewBadge',
+                        'Show the review badge',
+                        'Mark cards that are due for review with a “Review” badge. A note takes part in reviews once it has a last-reviewed date or its own review interval. Filter them with review:due.'
+                    ),
                     this.toggleItem(
                         'triageCelebrateOnComplete',
                         'Celebrate completed triage',

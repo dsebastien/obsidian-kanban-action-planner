@@ -55,6 +55,7 @@ export function cardSignature(
         card.pending ? 'P' : '',
         cd,
         budget,
+        d.reviewDue ? 'R' : '',
         fields,
         rels,
         accent

@@ -30,11 +30,12 @@ const HELP_ROWS: ReadonlyArray<{ syntax: string; desc: string }> = [
     { syntax: 'when:next7d', desc: 'due OR scheduled in the window (the date chips)' },
     { syntax: 'due:>2026-01-01', desc: 'date compare: < > <= >= (defer:, scheduled: too)' },
     { syntax: 'is:available', desc: 'available · deferred · blocked · done' },
+    { syntax: 'review:due', desc: 'due for review · review:never = never reviewed' },
     { syntax: 'estimate:>4h', desc: 'numbers: estimate (d·h·m), progress, order · none = unset' }
 ]
 
 const PROPERTY_HINT =
-    'Properties: title, status, parent, ancestor (any transitive parent), child, sibling, blocked, tag, due, defer, scheduled, when, is, estimate, progress, order, or any frontmatter property.'
+    'Properties: title, status, parent, ancestor (any transitive parent), child, sibling, blocked, tag, due, defer, scheduled, when, review, is, estimate, progress, order, or any frontmatter property.'
 
 /**
  * The persistent filter input in the view toolbar. Created once and kept alive

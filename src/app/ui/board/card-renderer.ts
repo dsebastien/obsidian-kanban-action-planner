@@ -120,10 +120,19 @@ export function renderCard(
 
     const countdownAsChip = cd !== null && cd.placement === 'chip'
     const budget = card.display.budget
-    if (card.display.fields.length > 0 || countdownAsChip || budget) {
+    const reviewDue = card.display.reviewDue === true
+    if (card.display.fields.length > 0 || countdownAsChip || budget || reviewDue) {
         const fieldsEl = el.createDiv({ cls: 'kap-card-fields' })
         if (cd && countdownAsChip) renderCountdown(fieldsEl, cd)
         if (budget) renderBudget(fieldsEl, budget)
+        // Due for review (issue #126); `review:due` lists the same cards.
+        if (reviewDue) {
+            fieldsEl.createDiv({
+                cls: 'kap-card-field kap-card-review',
+                text: 'Review',
+                attr: { title: 'Due for review' }
+            })
+        }
         for (const field of card.display.fields) {
             const chip = fieldsEl.createDiv({ cls: 'kap-card-field' })
             if (field.emphasis === 'due-red') chip.addClass('kap-card-field-due')

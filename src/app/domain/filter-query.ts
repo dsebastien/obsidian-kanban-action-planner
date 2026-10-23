@@ -24,6 +24,7 @@ import { addDays, parseFrontmatterDate, startOfDay, toDateKey } from './calendar
  *   property; any other name is a frontmatter property lookup.
  * - `due:`, `defer:`, and `scheduled:` carry comparison operators and date keywords,
  *   including rolling windows (`next7d`, `next2w`: today and the following days).
+ * - `review:due` / `review:never` match the review state (issue #126).
  * - `when:` takes the same keywords and matches the due OR the scheduled date
  *   (issue #145): the one-click date-window chips write it.
  * - `is:` matches availability states (issue #113): `available`, `deferred`,
@@ -114,6 +115,8 @@ export interface CardSearchRecord {
     order: number | null
     /** Whether the note counts as done per its type's done definition (issue #113). */
     done: boolean
+    /** Review state for `review:` (issue #126); absent = not taking part in reviews. */
+    review?: { due: boolean; never: boolean }
     /** Frontmatter property name (lowercased) → its value(s), lowercased. */
     props: Map<string, string[]>
 }
@@ -471,6 +474,7 @@ export const RESERVED_QUALIFIER_NAMES: ReadonlySet<string> = new Set<string>([
     'due',
     'defer',
     'when',
+    'review',
     'is',
     'title',
     'status',
@@ -521,6 +525,17 @@ function matchQualifier(rec: CardSearchRecord, clause: FilterClause, ctx: Filter
         // may legitimately name their properties `progress`, `order`, etc.
         const actual = name === 'progress' ? rec.progress : rec.order
         return clause.values.some((v) => matchNumericValue(actual, clause.op, v))
+    }
+    if (name === 'review') {
+        // Review state (issue #126): `review:due` (due or overdue, among the
+        // notes taking part in reviews), `review:never` (never reviewed).
+        return clause.values.some((v) =>
+            v === 'due'
+                ? rec.review?.due === true
+                : v === 'never'
+                  ? rec.review?.never === true
+                  : false
+        )
     }
     if (name === 'is') {
         // Availability states (issue #113): `is:available`, `is:deferred`,

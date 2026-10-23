@@ -22,6 +22,8 @@ export interface CardSearchExtras {
     progressProperty?: string | null
     /** The resolved manual-order property, backing `order:`. */
     orderProperty?: string | null
+    /** The card's review state, backing `review:` (issue #126). */
+    review?: { due: boolean; never: boolean }
 }
 
 /**
@@ -107,6 +109,7 @@ export function buildCardSearchRecord(
         progress,
         order,
         done,
+        ...(extras.review ? { review: extras.review } : {}),
         props
     }
 }

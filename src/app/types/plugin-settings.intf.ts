@@ -267,6 +267,8 @@ export const pluginSettingsSchema = z.object({
     dueCountdownStyle: z.enum(['title', 'chip', 'corner', 'footer']),
     /** Play a confetti burst when a note's triage is completed in triage mode. */
     triageCelebrateOnComplete: z.boolean(),
+    /** Show a "Review" badge on cards due for review (issue #126). */
+    showReviewBadge: z.boolean().default(true),
     /**
      * Archive grace period (days): a note entering an auto-archive status stays
      * on the board until its done date (the type's `doneDateProperties`) is this
@@ -379,6 +381,7 @@ export function createDefaultSettings(): PluginSettings {
         dueSoonThresholdDays: DEFAULT_DUE_SOON_THRESHOLD_DAYS,
         dueCountdownStyle: 'title',
         triageCelebrateOnComplete: true,
+        showReviewBadge: true,
         archiveGraceDays: DEFAULT_ARCHIVE_GRACE_DAYS,
         autoNormalizeOrder: true,
         defaultStatuses: [],

@@ -36,6 +36,35 @@ export function reviewState(
     return { weight: overdueDays, due: overdueDays >= 0 }
 }
 
+/** A card's review state on a board (review filter + badge, issue #126). */
+export interface BoardReviewState {
+    /** Takes part in reviews and is due (on or past its next review day). */
+    due: boolean
+    /** Has never been reviewed (no last-reviewed date). */
+    never: boolean
+}
+
+/**
+ * A card's review state outside triage (issue #126). Triage's review scope
+ * treats a never-reviewed note as the most due, which suits a queue you opt
+ * into; on a board it would flag every note. So here a note takes part in
+ * reviews once it has a last-reviewed date or its own review interval, and
+ * only then can it be due. Pure.
+ */
+export function boardReviewState(
+    lastReviewed: Date | null,
+    ownIntervalDays: number | null,
+    defaultIntervalDays: number,
+    today: Date
+): BoardReviewState {
+    const never = lastReviewed === null
+    if (never && ownIntervalDays === null) return { due: false, never }
+    return {
+        due: reviewState(lastReviewed, ownIntervalDays ?? defaultIntervalDays, today).due,
+        never
+    }
+}
+
 /** A single gating property's resolved state for one card. */
 export interface TriageGateInput {
     /** The card's value for this property (null when absent/empty). */

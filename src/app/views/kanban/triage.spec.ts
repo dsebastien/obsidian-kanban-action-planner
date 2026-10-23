@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 import {
+    boardReviewState,
     buildTriageQueue,
     bumpEnumValue,
     classifySwipe,
@@ -221,5 +222,24 @@ describe('pruneTriageQueue (issue #170 v2)', () => {
         const result = pruneTriageQueue(['a', 'b', 'c'], 0, exists(['a', 'b']))
         expect(result.index).toBe(0)
         expect(result.queue[result.index]).toBe('a')
+    })
+})
+
+describe('boardReviewState (issue #126)', () => {
+    const today = new Date(2026, 9, 23)
+    const daysAgo = (n: number): Date => new Date(2026, 9, 23 - n)
+
+    it('leaves out a note that never took part in reviews', () => {
+        expect(boardReviewState(null, null, 7, today)).toEqual({ due: false, never: true })
+    })
+
+    it('a note with its own interval but never reviewed is due', () => {
+        expect(boardReviewState(null, 30, 7, today)).toEqual({ due: true, never: true })
+    })
+
+    it('a reviewed note is due once its interval (own, else default) has passed', () => {
+        expect(boardReviewState(daysAgo(7), null, 7, today).due).toBe(true)
+        expect(boardReviewState(daysAgo(6), null, 7, today).due).toBe(false)
+        expect(boardReviewState(daysAgo(6), 3, 7, today)).toEqual({ due: true, never: false })
     })
 })
