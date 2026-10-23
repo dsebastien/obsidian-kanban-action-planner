@@ -137,8 +137,8 @@ until you define your statuses.
   default, hidden when empty).
 - **Collapse a column** with the chevron in its header. It shrinks to a slim labelled bar so you
   can focus on the rest. Collapsing applies to that status across **every** swimlane. Click the
-  chevron again to bring it back. A collapsed column is still a **drop target** — drag a card
-  onto the bar to park it there; the bar highlights while the card is over it, and the card
+  chevron again to bring it back. A collapsed column is still a **drop target**: drag a card
+  onto the bar to park it there. The bar highlights while the card is over it, and the card
   lands at the bottom of that column.
 
     ![A collapsed column highlighted as the drop target]({{ '/images/collapsed-column-drop.png' | relative_url }})
@@ -166,7 +166,7 @@ note back afterwards (an undo in the editor, a sync, another plugin), the board 
 **How the order is stored.** Each card gets a number in its `manual_order` property, and cards are
 sorted by that number. The plugin leaves big gaps between the numbers it gives out (1024, 2048,
 3072, …), so dropping a card between two others normally gives the card a number in the middle
-and rewrites **only that one note**. When two neighbours have the same number, or no number at
+and rewrites **only that one note**. When two neighbors have the same number, or no number at
 all, the plugin rewrites just the few cards around the drop, never the whole column.
 
 **Tidy-up in the background.** Some cards may have no order yet (a new note, a note created
@@ -281,12 +281,12 @@ present in the name you typed is not added twice, so typing `Ship it (Task)` sta
 
 - The new card shows **at once**, faded, in the column you clicked, while Obsidian indexes the
   note and the Base catches up (that can take a while on a big vault). It turns into the real
-  card in place. If the note never shows up, because the view's filters leave it out, the
-  faded card goes away and a notice offers to open the note.
+  card in place. If the note never shows up (the view's filters leave it out), the faded
+  card goes away and a notice offers to open the note.
 - The **Unmapped** column has no Add button, since it has no status value to write.
 - A board with **no columns yet** (a fresh setup without the Starter Kit, say) still shows an
   **Add card** button under "No notes match this view." The dialog then also asks for the
-  note's **status**, suggesting the values the note type knows, and can save that status as the
+  note's **status**, suggesting the values the note type knows. It can save that status as the
   board's first column, so the board is not empty afterwards.
 - The header **+** does not start a column-reorder drag, and it is hidden while the column is
   collapsed.
@@ -348,26 +348,26 @@ The **?** cheat-sheet, always one click away:
 
 **Filter by property (no typing)**
 
-The **filter by property** button in the toolbar lists the properties your note types give a
-fixed set of values (necessity, urgency, effort, …, from the Starter Kit or your own note type
-settings). Pick one, then tick the values you want to see: the board keeps the cards with any
-of them. On a board mixing note types, each property names the types that define it.
+Don't want to type a query? The **filter by property** button in the toolbar lists every
+property your note types give a fixed set of values (necessity, urgency, effort, …, from the
+Starter Kit or your own note type settings). Pick one, then tick the values you want to see:
+the board keeps the cards with any of them. On a board mixing note types, each property names the types that define it.
 
 Your picks land in the filter box as one term per property (`necessity:="20 - SHOULD"`), so
-they combine with whatever you typed and are saved with the view. The button highlights while a
-property filters the board; **Clear** in a property's list removes its term. The status and
+they combine with whatever you typed and are saved with the view. The button stays highlighted
+as long as a property filters the board, and **Clear** in a property's list removes its term. The status and
 contexts properties are not listed: the columns and the **@** switcher already cover them.
 
 **Boards with several note types**
 
-Each card is checked against **its own** frontmatter, whatever its note type. A property term
-therefore keeps only the cards that **have** that property with a matching value:
-`necessity:should` on a board mixing projects and tasks also hides every task whose type has
-no `necessity` property. An excluded term works the other way round: `-necessity:low` keeps
-the cards without the property.
+Each card is checked against **its own** frontmatter, whatever its note type. So a property
+term keeps only the cards that **have** that property with a matching value: on a board mixing
+projects and tasks, `necessity:should` also hides every task whose type has no `necessity`
+property. An excluded term works the other way round: `-necessity:low` keeps the cards
+without the property too.
 
-To apply a term to one note type only, scope it with that type's tag (or folder) and OR in
-everything else. With the Starter Kit's type tags:
+To apply a term to one note type only, scope it with that type's tag (or folder), then add
+everything else with `OR`. With the Starter Kit's type tags:
 
 `tag:type/project necessity:should OR -tag:type/project`
 
@@ -417,18 +417,19 @@ you see can actually be started now.
 
 **Date-window chips**
 
-Next to the filter box sit one-click chips, **Today**, **Next 7 days** and **Next 30 days** by
-default. A chip keeps the cards **due or scheduled** in that window: it adds a `when:` term to
-the query (`when:next7d`), so it combines with whatever you typed, shows in the box, and is
-saved with the view. Click the active chip again to turn it off; only one window is active at
-a time. You can also type `when:` yourself: it takes the same keywords as `due:` and matches
-either date.
+One-click chips next to the filter box answer "what's coming up?": **Today**, **Next 7 days**
+and **Next 30 days** by default. A chip keeps the cards **due or scheduled** in that window. It
+adds a `when:` term to the query (`when:next7d`), so it combines with whatever you typed, shows
+in the box, and is saved with the view. Click the active chip again to turn it off; only one
+window is active at a time. You can also type `when:` yourself. It takes the same keywords as
+`due:` and matches a card when either its due date or its scheduled date falls in the window.
 
 Pick the chips in the plugin settings (**Date-window chips**): a comma-separated list of
 `today`, `overdue`, `week`, `month`, `quarter`, `year`, or rolling windows like `next7d` and
 `next2w`. Leave it empty to hide them.
 
-Example: `book parent:"PKM" status:active OR due:overdue`.
+One more example, mixing words, qualifiers and `OR`:
+`book parent:"PKM" status:active OR due:overdue`.
 
 ## Contexts (@work, @home, …)
 
@@ -571,10 +572,11 @@ under **Review (triage)**. They default to `last_reviewed`, `review_interval`, a
 A **Default review interval (days)** (default **30**) is used for notes that don't set their own
 interval. Review works on **any** Kanban view via the scope switch, with no per-view setup needed.
 
-**Outside triage.** Cards that are due show a **Review** badge on every board, and the filter
-takes **`review:due`** (due or overdue) and **`review:never`** (never reviewed). On a board, a
-note only takes part in reviews once it has a **last reviewed** date or its **own review
-interval**; otherwise every note you never meant to review would be flagged. Turn the badge
+**Outside triage.** Cards that are
+due show a **Review** badge on every board, and the filter takes **`review:due`** (due or
+overdue) and **`review:never`** (never reviewed). On a board, a note only takes part in reviews
+once it has a **last reviewed** date or its **own review interval**. Otherwise every note you
+never meant to review would be flagged. Turn the badge
 off with **Show the review badge** under **Review (triage)**; the filter keeps working.
 
 ### Column triage (board mode)
@@ -794,7 +796,7 @@ Three ways to trigger it:
 - The **▼ children badge** menu → **Focus on children on this board** (top item).
 - **From a child, going up**: the **▲ parents badge** menu → **Focus on children of X**. On a
   mixed board (e.g. an "All actions" view), click a task's ▲ badge and focus its project to see
-  **all of that project's children** (the task itself and its siblings) in one move.
+  **all of that project's children** (the task itself and its siblings) in one step.
 
 Each entry point also offers **Focus on all descendants**: instead of the direct children only,
 the board shows the **whole subtree**, children, grandchildren, and so on. Focus all descendants
@@ -870,7 +872,7 @@ summarizes what moved.
 ### Folder notes move with their folder
 
 A note that is the **namesake of its folder** (`Projects/Foo/Foo.md`, or with a
-parenthesised type suffix like `Projects/Foo/Foo (Project).md`) is archived by moving the
+parenthesized type suffix like `Projects/Foo/Foo (Project).md`) is archived by moving the
 **whole folder**: every sibling file (sub-notes, attachments, plans) goes along and wikilinks
 keep resolving. On a name clash in the destination the move is refused and logged, for the folder as for
 the note. Any other note moves alone. The same applies to the **Move to folder** automation
@@ -1299,15 +1301,17 @@ command), or embed it with `mode=ideal-week` (`mode=week` works too).
   every block, so you can find a note to drag without losing sight of the week. Drag a note
   from the rail onto the grid to plan a block for it.
 - **Change a status without leaving the week.** While the rail is grouped **by status**, drag a
-  note onto another status group (its header or any note in it) to set that status — the same
+  note onto another status group (its header or any note in it) to set that status. It is the same
   write as moving a card between columns on the board, so your automations and date stamping
   run exactly as they would there. The group lights up while the note is over it, dashed red
   when that status is not one the note's type defines, and the note jumps to its new group
   immediately. The grid wins whenever the pointer is over a day, so planning a block stays the
   primary gesture; the **No status** group clears the status. Grouping by area or context
-  offers no status drop — those headers are not statuses.
+  offers no status drop, since those headers are not statuses.
 
-    ![The rail filtered and grouped by area]({{ '/images/week-rail-filter.png' | relative_url }}) Blocks of notes that are not active render **dimmed and dashed** (they are on the
+    ![The rail filtered and grouped by area]({{ '/images/week-rail-filter.png' | relative_url }})
+
+    Blocks of notes that are not active render **dimmed and dashed** (they are on the
     grid so nothing you plan disappears, but only active notes count in the planned total); a
     dated note whose window does not include today keeps its blocks saved but not drawn (a
     notice says so when you plan one).
@@ -1347,7 +1351,7 @@ command), or embed it with `mode=ideal-week` (`mode=week` works too).
 - **No overlaps.** A move, resize, copy, or creation that would overlap another shown note's
   block (or another block of the same note) snaps back with a notice naming the conflicting
   note and its time; nothing is written.
-- **Colour** comes from the note's first GTD context (the same palette as the calendar and
+- **Color** comes from the note's first GTD context (the same palette as the calendar and
   timeline, with the click-to-filter legend in the toolbar). A note without a context renders
   neutral grey. A tinted **work band** marks your work hours on work days, and the toolbar
   sums the planned minutes across the grid against the targets.
@@ -1365,7 +1369,7 @@ command), or embed it with `mode=ideal-week` (`mode=week` works too).
   The card menu of a block or rail note offers **Set weekly target…** (the target property, in
   minutes or `5h`; empty clears it) and **Remove every block of this note**.
 - **Print.** **Print the ideal week** (command) sends a print-friendly copy of the grid to the
-  system print dialog (A4 landscape, contexts' colours kept).
+  system print dialog (A4 landscape, contexts' colors kept).
 - **Targets table.** The toolbar switches the ideal week between its two faces: the
   **Grid** (when the blocks fall) and **Targets** (how much each note gets per week), a table
   that takes the whole pane. Every note of the rail is listed with its weekly **target**
@@ -1405,7 +1409,7 @@ command), or embed it with `mode=ideal-week` (`mode=week` works too).
   Exercise, Work…), in the `areas` property by default (**Areas property** setting, or a
   per-type property in **Configure board → Ideal week**). The rail's grouping switch (next to
   its title) groups the Not planned yet / Planned sections **by status**, **by area** or **by
-  context**; the targets table groups by area or context too. Colour stays with the first
+  context**; the targets table groups by area or context too. Color stays with the first
   context. Areas are grouping only, and the plugin never writes them.
 - **Import and export.** The commands **Import ideal week (JSON or Markdown)**, **Export ideal
   week (JSON)** and **Export ideal week (Markdown)** move the whole ideal week in and out of a
@@ -1415,7 +1419,7 @@ command), or embed it with `mode=ideal-week` (`mode=week` works too).
   ` (Activity)` style suffix); you are asked about anything else (Escape skips it). A note's
   imported blocks replace its current ones (or join them, with the toggle off). A note whose
   result would overlap another is refused and named, and styling is not imported (contexts
-  colour the blocks). Exporting writes `Ideal week <date>.json` or `.md` into the attachment
+  color the blocks). Exporting writes `Ideal week <date>.json` or `.md` into the attachment
   folder: day lists and ranges become one block per run of consecutive days, and 15-minute
   times are rounded outwards to a 30-minute grid, each rounding listed in the notice.
 
@@ -1445,18 +1449,19 @@ records), straight from the cards, on **any note type**:
 
     ![The status-bar readout while a session runs]({{ '/images/time-tracking-status-bar.png' | relative_url }})
 
-- **Switch without the board** (issue #228). Three ways to start or switch a session from
-  anywhere, each one bindable to a hotkey in **Settings → Hotkeys**:
+- **Switch without the board** (issue #228). You don't need a board open to change what you
+  track. There are three ways to start or switch a session from anywhere, and each one can get a
+  hotkey in **Settings → Hotkeys**:
     - **Start time tracking on the active note**: tracks the note open in the editor.
-    - **Switch time tracking to…**: a note picker listing the notes you tracked most recently
-      first, then the ones you opened recently, then every other note. The note tracked right
-      now is marked.
+    - **Switch time tracking to…**: a note picker. It lists the notes you tracked most recently
+      first, then the ones you opened recently, then every other note, and marks the note
+      tracked right now.
     - **A shortcut per note**, for the tasks you track every day: **Add time-tracking shortcut**
       in a card's menu (or **Add or remove the time-tracking shortcut of the active note** from
       the command palette) registers a **Start time tracking: _note_** command. Bind a hotkey to
       it and one keystroke starts that note. The shortcut follows the note when you rename,
-      move or archive it, and its hotkey stays bound; **Remove time-tracking shortcut** takes it
-      away, and deleting the note removes it too.
+      move or archive it, and its hotkey stays bound. **Remove time-tracking shortcut** takes it
+      away, and so does deleting the note.
 
     They all behave like the card menu: the running session is stopped and written first, and
     starting the note already tracked changes nothing.
@@ -1491,11 +1496,11 @@ records), straight from the cards, on **any note type**:
 - **Phases chain by themselves.** When a phase completes, the next one starts on its own:
   work, then the break the cadence calls for, then work again on the same note (its time
   session stays open across a work → work chain and re-opens after a break). A phase you
-  **stop early** never chains — that is a decision, not a boundary. **Skip to the next phase**
+  **stop early** never chains, since stopping it was your call. **Skip to the next phase**
   (status-bar menu, command palette, or the timer's ⏭) records the current phase as it stands
   and moves on at once. Turn chaining off with **Chain phases automatically** in the settings.
-  Optional cues at each boundary — a short two-tone **sound** and a **system notification** —
-  are both off by default.
+  Two optional cues mark each boundary, a short two-tone **sound** and a **system
+  notification**. Both are off by default.
 - **Pause.** **Pause or resume pomodoro** (command, status-bar menu, or the timer's ⏸) freezes
   the countdown; the status bar shows `⏸`. Every run segment is kept, so the record's
   `activePeriods` lists each stretch and the pomodoro completes on **time actually run**, not
@@ -1508,15 +1513,15 @@ records), straight from the cards, on **any note type**:
 - **A timer you can see.** **Open pomodoro timer** (command, ribbon icon, or the status-bar menu)
   opens a compact widget in the right sidebar: a ring that **drains over the phase**, the phase
   name, the note it runs on (click to open it), the remaining time large enough to read from
-  across the room, the pomodoro count in the current cycle, and the controls in place —
+  across the room, the pomodoro count in the current cycle, and the controls in place:
   **start work** (on the tracked note when a session runs), **start the break**, **pause / resume**,
-  **skip the phase**, **stop**. Colour tells work (red) from a short break (green) and a long break
+  **skip the phase**, **stop**. Color tells work (red) from a short break (green) and a long break
   (blue), never alone: the phase name is always printed, a paused ring goes dashed, and the view
   carries an accessible label announcing the phase and the remaining time.
   **Open pomodoro timer full screen** (command, status-bar menu, or the widget's ⤢) shows the
-  timer alone, centred in a main-area tab with both sidebars folded away — for focus stretches
+  timer alone, centered in a main-area tab with both sidebars folded away, for focus stretches
   and a shared screen. **Escape** leaves it and puts back the sidebars it folded; Space pauses
-  and resumes. It is a rendered view, not a window, so it follows your
+  and resumes. It is an Obsidian view (no separate window), so it follows your
   theme in light and dark and survives a theme switch. Both derive from the same stored start as
   the status bar, so they are right after a reload.
 
@@ -1524,11 +1529,11 @@ records), straight from the cards, on **any note type**:
 
     ![The full-screen pomodoro timer]({{ '/images/pomodoro-timer-full.png' | relative_url }})
 
-- **Idle detection and a session cap.** A session forgotten overnight used to record the
-  whole night and inflate every roll-up. Now, after **Idle detection (minutes)** without any
+- **Idle detection and a session cap.** Without them, a session you forget overnight records the
+  whole night and inflates every roll-up. After **Idle detection (minutes)** without any
   activity in Obsidian (30 by default), or once a session passes the **Session cap (minutes)**
   (8 hours by default), you are asked once: **end it when the activity stopped** (or at the
-  cap), **keep it running**, or **discard** it. Closing the prompt keeps the session — the
+  cap), **keep it running**, or **discard** it. Closing the prompt keeps the session: the
   tracker never ends one behind your back. A suspicious session found running after a restart
   gets the same prompt. Set either value to 0 to turn that check off.
 
@@ -1650,7 +1655,9 @@ badges, and relationship chips are hidden so far more cards fit on screen. Card 
 stripes or dots stay, and a cover shrinks to a small thumbnail before the title, so a media board
 stays easy to scan.
 
-![A compact board game board with cover thumbnails]({{ '/images/card-cover-thumbnails.png' | relative_url }}) Press it again to bring the details back. The toggle is **off by
+![A compact board game board with cover thumbnails]({{ '/images/card-cover-thumbnails.png' | relative_url }})
+
+Press it again to bring the details back. The toggle is **off by
 default** and is remembered **per view** (it's saved into the `.base` file, like the
 Board/Calendar/Triage mode).
 
@@ -1658,8 +1665,8 @@ Board/Calendar/Triage mode).
 
 - **Hover a card to preview its note.** Obsidian's native page-preview popover, the same as
   hovering a link, and it works in **every mode**: board cards, calendar chips, timeline rows
-  and undated-panel cards, WBS tree rows and "Needs planning" cards. By default it's
-  **Ctrl/Cmd-gated** (hold the key while hovering). Change that under
+  and undated-panel cards, WBS tree rows and "Needs planning" cards. By default you
+  hold **Ctrl/Cmd** while hovering. Change that under
   **Settings → Core plugins → Page preview** (the source is listed as "Kanban Action Planner").
 - **Click** a card to open the note. **Ctrl/Cmd-click** opens it in a new tab.
 - **Right-click** (or long-press on touch) a card for a menu: open the note (or in a new
@@ -1962,7 +1969,7 @@ the source of truth for how they are shown and acted on.
 ### Without the Starter Kit
 
 Everything still works. Define columns per view (**Statuses (columns)**) or globally, and, if
-you want per-type behaviour, create your own note types in **Settings → Note types → Add note
+you want per-type behavior, create your own note types in **Settings → Note types → Add note
 type**, recognized by tag, folder, or path regex. Quick capture then falls back to the folder
 your Base filters on and to Obsidian's default new-note location, plus any Templater folder
 template you already use.

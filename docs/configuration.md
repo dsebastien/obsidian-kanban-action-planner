@@ -58,6 +58,12 @@ hidden. The defaults below are used today; per-view overrides may arrive in late
 | Areas           | `areas`                    | List of the areas (life domains) a note belongs to: Health, Exercise, Work… Read only: the ideal week's rail and targets table can **group by area** (a note files under its first value). Set globally with **Areas property**, per type in **Configure → Ideal week**.                                                                                                                                                                                                            |
 
 The status property is auto-detected, but the **columns are defined explicitly** (see below).
+They are never inferred from the values your notes happen to carry.
+
+One related global setting is not a property name. **Minutes per day** (default 480 = an
+8-hour workday) says how many minutes one day of work represents. It converts
+minute-based estimates into days for rollups, timeline bars, and calendar spans, and it sizes
+the day component of every displayed duration (`1d 2h`).
 
 ### Time tracking and pomodoro settings
 
@@ -81,13 +87,6 @@ The status property is auto-detected, but the **columns are defined explicitly**
 | **Review-interval property** | `review_interval`        | Days between reviews of a note; the **Default review interval (days)** (30) applies when unset.                                                                                                              |
 | **Review-count property**    | `review_count`           | How many times a note was reviewed; incremented by **Reviewed**.                                                                                                                                             |
 | **Show the review badge**    | On                       | A **Review** badge on cards that are due for review. On a board, a note takes part once it has a last reviewed date or its own interval. `review:due` filters the same cards.                                |
-
-They are never inferred from the values your notes happen to carry.
-
-One related global setting is not a property name. **Minutes per day** (default 480 = an
-8-hour workday) says how many minutes one day of work represents. It converts
-minute-based estimates into days for rollups, timeline bars, and calendar spans, and it sizes
-the day component of every displayed duration (`1d 2h`).
 
 ## Defining columns
 
@@ -237,13 +236,13 @@ board → Archiving**:
   (e.g. `date_completed, date_abandoned`). Only used with a grace period (below); blank means
   the type archives on the transition itself.
 
-**Mirrored from the Obsidian Starter Kit.** When the Starter Kit (1.19+) declares a type's archive (Settings → Obsidian Starter Kit → Note types → Edit → Archive), this panel shows that declaration read-only instead: its folder, its archiving statuses, the dates they stamp as the done-date properties, and its per-type delay — which replaces the global grace period below for that type. Edit it there; boards re-sync on every load. Both plugins may keep archiving the same type: a note already under the archive folder is never moved again by either.
+**Mirrored from the Obsidian Starter Kit.** When the Starter Kit (1.19+) declares a type's archive (Settings → Obsidian Starter Kit → Note types → Edit → Archive), this panel shows that declaration read-only instead: its folder, its archiving statuses, the dates they stamp as the done-date properties, and its per-type delay, which replaces the global grace period below for that type. Edit it there; boards re-sync on every load. Both plugins may keep archiving the same type: a note already under the archive folder is never moved again by either.
 
 You can also archive by hand, from a card's right-click menu (**Archive**). Moves go through
 Obsidian's file manager, so wikilinks to the note are updated and stay valid.
 
 **Folder notes move whole.** A note that is its folder's namesake (`Projects/Foo/Foo.md`, or
-with a parenthesised type suffix: `Projects/Foo/Foo (Project).md`) is archived by moving the
+with a parenthesized type suffix: `Projects/Foo/Foo (Project).md`) is archived by moving the
 **folder**. Every sibling file goes with it and links keep resolving.
 On a name clash the move is refused and logged. The same applies to automation
 **Move to folder** actions.
@@ -271,10 +270,10 @@ Three dates drive every mode: the **scheduled** date (when work is planned to st
 **due** date (the deadline), and the optional **defer** date (when it may start). Each is a
 frontmatter property name resolved at three levels, most specific wins:
 
-1. **Per board** — _Configure view_ (a board that reads different properties than the rest).
-2. **Per note type** — \_Settings → Note types → Configure → **Dates\***. Also holds the date
+1. **Per board**: _Configure view_ (a board that reads different properties than the rest).
+2. **Per note type**: _Settings → Note types → Configure →_ **Dates**. Also holds the date
    **format** used when writing.
-3. **Global default** — _Settings → Kanban Action Planner_.
+3. **Global default**: _Settings → Kanban Action Planner_.
 
 Every per-type field is **empty = inherit**, and shows the inherited value as its placeholder.
 Blank one out to go back to following the global setting.
@@ -410,7 +409,7 @@ The folder and the name prefix/suffix accept `{{year}}`, `{{month}}`, `{{week}}`
 When the Starter Kit (1.22 and later) marks a type's name prefix or suffix as **optional**, it
 is not inherited: notes created from the board get the bare name, and the field shows
 **None (optional in the Starter Kit)**. Type one here when you still want this board to
-decorate the notes it creates — your value always wins. Cards keep
+decorate the notes it creates. Your value always wins. Cards keep
 [stripping](#filtering-the-note-types-name-decoration) an optional affix from notes that carry it.
 
 Prefixes and suffixes keep their spaces (` (Task)` is not the same as `(Task)`), because the
@@ -611,7 +610,7 @@ start or end of the title. Leading and trailing spaces count, so list ` (Draft)`
 `(Draft)`. Extras accept the same `{{year}}`, `{{date}}`, … placeholders as note creation, and
 match any value they can produce (`{{date}} - ` strips `2026-09-22 - `).
 
-An affix the Starter Kit marks as **optional** is still stripped — the setting says
+An affix the Starter Kit marks as **optional** is still stripped, and the setting says
 `(optional in the Starter Kit)` next to it. Optional only decides what note
 [creation](#creating-notes-quick-capture) ADDS, so older notes that carry the affix and newer
 ones without it read the same on the board.
