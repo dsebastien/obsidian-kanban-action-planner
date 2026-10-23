@@ -1022,7 +1022,7 @@ panel together.
 
 Where the calendar answers "what happens on day X", the **Timeline** shows how the work spreads
 and overlaps **over time**: one row per card on a shared axis, Gantt-style. Switch to it with the
-**Timeline** button next to **Board / Calendar** (or the **Toggle timeline mode**
+**Timeline** button in the mode switch (or the **Toggle timeline mode**
 command).
 
 ![The timeline placing cards by start date and estimate]({{ '/images/timeline.png' | relative_url }})
