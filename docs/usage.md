@@ -280,6 +280,10 @@ present in the name you typed is not added twice, so typing `Ship it (Task)` sta
 ### Notes
 
 - The **Unmapped** column has no Add button, since it has no status value to write.
+- A board with **no columns yet** (a fresh setup without the Starter Kit, say) still shows an
+  **Add card** button under "No notes match this view." The dialog then also asks for the
+  note's **status**, suggesting the values the note type knows, and can save that status as the
+  board's first column, so the board is not empty afterwards.
 - The header **+** does not start a column-reorder drag, and it is hidden while the column is
   collapsed.
 - If a template **moves** the note somewhere the view's filters exclude, you get a notice saying

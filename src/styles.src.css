@@ -271,6 +271,22 @@
         color: var(--text-muted);
     }
 
+    /* A board with no columns still offers quick capture (issue #123). */
+    .kap-root .kap-empty .kap-add-first-card {
+        @apply mt-3 max-w-64;
+    }
+
+    /* The create dialog's status field, shown when no column supplies one. */
+    .kap-create-status {
+        @apply flex flex-col gap-2 mt-3;
+    }
+
+    .kap-create-status-column {
+        @apply flex items-center gap-2;
+        color: var(--text-muted);
+        font-size: var(--font-ui-small);
+    }
+
     .kap-root .kap-board-host {
         @apply flex-1 min-h-0 w-full;
     }

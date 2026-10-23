@@ -2036,7 +2036,8 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
                     ? {
                           onAddCard: (laneId: string, columnId: string) => {
                               this.promptCreateCard(laneId, columnId)
-                          }
+                          },
+                          onAddFirstCard: () => this.promptCreateFirstCard()
                       }
                     : {})
             },
@@ -4223,6 +4224,50 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
     }
 
     /**
+     * Quick capture on a board with no columns (issue #123): no column supplies
+     * the status, so the dialog asks for it (suggesting the type's known values)
+     * and offers to save it as the board's first column, through `viewConfig`
+     * so an embed never rewrites the shared `.base` (rule 42). Everything else
+     * is the column flow: same type, filter facts, template and single write.
+     */
+    private promptCreateFirstCard(): void {
+        const noteType = this.noteType
+        const facts = this.baseFilterFacts()
+        const config = this.resolvedCreationConfig(noteType, facts)
+        const ctx = liveExpressionContext()
+        const statusProperty = this.firstCardStatusProperty(noteType)
+        const suggestions = statusProperty
+            ? resolveAllowedValues(this.app, this.plugin, noteType.id, statusProperty)
+            : []
+        const folder = normalizeCreationFolder(resolvePlaceholders(config.folder, ctx))
+        new CreateNoteModal(
+            this.app,
+            `New ${noteType.name === 'Default' ? 'note' : noteType.name}`,
+            `The note is created in ${
+                folder.length > 0 ? `“${folder}”` : 'the vault root'
+            }. This board has no columns yet: give it a status to start one.`,
+            (title) => this.previewCreatedNote(title, config, ctx),
+            (title, choice) => {
+                if (choice?.addColumn && choice.status !== null) {
+                    this.viewConfig.set('statuses', [choice.status])
+                }
+                void this.createCard(
+                    title,
+                    UNGROUPED_LANE_ID,
+                    '',
+                    noteType,
+                    facts,
+                    config,
+                    ctx,
+                    { kind: 'none' },
+                    choice?.status ?? null
+                )
+            },
+            { suggestions, offerColumn: statusProperty !== null }
+        ).open()
+    }
+
+    /**
      * What a new card does about the active `parent:` / `ancestor:` search term
      * (rule 72): given the ONE note the term resolved to and its type, pick the
      * property by the NEW card's parent rules. The same
@@ -4300,7 +4345,9 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         facts: BaseFilterFacts,
         config: ResolvedCreationConfig,
         ctx: ExpressionContext,
-        parentLink: ParentLinkPlan = { kind: 'none' }
+        parentLink: ParentLinkPlan = { kind: 'none' },
+        /** The status typed in the dialog when no column supplies one (issue #123). */
+        statusOverride?: string | null
     ): Promise<void> {
         const properties: Record<string, unknown> = { ...facts.properties }
         // The parent link joins the Base's facts (a list property's values, or a
@@ -4314,13 +4361,12 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         // the TARGET TYPE's own property (a mixed board writes each lane's type's
         // property), then the board-wide one. Blank names fall through — an empty
         // configured property must not become a `''` frontmatter key.
-        const statusValue = this.columnStatusValue(columnId, laneId)
-        const statusProperty = resolveWriteStatusProperty({
-            viewOverride: basesPropToName(this.viewConfig.get('statusProperty')),
-            typeProperty: noteType.statusProperty,
-            isDefaultType: noteType.id === DEFAULT_NOTE_TYPE_ID,
-            boardProperty: this.statusProperty
-        })
+        const statusValue =
+            statusOverride === undefined ? this.columnStatusValue(columnId, laneId) : statusOverride
+        const statusProperty =
+            statusOverride === undefined
+                ? this.writeStatusPropertyFor(noteType)
+                : this.firstCardStatusProperty(noteType)
         if (statusValue !== null && statusProperty) properties[statusProperty] = statusValue
 
         const laneValue = this.laneValueForNewCard(laneId)
@@ -4386,6 +4432,31 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             )
         }
         void this.resolveAndRebuild()
+    }
+
+    /** The status property a new note of `noteType` is written with (null = none). */
+    private writeStatusPropertyFor(noteType: NoteType): string | null {
+        return (
+            resolveWriteStatusProperty({
+                viewOverride: basesPropToName(this.viewConfig.get('statusProperty')),
+                typeProperty: noteType.statusProperty,
+                isDefaultType: noteType.id === DEFAULT_NOTE_TYPE_ID,
+                boardProperty: this.statusProperty
+            }) || null
+        )
+    }
+
+    /**
+     * The status property of a board's first card (issue #123): the write
+     * property when one resolves, else the global default. An empty board has
+     * no notes to detect the property from, and the first note is what
+     * introduces it.
+     */
+    private firstCardStatusProperty(noteType: NoteType): string | null {
+        return (
+            this.writeStatusPropertyFor(noteType) ??
+            (this.plugin.settings.defaultStatusProperty.trim() || null)
+        )
     }
 
     /** The swimlane property + value a new card needs to land in `laneId`. */

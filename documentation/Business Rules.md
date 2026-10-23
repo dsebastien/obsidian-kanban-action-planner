@@ -945,6 +945,14 @@ When a new business rule is mentioned:
     - **The parent a `parent:` search term names is linked (rule 72).** The wikilink goes in
       the SAME single post-template write, as a list value merged into whatever the template
       put there (empty `[null]` placeholders are dropped). An `ancestor:` term is never written.
+    - **A board with no columns still captures (issue #123).** Its empty state carries an
+      **Add card** button (same `showAddCard` toggle). With no column to supply the status,
+      the dialog asks for one (free text, suggesting the type's allowed values) and offers to
+      save it as the board's first column: a per-view `statuses` list written through
+      `viewConfig`, so an embed keeps it in its overlay (rule 42). The status property is the
+      write property when one resolves, else the global default status property: an empty
+      board has no notes to detect it from. A blank status writes none. Everything else is the
+      column flow (type, filter facts, template, the single write).
 
 45. **Column aggregates (issue #23).** A view can roll one numeric property up per column
     (`columnAggregate` = `none` (default) / `sum` / `avg` / `min` / `max`, over

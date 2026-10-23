@@ -39,6 +39,11 @@ export interface BoardRenderCallbacks {
      */
     onAddCard?: (laneId: string, columnId: string) => void
     /**
+     * Quick capture on a board with no columns (issue #123): there is no column
+     * to click, so the empty state offers its own entry point. Absent = none.
+     */
+    onAddFirstCard?: () => void
+    /**
      * Column triage (issue #170): start a one-card pass over this column.
      * The EXACT rendered lane + card keys are passed so the pass snapshots
      * precisely what the user clicked (per-type lanes can render different
@@ -114,7 +119,17 @@ function renderBoard(
 
     const hasColumns = board.lanes.some((l) => l.columns.length > 0)
     if (!hasColumns) {
-        rootEl.createDiv({ cls: 'kap-empty', text: 'No notes match this view.' })
+        const emptyEl = rootEl.createDiv({ cls: 'kap-empty', text: 'No notes match this view.' })
+        const onAddFirstCard = callbacks.onAddFirstCard
+        if (onAddFirstCard) {
+            const button = emptyEl.createEl('button', {
+                cls: 'kap-add-card kap-add-first-card',
+                attr: { 'type': 'button', 'aria-label': 'Add a note to this board' }
+            })
+            setIcon(button.createSpan({ cls: 'kap-add-card-icon' }), 'plus')
+            button.createSpan({ text: 'Add card' })
+            button.addEventListener('click', () => onAddFirstCard())
+        }
         return
     }
 
