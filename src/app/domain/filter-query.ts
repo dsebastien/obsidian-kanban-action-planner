@@ -1,5 +1,5 @@
 import type { RelationshipRole } from './note-type'
-import { parseFrontmatterDate, startOfDay, toDateKey } from './calendar'
+import { addDays, parseFrontmatterDate, startOfDay, toDateKey } from './calendar'
 
 /**
  * Pure "JQL-lite" filter query: parse + match. No Obsidian/DOM deps so it is
@@ -22,7 +22,10 @@ import { parseFrontmatterDate, startOfDay, toDateKey } from './calendar'
  * - Reserved names (`title`, `status`, `parent`, `ancestor`, `child`, `sibling`,
  *   `blocked`, `tag`, `due`, `defer`, `is`) win over a same-named frontmatter
  *   property; any other name is a frontmatter property lookup.
- * - `due:`, `defer:`, and `scheduled:` carry comparison operators and date keywords.
+ * - `due:`, `defer:`, and `scheduled:` carry comparison operators and date keywords,
+ *   including rolling windows (`next7d`, `next2w`: today and the following days).
+ * - `when:` takes the same keywords and matches the due OR the scheduled date
+ *   (issue #145): the one-click date-window chips write it.
  * - `is:` matches availability states (issue #113): `available`, `deferred`,
  *   `blocked`, `done`.
  * - `estimate:`, `progress:`, and `order:` compare numbers against the CONFIGURED
@@ -328,10 +331,30 @@ function matchDueValue(
         case 'year':
             return due !== null && inRange(due, ctx.periods[value])
         default: {
+            const days = rollingWindowDays(value)
+            if (days !== null) {
+                return (
+                    due !== null &&
+                    inRange(due, { start: ctx.today, end: addDays(ctx.today, days - 1) })
+                )
+            }
             const target = parseFrontmatterDate(value)
             return due !== null && target !== null && compareDay(due, target, op)
         }
     }
+}
+
+/**
+ * The length in days of a rolling window keyword (issue #145): `next7d` is
+ * today and the 6 days after it, `next2w` today and the 13 after. Null when
+ * `value` is not one.
+ */
+export function rollingWindowDays(value: string): number | null {
+    const match = /^next(\d{1,4})([dw])$/.exec(value.toLowerCase())
+    if (!match) return null
+    const count = Number(match[1])
+    if (count <= 0) return null
+    return match[2] === 'w' ? count * 7 : count
 }
 
 /** Compare two numbers under an operator (equality is epsilon-tolerant for unit math). */
@@ -447,6 +470,7 @@ const ROLE_ALIASES: Record<string, RelationshipRole> = {
 export const RESERVED_QUALIFIER_NAMES: ReadonlySet<string> = new Set<string>([
     'due',
     'defer',
+    'when',
     'is',
     'title',
     'status',
@@ -471,6 +495,14 @@ function matchQualifier(rec: CardSearchRecord, clause: FilterClause, ctx: Filter
         // Same keyword/date grammar as `due:`, evaluated against the defer
         // date (issue #113): `defer:none`, `defer:>today`, `defer:<2026-09-01`, …
         return clause.values.some((v) => matchDueValue(rec.defer, clause.op, v, ctx))
+    }
+    if (name === 'when') {
+        // The due OR the scheduled date in the window (issue #145).
+        return clause.values.some(
+            (v) =>
+                matchDueValue(rec.due, clause.op, v, ctx) ||
+                matchDueValue(rec.scheduled, clause.op, v, ctx)
+        )
     }
     if (name === 'scheduled') {
         // Same keyword/date grammar as `due:`, evaluated against the CONFIGURED
@@ -708,4 +740,56 @@ function splitContextValues(raw: string): string[] {
     const last = buf.trim()
     if (last.length > 0) values.push(last)
     return values
+}
+
+// ── Date-window term (issue #145) ─────────────────────────────
+//
+// Like the context term, the active date-window chip is not separate state: it
+// lives as ONE managed `when:<keyword>` token in the raw query, so it composes
+// with whatever the user typed (AND), shows in the box, and persists per view
+// with the query. Only one window is active at a time.
+
+/** A non-negated `when:` token: the managed date-window term. */
+function isWindowToken(token: string): boolean {
+    return /^when:/i.test(token)
+}
+
+/** The active date-window keyword (`today`, `next7d`, …), or null. */
+export function getWindowTerm(query: string): string | null {
+    for (const token of tokenize(query)) {
+        if (!isWindowToken(token)) continue
+        const value = token.slice('when:'.length).replace(/"/g, '').trim().toLowerCase()
+        if (value.length > 0) return value
+    }
+    return null
+}
+
+/** Replace the managed `when:` term with `value`, or remove it when null. */
+export function setWindowTerm(query: string, value: string | null): string {
+    const kept = tokenize(query).filter((t) => !isWindowToken(t))
+    const token = value?.trim() ? `when:${value.trim()}` : ''
+    return [...kept, token].join(' ').trim()
+}
+
+/**
+ * The chip label of a date-window keyword, or null when the keyword is not
+ * one a chip can carry (the setting may hold a typo).
+ */
+export function windowLabel(value: string): string | null {
+    const key = value.trim().toLowerCase()
+    const fixed: Record<string, string> = {
+        today: 'Today',
+        overdue: 'Overdue',
+        week: 'This week',
+        month: 'This month',
+        quarter: 'This quarter',
+        year: 'This year'
+    }
+    const label = fixed[key]
+    if (label) return label
+    const match = /^next(\d{1,4})([dw])$/.exec(key)
+    if (!match || Number(match[1]) <= 0) return null
+    const count = Number(match[1])
+    const unit = match[2] === 'w' ? 'week' : 'day'
+    return `Next ${count} ${unit}${count === 1 ? '' : 's'}`
 }

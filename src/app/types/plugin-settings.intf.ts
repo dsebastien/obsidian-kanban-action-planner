@@ -120,6 +120,12 @@ export const pluginSettingsSchema = z.object({
      * the most recently tracked notes, which lead the switch picker.
      */
     trackingCommands: z.array(z.object({ id: z.string(), path: z.string() })).default([]),
+    /**
+     * Date-window chips next to the filter box (issue #145): the keywords
+     * offered as one-click chips (`today`, `next7d`, `next2w`, `week`, …), in
+     * order. Empty = no chips.
+     */
+    dateWindowChips: z.array(z.string()).default(['today', 'next7d', 'next30d']),
     recentTrackedPaths: z.array(z.string()).default([]),
     /**
      * TaskNotes-compatible tracking (issue #172): the entries-list property
@@ -325,6 +331,7 @@ export function createDefaultSettings(): PluginSettings {
         defaultTotalDurationProperty: DEFAULT_TOTAL_DURATION_PROPERTY,
         activeTimeSession: null,
         trackingCommands: [],
+        dateWindowChips: ['today', 'next7d', 'next30d'],
         recentTrackedPaths: [],
         defaultTimeEntriesProperty: DEFAULT_TIME_ENTRIES_PROPERTY,
         defaultLastSessionProperty: DEFAULT_LAST_SESSION_PROPERTY,

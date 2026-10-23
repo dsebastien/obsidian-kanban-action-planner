@@ -2,14 +2,18 @@ import { describe, expect, it } from 'bun:test'
 import {
     RESERVED_QUALIFIER_NAMES,
     getContextTerms,
+    getWindowTerm,
     getZoomTerm,
     isEmptyQuery,
     matchesFilterQuery,
     parseFilterQuery,
     removeContextTerms,
     removeZoomTerm,
+    rollingWindowDays,
     setContextTerms,
-    setZoomTerm
+    setWindowTerm,
+    setZoomTerm,
+    windowLabel
 } from './filter-query'
 import type { CardSearchRecord, FilterContext } from './filter-query'
 import { periodRange } from './calendar'
@@ -675,5 +679,52 @@ describe('context: qualifier aliases (issue #166)', () => {
     it('stays OFF the reserved-names guard so the default property name is allowed', () => {
         expect(RESERVED_QUALIFIER_NAMES.has('context')).toBe(false)
         expect(RESERVED_QUALIFIER_NAMES.has('contexts')).toBe(false)
+    })
+})
+
+describe('date windows (issue #145)', () => {
+    const inDays = (n: number): Date => new Date(2026, 5, 28 + n)
+
+    it('next<N>d / next<N>w cover today and the following days', () => {
+        expect(rollingWindowDays('next7d')).toBe(7)
+        expect(rollingWindowDays('NEXT2W')).toBe(14)
+        expect(rollingWindowDays('next0d')).toBeNull()
+        expect(rollingWindowDays('nextweek')).toBeNull()
+        expect(match('due:next7d', record({ due: TODAY }))).toBe(true)
+        expect(match('due:next7d', record({ due: inDays(6) }))).toBe(true)
+        expect(match('due:next7d', record({ due: inDays(7) }))).toBe(false)
+        expect(match('due:next7d', record({ due: inDays(-1) }))).toBe(false)
+        expect(match('due:next7d', record())).toBe(false)
+        expect(match('scheduled:next2w', record({ scheduled: inDays(13) }))).toBe(true)
+    })
+
+    it('when: matches the due OR the scheduled date', () => {
+        expect(match('when:today', record({ due: TODAY }))).toBe(true)
+        expect(match('when:today', record({ scheduled: TODAY }))).toBe(true)
+        expect(match('when:today', record({ due: inDays(3), scheduled: inDays(5) }))).toBe(false)
+        expect(match('when:next7d', record({ scheduled: inDays(3) }))).toBe(true)
+        expect(RESERVED_QUALIFIER_NAMES.has('when')).toBe(true)
+    })
+
+    it('when: composes with the typed query as AND', () => {
+        const rec = record({ title: 'book', haystack: 'book', scheduled: TODAY })
+        expect(match('book when:today', rec)).toBe(true)
+        expect(match('plan when:today', rec)).toBe(false)
+    })
+
+    it('reads and replaces the one managed when: term, keeping the rest', () => {
+        expect(getWindowTerm('book when:next7d status:active')).toBe('next7d')
+        expect(getWindowTerm('book -when:today')).toBeNull()
+        expect(setWindowTerm('book when:today', 'next30d')).toBe('book when:next30d')
+        expect(setWindowTerm('book when:today', null)).toBe('book')
+        expect(setWindowTerm('', 'today')).toBe('when:today')
+    })
+
+    it('labels the chip keywords and rejects the rest', () => {
+        expect(windowLabel('today')).toBe('Today')
+        expect(windowLabel('next7d')).toBe('Next 7 days')
+        expect(windowLabel('next1w')).toBe('Next 1 week')
+        expect(windowLabel('month')).toBe('This month')
+        expect(windowLabel('nope')).toBeNull()
     })
 })

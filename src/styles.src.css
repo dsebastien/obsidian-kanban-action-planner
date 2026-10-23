@@ -408,6 +408,15 @@
         @apply hidden;
     }
 
+    /* Date-window chips beside the filter box (issue #145). */
+    .kap-root .kap-filter-windows {
+        @apply inline-flex flex-none items-center gap-1;
+    }
+
+    .kap-root .kap-filter-windows:empty {
+        @apply hidden;
+    }
+
     .kap-root .kap-filter-context {
         @apply inline-flex flex-none items-center gap-0.5 max-w-[40%] h-5 pl-1.5 pr-0.5 rounded-full text-[0.78em];
         background: color-mix(in srgb, var(--interactive-accent) 18%, transparent);

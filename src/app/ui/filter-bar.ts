@@ -11,6 +11,8 @@ export interface FilterBarCallbacks {
     onZoomOpen: (label: string) => void
     /** ✕ on a context chip: remove only that context value from the query. */
     onContextDismiss: (value: string) => void
+    /** A date-window chip (issue #145): toggle that window, keyword like `next7d`. */
+    onWindowToggle: (value: string) => void
 }
 
 /** One row of the syntax cheat-sheet popover. */
@@ -21,14 +23,18 @@ const HELP_ROWS: ReadonlyArray<{ syntax: string; desc: string }> = [
     { syntax: 'parent:"PKM Library"', desc: 'property; quote for spaces' },
     { syntax: 'parent:="App"', desc: 'exact whole-value match (: is substring)' },
     { syntax: 'status:active,done', desc: 'comma = OR within a property' },
-    { syntax: 'due:overdue', desc: 'today · overdue · none · week · month · quarter · year' },
+    {
+        syntax: 'due:overdue',
+        desc: 'today · overdue · none · week · month · quarter · year · next7d · next2w'
+    },
+    { syntax: 'when:next7d', desc: 'due OR scheduled in the window (the date chips)' },
     { syntax: 'due:>2026-01-01', desc: 'date compare: < > <= >= (defer:, scheduled: too)' },
     { syntax: 'is:available', desc: 'available · deferred · blocked · done' },
     { syntax: 'estimate:>4h', desc: 'numbers: estimate (d·h·m), progress, order · none = unset' }
 ]
 
 const PROPERTY_HINT =
-    'Properties: title, status, parent, ancestor (any transitive parent), child, sibling, blocked, tag, due, defer, scheduled, is, estimate, progress, order, or any frontmatter property.'
+    'Properties: title, status, parent, ancestor (any transitive parent), child, sibling, blocked, tag, due, defer, scheduled, when, is, estimate, progress, order, or any frontmatter property.'
 
 /**
  * The persistent filter input in the view toolbar. Created once and kept alive
@@ -45,6 +51,8 @@ export class FilterBar {
     private readonly zoomLabelEl: HTMLElement
     private zoomLabel = ''
     private readonly contextEl: HTMLElement
+    private readonly windowsEl: HTMLElement
+    private windowsKey = ''
     private readonly callbacks: FilterBarCallbacks
     private helpBox: HTMLElement | null = null
     private readonly onDocPointerDown: (event: MouseEvent) => void
@@ -131,7 +139,37 @@ export class FilterBar {
             }
         }
 
+        // Date-window chips (issue #145): a row of toggles beside the box.
+        this.windowsEl = parent.createDiv({
+            cls: 'kap-filter-windows',
+            attr: { 'role': 'group', 'aria-label': 'Date window' }
+        })
+
         this.syncClear()
+    }
+
+    /**
+     * Render the date-window chips (issue #145): one toggle per window, the
+     * active one (from the query's managed `when:` term) highlighted. Rebuilt
+     * only when the chips or the active one change.
+     */
+    setWindowChips(
+        chips: ReadonlyArray<{ value: string; label: string }>,
+        active: string | null
+    ): void {
+        const key = JSON.stringify([chips, active])
+        if (key === this.windowsKey) return
+        this.windowsKey = key
+        this.windowsEl.empty()
+        for (const chip of chips) {
+            const on = chip.value === active
+            const button = this.windowsEl.createEl('button', {
+                cls: `kap-mode-btn kap-filter-window${on ? ' kap-mode-btn-active' : ''}`,
+                text: chip.label,
+                attr: { 'type': 'button', 'aria-pressed': on ? 'true' : 'false' }
+            })
+            button.addEventListener('click', () => this.callbacks.onWindowToggle(chip.value))
+        }
     }
 
     /** Sync the input value from persisted state without firing callbacks. */

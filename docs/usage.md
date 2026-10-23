@@ -342,6 +342,7 @@ The **?** cheat-sheet, always one click away:
 
 - Keywords: `due:today`, `due:overdue`, `due:none`, and `due:week` / `due:month` /
   `due:quarter` / `due:year` (the calendar period containing today).
+- Rolling windows: `due:next7d` (today and the 6 days after it), `due:next30d`, `due:next2w`.
 - Comparisons: `due:>2026-01-01`, `due:<2026-01-01`, `due:>=…`, `due:<=…`, or an exact day
   `due:2026-01-15`.
 
@@ -378,6 +379,19 @@ the board (hover to read them normally).
 Typing **`is:available`** in the filter box (or saving it with the view, or pinning it in an
 embed with `filter=is:available`) turns any board into a **Next actions** list: everything
 you see can actually be started now.
+
+**Date-window chips**
+
+Next to the filter box sit one-click chips, **Today**, **Next 7 days** and **Next 30 days** by
+default. A chip keeps the cards **due or scheduled** in that window: it adds a `when:` term to
+the query (`when:next7d`), so it combines with whatever you typed, shows in the box, and is
+saved with the view. Click the active chip again to turn it off; only one window is active at
+a time. You can also type `when:` yourself: it takes the same keywords as `due:` and matches
+either date.
+
+Pick the chips in the plugin settings (**Date-window chips**): a comma-separated list of
+`today`, `overdue`, `week`, `month`, `quarter`, `year`, or rolling windows like `next7d` and
+`next2w`. Leave it empty to hide them.
 
 Example: `book parent:"PKM" status:active OR due:overdue`.
 

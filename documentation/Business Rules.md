@@ -1471,3 +1471,14 @@ Markdown)`, `Export ideal week (JSON)`, `Export ideal week (Markdown)`); the for
     the recent list and the running session's path along (before, a session whose note was
     archived mid-run was discarded on stop). Deleting a note removes its shortcut and its
     recent entry; a renamed or deleted FOLDER applies to every note inside it.
+
+75. **Date-window chips write a managed `when:` term (issue #145).** The chips beside the
+    filter box are not separate state: the active window lives as ONE `when:<keyword>` token
+    in the raw query (like the context and zoom terms), so it ANDs with the typed query, is
+    visible in the box, and persists per view with `filterQuery` (an embed keeps it in its
+    overlay, rule 42). `when:` takes the `due:` keyword grammar and matches the due OR the
+    scheduled date; it is a reserved qualifier name. Rolling windows `next<N>d` / `next<N>w`
+    (all date qualifiers) cover today and the following N×1 / N×7 − 1 days. One window at a
+    time: clicking the active chip removes the term, another chip replaces it. The chip set is
+    the global `dateWindowChips` setting (keywords validated through `windowLabel`; an invalid
+    one is skipped), refreshed on a chrome-scope settings change.

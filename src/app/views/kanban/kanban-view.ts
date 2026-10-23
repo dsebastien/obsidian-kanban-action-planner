@@ -201,6 +201,7 @@ import {
 import type { DateDimension } from '../../domain/calendar'
 import {
     getContextTerms,
+    getWindowTerm,
     getZoomTerm,
     isAvailable,
     isDeferred,
@@ -209,6 +210,8 @@ import {
     parseFilterQuery,
     removeZoomTerm,
     setContextTerms,
+    setWindowTerm,
+    windowLabel,
     setZoomTerm
 } from '../../domain/filter-query'
 import type { CardSearchRecord, FilterContext, FilterQuery } from '../../domain/filter-query'
@@ -796,7 +799,8 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             onClear: () => this.onFilterClear(),
             onZoomDismiss: () => this.clearChildFocus(),
             onZoomOpen: (label) => this.openParentByTitle(label),
-            onContextDismiss: (value) => this.dismissContext(value)
+            onContextDismiss: (value) => this.dismissContext(value),
+            onWindowToggle: (value) => this.toggleDateWindow(value)
         })
         this.toolbarRightEl = this.toolbarEl.createDiv({ cls: 'kap-toolbar-right' })
         this.selectionBarEl = this.rootEl.createDiv({ cls: 'kap-selection-bar kap-hidden' })
@@ -1830,6 +1834,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         // `<prop>:` term — no separate context state. Original casing comes from
         // the raw query token (getContextTerms).
         this.filterBar?.setContextChips(getContextTerms(this.filterQuery, this.contextsProperty()))
+        this.filterBar?.setWindowChips(this.dateWindowChips(), getWindowTerm(this.filterQuery))
         this.filterEmptyEl?.setText(
             zoom === null
                 ? 'No cards match the filter.'
@@ -5676,6 +5681,8 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
     onSettingsChanged(scope: SettingsRefreshScope = 'full'): void {
         if (scope === 'chrome') {
             this.applyChipStyle()
+            // The date-window chip set is a chrome setting too (issue #145).
+            this.filterBar?.setWindowChips(this.dateWindowChips(), getWindowTerm(this.filterQuery))
             // Chip styles have different geometry, so natural card heights
             // change immediately — re-equalize NOW so the board-wide height
             // shift lands with its cause instead of riding along with the
@@ -6975,6 +6982,22 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         // shared view config.
         this.viewConfig.set('filterQuery', this.filterQuery)
         this.applyFilterAndRender()
+    }
+
+    // ── Date-window chips (issue #145) ────────────────────────
+
+    /** The configured chips, keeping only the keywords a chip can carry. */
+    private dateWindowChips(): Array<{ value: string; label: string }> {
+        return this.plugin.settings.dateWindowChips.flatMap((value) => {
+            const label = windowLabel(value)
+            return label === null ? [] : [{ value: value.toLowerCase(), label }]
+        })
+    }
+
+    /** A chip click: switch to that window, or off when it is the active one. */
+    private toggleDateWindow(value: string): void {
+        const active = getWindowTerm(this.filterQuery)
+        this.setFilterQuery(setWindowTerm(this.filterQuery, active === value ? null : value))
     }
 
     // ── Zoom / focus on children (issue #74) ──────────────────

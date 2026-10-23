@@ -2,7 +2,7 @@ import { App, Notice, PluginSettingTab, Setting } from 'obsidian'
 import type { SettingDefinitionItem, SettingGroupItem } from 'obsidian'
 import { produce } from 'immer'
 import type { Draft } from 'immer'
-import { RESERVED_QUALIFIER_NAMES } from '../domain/filter-query'
+import { RESERVED_QUALIFIER_NAMES, windowLabel } from '../domain/filter-query'
 import { VIEW_MODES, VIEW_MODE_LABELS, modeEnabled } from '../domain/embed-params'
 import type { ViewMode } from '../domain/embed-params'
 import { DEFAULT_CONTEXTS_PROPERTY } from '../constants'
@@ -533,6 +533,24 @@ export class KanbanActionPlannerSettingTab extends PluginSettingTab {
                     this.numberItem(MINUTES_PER_DAY),
                     ...PROGRESS_SETTINGS.map((setting) => this.textItem(setting)),
                     {
+                        name: 'Date-window chips',
+                        desc: 'One-click chips next to the filter box that keep the cards due or scheduled in a window. Comma-separated, in order: today, overdue, week, month, quarter, year, or a rolling window like next7d or next2w. Leave empty for no chips.',
+                        control: {
+                            type: 'text',
+                            key: 'dateWindowChips',
+                            placeholder: 'today, next7d, next30d',
+                            validate: (value: string): string | undefined => {
+                                const bad = value
+                                    .split(',')
+                                    .map((s) => s.trim())
+                                    .filter((s) => s.length > 0 && windowLabel(s) === null)
+                                return bad.length > 0
+                                    ? `Not a date window: ${bad.join(', ')}. Use today, overdue, week, month, quarter, year, or next7d / next2w.`
+                                    : undefined
+                            }
+                        }
+                    },
+                    {
                         name: 'Contexts property',
                         desc: 'Multi-value list property holding a note’s GTD contexts (e.g. @work, @home). Used by the context filter switcher and chips.',
                         control: {
@@ -855,6 +873,8 @@ export class KanbanActionPlannerSettingTab extends PluginSettingTab {
                 return String(settings.firstDayOfWeek)
             case 'defaultStatuses':
                 return settings.defaultStatuses.join('\n')
+            case 'dateWindowChips':
+                return settings.dateWindowChips.join(', ')
         }
         if (this.isKnownKey(key)) {
             return settings[key as keyof PluginSettings]
@@ -1026,6 +1046,18 @@ export class KanbanActionPlannerSettingTab extends PluginSettingTab {
                     },
                     // Baked into card display — `cards` re-renders just the cards (#67)
                     scope: 'cards'
+                }
+            }
+            case 'dateWindowChips': {
+                const chips = expectString(key, value)
+                    .split(',')
+                    .map((s) => s.trim().toLowerCase())
+                    .filter((s) => s.length > 0)
+                return {
+                    apply: (draft) => {
+                        draft.dateWindowChips = chips
+                    },
+                    scope: 'chrome'
                 }
             }
             case 'defaultStatuses': {
