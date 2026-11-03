@@ -9,9 +9,10 @@ import {
     latestEntryDate,
     parseTimeEntries,
     readTrackedMinutes,
-    sumEntryMinutes,
     withoutEmptyEntries
 } from '../domain/time-entries'
+import type { LinkedTimeConfig, TrackedTimeResult } from '../domain/linked-time'
+import { computeTrackedTimeOf, linkedTimeConfigForType } from './linked-time.service'
 import {
     breakTypeAfter,
     buildPomodoroRecord,
@@ -334,32 +335,62 @@ async function applyRecovery(
 
 /**
  * Reset a note's duration and last-session date to its entries list (the
- * WBS row menu's "Recompute tracked time from entries"): an EXPLICIT repair,
- * the one write that replaces the duration with the list's sum, so minutes
- * added outside the tracker are dropped by design. Empty items in the list
- * are removed too (issue #218), even when no entry is left. Returns the new
- * total, or null for a note without entries (its duration is left alone: it
- * may be its only record).
+ * WBS row menu's "Recompute tracked time"): an EXPLICIT repair, the one
+ * write that replaces the duration with the list's sum, so minutes added
+ * outside the tracker are dropped by design. Empty items in the list are
+ * removed too (issue #218), even when no entry is left. When the note's
+ * type takes time from linked notes, the stored values follow that rule
+ * instead: duration = entries (linked-session entries skipped) + linked
+ * minutes, last session = the later of the latest entry day and the latest
+ * linked date. Returns the new total, or null for a note with neither
+ * entries nor linked notes (its duration is left alone: it may be its only
+ * record).
  */
 export async function recomputeTrackedTime(
     plugin: KanbanActionPlannerPlugin,
     file: TFile
 ): Promise<number | null> {
     const properties = await trackingPropertiesFor(plugin, file)
+    const config = await linkedTimeConfigFor(plugin, file)
     const raw = getFrontmatterValue(plugin.app, file, properties.entries)
     const cleaned = withoutEmptyEntries(raw)
     const parsed = parseTimeEntries(raw)
-    if (parsed.length === 0) {
+    const result = computeTrackedTimeOf(plugin.app, plugin.linkedNotesIndex, file, raw, config)
+    if (parsed.length === 0 && result.linkedNotes.length === 0) {
         if (cleaned) await setProperties(plugin.app, file, { [properties.entries]: cleaned })
         return null
     }
-    const total = sumEntryMinutes(parsed)
-    const write: Record<string, unknown> = { [properties.duration]: total }
+    const write: Record<string, unknown> = { [properties.duration]: result.minutes }
     if (cleaned) write[properties.entries] = cleaned
-    const lastSession = latestEntryDate(parsed)
-    if (lastSession) write[properties.lastSession] = lastSession
+    if (result.lastSession) write[properties.lastSession] = result.lastSession
     await setProperties(plugin.app, file, write)
-    return total
+    return result.minutes
+}
+
+/** The linked-time config of a note's type (null = off), recognizing its type first. */
+export async function linkedTimeConfigFor(
+    plugin: KanbanActionPlannerPlugin,
+    file: TFile
+): Promise<LinkedTimeConfig | null> {
+    const type = await recognizeNoteTypeFor(plugin.app, plugin, file)
+    return linkedTimeConfigForType(type ? findNoteType(plugin, type.id) : undefined)
+}
+
+/**
+ * The tracked time of the note at `path` (the public API): entries plus,
+ * when its type takes time from linked notes, those notes. Read-only; null
+ * when no markdown note exists at `path`.
+ */
+export async function computeTrackedTime(
+    plugin: KanbanActionPlannerPlugin,
+    path: string
+): Promise<TrackedTimeResult | null> {
+    const file = plugin.app.vault.getFileByPath(path)
+    if (!file || file.extension !== 'md') return null
+    const properties = await trackingPropertiesFor(plugin, file)
+    const config = await linkedTimeConfigFor(plugin, file)
+    const raw = getFrontmatterValue(plugin.app, file, properties.entries)
+    return computeTrackedTimeOf(plugin.app, plugin.linkedNotesIndex, file, raw, config)
 }
 
 /** Persist a subtree's tracked total to the note's total-duration property. */

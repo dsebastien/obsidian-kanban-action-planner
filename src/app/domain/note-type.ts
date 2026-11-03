@@ -1,6 +1,12 @@
 import { z } from 'zod'
 import { creationConfigSchema } from './note-creation'
 import { defaultNamingConfig, namingConfigSchema, titleDisplaySchema } from './card-title'
+import {
+    DEFAULT_LINKED_TIME_DATE_PROPERTY,
+    DEFAULT_LINKED_TIME_LINK_PROPERTY,
+    DEFAULT_LINKED_TIME_MINUTES_PROPERTY,
+    DEFAULT_LINKED_TIME_REQUIRED_TAG
+} from '../constants'
 
 /**
  * NoteType configuration model + Zod schemas.
@@ -153,6 +159,23 @@ export const estimateConfigSchema = z.object({
 export type NoteTypeEstimateConfig = z.infer<typeof estimateConfigSchema>
 
 /**
+ * Time from linked notes (per note type): notes carrying `requiredTag`
+ * (hierarchical) whose `linkProperty` links to a note of this type add their
+ * `minutesProperty` minutes on their `dateProperty` day to its tracked time
+ * (weekly budget, recompute). Every field has a stored default, so a partial
+ * block (an older version, a hand edit) still parses; a blank name falls
+ * back to the same default at resolution time. Off unless `enabled`.
+ */
+export const linkedNotesTimeConfigSchema = z.object({
+    enabled: z.boolean().default(false),
+    linkProperty: z.string().default(DEFAULT_LINKED_TIME_LINK_PROPERTY),
+    minutesProperty: z.string().default(DEFAULT_LINKED_TIME_MINUTES_PROPERTY),
+    dateProperty: z.string().default(DEFAULT_LINKED_TIME_DATE_PROPERTY),
+    requiredTag: z.string().default(DEFAULT_LINKED_TIME_REQUIRED_TAG)
+})
+export type NoteTypeLinkedNotesTimeConfig = z.infer<typeof linkedNotesTimeConfigSchema>
+
+/**
  * Per-type time-tracking property overrides (issue #172). Each name is the
  * frontmatter property the tracker reads and writes for notes of this type;
  * '' falls back to the matching global default. Plugin-owned, like the
@@ -168,7 +191,12 @@ export const timeTrackingConfigSchema = z.object({
     /** TaskNotes-shaped `{startTime, endTime, description}` entries list. */
     entriesProperty: z.string().default(''),
     /** Date of the latest entry. */
-    lastSessionProperty: z.string().default('')
+    lastSessionProperty: z.string().default(''),
+    /**
+     * Time from linked notes (session notes linking to this note); absent
+     * (older stored blocks, no backfill) = disabled.
+     */
+    linkedNotes: nullToAbsent(linkedNotesTimeConfigSchema)
 })
 export type NoteTypeTimeTrackingConfig = z.infer<typeof timeTrackingConfigSchema>
 

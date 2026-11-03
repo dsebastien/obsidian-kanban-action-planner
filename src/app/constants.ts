@@ -49,6 +49,15 @@ export const DEFAULT_TOTAL_DURATION_PROPERTY = 'total_duration'
  */
 export const DEFAULT_TIME_ENTRIES_PROPERTY = 'time_entries'
 export const DEFAULT_LAST_SESSION_PROPERTY = 'date_last_session'
+/**
+ * Time from linked notes (per note type, off by default): the defaults a
+ * session note is read with — the link property pointing at the target, its
+ * own minutes and date, and the tag it must carry (hierarchical match).
+ */
+export const DEFAULT_LINKED_TIME_LINK_PROPERTY = 'related_activities'
+export const DEFAULT_LINKED_TIME_MINUTES_PROPERTY = 'time_spent'
+export const DEFAULT_LINKED_TIME_DATE_PROPERTY = 'date'
+export const DEFAULT_LINKED_TIME_REQUIRED_TAG = 'type/session'
 /** Daily-note list property holding pomodoro records (TaskNotes' name). */
 export const DEFAULT_POMODOROS_PROPERTY = 'pomodoros'
 /** Pomodoro durations (minutes) and long-break cadence (TaskNotes' defaults). */

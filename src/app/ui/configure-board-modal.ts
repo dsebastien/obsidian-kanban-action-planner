@@ -10,10 +10,17 @@ import type {
     DoneConfig,
     LaneGrouping,
     NoteType,
+    NoteTypeLinkedNotesTimeConfig,
     PropertyOperator,
     RelationshipRole,
     RelationshipRule
 } from '../domain/note-type'
+import {
+    DEFAULT_LINKED_TIME_DATE_PROPERTY,
+    DEFAULT_LINKED_TIME_LINK_PROPERTY,
+    DEFAULT_LINKED_TIME_MINUTES_PROPERTY,
+    DEFAULT_LINKED_TIME_REQUIRED_TAG
+} from '../constants'
 import { FolderSuggest } from './folder-suggest'
 import { FileSuggest } from './file-suggest'
 import { defaultCreationConfig, emptyInheritedDefaults } from '../domain/note-creation'
@@ -922,7 +929,12 @@ export class ConfigureBoardModal extends Modal {
                 lastSessionProperty: ''
             }
             const next = { ...current, [key]: value.trim() }
-            const allBlank = Object.values(next).every((v) => v === '')
+            const allBlank =
+                next.durationProperty === '' &&
+                next.totalDurationProperty === '' &&
+                next.entriesProperty === '' &&
+                next.lastSessionProperty === '' &&
+                next.linkedNotes === undefined
             void setTimeTrackingConfig(
                 this.plugin,
                 this.noteTypeId,
@@ -937,6 +949,88 @@ export class ConfigureBoardModal extends Modal {
                     text.setPlaceholder(field.placeholder)
                         .setValue(noteType.timeTracking?.[field.key] ?? '')
                         .onChange((value) => persist(field.key, value))
+                })
+        }
+        this.renderLinkedNotesTime(noteType)
+    }
+
+    /**
+     * Time from linked notes (per type, off by default): notes carrying a tag
+     * and linking here add their own minutes on their own date to the weekly
+     * budget and to "Recompute tracked time".
+     */
+    private renderLinkedNotesTime(noteType: NoteType): void {
+        const block = noteType.timeTracking?.linkedNotes
+        new Setting(this.body).setName('Time from linked notes').setHeading()
+        this.body.createEl('p', {
+            cls: 'kap-modal-subtitle',
+            text:
+                `Notes carrying the tag below (or a nested tag) whose link property links to a ` +
+                `${noteType.name} note add their own minutes, on their own date, to its weekly ` +
+                'budget and to "Recompute tracked time".'
+        })
+        const defaults: NoteTypeLinkedNotesTimeConfig = {
+            enabled: false,
+            linkProperty: DEFAULT_LINKED_TIME_LINK_PROPERTY,
+            minutesProperty: DEFAULT_LINKED_TIME_MINUTES_PROPERTY,
+            dateProperty: DEFAULT_LINKED_TIME_DATE_PROPERTY,
+            requiredTag: DEFAULT_LINKED_TIME_REQUIRED_TAG
+        }
+        const save = (patch: Partial<NoteTypeLinkedNotesTimeConfig>, rerender: boolean): void => {
+            const current = this.noteType()?.timeTracking
+            const next = {
+                durationProperty: current?.durationProperty ?? '',
+                totalDurationProperty: current?.totalDurationProperty ?? '',
+                entriesProperty: current?.entriesProperty ?? '',
+                lastSessionProperty: current?.lastSessionProperty ?? '',
+                linkedNotes: { ...defaults, ...current?.linkedNotes, ...patch }
+            }
+            const action = setTimeTrackingConfig(this.plugin, this.noteTypeId, next)
+            void (rerender ? this.mutate(() => action) : action.then(() => this.onChange()))
+        }
+        new Setting(this.body)
+            .setName('Count time from linked notes')
+            .setDesc('Off by default.')
+            .addToggle((toggle) =>
+                toggle
+                    .setValue(block?.enabled ?? false)
+                    .onChange((on) => save({ enabled: on }, true))
+            )
+        if (!block?.enabled) return
+        const fields: ReadonlyArray<{
+            key: 'linkProperty' | 'minutesProperty' | 'dateProperty' | 'requiredTag'
+            name: string
+            desc: string
+        }> = [
+            {
+                key: 'linkProperty',
+                name: 'Link property',
+                desc: `Property on the linked note holding links to the ${noteType.name} note (a list or one link).`
+            },
+            {
+                key: 'minutesProperty',
+                name: 'Minutes property',
+                desc: 'Minutes the linked note adds (counted when above 0).'
+            },
+            {
+                key: 'dateProperty',
+                name: 'Date property',
+                desc: 'Day of the linked note (YYYY-MM-DD; first 10 characters). Without it, the minutes count only in all-time totals.'
+            },
+            {
+                key: 'requiredTag',
+                name: 'Required tag',
+                desc: 'Only notes with this tag or a nested one count (# optional).'
+            }
+        ]
+        for (const field of fields) {
+            new Setting(this.body)
+                .setName(field.name)
+                .setDesc(`${field.desc} Empty = "${defaults[field.key]}".`)
+                .addText((text) => {
+                    text.setPlaceholder(defaults[field.key])
+                        .setValue(block[field.key])
+                        .onChange((value) => save({ [field.key]: value.trim() }, false))
                 })
         }
     }

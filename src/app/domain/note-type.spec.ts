@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test'
-import { archiveConfigSchema, noteTypeSchema } from './note-type'
+import { archiveConfigSchema, noteTypeSchema, timeTrackingConfigSchema } from './note-type'
 import { createDefaultNoteType } from '../services/note-type.service'
 
 describe('archiveConfigSchema (Starter Kit mirror fields)', () => {
@@ -92,5 +92,51 @@ describe('noteTypeSchema (null-tolerant optional blocks)', () => {
         expect(parsed.done).toBeUndefined()
         expect(parsed.creation).toBeUndefined()
         expect(noteTypeSchema.parse(base)).toEqual(base)
+    })
+})
+
+describe('timeTrackingConfigSchema (time from linked notes)', () => {
+    it('a block stored before linked notes existed parses without one (off)', () => {
+        const parsed = timeTrackingConfigSchema.parse({
+            durationProperty: 'time_spent',
+            totalDurationProperty: '',
+            entriesProperty: '',
+            lastSessionProperty: ''
+        })
+        expect(parsed.linkedNotes).toBeUndefined()
+        expect(timeTrackingConfigSchema.parse({ linkedNotes: null }).linkedNotes).toBeUndefined()
+    })
+
+    it('a partial linkedNotes block gets the stored defaults', () => {
+        expect(
+            timeTrackingConfigSchema.parse({ linkedNotes: { enabled: true } }).linkedNotes
+        ).toEqual({
+            enabled: true,
+            linkProperty: 'related_activities',
+            minutesProperty: 'time_spent',
+            dateProperty: 'date',
+            requiredTag: 'type/session'
+        })
+    })
+
+    it('round-trips inside a note type', () => {
+        const noteType = {
+            ...createDefaultNoteType('activity', 'Activity', 'local'),
+            timeTracking: {
+                durationProperty: '',
+                totalDurationProperty: '',
+                entriesProperty: '',
+                lastSessionProperty: '',
+                linkedNotes: {
+                    enabled: true,
+                    linkProperty: 'activities',
+                    minutesProperty: 'minutes',
+                    dateProperty: 'day',
+                    requiredTag: '#log/session'
+                }
+            }
+        }
+        const reparsed = noteTypeSchema.parse(JSON.parse(JSON.stringify(noteType)))
+        expect(reparsed.timeTracking).toEqual(noteType.timeTracking)
     })
 })

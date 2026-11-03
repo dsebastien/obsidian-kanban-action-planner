@@ -29,6 +29,7 @@ import {
     startTimeSession,
     stopPomodoro,
     stopTimeSession,
+    computeTrackedTime,
     tickPomodoro,
     tickSessionGuard,
     togglePomodoroPause,
@@ -47,6 +48,22 @@ import { onStarterKitNoteTypesChanged } from './services/starter-kit.service'
 import { produce } from 'immer'
 import { OrderNormalizerQueue } from './services/order-normalizer.service'
 import type { PendingWrite } from './domain/pending-write'
+import { LinkedNotesIndex } from './services/linked-time.service'
+import type { TrackedTimeResult } from './domain/linked-time'
+
+/**
+ * The plugin's public API for vault scripts:
+ * `app.plugins.plugins['kanban-action-planner'].api`.
+ */
+export interface KanbanActionPlannerApi {
+    /**
+     * The tracked time of the note at `path`: its entries plus, when its note
+     * type takes time from linked notes, those notes (the exact values
+     * "Recompute tracked time" stores). Read-only. Null when no markdown note
+     * exists at `path`.
+     */
+    computeTrackedTime(path: string): Promise<TrackedTimeResult | null>
+}
 
 export class KanbanActionPlannerPlugin extends Plugin {
     /**
@@ -72,6 +89,19 @@ export class KanbanActionPlannerPlugin extends Plugin {
 
     /** The one background queue repairing manual order for every open view. */
     readonly orderNormalizer = new OrderNormalizerQueue()
+
+    /** Public API for vault scripts (see {@link KanbanActionPlannerApi}). */
+    readonly api: KanbanActionPlannerApi = {
+        computeTrackedTime: (path) => computeTrackedTime(this, path)
+    }
+
+    private linkedIndex: LinkedNotesIndex | null = null
+
+    /** Reverse index of the notes giving their time to a note (built lazily). */
+    get linkedNotesIndex(): LinkedNotesIndex {
+        this.linkedIndex ??= new LinkedNotesIndex(this.app)
+        return this.linkedIndex
+    }
 
     /** Status-bar item showing the running session / pomodoro (issue #172). */
     private statusBarEl: HTMLElement | null = null
@@ -124,6 +154,8 @@ export class KanbanActionPlannerPlugin extends Plugin {
         // Add a settings screen for the plugin
         this.addSettingTab(new KanbanActionPlannerSettingTab(this.app, this))
 
+        this.registerLinkedNotesEvents()
+
         // Tracker clock (issue #172): the status-bar readout and the pomodoro
         // completion check, once a second. Elapsed time always derives from
         // the persisted epoch start, so a missed tick loses nothing.
@@ -142,6 +174,41 @@ export class KanbanActionPlannerPlugin extends Plugin {
         this.addRibbonIcon(POMODORO_VIEW_ICON, 'Open pomodoro timer', () => {
             void openPomodoroTimer(this, false)
         })
+    }
+
+    /**
+     * Keep the linked-notes index current (only once built) and tell every
+     * open board which target notes it touched, so their budget rings
+     * re-render when a linked note changes.
+     */
+    private registerLinkedNotesEvents(): void {
+        const notify = (targets: ReadonlySet<string> | 'all'): void => {
+            if (targets !== 'all' && targets.size === 0) return
+            for (const view of this.openKanbanViews) view.onLinkedNotesChanged(targets)
+        }
+        this.registerEvent(
+            this.app.metadataCache.on('changed', (file) => {
+                if (this.linkedIndex?.isBuilt) notify(this.linkedIndex.update(file, 'all'))
+            })
+        )
+        // A link can start (or stop) resolving without its note changing.
+        this.registerEvent(
+            this.app.metadataCache.on('resolve', (file) => {
+                if (this.linkedIndex?.isBuilt) notify(this.linkedIndex.update(file, 'membership'))
+            })
+        )
+        this.registerEvent(
+            this.app.metadataCache.on('deleted', (file) => {
+                if (this.linkedIndex?.isBuilt) notify(this.linkedIndex.remove(file.path))
+            })
+        )
+        this.registerEvent(
+            this.app.vault.on('rename', () => {
+                if (!this.linkedIndex?.isBuilt) return
+                this.linkedIndex.invalidate()
+                notify('all')
+            })
+        )
     }
 
     /** The status-bar readout + pomodoro completion tick. */

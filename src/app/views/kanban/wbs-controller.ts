@@ -132,6 +132,8 @@ export interface WbsHost {
     lifecycleDatesFor(card: KanbanCard): LifecycleDates
     saveTotalTracked(card: KanbanCard, minutes: number): Promise<void>
     recomputeTracked(card: KanbanCard): Promise<number | null>
+    /** Whether notes give their time to the card (its type takes time from linked notes). */
+    hasLinkedNotes(card: KanbanCard): boolean
     scheduledProperty(): string
     /** Resolved due-date property (the rows' due chip reads and writes it). */
     deadlineProperty(): string
@@ -1172,11 +1174,12 @@ export class WbsController {
             )
         }
         // Ledger repair (issue #172): the spent cache and last-session date
-        // recomputed from the entries list (edited by hand or by TaskNotes).
-        if (this.hasTimeEntries(card)) {
+        // recomputed from the entries list (edited by hand or by TaskNotes)
+        // plus, when the type takes them, the linked notes.
+        if (this.hasTimeEntries(card) || this.host.hasLinkedNotes(card)) {
             menu.addItem((item) =>
                 item
-                    .setTitle('Recompute tracked time from entries')
+                    .setTitle('Recompute tracked time')
                     .setIcon('refresh-cw')
                     .setSection('kap-wbs')
                     .onClick(() => void this.host.recomputeTracked(card))
@@ -1196,15 +1199,20 @@ export class WbsController {
 
     /**
      * The tracking property names in play across the rendered cards, as one
-     * signature token (a per-type override change must re-render).
+     * signature token (a per-type override change must re-render), plus each
+     * card's budget ring: time from linked notes changes a ring without
+     * touching the card's own frontmatter.
      */
     private trackingSignature(cards: readonly KanbanCard[]): string {
         const names = new Set<string>()
+        const rings: string[] = []
         for (const card of cards) {
             const p = this.host.trackingPropertiesFor(card)
             names.add(`${p.duration}|${p.entries}`)
+            const ring = card.display.budget
+            if (ring) rings.push(`${card.key}|${ring.label}|${ring.tone}|${String(ring.ratio)}`)
         }
-        return [...names].sort().join(',')
+        return `${[...names].sort().join(',')}#${rings.sort().join(',')}`
     }
 
     /**

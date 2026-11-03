@@ -341,6 +341,8 @@ import { log } from '../../../utils/log'
 import { weekPropertiesForType } from '../../services/week-properties.service'
 import { produce } from 'immer'
 import { weekBudgetOf } from '../../services/week-budget.service'
+import { linkedNotesOf, linkedTimeConfigForType } from '../../services/linked-time.service'
+import type { LinkedNoteTime, LinkedTimeConfig } from '../../domain/linked-time'
 import type { WeekBudget } from '../../services/week-budget.service'
 import { alarmNoticeDue, formatBudgetMinutes, isoWeekKey } from '../../domain/budget'
 import { parseDay } from '../../domain/lifecycle'
@@ -510,6 +512,8 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
     private calendarDnd: CalendarDnd | null = null
     private weekDnd: WeekDnd | null = null
     private readonly debouncedRebuild: Debouncer<[], void>
+    /** Budget rings re-read after a linked note changed (batched edits refresh once). */
+    private readonly debouncedBudgetRefresh: Debouncer<[], void>
     private readonly debouncedFilter: Debouncer<[], void>
 
     private statusProperty: string | null = null
@@ -783,6 +787,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             void this.resolveAndRebuild()
         }, 250)
         this.debouncedResize = debounce(() => this.onResize(), 120)
+        this.debouncedBudgetRefresh = debounce(() => this.refreshCardDisplay(), 300, true)
         this.debouncedFilter = debounce(() => this.commitFilter(), 150)
     }
 
@@ -1072,6 +1077,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             saveTotalTracked: (card, minutes) =>
                 saveTotalTrackedTime(this.plugin, card.file, minutes),
             recomputeTracked: (card) => recomputeTrackedTime(this.plugin, card.file),
+            hasLinkedNotes: (card) => this.linkedNotesFor(card).length > 0,
             scheduledProperty: () => this.scheduledDateProperty,
             deadlineProperty: () => this.dueDateProperty,
             dueSoonDays: () => this.plugin.settings.dueSoonThresholdDays,
@@ -1233,6 +1239,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
 
     override onunload(): void {
         this.alive = false
+        this.debouncedBudgetRefresh.cancel()
         if (this.pendingCreationTimer !== null) window.clearTimeout(this.pendingCreationTimer)
         this.lazyImages.dispose()
         if (this.boardEl) releaseVirtualColumns(this.boardEl)
@@ -2699,10 +2706,40 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
                 app: this.app,
                 weekPropertiesFor: (c) => this.weekPropertiesFor(c),
                 trackingPropertiesFor: (c) => this.trackingPropertiesFor(c),
-                cardForKey: (key) => this.allCardByKey(key)
+                cardForKey: (key) => this.allCardByKey(key),
+                linkedNotesFor: (c) => this.linkedNotesFor(c)
             },
             card
         )
+    }
+
+    /** The card's type's linked-time config (null = off). */
+    private linkedTimeConfigFor(card: KanbanCard): LinkedTimeConfig | null {
+        const typeId = this.noteTypeByPath.get(card.key)?.id
+        return linkedTimeConfigForType(typeId ? findNoteType(this.plugin, typeId) : undefined)
+    }
+
+    /** The notes giving their time to the card; empty when its type does not take any. */
+    private linkedNotesFor(card: KanbanCard): LinkedNoteTime[] {
+        const config = this.linkedTimeConfigFor(card)
+        return config
+            ? linkedNotesOf(this.app, this.plugin.linkedNotesIndex, card.file, config)
+            : []
+    }
+
+    /**
+     * A linked note changed (plugin-wide index): re-read the budget rings when
+     * it gives (or gave) its time to a card of this board whose type takes
+     * linked time. `all` = the index was reset (a rename).
+     */
+    onLinkedNotesChanged(targets: ReadonlySet<string> | 'all'): void {
+        if (!this.boardEl) return
+        const hit = this.allCards.some(
+            (card) =>
+                (targets === 'all' || targets.has(card.key)) &&
+                this.linkedTimeConfigFor(card) !== null
+        )
+        if (hit) this.debouncedBudgetRefresh()
     }
 
     /**

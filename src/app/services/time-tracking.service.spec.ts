@@ -2,7 +2,10 @@ import { describe, expect, test } from 'bun:test'
 import { TFile } from 'obsidian'
 import { KanbanActionPlannerPlugin } from '../plugin'
 import { createDefaultSettings } from '../types/plugin-settings.intf'
+import { createDefaultNoteType } from './note-type.service'
+import { fakeVault } from './linked-time.fixture'
 import {
+    computeTrackedTime,
     elapsedSessionMinutes,
     stopTimeSession,
     formatTrackedMinutes,
@@ -179,5 +182,133 @@ describe('recomputeTrackedTime drops empty items (issue #218)', () => {
         const { fm, plugin, file } = setup({ time_entries: entries })
         await recomputeTrackedTime(plugin, file)
         expect(fm['time_entries']).toBe(entries)
+    })
+})
+
+/**
+ * A plugin double over a fake vault with one `activity` type (recognized by
+ * folder) whose time-tracking block takes time from linked notes when `on`.
+ */
+function linkedSetup(on: boolean, notes: Record<string, Record<string, unknown>>) {
+    const v = fakeVault(notes)
+    const app = {
+        ...v.app,
+        plugins: { plugins: {} },
+        fileManager: {
+            processFrontMatter: (f: TFile, fn: (fm: Record<string, unknown>) => void) => {
+                fn(v.frontmatter.get(f.path) ?? {})
+                return Promise.resolve()
+            }
+        }
+    }
+    const activity = {
+        ...createDefaultNoteType('activity', 'Activity', 'local'),
+        typeRecognition: {
+            mappings: [{ type: 'folder' as const, value: 'Activities', enabled: true }]
+        },
+        timeTracking: {
+            durationProperty: '',
+            totalDurationProperty: '',
+            entriesProperty: '',
+            lastSessionProperty: '',
+            linkedNotes: {
+                enabled: on,
+                linkProperty: 'related_activities',
+                minutesProperty: 'time_spent',
+                dateProperty: 'date',
+                requiredTag: 'type/session'
+            }
+        }
+    }
+    const plugin = Object.assign(
+        Object.create(KanbanActionPlannerPlugin.prototype) as KanbanActionPlannerPlugin,
+        {
+            app,
+            settings: {
+                ...createDefaultSettings(),
+                noteTypes: [activity],
+                defaultDurationProperty: 'time_spent',
+                defaultTotalDurationProperty: 'total_time_spent',
+                defaultTimeEntriesProperty: 'time_entries',
+                defaultLastSessionProperty: 'date_last_session'
+            },
+            saveSettings: (): Promise<void> => Promise.resolve()
+        }
+    )
+    return { v, plugin }
+}
+
+describe('recomputeTrackedTime with time from linked notes', () => {
+    const RUN = 'Activities/Run (Activity).md'
+    const notes = (): Record<string, Record<string, unknown>> => ({
+        [RUN]: {
+            time_spent: 999,
+            date_last_session: '2020-01-01',
+            time_entries: [
+                old30,
+                {
+                    startTime: '2026-10-02T07:00:00',
+                    endTime: '2026-10-02T08:00:00',
+                    description: '[[2026-10-02 Run]]'
+                }
+            ]
+        },
+        'Sessions/2026-10-02 Run.md': {
+            tags: ['type/session/sport/running'],
+            related_activities: ['[[Run (Activity)]]'],
+            date: '2026-10-02',
+            time_spent: 50
+        },
+        'Sessions/2026-10-20 Games.md': {
+            tags: 'type/session',
+            related_activities: '[[Run (Activity)|Run]]',
+            date: '2026-10-20T20:00:00',
+            time_spent: ''
+        }
+    })
+
+    test('stores entries + linked minutes and the later last-session date', async () => {
+        const { v, plugin } = linkedSetup(true, notes())
+        expect(await recomputeTrackedTime(plugin, v.file(RUN))).toBe(80)
+        const fm = v.frontmatter.get(RUN) ?? {}
+        expect(fm['time_spent']).toBe(80)
+        expect(fm['date_last_session']).toBe('2026-10-20')
+    })
+
+    test('off for the type: entries only, as before', async () => {
+        const { v, plugin } = linkedSetup(false, notes())
+        expect(await recomputeTrackedTime(plugin, v.file(RUN))).toBe(90)
+        expect(v.frontmatter.get(RUN)?.['date_last_session']).toBe('2026-10-02')
+    })
+
+    test('linked notes alone are enough to recompute', async () => {
+        const { v, plugin } = linkedSetup(true, {
+            [RUN]: { time_spent: 5 },
+            's.md': {
+                tags: ['type/session'],
+                related_activities: ['[[Run (Activity)]]'],
+                date: '2026-11-03',
+                time_spent: 25
+            }
+        })
+        expect(await recomputeTrackedTime(plugin, v.file(RUN))).toBe(25)
+        expect(v.frontmatter.get(RUN)?.['date_last_session']).toBe('2026-11-03')
+    })
+
+    test('the public API returns the same numbers without writing', async () => {
+        const { v, plugin } = linkedSetup(true, notes())
+        const result = await computeTrackedTime(plugin, RUN)
+        expect(result).toMatchObject({
+            minutes: 80,
+            entryMinutes: 30,
+            linkedMinutes: 50,
+            lastSession: '2026-10-20'
+        })
+        expect(result?.linkedNotes.map((n) => n.path)).toEqual([
+            'Sessions/2026-10-02 Run.md',
+            'Sessions/2026-10-20 Games.md'
+        ])
+        expect(v.frontmatter.get(RUN)?.['time_spent']).toBe(999)
+        expect(await computeTrackedTime(plugin, 'missing.md')).toBeNull()
     })
 })
