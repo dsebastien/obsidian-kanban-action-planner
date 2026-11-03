@@ -1480,6 +1480,27 @@ records), straight from the cards, on **any note type**:
   back to the global settings. Notes that only carry a legacy `duration` number from an older
   version keep reading correctly (it is used when both the entries list and the duration
   property are absent). Nothing migrates data.
+- **Time from linked notes.** A note can also get its time from the notes that link to it,
+  instead of one time entry per session: a run, a practice, a board game play kept as its own
+  note with its own minutes and date. Turn it on per note type in **Configure → Time tracking →
+  Time from linked notes** (off by default) and set four fields:
+    - **Link property** (`related_activities`): the property on the session note that links to
+      this note, a list of links or a single one (`[[Run (Activity)]]`, aliases allowed).
+    - **Minutes property** (`time_spent`): the session's minutes; only a number above 0 counts
+      (`"45"` counts, empty or `0` adds nothing).
+    - **Date property** (`date`): the session's day, `YYYY-MM-DD` or a datetime (the first 10
+      characters are read).
+    - **Required tag** (`type/session`): only notes carrying this tag or a nested one
+      (`type/session/sport/running`) count; `#` and case don't matter.
+
+    A session note counts once per note it links to, even when it links twice. Its minutes go to
+    the weekly budget ring of the week its date falls in, and to **Recompute tracked time**. A
+    session without a valid date still counts in the all-time total, never in a week. A session
+    with a date but no minutes (a play without a duration) still counts as a session for the
+    last-session date. A time entry whose description is a link to one of these session notes
+    (`[[2026-11-03 Run]]` or `[[2026-11-03 Run|Morning run]]`) is skipped, so a session logged
+    both ways counts once, with the session note's minutes.
+
 - **Pomodoro mode.** **Start pomodoro** in the card menu runs a timed work pomodoro on the
   card (25 minutes by default) and opens its time session at the same time, so the entry
   ledger stays complete. The status bar counts down (`🍅 24:31 work pomodoro · Note`); when
@@ -1540,7 +1561,8 @@ records), straight from the cards, on **any note type**:
 
 - Activities and projects carry a **weekly budget ring** on their cards and WBS rows: the arc is
   the time tracked this ISO week (the note's own entries plus its linked tasks', clipped to the
-  week) against the weekly target, the label reads `1h 30m / 4h`, and the tooltip adds the planned
+  week, plus the minutes of its [session notes](#time-tracking) dated this week when its type
+  takes time from linked notes) against the weekly target, the label reads `1h 30m / 4h`, and the tooltip adds the planned
   minutes and the alarm. Blue is under the target, green at 90% or more, orange over it, and
   **red above the alarm** (`minutes_alarm_per_week`), with one notice per note per week. In the
   WBS, goals and plans without a budget of their own show one rolled up from their subtree
@@ -1560,10 +1582,12 @@ records), straight from the cards, on **any note type**:
   minutes plus every distinct descendant's (actuals **add**; unlike estimates, an own value
   never replaces the children's contribution). A total the children contributed to is shown in
   the derived style, and the row menu offers **Save total tracked time** to persist it (in minutes) to
-  the **total duration** property (`total_duration` by default). **Recompute tracked time from
-  entries** resets a note's duration and last-session date to the list (after it was edited by
+  the **total duration** property (`total_duration` by default). **Recompute tracked time**
+  resets a note's duration and last-session date to the list (after it was edited by
   hand or by TaskNotes); it drops minutes added outside the tracker, so use it only when the
-  list is the whole story. It also removes empty items from the list, like the `- ` placeholder
+  list is the whole story. When the note's type takes time from linked notes, it stores the
+  entries plus the session notes' minutes, and the later of the latest entry day and the latest
+  session date; the item then shows when the note has entries or session notes. It also removes empty items from the list, like the `- ` placeholder
   older Starter Kit templates left under `time_entries`, which hides the note from TaskNotes.
 - Tracked time renders with the same `d / h / m` grammar as estimates, sized by **Minutes
   per day**, so tracked and estimated time read side by side.

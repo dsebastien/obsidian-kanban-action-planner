@@ -143,7 +143,7 @@ Then add a **Kanban Action Planner** view to any [Base](https://help.obsidian.md
   ![Agenda mode](docs/images/agenda.png)
 
 Start/stop a session from any card's menu (one active session; starting elsewhere stops the previous one), or from anywhere: the active note, a **switch picker** with your recently tracked notes first, or a **per-note shortcut** you bind a hotkey to, which follows the note when it is renamed or archived. Each session lands as a `{startTime, endTime, description}` entry in a `time_entries` list, its minutes are added to the `duration` property (minutes you add by hand or with other tools are kept), and a last-session date is stamped; property names map per note type. **Pomodoro mode** runs timed work/break periods on a card, records them in the daily note's `pomodoros` list, and shows a status-bar countdown; phases **chain by themselves** (work → break → work, skippable, pausable), and a session left running gets **idle detection** and a **cap** — end it where the activity stopped, keep it, or discard it — plus an optional **description prompt** on stop, so one forgotten night never poisons the roll-ups. A **visual timer** — a draining ring with the phase, the note, the remaining time and the cycle count, controls in place — lives in the sidebar, with a **full-screen variant** for focus stretches and shared screens.
-![The pomodoro timer widget and its full-screen variant](docs/images/pomodoro-timer.png) The WBS rolls tracked time up the tree (own + descendants, actuals add) with a one-click **Save total tracked time**.
+![The pomodoro timer widget and its full-screen variant](docs/images/pomodoro-timer.png) The WBS rolls tracked time up the tree (own + descendants, actuals add) with a one-click **Save total tracked time**. A note type can also take **time from linked notes**: session notes (a run, a practice, a board game play) that link to an activity add their own minutes, on their own date, to its weekly budget ring and to **Recompute tracked time**, so a session no longer needs a time entry on the activity.
 
 - **Quick capture.** Every column has a **+** in its header and an **Add card** button under its cards: type a name and the note is created in the right folder, with the right template, and lands in that exact column. It reuses what you already configured (an Obsidian Starter Kit note type's folder, template, and name prefix/suffix are picked up automatically — except an affix the Starter Kit marks optional, which is never added unless you ask for it on the board) and applies the template with **Templater** when you have it, before writing the card's properties, so a template that prompts for a status can never override the column you clicked. Whatever the Base filters on (folder, tag, property) is written onto the note too, so the new card really does show up.
 - **Archiving.** Move finished cards into a placeholder-driven folder (`Archive/{{year}}` and more), manually (per card, per selection, or a whole done column from its header) or automatically when a card reaches a given status: at once, or after a **grace period** counted from the note's done date (a board-load sweep archives aged notes, and stamps a done date on notes that lack one). Folder notes (`Foo/Foo.md`) take their whole folder along. Links are preserved.
@@ -153,6 +153,18 @@ Start/stop a session from any card's menu (one active session; starting elsewher
 - **Productivity touches.** Soft per-column WIP limits, per-column aggregates rolling any numeric property up next to the card count (`Σ 13`, or an average / min / max; estimates roll up as `1d 2h`, unit-converted per note type), multi-select with bulk set-status / archive / open, a compact mode showing titles only, overdue and due-today emphasis, an optional due countdown badge (`In 3d`, `2d overdue`, `Today`, color-coded by urgency and positionable on the title, a chip, the corner, or a footer), native hover preview, and per-view state remembered across reloads.
 - **What's new after updates.** After a plugin update, a one-time **tab** opens with the release notes you just received (including any versions you skipped) and ways to support development. It never appears on fresh installs or regular restarts.
 - **Your notes stay the source of truth.** Status, order, dates, relationships, and grouping ALL land in your frontmatter. Works on desktop and mobile, and respects reduced-motion settings.
+
+## Public API
+
+Vault scripts (Templater, QuickAdd, the developer console) can read a note's tracked time with the same rule the plugin uses:
+
+```js
+const kap = app.plugins.plugins['kanban-action-planner']
+const result = await kap.api.computeTrackedTime('Activities/Run (Activity).md')
+// { minutes, entryMinutes, linkedMinutes, lastSession, linkedNotes: [{ path, minutes, date }] }
+```
+
+`computeTrackedTime(path: string): Promise<TrackedTimeResult | null>` reads, never writes. `minutes` is what **Recompute tracked time** stores in the duration property and `lastSession` what it stores as the last-session date (null when there is neither an entry nor a dated linked note). Linked notes count only when the note's type has **Time from linked notes** on. It returns `null` when no Markdown note exists at `path`. The rule is in the [usage guide](./docs/usage.md#time-tracking).
 
 ## Development
 

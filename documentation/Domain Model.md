@@ -166,6 +166,17 @@ activePeriods}`) live in the daily note's `pomodoros` list. Domain: `time-entrie
   what the timer view (`ui/pomodoro-view.ts`, sidebar widget + full-screen leaf) shows. The
   session guard (`session-guard.ts`, issue #197) decides when a running session is idle or over
   its cap and what to offer (keep / trim / discard).
+- **Time from linked notes** (per note type, opt-in): `timeTracking.linkedNotes`
+  `{enabled, linkProperty, minutesProperty, dateProperty, requiredTag}` (defaults off,
+  `related_activities`, `time_spent`, `date`, `type/session`). Session notes tagged
+  `requiredTag` (or nested) that link to a note give it their minutes on their date: weekly
+  ring and **Recompute tracked time** (Business rule 78). Domain: `linked-time.ts` (tag match,
+  minutes, date, entry-link skip, combine, week range; pure); service: `linked-time.service.ts`
+  (`LinkedNotesIndex` reverse index target → sources, lazy per (link property, tag), kept
+  current by the plugin from `changed` / `resolve` / `deleted`, reset on rename; open views get
+  `onLinkedNotesChanged(targets)` and refresh their rings, debounced). Public API:
+  `plugin.api.computeTrackedTime(path)` → `TrackedTimeResult`
+  `{minutes, entryMinutes, linkedMinutes, lastSession, linkedNotes: [{path, minutes, date}]}`.
 - **Ideal week** (issue #172): `time_blocks` (list of `<days> HH:MM-HH:MM` strings, Monday-first
   day indexes 0..6, 15-minute grid, midnight crossing), `minutes_planned_per_week` (plugin
   cache, sum of the blocks), `minutes_per_week` (user target; the Needs planning rail). A

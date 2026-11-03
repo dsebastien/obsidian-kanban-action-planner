@@ -58,7 +58,7 @@ properties in **Configure view → Columns** (**Column property**, **Manual orde
 | Time blocks     | `time_blocks`              | The ideal week: a list of `<days> HH:MM-HH:MM` entries on a 15-minute grid (`mon-fri 09:00-12:00`; a day list or range repeats, an end before the start crosses midnight). Read and written by **Ideal week** mode. Set globally with **Time blocks property**.                                                                                                                                                                                                                  |
 | Planned minutes | `minutes_planned_per_week` | Minutes per week reserved by the note's time blocks. The plugin recomputes it on every block edit, so don't edit it by hand. Set globally with **Planned minutes property**.                                                                                                                                                                                                                                                                                                     |
 | Target minutes  | `minutes_per_week`         | The weekly time budget you intend to give a note, in minutes. The ideal week's rail shows it against the planned minutes. For a note without one, you're asked for it the first time a block is planned for that note. Set globally with **Target minutes property**.                                                                                                                                                                                                            |
-| Alarm minutes   | `minutes_alarm_per_week`   | Optional weekly alarm, in minutes. When the minutes tracked this ISO week (the note's own entries plus its linked tasks') go over it, the budget ring turns red and one notice fires per note per week. Set globally with **Alarm minutes property**. The four ideal-week properties can be mapped per note type in **Configure → Ideal week**.                                                                                                                                  |
+| Alarm minutes   | `minutes_alarm_per_week`   | Optional weekly alarm, in minutes. When the minutes tracked this ISO week (the note's own entries plus its linked tasks', plus its session notes when its type takes time from linked notes) go over it, the budget ring turns red and one notice fires per note per week. Set globally with **Alarm minutes property**. The four ideal-week properties can be mapped per note type in **Configure → Ideal week**.                                                               |
 | Committed date  | `date_committed`           | When you committed to the note. The WBS lifecycle chip shows the **lead** (started − committed) next to the **cycle** (done − started) and the **lateness** (done − due) of done items, or the days **active** for open ones; a missing date leaves its slot blank. Set globally with **Committed date property**.                                                                                                                                                               |
 | Areas           | `areas`                    | List of the areas (life domains) a note belongs to: Health, Exercise, Work… Read only: the ideal week's rail and targets table can **group by area** (a note files under its first value). Set globally with **Areas property**, per type in **Configure → Ideal week**.                                                                                                                                                                                                         |
 
@@ -82,6 +82,27 @@ displayed duration (`1d 2h`).
 | **System notification at phase boundaries**                                        | Off     | A desktop notification when a phase completes (permission is requested once).                                                                                                       |
 | **Work pomodoro (minutes)** / **Short break (minutes)** / **Long break (minutes)** | 25/5/15 | Phase lengths.                                                                                                                                                                      |
 | **Long break interval**                                                            | 4       | Every Nth completed work pomodoro is followed by a long break.                                                                                                                      |
+
+### Time from linked notes (per note type)
+
+In **Configure → Time tracking → Time from linked notes**, a note type can take time from the
+notes that link to its notes (session notes: a run, a practice, a play). Off by default. When
+on, a session note's minutes count in the weekly budget ring (for the week its date falls in)
+and in **Recompute tracked time**. A blank field uses its default.
+
+| Setting                          | Default              | What it does                                                                                                                      |
+| -------------------------------- | -------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| **Count time from linked notes** | Off                  | Turns the feature on for this note type.                                                                                          |
+| **Link property**                | `related_activities` | Property on the session note holding the link(s) to this note: a list or a single link. Aliases (`[[Run (Activity)\|Run]]`) work. |
+| **Minutes property**             | `time_spent`         | The session's minutes. Counted only when it is a number above 0 (`"45"` counts).                                                  |
+| **Date property**                | `date`               | The session's day: the first 10 characters, `YYYY-MM-DD`. Without a valid date, the minutes count only in the all-time total.     |
+| **Required tag**                 | `type/session`       | Only notes with this tag or a nested one (`type/session/sport/running`) count. `#` and case are ignored.                          |
+
+The exact rule, for scripts that recompute the same values, is in the
+[time tracking section of the usage guide]({{ '/usage.html#time-tracking' | relative_url }}).
+Scripts can also call the plugin's public API:
+`app.plugins.plugins['kanban-action-planner'].api.computeTrackedTime(path)` returns
+`{ minutes, entryMinutes, linkedMinutes, lastSession, linkedNotes }` for a note, read-only.
 
 ### Filter and review settings
 

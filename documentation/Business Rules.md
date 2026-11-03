@@ -1007,10 +1007,11 @@ When a new business rule is mentioned:
     whole list is written instead) and the last-session date as the day of the latest entry —
     one `setProperties` transaction. Any future write that edits or deletes an entry applies the
     **delta** (`minutes(after) − minutes(before)`, clamped at 0) through the same function, never
-    a recompute. The only full recompute is the explicit WBS row action **Recompute tracked time
-    from entries** (a user-chosen reset that drops minutes added outside the tracker). Existing list items
+    a recompute. The only full recompute is the explicit WBS row action **Recompute tracked
+    time** (a user-chosen reset that drops minutes added outside the tracker; with time from
+    linked notes on, rule 78 decides what it stores). Existing list items
     are kept verbatim (an unknown shape is not the plugin's to drop; only a template's `null`
-    placeholder goes, on stop and on **Recompute tracked time from entries**, which removes it
+    placeholder goes, on stop and on **Recompute tracked time**, which removes it
     even when no well-formed entry is left: `[null]` → `[]`, `withoutEmptyEntries`, issue #218); the
     list is never compacted otherwise. Reads (`readTrackedMinutes`) prefer the
     duration property when it holds a positive number, else the entries list's sum (a note
@@ -1076,7 +1077,8 @@ When a new business rule is mentioned:
     (`minutes_planned_per_week`), alarm (`minutes_alarm_per_week`) and tracked-this-week are
     the four numbers; the week is the ISO week (Monday 00:00 local, exclusive end), and tracked
     = the note's own entries plus the entries of its linked children on the board, each note
-    once, clipped to the week (`clipEntryMinutes`). A note shows a ring only when it carries a
+    once, clipped to the week (`clipEntryMinutes`), plus the minutes of its linked notes dated
+    this week when its type takes time from linked notes (rule 78). A note shows a ring only when it carries a
     target or planned minutes; in the WBS a node without one derives target and planned
     own-wins-else-children (`childrenEstimate` over the readers) and tracked by adding the
     contributing notes' weeks. Tones: alarm (tracked > alarm) beats over (> target) beats on
@@ -1500,3 +1502,28 @@ Markdown)`, `Export ideal week (JSON)`, `Export ideal week (Markdown)`); the for
     with the typed query and persist with `filterQuery`; the picker replaces whatever term the
     user typed for that property. A `:=` term on a plain property also matches the value
     without its sort prefix (`splitStatusValue`), like `status:` matches the column label.
+
+78. **Time from linked notes (per note type, opt-in).** `timeTracking.linkedNotes`
+    (`enabled` false by default; `linkProperty` `related_activities`, `minutesProperty`
+    `time_spent`, `dateProperty` `date`, `requiredTag` `type/session`; blank = that default).
+    A note N counts for a target T when: N is a Markdown note other than T; N's frontmatter
+    `tags` (a list, or one string) holds `requiredTag` or a nested tag (`type/session/…`),
+    case-insensitive, leading `#` ignored; and N's link property (a list or one value; property
+    names case-insensitive) holds a wikilink that `getFirstLinkpathDest(link, N.path)` resolves
+    to T (aliases and `#subpath` ignored). N counts at most once per T. It contributes
+    `Number(minutes)` when finite and > 0 (else 0) on its date (first 10 chars of a string,
+    must read `YYYY-MM-DD`). No valid date: its minutes count in all-time totals, never in a
+    week, and it never moves the last session. A valid date moves the last session even with 0
+    minutes. An entry of T whose `description` (trimmed) is exactly one wikilink
+    (`[[name]]`, `[[name|alias]]`) resolving from T's path to a counted N is skipped (minutes
+    and last-session date): the session counts once, with N's minutes. **Recompute tracked
+    time** then stores duration = `round(sum of the remaining entries' minutes)` + sum of N
+    minutes, and last session = the later of the latest remaining entry day and the latest N
+    date (unchanged when neither exists; no write at all when T has neither entries nor linked
+    notes). **Weekly ring:** tracked += minutes of the N dated inside the ISO week; a linked
+    note that is also a counted child counts once, as a linked note (its entries are not
+    added). `readTrackedMinutes`, the WBS total roll-up, the timer and the calendar / timeline
+    views ignore linked notes. The membership index (`LinkedNotesIndex`) is built lazily per
+    (link property, tag) on the first query and kept current from `changed` / `resolve` /
+    `deleted` events (a rename resets it); minutes and dates are read at query time. The
+    public `plugin.api.computeTrackedTime(path)` returns these exact values, read-only.
