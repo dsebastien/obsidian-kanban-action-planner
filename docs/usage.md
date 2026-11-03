@@ -1480,11 +1480,11 @@ records), straight from the cards, on **any note type**:
   back to the global settings. Notes that only carry a legacy `duration` number from an older
   version keep reading correctly (it is used when both the entries list and the duration
   property are absent). Nothing migrates data.
-- **Time from linked notes.** Some sessions are already notes of their own: a run synced from
-  Garmin, a music practice, a board game play, each with its minutes and its date. Logging each
-  one a second time as a time entry on the activity makes the activity note grow without end. My
-  Walk activity had 725 entries, about 2,300 lines: slow to open on mobile, and a steady source
-  of sync conflicts. So let the session note carry the time instead. Turn on **Configure → Time
+- **Time from linked notes.** Some sessions are already notes of their own: a run, a music
+  practice, a board game play, each with its minutes and its date. Logging each one a second
+  time as a time entry on the activity makes the activity note grow without end. My Walk
+  activity had 725 entries, about 2,300 lines: slow to open on mobile, and a steady source of
+  sync conflicts. So let the session note carry the time instead. Turn on **Configure → Time
   tracking → Time from linked notes** for the activity's note type (off by default) and check
   four fields:
     - **Link property** (`related_activities`): the property on the session note that links to
@@ -1501,24 +1501,36 @@ records), straight from the cards, on **any note type**:
       string (`tags: journal, type/session`) works too.
 
     A session note counts once per activity it links to, even when it links twice. Its minutes
-    go to the weekly budget ring (and the over-budget notice) of the week its date falls in, and
-    to **Recompute tracked time**. A session without a valid date still counts in the all-time
-    total, never in a week. A session with a date but no minutes (a play without a duration)
-    still moves the last-session date.
+    then count everywhere the activity's time shows up:
+    - **The weekly budget ring** and the over-budget notice, in the week the session's date
+      falls in. A session without a valid date counts in the all-time total, never in a week.
+    - **The parents' rings.** A note whose ring adds its children's time (a project with its
+      activities) also adds the session notes of those children, when the child's type takes
+      time from linked notes. So the project's ring and its WBS total tell the same story.
+    - **Recompute tracked time** stores the entry minutes plus the session minutes, and as last
+      session the later of the latest entry day and the latest session date (a dated session
+      without minutes, like a play without a duration, still counts for that date). It shows on
+      notes that only have session notes, too. With no entries and no session minutes, a
+      hand-typed duration stays as it is.
+    - **The WBS ⏱ tracked total** and **Save total tracked time** use the activity's live total,
+      the value a recompute would store. No need to recompute first.
+    - **Stopping the timer** on an activity whose duration is empty stores that same value: the
+      entries, the new one included, plus the session minutes. A duration that holds a number
+      only gets the session's minutes added, as always.
 
-    A session logged both ways counts once. A time entry whose description is a link to one of
-    these session notes (`[[2026-11-03 Run]]` or `[[2026-11-03 Run|Morning run]]`) is skipped
-    when that session note has minutes: the session note's minutes count, the entry's don't. A
-    session note without minutes never hides an entry. In the weekly ring, the entry is skipped
-    only when the session note is dated in the same week; the same goes for entries on the
-    activity's linked tasks.
-
-    A project or goal whose weekly ring adds its children's time also adds the session notes
-    of those children whose type takes time from linked notes, each session once, so its own
-    ring agrees with the WBS. A child that is itself a session note counts as a session only
-    when it has minutes and is dated that week; otherwise its entries count. Stopping the
-    timer on an activity whose duration is empty stores the entry minutes plus the session
-    notes' minutes, like **Recompute tracked time**.
+    A session never counts twice, wherever else it shows up:
+    - **Logged both ways.** A time entry whose description is a link to one of these session
+      notes (`[[2026-11-03 Run]]` or `[[2026-11-03 Run|Morning run]]`) is skipped when that
+      session note has minutes: the session note's minutes count, the entry's don't. A session
+      note without minutes never hides an entry. In the weekly ring, the entry is skipped only
+      when the session note is dated in the same week. The same goes for entries on the
+      activity's linked tasks.
+    - **On the board, as a child.** A session note on the board is also a child of the activity
+      it links to. In the ring, it counts as a session (its minutes, not its entries) when it
+      has minutes and is dated that week; otherwise its own entries count, like any task's.
+    - **In the WBS subtree.** A session note with minutes that also sits under the activity in
+      the WBS counts once: its minutes are already in the activity's total. One without minutes
+      keeps its own duration in the sum.
 
 - **Pomodoro mode.** **Start pomodoro** in the card menu runs a timed work pomodoro on the
   card (25 minutes by default) and opens its time session at the same time, so the entry
@@ -1580,8 +1592,8 @@ records), straight from the cards, on **any note type**:
 
 - Activities and projects carry a **weekly budget ring** on their cards and WBS rows: the arc is
   the time tracked this ISO week (the note's own entries plus its linked tasks', clipped to the
-  week, plus the minutes of its [session notes](#time-tracking) dated this week when its type
-  takes time from linked notes) against the weekly target, the label reads `1h 30m / 4h`, and
+  week, plus the minutes of the [session notes](#time-tracking) dated this week, its own and
+  its tasks', when their type takes time from linked notes) against the weekly target, the label reads `1h 30m / 4h`, and
   the tooltip adds the planned minutes and the alarm. Blue is under the target, green at 90% or
   more, orange over it, and **red above the alarm** (`minutes_alarm_per_week`), with one notice per note per week. In the
   WBS, goals and plans without a budget of their own show one rolled up from their subtree
@@ -1607,14 +1619,8 @@ records), straight from the cards, on **any note type**:
   list is the whole story. It also removes empty items from the list, like the `- ` placeholder
   older Starter Kit templates left under `time_entries`, which hides the note from TaskNotes.
   It writes nothing when no value changes. When the note's type takes
-  [time from linked notes](#time-tracking), it stores the entry minutes plus the session notes'
-  minutes, and the later of the latest entry day and the latest session date; the item then
-  shows on notes with entries or session notes. With no entries and no session minutes, a
-  hand-typed duration stays as it is (only the last-session date moves, when a session note is
-  dated). In the ⏱ tracked total and **Save total tracked time**, such an activity counts its
-  live total (entry minutes plus session minutes, what a recompute would store), so the total
-  is right without a recompute. A session note with minutes that also sits in the WBS subtree
-  counts once: its minutes are already in the activity's total.
+  [time from linked notes](#time-tracking), the recompute, the ⏱ total and **Save total tracked
+  time** also count its session notes, each once (details in that section).
 - Tracked time renders with the same `d / h / m` grammar as estimates, sized by **Minutes
   per day**, so tracked and estimated time read side by side.
 
