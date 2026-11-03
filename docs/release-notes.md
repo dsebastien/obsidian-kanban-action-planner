@@ -1,5 +1,12 @@
 # Release Notes
 
+## 2.9.1 (2026-11-03)
+
+### Bug Fixes
+
+- **plugin:** name the note type without an article in the Automations and Done state dialogs
+- **plugin:** name the note type without an article in Time from linked notes
+
 ## 2.9.0 (2026-11-03)
 
 ### Time from linked notes

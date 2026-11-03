@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.9.1](https://github.com/dsebastien/obsidian-kanban-action-planner/compare/2.9.0...2.9.1) (2026-11-03)
+
+### Bug Fixes
+
+* **plugin:** name the note type without an article in the Automations and Done state dialogs ([34afe1a](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/34afe1aec3807fd32b20f2cf1e0c22c78873bc9e))
+* **plugin:** name the note type without an article in Time from linked notes ([217aa04](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/217aa0476016daa6b8c47b8165c3d659fe9380f9))
+
 ## [2.9.0](https://github.com/dsebastien/obsidian-kanban-action-planner/compare/2.8.0...2.9.0) (2026-11-03)
 
 ### Time from linked notes
@@ -814,6 +821,7 @@ Claude-Session: https://claude.ai/code/session_01LM4hi11kohPVqgZNLpjRgh
 
 * **plugin:** match Starter Kit's {{quarter}} placeholder format (Q2, not 2) ([4fde618](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/4fde6185c5956e3f6fd2ca3a9b03e70cf5e16840))
 * **plugin:** persist discovered statuses so Show empty columns works ([cf91b81](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/cf91b81a1b0786e35c73f4885882e2dc33564c62))
+
 
 
 
