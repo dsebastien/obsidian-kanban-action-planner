@@ -280,7 +280,7 @@ export class ConfigureBoardModal extends Modal {
         this.body.createEl('p', {
             cls: 'kap-modal-subtitle',
             text:
-                `Run actions when a ${noteType.name} note transitions into a status ` +
+                `Run actions when a note of type "${noteType.name}" transitions into a status ` +
                 '(from a drag, a menu, a bulk edit, or triage) — once per transition. ' +
                 'Values and folders support {{year}}, {{month}}, {{day}}, {{week}}, ' +
                 '{{quarter}}, {{date}}, {{datetime}} and {{uuid}}.'
@@ -737,7 +737,7 @@ export class ConfigureBoardModal extends Modal {
         this.body.createEl('p', {
             cls: 'kap-modal-subtitle',
             text:
-                `What marks a ${noteType.name} note as done. A done note counts as ` +
+                `What marks a note of type "${noteType.name}" as done. A done note counts as ` +
                 '100% complete in WBS progress rollups, so a parent’s progress can ' +
                 'derive from done children even when they carry no progress number.'
         })
