@@ -1,10 +1,11 @@
 ### Time from linked notes
 
-A note can now get its tracked time from the notes that link to it, instead of one time entry per session. Keep each run, practice or board game play as its own note with its minutes and its date, link it to the activity, and the activity counts it.
+In my vault, every run, walk and music practice is already a note of its own, with its minutes and its date (Garmin and Strava create the sport ones). Logging each session a second time as a time entry on the activity made those activity notes huge: my Walk activity had 725 entries, about 2,300 lines. Slow to open on mobile, and a steady source of sync conflicts. Now the session note carries the time, and the planner reads it from there.
 
-- Turn it on per note type in **Configure → Time tracking → Time from linked notes** (off by default). The defaults read session notes tagged `type/session` (nested tags such as `type/session/sport/running` count too) that link to the note from `related_activities`, with their minutes in `time_spent` and their day in `date`. Each of the four names can be changed.
-- The **weekly budget ring** adds the minutes of the session notes dated this week.
-- **Recompute tracked time** (formerly **Recompute tracked time from entries**) stores the entries plus the session notes' minutes, and the later of the latest entry and the latest session as the last-session date. It now also shows on notes that have session notes but no entries.
-- A time entry whose description links to one of these session notes is skipped when the session note has minutes, so a session logged both ways counts once.
-- The WBS ⏱ tracked total and **Save total tracked time** leave out an activity's session notes, since their minutes are already in its duration.
-- Scripts can read the same numbers with `app.plugins.plugins['kanban-action-planner'].api.computeTrackedTime(path)`.
+- Turn it on per note type in **Configure → Time tracking → Time from linked notes** (off by default). It counts the notes tagged `type/session` (or a child tag such as `type/session/sport/running`) that link to the card from `related_activities`, with their minutes in `time_spent` and their day in `date`. You can change all four names.
+- Those minutes count for the card on the session's date: in the **weekly budget ring** and in the over-budget notice.
+- **Recompute tracked time** (formerly **Recompute tracked time from entries**) sets the duration to the entry minutes plus the linked minutes, and the last-session date to the later of the last entry and the last linked note. It writes nothing when nothing changes, and it leaves a hand-typed duration alone when there is nothing to count. It now also shows on notes that only have linked notes.
+- A time entry whose description is a link to a linked note with minutes is skipped, so a session logged both ways counts once.
+- Links must be wikilinks (`[[Walk]]`): a plain name is ignored. Dates are read as written (the first 10 characters, no time zone conversion).
+- The WBS ⏱ tracked total and **Save total tracked time** count a linked note once, even when it also sits in the subtree.
+- Scripts can read the same numbers without writing anything: `app.plugins.plugins['kanban-action-planner'].api.computeTrackedTime(path)` returns `{ minutes, entryMinutes, linkedMinutes, lastSession, linkedNotes }`.

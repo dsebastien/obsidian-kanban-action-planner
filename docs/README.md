@@ -102,8 +102,9 @@ straight back into your notes.
   **Switch time tracking to…** picker, or with a per-note shortcut you bind a hotkey to. Each
   session is saved as a time entry, and its minutes add up in a duration property. **Pomodoro
   mode** runs timed work and break periods with a status-bar countdown and a visual timer. The WBS
-  rolls tracked time up the tree, next to the estimates. A note type can also take time from
-  linked notes: session notes that link to an activity add their own minutes on their own date.
+  rolls tracked time up the tree, next to the estimates. Sessions you already keep as notes (a
+  run, a music practice) can give their time to an activity: turn on time from linked notes for
+  its note type, and each session note that links to the activity adds its minutes on its date.
 
 - **Archiving.** Move a finished note to a placeholder-driven archive folder, by hand or
   automatically when it reaches a chosen status (right away, or after a grace period counted from

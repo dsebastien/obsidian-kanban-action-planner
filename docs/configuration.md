@@ -85,10 +85,11 @@ displayed duration (`1d 2h`).
 
 ### Time from linked notes (per note type)
 
-In **Configure → Time tracking → Time from linked notes**, a note type can take time from the
-notes that link to its notes (session notes: a run, a practice, a play). Off by default. When
-on, a session note's minutes count in the weekly budget ring (for the week its date falls in)
-and in **Recompute tracked time**. A blank field uses its default.
+In **Configure → Time tracking → Time from linked notes**, a note type takes its time from the
+session notes that link to its notes (a run, a music practice, a board game play), so you don't
+need one time entry per session. Off by default. When on, a session note's minutes count for the
+week its date falls in (weekly budget ring and over-budget notice) and in **Recompute tracked
+time**. A blank field uses its default.
 
 | Setting                          | Default              | What it does                                                                                                                                                                |
 | -------------------------------- | -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
