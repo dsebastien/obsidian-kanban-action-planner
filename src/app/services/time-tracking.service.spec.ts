@@ -191,11 +191,13 @@ describe('recomputeTrackedTime drops empty items (issue #218)', () => {
  */
 function linkedSetup(on: boolean, notes: Record<string, Record<string, unknown>>) {
     const v = fakeVault(notes)
+    const writes = { count: 0 }
     const app = {
         ...v.app,
         plugins: { plugins: {} },
         fileManager: {
             processFrontMatter: (f: TFile, fn: (fm: Record<string, unknown>) => void) => {
+                writes.count++
                 fn(v.frontmatter.get(f.path) ?? {})
                 return Promise.resolve()
             }
@@ -235,7 +237,7 @@ function linkedSetup(on: boolean, notes: Record<string, Record<string, unknown>>
             saveSettings: (): Promise<void> => Promise.resolve()
         }
     )
-    return { v, plugin }
+    return { v, plugin, writes }
 }
 
 describe('recomputeTrackedTime with time from linked notes', () => {
@@ -310,5 +312,54 @@ describe('recomputeTrackedTime with time from linked notes', () => {
         ])
         expect(v.frontmatter.get(RUN)?.['time_spent']).toBe(999)
         expect(await computeTrackedTime(plugin, 'missing.md')).toBeNull()
+    })
+
+    test('no entries and 0 linked minutes: the duration stays, only the last session moves', async () => {
+        const { v, plugin } = linkedSetup(true, {
+            [RUN]: { time_spent: 120, date_last_session: '2026-10-01' },
+            'play.md': {
+                tags: ['type/session/board-game'],
+                related_activities: ['[[Run (Activity)]]'],
+                date: '2026-11-03',
+                time_spent: 0
+            }
+        })
+        expect(await recomputeTrackedTime(plugin, v.file(RUN))).toBeNull()
+        expect(v.frontmatter.get(RUN)).toEqual({
+            time_spent: 120,
+            date_last_session: '2026-11-03'
+        })
+    })
+
+    test('nothing changed: no write at all', async () => {
+        const { v, plugin, writes } = linkedSetup(true, notes())
+        await recomputeTrackedTime(plugin, v.file(RUN))
+        expect(writes.count).toBe(1)
+        expect(await recomputeTrackedTime(plugin, v.file(RUN))).toBe(80)
+        expect(writes.count).toBe(1)
+    })
+
+    test('only the changed values are written', async () => {
+        const { v, plugin } = linkedSetup(true, {
+            ...notes(),
+            [RUN]: { ...notes()[RUN], time_spent: 80 }
+        })
+        const fm = v.frontmatter.get(RUN) ?? {}
+        const keys: string[] = []
+        const original = plugin.app.fileManager.processFrontMatter.bind(plugin.app.fileManager)
+        plugin.app.fileManager.processFrontMatter = (f, fn) =>
+            original(f, (target: Record<string, unknown>) =>
+                fn(
+                    new Proxy(target, {
+                        set: (obj, key, value) => {
+                            keys.push(String(key))
+                            return Reflect.set(obj, key, value)
+                        }
+                    })
+                )
+            )
+        await recomputeTrackedTime(plugin, v.file(RUN))
+        expect(keys).toEqual(['date_last_session'])
+        expect(fm['time_spent']).toBe(80)
     })
 })

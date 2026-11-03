@@ -1,4 +1,4 @@
-import { Menu, Platform, Plugin, View } from 'obsidian'
+import { Menu, Platform, Plugin, TFile, View } from 'obsidian'
 import {
     SETTINGS_SCHEMA_VERSION,
     createDefaultSettings,
@@ -48,7 +48,11 @@ import { onStarterKitNoteTypesChanged } from './services/starter-kit.service'
 import { produce } from 'immer'
 import { OrderNormalizerQueue } from './services/order-normalizer.service'
 import type { PendingWrite } from './domain/pending-write'
-import { LinkedNotesIndex } from './services/linked-time.service'
+import {
+    LinkedNotesIndex,
+    linkedNotesEventHandlers,
+    linkedTimeConfigForType
+} from './services/linked-time.service'
 import type { TrackedTimeResult } from './domain/linked-time'
 
 /**
@@ -179,34 +183,24 @@ export class KanbanActionPlannerPlugin extends Plugin {
     /**
      * Keep the linked-notes index current (only once built) and tell every
      * open board which target notes it touched, so their budget rings
-     * re-render when a linked note changes.
+     * re-render when a linked note's targets, minutes or date change (a
+     * body-only edit touches none).
      */
     private registerLinkedNotesEvents(): void {
-        const notify = (targets: ReadonlySet<string> | 'all'): void => {
-            if (targets !== 'all' && targets.size === 0) return
-            for (const view of this.openKanbanViews) view.onLinkedNotesChanged(targets)
-        }
-        this.registerEvent(
-            this.app.metadataCache.on('changed', (file) => {
-                if (this.linkedIndex?.isBuilt) notify(this.linkedIndex.update(file, 'all'))
-            })
+        const handlers = linkedNotesEventHandlers(
+            () => this.linkedIndex,
+            (targets) => {
+                for (const view of this.openKanbanViews) view.onLinkedNotesChanged(targets)
+            }
         )
-        // A link can start (or stop) resolving without its note changing.
+        this.registerEvent(this.app.metadataCache.on('changed', (file) => handlers.changed(file)))
+        this.registerEvent(this.app.metadataCache.on('resolve', (file) => handlers.resolve(file)))
         this.registerEvent(
-            this.app.metadataCache.on('resolve', (file) => {
-                if (this.linkedIndex?.isBuilt) notify(this.linkedIndex.update(file, 'membership'))
-            })
+            this.app.metadataCache.on('deleted', (file) => handlers.deleted(file.path))
         )
         this.registerEvent(
-            this.app.metadataCache.on('deleted', (file) => {
-                if (this.linkedIndex?.isBuilt) notify(this.linkedIndex.remove(file.path))
-            })
-        )
-        this.registerEvent(
-            this.app.vault.on('rename', () => {
-                if (!this.linkedIndex?.isBuilt) return
-                this.linkedIndex.invalidate()
-                notify('all')
+            this.app.vault.on('rename', (file, oldPath) => {
+                if (file instanceof TFile) handlers.rename(file, oldPath)
             })
         )
     }
@@ -619,6 +613,12 @@ export class KanbanActionPlannerPlugin extends Plugin {
     async saveSettings(scope: SettingsRefreshScope = 'full') {
         log('Saving settings', 'debug', this.settings)
         for (const view of this.openKanbanViews) view.onSettingsChanged(scope)
+        // Drop the linked-notes indexes no note type uses any more.
+        this.linkedIndex?.retain(
+            this.settings.noteTypes
+                .map((type) => linkedTimeConfigForType(type))
+                .filter((config) => config !== null)
+        )
         await this.saveData(this.settings)
         log('Settings saved', 'debug', this.settings)
     }

@@ -179,6 +179,24 @@ void bunMock.module('obsidian', () => ({
     debounce: (fn: (...args: unknown[]) => unknown) => fn,
     setIcon: () => {},
     getAllTags: (_cache: unknown): string[] => [],
+    // Obsidian's shape: `tags` / `tag` (any case), a list or a comma / space
+    // separated string, each tag returned with one leading '#'; null if none.
+    parseFrontMatterTags: (frontmatter: unknown): string[] | null => {
+        if (!frontmatter || typeof frontmatter !== 'object') return null
+        const tags: string[] = []
+        for (const [key, value] of Object.entries(frontmatter as Record<string, unknown>)) {
+            if (!/^tags?$/i.test(key)) continue
+            const items: unknown[] = Array.isArray(value) ? (value as unknown[]) : [value]
+            for (const item of items) {
+                if (typeof item !== 'string') continue
+                for (const part of item.split(/[,\s]+/)) {
+                    const tag = part.replace(/^#+/, '')
+                    if (tag !== '') tags.push(`#${tag}`)
+                }
+            }
+        }
+        return tags.length > 0 ? tags : null
+    },
     // Reached when a spec imports plugin.ts (the default-settings freeze
     // tests): its views extend these at module load, and its services
     // import the helpers.

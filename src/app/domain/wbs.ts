@@ -394,22 +394,36 @@ export function subtreeSpan(
  * an actual — time logged on the parent AND on its children both happened,
  * so they add. Distinct paths only, so a shared (multi-parent) subtree
  * counts once. Null when nothing in the subtree carries a duration.
+ *
+ * Time from linked notes (business rule 78): `linkedSourcesOf(path)` lists
+ * the notes giving their time to `path` (empty when its type takes none).
+ * Those notes' minutes are already in that note's duration, so every linked
+ * source of a note in the subtree is left out of the sum (the node itself
+ * always counts).
  */
 export function subtreeDuration(
     node: WbsNode,
-    durationOf: (path: string) => number | null
+    durationOf: (path: string) => number | null,
+    linkedSourcesOf?: (path: string) => Iterable<string>
 ): number | null {
+    const paths = [node.path, ...descendantPaths(node)]
+    const excluded = new Set<string>()
+    if (linkedSourcesOf) {
+        for (const path of paths) {
+            for (const source of linkedSourcesOf(path)) excluded.add(source)
+        }
+        excluded.delete(node.path)
+    }
     let sum = 0
     let found = false
-    const consider = (path: string): void => {
+    for (const path of paths) {
+        if (excluded.has(path)) continue
         const own = durationOf(path)
         if (own !== null) {
             sum += own
             found = true
         }
     }
-    consider(node.path)
-    for (const path of descendantPaths(node)) consider(path)
     return found ? sum : null
 }
 

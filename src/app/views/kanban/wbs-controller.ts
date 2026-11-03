@@ -132,8 +132,11 @@ export interface WbsHost {
     lifecycleDatesFor(card: KanbanCard): LifecycleDates
     saveTotalTracked(card: KanbanCard, minutes: number): Promise<void>
     recomputeTracked(card: KanbanCard): Promise<number | null>
-    /** Whether notes give their time to the card (its type takes time from linked notes). */
-    hasLinkedNotes(card: KanbanCard): boolean
+    /**
+     * Paths of the notes giving their time to the card (its type takes time
+     * from linked notes); empty otherwise.
+     */
+    linkedSourcesFor(card: KanbanCard): ReadonlySet<string>
     scheduledProperty(): string
     /** Resolved due-date property (the rows' due chip reads and writes it). */
     deadlineProperty(): string
@@ -388,6 +391,18 @@ export class WbsController {
             }
             return value
         }
+        // Time from linked notes (rule 78): their minutes are already in the
+        // target's duration, so the roll-up leaves them out. Per-render cached.
+        const linkedSourcesCache = new Map<string, ReadonlySet<string>>()
+        const linkedSourcesOf = (path: string): ReadonlySet<string> => {
+            let value = linkedSourcesCache.get(path)
+            if (value === undefined) {
+                const card = byKey.get(path)
+                value = card ? this.host.linkedSourcesFor(card) : new Set<string>()
+                linkedSourcesCache.set(path, value)
+            }
+            return value
+        }
         // Weekly budget (issue #172, phase C): own budgets per path, cached per
         // render; target and planned roll up own-wins-else-children like
         // estimates, tracked-this-week adds across the contributing notes.
@@ -486,7 +501,7 @@ export class WbsController {
             // Tracked time (issue #119): own minutes + distinct-descendant sum
             // (actuals ADD — own never replaces the children's contribution).
             const ownTracked = durationOf(node.path)
-            const totalTracked = subtreeDuration(node, durationOf)
+            const totalTracked = subtreeDuration(node, durationOf, linkedSourcesOf)
             const collapsed = this.collapsedNodes.has(node.path)
             // Weekly budget ring (issue #172, phase C): the own ring, else one
             // derived from the budget-carrying descendants.
@@ -1157,7 +1172,7 @@ export class WbsController {
         // total (own + distinct descendants) persisted to the totalDuration
         // property in minutes. Offered only when children contribute — a
         // leaf's own duration is already durable.
-        const totalTracked = subtreeDuration(node, this.durationOfPath)
+        const totalTracked = subtreeDuration(node, this.durationOfPath, this.linkedSourcesOfPath)
         if (
             totalTracked !== null &&
             node.children.length > 0 &&
@@ -1176,7 +1191,7 @@ export class WbsController {
         // Ledger repair (issue #172): the spent cache and last-session date
         // recomputed from the entries list (edited by hand or by TaskNotes)
         // plus, when the type takes them, the linked notes.
-        if (this.hasTimeEntries(card) || this.host.hasLinkedNotes(card)) {
+        if (this.hasTimeEntries(card) || this.host.linkedSourcesFor(card).size > 0) {
             menu.addItem((item) =>
                 item
                     .setTitle('Recompute tracked time')
@@ -1248,6 +1263,12 @@ export class WbsController {
     private readonly durationOfPath = (path: string): number | null => {
         const card = this.host.allCardForKey(path)
         return card ? this.host.trackedMinutesFor(card) : null
+    }
+
+    /** The notes giving their time to a path (menu-time, uncached). */
+    private readonly linkedSourcesOfPath = (path: string): ReadonlySet<string> => {
+        const card = this.host.allCardForKey(path)
+        return card ? this.host.linkedSourcesFor(card) : new Set<string>()
     }
 
     /** A path's own progress, read from frontmatter (menu-time, uncached). */

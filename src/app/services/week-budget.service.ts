@@ -4,7 +4,7 @@ import { budgetRing, isoWeekRange } from '../domain/budget'
 import { minutesInRange, parseTimeEntries } from '../domain/time-entries'
 import type { TimeEntry } from '../domain/time-entries'
 import type { LinkedNoteTime } from '../domain/linked-time'
-import { linkedMinutesInRange } from '../domain/linked-time'
+import { linkedMinutesInRange, skippedEntryPaths } from '../domain/linked-time'
 import { linkedEntryMatcher } from './linked-time.service'
 import type { LinkedTimeApp } from './linked-time.service'
 import { coerceOrder, getFrontmatterValue } from './frontmatter.service'
@@ -74,8 +74,9 @@ export function trackedInRange(
  * entries of the notes linked to it as children (its tasks, on this board),
  * each counted once, all clipped to the week, plus the minutes of the notes
  * giving it their time (time from linked notes) dated this week. A linked
- * note that is also a child counts once, as a linked note; an own entry
- * whose description links to a linked note is skipped (counted with it).
+ * note that is also a child counts once, as a linked note. An entry (own or
+ * a child's) whose description links to a linked note with minutes > 0
+ * dated this week is skipped (counted with that note); otherwise it counts.
  */
 export function weekBudgetOf(
     ctx: WeekBudgetContext,
@@ -90,12 +91,13 @@ export function weekBudgetOf(
     const { start, end } = isoWeekRange(now)
     const linkedNotes = ctx.linkedNotesFor?.(card) ?? []
     const linkedPaths = new Set(linkedNotes.map((note) => note.path))
+    const skipped = skippedEntryPaths(linkedNotes, { from: start, to: end })
     const ownTracked = trackedInRange(
         ctx,
         card,
         start,
         end,
-        linkedEntryMatcher(ctx.app, card.file, linkedPaths)
+        linkedEntryMatcher(ctx.app, card.file, skipped)
     )
     const linkedNotesTracked = linkedMinutesInRange(linkedNotes, start, end)
     let tracked = ownTracked + linkedNotesTracked
@@ -108,7 +110,14 @@ export function weekBudgetOf(
         const child = ctx.cardForKey(related.key)
         if (!child) continue
         linked.push(related.key)
-        tracked += trackedInRange(ctx, child, start, end)
+        // The child's links resolve from its own path.
+        tracked += trackedInRange(
+            ctx,
+            child,
+            start,
+            end,
+            linkedEntryMatcher(ctx.app, child.file, skipped)
+        )
     }
     return {
         target,

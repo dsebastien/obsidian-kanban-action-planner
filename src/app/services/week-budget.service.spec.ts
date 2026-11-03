@@ -66,7 +66,7 @@ function context(v: FakeVault, cards: KanbanCard[], linked: boolean): WeekBudget
             lastSession: 'date_last_session'
         }),
         cardForKey: (key) => byKey.get(key),
-        linkedNotesFor: (c) => (linked ? linkedNotesOf(v.app, index, c.file, CONFIG) : [])
+        linkedNotesFor: (c) => (linked ? linkedNotesOf(index, c.file, CONFIG) : [])
     }
 }
 
@@ -151,5 +151,70 @@ describe('weekBudgetOf with time from linked notes', () => {
         const budget = weekBudgetOf(context(v, [run], true), run, NOW)
         expect(budget?.ownTracked).toBe(10)
         expect(budget?.tracked).toBe(50)
+    })
+
+    test('an own entry is kept when its note has 0 minutes or is dated another week', () => {
+        const entry = (day: string, link: string): Record<string, string> => ({
+            startTime: `${day}T07:00:00`,
+            endTime: `${day}T07:20:00`,
+            description: `[[${link}]]`
+        })
+        const v = fakeVault({
+            [RUN]: {
+                minutes_per_week: 180,
+                time_entries: [
+                    entry('2026-11-03', 'zero'),
+                    // The note is dated last week; its entry falls in this one.
+                    entry('2026-11-02', 'last-week')
+                ]
+            },
+            'zero.md': session('2026-11-03', 0),
+            'last-week.md': session('2026-10-30', 40)
+        })
+        const run = card(v.file(RUN))
+        const budget = weekBudgetOf(context(v, [run], true), run, NOW)
+        expect(budget?.ownTracked).toBe(40)
+        expect(budget?.linkedNotesTracked).toBe(0)
+        expect(budget?.tracked).toBe(40)
+    })
+
+    test("a child's entry linking to a note linked to the card is skipped", () => {
+        const v = fakeVault({
+            [RUN]: { minutes_per_week: 180 },
+            'Tasks/task.md': {
+                time_entries: [
+                    {
+                        startTime: '2026-11-02T07:00:00',
+                        endTime: '2026-11-02T08:00:00',
+                        description: '[[monday]]'
+                    },
+                    { startTime: '2026-11-03T08:00:00', endTime: '2026-11-03T08:15:00' }
+                ]
+            },
+            'monday.md': session('2026-11-02', 40)
+        })
+        const task = card(v.file('Tasks/task.md'))
+        const run = card(v.file(RUN), ['Tasks/task.md'])
+        const budget = weekBudgetOf(context(v, [run, task], true), run, NOW)
+        expect(budget?.linkedNotesTracked).toBe(40)
+        expect(budget?.tracked).toBe(55)
+    })
+
+    test('ISO week edges: Monday 00:00 is in, the next Monday is out (Sunday counts)', () => {
+        const v = fakeVault({
+            [RUN]: { minutes_per_week: 180 },
+            'sun-before.md': session('2026-11-01', 1),
+            'mon.md': session('2026-11-02T00:00', 2),
+            'sun.md': session('2026-11-08T23:59', 4),
+            'mon-after.md': session('2026-11-09T00:00', 8)
+        })
+        const run = card(v.file(RUN))
+        const ctx = context(v, [run], true)
+        // From Monday 00:00 and from Sunday 23:59, the same week.
+        expect(weekBudgetOf(ctx, run, new Date(2026, 10, 2, 0, 0, 0))?.tracked).toBe(6)
+        expect(weekBudgetOf(ctx, run, new Date(2026, 10, 8, 23, 59, 59))?.tracked).toBe(6)
+        // A Sunday belongs to the week that started six days earlier.
+        expect(weekBudgetOf(ctx, run, new Date(2026, 10, 1, 12, 0, 0))?.tracked).toBe(1)
+        expect(weekBudgetOf(ctx, run, new Date(2026, 10, 9, 0, 0, 0))?.tracked).toBe(8)
     })
 })

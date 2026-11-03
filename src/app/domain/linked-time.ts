@@ -7,15 +7,18 @@ import { formatEntryDate, latestEntryDate, sumEntryMinutes } from './time-entrie
  * A note N counts for a target note T when N carries the required tag
  * (hierarchical: `type/session` matches `type/session/sport/running`) and
  * its link property links to T. N then contributes its minutes on its date:
- * - minutes: `Number(raw)`, counted only when finite and > 0;
- * - date: the first 10 characters of a string, when they read `YYYY-MM-DD`.
- *   No valid date = the minutes still count for all-time totals, never for a
- *   week, and the note does not move the last-session date. A valid date
- *   moves the last-session date even with no minutes (a play with no
- *   duration is still a session).
+ * - minutes: a finite number or a numeric string (trimmed, decimal), rounded
+ *   with `Math.round`; counted only when the rounded value is > 0;
+ * - date: the first 10 characters of a string, when they read `YYYY-MM-DD`
+ *   (taken as written: no timezone conversion). No valid date = the minutes
+ *   still count for all-time totals, never for a week, and the note does not
+ *   move the last-session date. A valid date moves the last-session date
+ *   even with no minutes (a play with no duration is still a session).
  *
- * An entry of T whose description is a wikilink to a note counted for T is
- * skipped: that session counts once, with the linked note's own minutes.
+ * An entry of T whose description is a wikilink to a linked note with
+ * minutes > 0 is skipped (for a week: only when that note's date is in the
+ * same week): that session counts once, with the linked note's own minutes.
+ * A note with 0 minutes never hides an entry.
  *
  * Pure: no Obsidian imports. The index and link resolution live in
  * `services/linked-time.service.ts`.
@@ -32,7 +35,7 @@ export interface LinkedTimeConfig {
 /** One linked note counted for a target. */
 export interface LinkedNoteTime {
     path: string
-    /** Its minutes (0 when none or not counted). */
+    /** Its rounded minutes (0 when none or not counted). */
     minutes: number
     /** Its day (`YYYY-MM-DD`), or null without a valid date. */
     date: string | null
@@ -42,7 +45,7 @@ export interface LinkedNoteTime {
 export interface TrackedTimeResult {
     /** `entryMinutes + linkedMinutes`: the value a recompute stores. */
     minutes: number
-    /** Rounded sum of the counted entries (linked-session entries skipped). */
+    /** Sum of the kept entries' minutes (each `max(1, round)`; linked-session entries skipped). */
     entryMinutes: number
     /** Sum of the linked notes' minutes. */
     linkedMinutes: number
@@ -80,10 +83,45 @@ export function linkedDate(raw: unknown): string | null {
     return /^\d{4}-\d{2}-\d{2}$/.test(day) ? day : null
 }
 
-/** A linked note's minutes: `Number(raw)` when finite and > 0, else 0. */
+/** A decimal number written as text: optional sign, digits, optional fraction. */
+const NUMERIC_STRING = /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)$/
+
+/**
+ * A linked note's minutes: a finite number, or a numeric string (trimmed,
+ * plain decimal: no hex, no exponent), rounded with `Math.round`; 0 for
+ * anything else (booleans, arrays, text) and when the rounded value is not
+ * above 0.
+ */
 export function linkedMinutes(raw: unknown): number {
-    const value = Number(raw)
-    return Number.isFinite(value) && value > 0 ? value : 0
+    let value: number
+    if (typeof raw === 'number') value = raw
+    else if (typeof raw === 'string' && NUMERIC_STRING.test(raw.trim())) value = Number(raw.trim())
+    else return 0
+    if (!Number.isFinite(value)) return 0
+    const rounded = Math.round(value)
+    return rounded > 0 ? rounded : 0
+}
+
+/**
+ * The paths of the linked notes whose session entries are skipped: those
+ * with minutes > 0 and, with a range, dated inside `[from, to)` (local
+ * days). A note with 0 minutes hides no entry.
+ */
+export function skippedEntryPaths(
+    linked: readonly LinkedNoteTime[],
+    range?: { from: Date; to: Date }
+): Set<string> {
+    const lo = range ? formatEntryDate(range.from) : null
+    const hi = range ? formatEntryDate(range.to) : null
+    const paths = new Set<string>()
+    for (const note of linked) {
+        if (note.minutes <= 0) continue
+        if (lo !== null && hi !== null) {
+            if (note.date === null || note.date < lo || note.date >= hi) continue
+        }
+        paths.add(note.path)
+    }
+    return paths
 }
 
 /**
@@ -102,8 +140,10 @@ export function entryDescriptionLinkpath(description: string | undefined): strin
 /**
  * Combine a target's entries with its linked notes. `isLinkedEntry` tells
  * whether an entry is a linked note's session (its description resolves to
- * a counted linked note); those entries are left out of both the minutes
- * and the last-session date.
+ * a linked note with minutes > 0, see {@link skippedEntryPaths}); those
+ * entries are left out of both the minutes and the last-session date. Entry
+ * minutes are `max(1, round(each entry))` summed; the last entry day is the
+ * local day of its end time (start time for an open entry).
  */
 export function combineTrackedTime(
     entries: readonly TimeEntry[],
@@ -111,7 +151,7 @@ export function combineTrackedTime(
     isLinkedEntry: (entry: TimeEntry) => boolean
 ): TrackedTimeResult {
     const kept = entries.filter((entry) => !isLinkedEntry(entry))
-    const entryMinutes = Math.round(sumEntryMinutes(kept))
+    const entryMinutes = sumEntryMinutes(kept)
     let linkedTotal = 0
     let latestLinked: string | null = null
     for (const note of linked) {

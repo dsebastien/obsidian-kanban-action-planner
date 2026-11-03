@@ -1077,7 +1077,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             saveTotalTracked: (card, minutes) =>
                 saveTotalTrackedTime(this.plugin, card.file, minutes),
             recomputeTracked: (card) => recomputeTrackedTime(this.plugin, card.file),
-            hasLinkedNotes: (card) => this.linkedNotesFor(card).length > 0,
+            linkedSourcesFor: (card) => new Set(this.linkedNotesFor(card).map((n) => n.path)),
             scheduledProperty: () => this.scheduledDateProperty,
             deadlineProperty: () => this.dueDateProperty,
             dueSoonDays: () => this.plugin.settings.dueSoonThresholdDays,
@@ -2722,22 +2722,18 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
     /** The notes giving their time to the card; empty when its type does not take any. */
     private linkedNotesFor(card: KanbanCard): LinkedNoteTime[] {
         const config = this.linkedTimeConfigFor(card)
-        return config
-            ? linkedNotesOf(this.app, this.plugin.linkedNotesIndex, card.file, config)
-            : []
+        return config ? linkedNotesOf(this.plugin.linkedNotesIndex, card.file, config) : []
     }
 
     /**
      * A linked note changed (plugin-wide index): re-read the budget rings when
      * it gives (or gave) its time to a card of this board whose type takes
-     * linked time. `all` = the index was reset (a rename).
+     * linked time.
      */
-    onLinkedNotesChanged(targets: ReadonlySet<string> | 'all'): void {
+    onLinkedNotesChanged(targets: ReadonlySet<string>): void {
         if (!this.boardEl) return
         const hit = this.allCards.some(
-            (card) =>
-                (targets === 'all' || targets.has(card.key)) &&
-                this.linkedTimeConfigFor(card) !== null
+            (card) => targets.has(card.key) && this.linkedTimeConfigFor(card) !== null
         )
         if (hit) this.debouncedBudgetRefresh()
     }

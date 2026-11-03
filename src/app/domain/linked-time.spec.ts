@@ -5,6 +5,7 @@ import {
     linkedDate,
     linkedMinutes,
     linkedMinutesInRange,
+    skippedEntryPaths,
     tagsInclude
 } from './linked-time'
 import type { LinkedNoteTime } from './linked-time'
@@ -44,6 +45,9 @@ describe('linkedDate', () => {
     test('a date or datetime string gives its first 10 characters', () => {
         expect(linkedDate('2026-11-03')).toBe('2026-11-03')
         expect(linkedDate('2026-11-03T18:30:00')).toBe('2026-11-03')
+        // Read as written: no time zone conversion.
+        expect(linkedDate('2026-11-03T23:30:00-05:00')).toBe('2026-11-03')
+        expect(linkedDate('2026-11-03T00:30:00Z')).toBe('2026-11-03')
     })
 
     test('anything else is no date', () => {
@@ -56,20 +60,59 @@ describe('linkedDate', () => {
 })
 
 describe('linkedMinutes', () => {
-    test('Number() of the value when finite and > 0', () => {
+    test('a finite number or a numeric string, rounded with Math.round', () => {
         expect(linkedMinutes(45)).toBe(45)
         expect(linkedMinutes('30')).toBe(30)
-        expect(linkedMinutes(12.5)).toBe(12.5)
+        expect(linkedMinutes(' 30 ')).toBe(30)
+        expect(linkedMinutes(12.5)).toBe(13)
+        expect(linkedMinutes('12.4')).toBe(12)
+        expect(linkedMinutes('+7')).toBe(7)
+        expect(linkedMinutes('.6')).toBe(1)
+    })
+
+    test('counted only when the rounded value is above 0', () => {
+        expect(linkedMinutes(0.4)).toBe(0)
+        expect(linkedMinutes('0.49')).toBe(0)
+        expect(linkedMinutes(0.5)).toBe(1)
     })
 
     test('0, empty, negative or non-numeric gives 0', () => {
         expect(linkedMinutes(0)).toBe(0)
         expect(linkedMinutes('')).toBe(0)
+        expect(linkedMinutes('  ')).toBe(0)
         expect(linkedMinutes(null)).toBe(0)
         expect(linkedMinutes(undefined)).toBe(0)
         expect(linkedMinutes(-10)).toBe(0)
         expect(linkedMinutes('an hour')).toBe(0)
         expect(linkedMinutes(Number.POSITIVE_INFINITY)).toBe(0)
+        expect(linkedMinutes(Number.NaN)).toBe(0)
+    })
+
+    test('booleans, arrays, hex and exponent strings are rejected', () => {
+        expect(linkedMinutes(true)).toBe(0)
+        expect(linkedMinutes([30])).toBe(0)
+        expect(linkedMinutes(['30'])).toBe(0)
+        expect(linkedMinutes('0x1E')).toBe(0)
+        expect(linkedMinutes('1e2')).toBe(0)
+        expect(linkedMinutes('30 min')).toBe(0)
+    })
+})
+
+describe('skippedEntryPaths', () => {
+    const notes: LinkedNoteTime[] = [
+        { path: 'a.md', minutes: 30, date: '2026-11-02' },
+        { path: 'b.md', minutes: 0, date: '2026-11-03' },
+        { path: 'c.md', minutes: 20, date: '2026-11-09' },
+        { path: 'd.md', minutes: 10, date: null }
+    ]
+
+    test('all time: every note with minutes > 0', () => {
+        expect([...skippedEntryPaths(notes)]).toEqual(['a.md', 'c.md', 'd.md'])
+    })
+
+    test('a range: only those dated inside it as well', () => {
+        const range = { from: new Date(2026, 10, 2), to: new Date(2026, 10, 9) }
+        expect([...skippedEntryPaths(notes, range)]).toEqual(['a.md'])
     })
 })
 

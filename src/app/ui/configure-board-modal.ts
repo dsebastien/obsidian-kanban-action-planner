@@ -1,4 +1,5 @@
-import { Menu, Modal, Setting, setIcon } from 'obsidian'
+import { Menu, Modal, Setting, debounce, setIcon } from 'obsidian'
+import type { Debouncer } from 'obsidian'
 import type { App } from 'obsidian'
 import type { KanbanActionPlannerPlugin } from '../plugin'
 import type {
@@ -123,6 +124,13 @@ export class ConfigureBoardModal extends Modal {
     /** Enum properties being defined in the UI that have no persisted values yet. */
     private readonly draftEnums = new Set<string>()
     private body!: HTMLElement
+    /** Typed "Time from linked notes" field values not saved yet (debounced). */
+    private pendingLinkedNotes: Partial<NoteTypeLinkedNotesTimeConfig> = {}
+    private readonly saveLinkedNotesLater: Debouncer<[], void> = debounce(
+        () => this.flushLinkedNotes(),
+        500,
+        true
+    )
 
     constructor(
         app: App,
@@ -153,6 +161,9 @@ export class ConfigureBoardModal extends Modal {
     }
 
     override onClose(): void {
+        // Typing then closing at once must not lose the last keystrokes.
+        this.saveLinkedNotesLater.cancel()
+        this.flushLinkedNotes()
         this.contentEl.empty()
     }
 
@@ -977,24 +988,19 @@ export class ConfigureBoardModal extends Modal {
             requiredTag: DEFAULT_LINKED_TIME_REQUIRED_TAG
         }
         const save = (patch: Partial<NoteTypeLinkedNotesTimeConfig>, rerender: boolean): void => {
-            const current = this.noteType()?.timeTracking
-            const next = {
-                durationProperty: current?.durationProperty ?? '',
-                totalDurationProperty: current?.totalDurationProperty ?? '',
-                entriesProperty: current?.entriesProperty ?? '',
-                lastSessionProperty: current?.lastSessionProperty ?? '',
-                linkedNotes: { ...defaults, ...current?.linkedNotes, ...patch }
-            }
-            const action = setTimeTrackingConfig(this.plugin, this.noteTypeId, next)
-            void (rerender ? this.mutate(() => action) : action.then(() => this.onChange()))
+            this.saveLinkedNotes(patch, rerender)
         }
         new Setting(this.body)
             .setName('Count time from linked notes')
             .setDesc('Off by default.')
             .addToggle((toggle) =>
-                toggle
-                    .setValue(block?.enabled ?? false)
-                    .onChange((on) => save({ enabled: on }, true))
+                toggle.setValue(block?.enabled ?? false).onChange((on) => {
+                    // Typed values go first, in the same write.
+                    this.saveLinkedNotesLater.cancel()
+                    const typed = this.pendingLinkedNotes
+                    this.pendingLinkedNotes = {}
+                    save({ ...typed, enabled: on }, true)
+                })
             )
         if (!block?.enabled) return
         const fields: ReadonlyArray<{
@@ -1010,12 +1016,12 @@ export class ConfigureBoardModal extends Modal {
             {
                 key: 'minutesProperty',
                 name: 'Minutes property',
-                desc: 'Minutes the linked note adds (counted when above 0).'
+                desc: 'Minutes the linked note adds: a number, rounded, counted when above 0.'
             },
             {
                 key: 'dateProperty',
                 name: 'Date property',
-                desc: 'Day of the linked note (YYYY-MM-DD; first 10 characters). Without it, the minutes count only in all-time totals.'
+                desc: 'Day of the linked note: the first 10 characters, YYYY-MM-DD, read as written (no time zone conversion). Without it, the minutes count only in all-time totals.'
             },
             {
                 key: 'requiredTag',
@@ -1030,9 +1036,45 @@ export class ConfigureBoardModal extends Modal {
                 .addText((text) => {
                     text.setPlaceholder(defaults[field.key])
                         .setValue(block[field.key])
-                        .onChange((value) => save({ [field.key]: value.trim() }, false))
+                        .onChange((value) => {
+                            // Debounced: one write (and one index rebuild) per pause.
+                            this.pendingLinkedNotes[field.key] = value.trim()
+                            this.saveLinkedNotesLater()
+                        })
                 })
         }
+    }
+
+    /** Save the typed "Time from linked notes" fields now (if any). */
+    private flushLinkedNotes(): void {
+        const patch = this.pendingLinkedNotes
+        if (Object.keys(patch).length === 0) return
+        this.pendingLinkedNotes = {}
+        this.saveLinkedNotes(patch, false)
+    }
+
+    /** Persist a patch of the type's "Time from linked notes" block. */
+    private saveLinkedNotes(
+        patch: Partial<NoteTypeLinkedNotesTimeConfig>,
+        rerender: boolean
+    ): void {
+        const defaults: NoteTypeLinkedNotesTimeConfig = {
+            enabled: false,
+            linkProperty: DEFAULT_LINKED_TIME_LINK_PROPERTY,
+            minutesProperty: DEFAULT_LINKED_TIME_MINUTES_PROPERTY,
+            dateProperty: DEFAULT_LINKED_TIME_DATE_PROPERTY,
+            requiredTag: DEFAULT_LINKED_TIME_REQUIRED_TAG
+        }
+        const current = this.noteType()?.timeTracking
+        const next = {
+            durationProperty: current?.durationProperty ?? '',
+            totalDurationProperty: current?.totalDurationProperty ?? '',
+            entriesProperty: current?.entriesProperty ?? '',
+            lastSessionProperty: current?.lastSessionProperty ?? '',
+            linkedNotes: { ...defaults, ...current?.linkedNotes, ...patch }
+        }
+        const action = setTimeTrackingConfig(this.plugin, this.noteTypeId, next)
+        void (rerender ? this.mutate(() => action) : action.then(() => this.onChange()))
     }
 
     // ── Ideal-week / budget properties (issue #172, phase C; per-type override) ──

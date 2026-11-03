@@ -342,9 +342,11 @@ async function applyRecovery(
  * type takes time from linked notes, the stored values follow that rule
  * instead: duration = entries (linked-session entries skipped) + linked
  * minutes, last session = the later of the latest entry day and the latest
- * linked date. Returns the new total, or null for a note with neither
- * entries nor linked notes (its duration is left alone: it may be its only
- * record).
+ * linked date. A note without entries and without linked minutes keeps its
+ * duration (it may be its only record): only its last session is written,
+ * when a linked note is dated. Each value is written only when it differs
+ * from the stored one; nothing changed = no write at all (no sync churn).
+ * Returns the new total, or null when the duration is left alone.
  */
 export async function recomputeTrackedTime(
     plugin: KanbanActionPlannerPlugin,
@@ -356,15 +358,23 @@ export async function recomputeTrackedTime(
     const cleaned = withoutEmptyEntries(raw)
     const parsed = parseTimeEntries(raw)
     const result = computeTrackedTimeOf(plugin.app, plugin.linkedNotesIndex, file, raw, config)
-    if (parsed.length === 0 && result.linkedNotes.length === 0) {
-        if (cleaned) await setProperties(plugin.app, file, { [properties.entries]: cleaned })
-        return null
-    }
-    const write: Record<string, unknown> = { [properties.duration]: result.minutes }
+    const setsDuration = parsed.length > 0 || result.linkedMinutes > 0
+    const write: Record<string, unknown> = {}
     if (cleaned) write[properties.entries] = cleaned
-    if (result.lastSession) write[properties.lastSession] = result.lastSession
-    await setProperties(plugin.app, file, write)
-    return result.minutes
+    if (
+        setsDuration &&
+        getFrontmatterValue(plugin.app, file, properties.duration) !== result.minutes
+    ) {
+        write[properties.duration] = result.minutes
+    }
+    if (
+        result.lastSession !== null &&
+        getFrontmatterValue(plugin.app, file, properties.lastSession) !== result.lastSession
+    ) {
+        write[properties.lastSession] = result.lastSession
+    }
+    if (Object.keys(write).length > 0) await setProperties(plugin.app, file, write)
+    return setsDuration ? result.minutes : null
 }
 
 /** The linked-time config of a note's type (null = off), recognizing its type first. */

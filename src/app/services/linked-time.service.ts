@@ -1,3 +1,4 @@
+import { parseFrontMatterTags } from 'obsidian'
 import type { App, CachedMetadata, TFile } from 'obsidian'
 import {
     DEFAULT_LINKED_TIME_DATE_PROPERTY,
@@ -13,6 +14,7 @@ import {
     linkedDate,
     linkedMinutes,
     normalizeTag,
+    skippedEntryPaths,
     tagsInclude
 } from '../domain/linked-time'
 import type { TimeEntry } from '../domain/time-entries'
@@ -21,11 +23,11 @@ import { findKeyCaseInsensitive } from './frontmatter.service'
 
 /**
  * Time from linked notes: the vault side (see `domain/linked-time.ts` for the
- * rule). A reverse index — target path → paths of the notes counted for it —
- * built lazily per (link property, required tag) on the first query, by one
- * pass over the markdown files' metadata cache, then kept current one file at
- * a time from metadata events (wired by the plugin). Minutes and dates are
- * read at query time, so the index only tracks membership.
+ * rule). A reverse index — target path → the notes counted for it, each with
+ * its minutes and date — built lazily per config (link property, required
+ * tag, minutes and date properties) on the first query, by one pass over the
+ * markdown files' metadata cache, then kept current one file at a time from
+ * metadata events (wired by the plugin through {@link linkedNotesEventHandlers}).
  */
 
 /** The slice of `App` the index reads. */
@@ -62,9 +64,10 @@ function frontmatterValue(cache: CachedMetadata | null, property: string): unkno
 
 /**
  * The paths a note counts for under `config`: empty unless it carries the
- * required tag; else every target its link property (a list or a single
- * value) links to, resolved from the note's own path. The note itself is
- * never its own target.
+ * required tag (Obsidian's `parseFrontMatterTags`: `tags` / `tag`, a list or
+ * a comma / space separated string; hierarchical, case-insensitive match);
+ * else every target its link property (a list or a single value) links to,
+ * resolved from the note's own path. The note itself is never its own target.
  */
 export function linkedTargetsOf(
     app: LinkedTimeApp,
@@ -74,7 +77,9 @@ export function linkedTargetsOf(
     const targets = new Set<string>()
     const cache = app.metadataCache.getFileCache(file)
     if (!cache?.frontmatter) return targets
-    if (!tagsInclude(frontmatterValue(cache, 'tags'), config.requiredTag)) return targets
+    if (!tagsInclude(parseFrontMatterTags(cache.frontmatter) ?? [], config.requiredTag)) {
+        return targets
+    }
     const property = config.linkProperty.toLowerCase()
     for (const link of cache.frontmatterLinks ?? []) {
         // Keys are `prop` (single value) or `prop.<i>` (list item).
@@ -89,15 +94,40 @@ export function linkedTargetsOf(
     return targets
 }
 
-/** One (link property, tag) index. */
+/** What the index keeps per source note. */
+interface SourceRecord {
+    targets: Set<string>
+    /** Rounded minutes (0 = none). */
+    minutes: number
+    date: string | null
+}
+
+/** One index, for one config. */
 interface IndexState {
-    config: Pick<LinkedTimeConfig, 'linkProperty' | 'requiredTag'>
-    sourceToTargets: Map<string, Set<string>>
+    config: LinkedTimeConfig
+    sources: Map<string, SourceRecord>
     targetToSources: Map<string, Set<string>>
 }
 
-function indexKey(config: Pick<LinkedTimeConfig, 'linkProperty' | 'requiredTag'>): string {
-    return `${config.linkProperty.trim().toLowerCase()}\u0000${normalizeTag(config.requiredTag)}`
+function indexKey(config: LinkedTimeConfig): string {
+    return [
+        config.linkProperty.trim().toLowerCase(),
+        normalizeTag(config.requiredTag),
+        config.minutesProperty.trim().toLowerCase(),
+        config.dateProperty.trim().toLowerCase()
+    ].join('\u0000')
+}
+
+/** A source's record under `config`, or null when it counts for no target. */
+function recordOf(app: LinkedTimeApp, file: TFile, config: LinkedTimeConfig): SourceRecord | null {
+    const targets = linkedTargetsOf(app, file, config)
+    if (targets.size === 0) return null
+    const cache = app.metadataCache.getFileCache(file)
+    return {
+        targets,
+        minutes: linkedMinutes(frontmatterValue(cache, config.minutesProperty)),
+        date: linkedDate(frontmatterValue(cache, config.dateProperty))
+    }
 }
 
 /** The reverse index of linked notes, shared by every view and the public API. */
@@ -107,12 +137,20 @@ export class LinkedNotesIndex {
     constructor(private readonly app: LinkedTimeApp) {}
 
     /** Paths of the notes counted for `targetPath` under `config`, sorted. */
-    sourcesFor(
-        targetPath: string,
-        config: Pick<LinkedTimeConfig, 'linkProperty' | 'requiredTag'>
-    ): string[] {
+    sourcesFor(targetPath: string, config: LinkedTimeConfig): string[] {
         const sources = this.state(config).targetToSources.get(targetPath)
         return sources ? [...sources].sort() : []
+    }
+
+    /** The notes counted for `targetPath` under `config`, with minutes and date, sorted by path. */
+    linkedFor(targetPath: string, config: LinkedTimeConfig): LinkedNoteTime[] {
+        const state = this.state(config)
+        const out: LinkedNoteTime[] = []
+        for (const path of [...(state.targetToSources.get(targetPath) ?? [])].sort()) {
+            const record = state.sources.get(path)
+            if (record) out.push({ path, minutes: record.minutes, date: record.date })
+        }
+        return out
     }
 
     /** Whether any built index is current (events only matter then). */
@@ -122,21 +160,28 @@ export class LinkedNotesIndex {
 
     /**
      * Re-index one note (its metadata changed or its links re-resolved).
-     * Returns the targets whose linked set or linked values may have changed:
-     * its old and new targets (`all`) or only the ones it joined or left.
+     * Returns the targets whose linked notes changed: every old and new
+     * target when the note's minutes or date changed, else only the targets
+     * it joined or left (a body-only edit returns none).
      */
-    update(file: TFile, mode: 'all' | 'membership' = 'all'): Set<string> {
+    update(file: TFile): Set<string> {
         const touched = new Set<string>()
         for (const state of this.states.values()) {
-            const before = state.sourceToTargets.get(file.path) ?? new Set<string>()
-            const after = linkedTargetsOf(this.app, file, state.config)
-            for (const target of before) {
-                if (mode === 'all' || !after.has(target)) touched.add(target)
+            const before = state.sources.get(file.path)
+            const after = recordOf(this.app, file, state.config)
+            const beforeTargets = before?.targets ?? new Set<string>()
+            const afterTargets = after?.targets ?? new Set<string>()
+            const valuesChanged =
+                before !== undefined &&
+                after !== null &&
+                (before.minutes !== after.minutes || before.date !== after.date)
+            for (const target of beforeTargets) {
+                if (valuesChanged || !afterTargets.has(target)) touched.add(target)
             }
-            for (const target of after) {
-                if (mode === 'all' || !before.has(target)) touched.add(target)
+            for (const target of afterTargets) {
+                if (valuesChanged || !beforeTargets.has(target)) touched.add(target)
             }
-            this.setTargets(state, file.path, after)
+            this.setRecord(state, file.path, after)
         }
         return touched
     }
@@ -145,46 +190,87 @@ export class LinkedNotesIndex {
     remove(path: string): Set<string> {
         const touched = new Set<string>()
         for (const state of this.states.values()) {
-            for (const target of state.sourceToTargets.get(path) ?? []) touched.add(target)
-            this.setTargets(state, path, new Set())
+            for (const target of state.sources.get(path)?.targets ?? []) touched.add(target)
+            this.setRecord(state, path, null)
         }
         return touched
     }
 
-    /** Forget everything; the next query rebuilds (a rename can move any link). */
+    /**
+     * A note moved from `oldPath` to `file.path`: re-key it as a source and
+     * as a target, then re-index it (its links resolve from the new folder).
+     * Returns the targets touched (both paths when it was a target).
+     */
+    rename(file: TFile, oldPath: string): Set<string> {
+        const touched = new Set<string>()
+        const newPath = file.path
+        for (const state of this.states.values()) {
+            const record = state.sources.get(oldPath)
+            if (record) {
+                this.setRecord(state, oldPath, null)
+                this.setRecord(state, newPath, record)
+            }
+            const sources = state.targetToSources.get(oldPath)
+            if (sources) {
+                state.targetToSources.delete(oldPath)
+                state.targetToSources.set(newPath, sources)
+                for (const source of sources) {
+                    const targets = state.sources.get(source)?.targets
+                    targets?.delete(oldPath)
+                    targets?.add(newPath)
+                }
+                touched.add(oldPath)
+                touched.add(newPath)
+            }
+        }
+        for (const target of this.update(file)) touched.add(target)
+        return touched
+    }
+
+    /**
+     * Keep only the indexes of the configs still in use (settings changed);
+     * none left = not built, so metadata events are ignored again.
+     */
+    retain(configs: readonly LinkedTimeConfig[]): void {
+        const keep = new Set(configs.map(indexKey))
+        for (const key of [...this.states.keys()]) {
+            if (!keep.has(key)) this.states.delete(key)
+        }
+    }
+
+    /** Forget everything; the next query rebuilds. */
     invalidate(): void {
         this.states.clear()
     }
 
-    private state(config: Pick<LinkedTimeConfig, 'linkProperty' | 'requiredTag'>): IndexState {
+    private state(config: LinkedTimeConfig): IndexState {
         const key = indexKey(config)
         let state = this.states.get(key)
         if (state) return state
         state = {
-            config: { linkProperty: config.linkProperty, requiredTag: config.requiredTag },
-            sourceToTargets: new Map(),
+            config: { ...config },
+            sources: new Map(),
             targetToSources: new Map()
         }
         for (const file of this.app.vault.getMarkdownFiles()) {
-            const targets = linkedTargetsOf(this.app, file, state.config)
-            if (targets.size > 0) this.setTargets(state, file.path, targets)
+            this.setRecord(state, file.path, recordOf(this.app, file, state.config))
         }
         this.states.set(key, state)
         return state
     }
 
-    private setTargets(state: IndexState, source: string, targets: Set<string>): void {
-        for (const target of state.sourceToTargets.get(source) ?? []) {
+    private setRecord(state: IndexState, source: string, record: SourceRecord | null): void {
+        for (const target of state.sources.get(source)?.targets ?? []) {
             const sources = state.targetToSources.get(target)
             sources?.delete(source)
             if (sources?.size === 0) state.targetToSources.delete(target)
         }
-        if (targets.size === 0) {
-            state.sourceToTargets.delete(source)
+        if (record === null) {
+            state.sources.delete(source)
             return
         }
-        state.sourceToTargets.set(source, targets)
-        for (const target of targets) {
+        state.sources.set(source, record)
+        for (const target of record.targets) {
             let sources = state.targetToSources.get(target)
             if (!sources) {
                 sources = new Set()
@@ -195,48 +281,80 @@ export class LinkedNotesIndex {
     }
 }
 
+/**
+ * The metadata / vault event handlers keeping `index()` current, each
+ * reporting the touched targets to `notify` (skipped when none). They do
+ * nothing until an index is built. The plugin registers them.
+ */
+export function linkedNotesEventHandlers(
+    index: () => LinkedNotesIndex | null,
+    notify: (targets: ReadonlySet<string>) => void
+): {
+    changed(file: TFile): void
+    resolve(file: TFile): void
+    deleted(path: string): void
+    rename(file: TFile, oldPath: string): void
+} {
+    const report = (targets: ReadonlySet<string>): void => {
+        if (targets.size > 0) notify(targets)
+    }
+    const built = (): LinkedNotesIndex | null => {
+        const current = index()
+        return current?.isBuilt ? current : null
+    }
+    return {
+        changed: (file) => {
+            const current = built()
+            if (current) report(current.update(file))
+        },
+        // A link can start (or stop) resolving without its note changing.
+        resolve: (file) => {
+            const current = built()
+            if (current) report(current.update(file))
+        },
+        deleted: (path) => {
+            const current = built()
+            if (current) report(current.remove(path))
+        },
+        rename: (file, oldPath) => {
+            const current = built()
+            if (current) report(current.rename(file, oldPath))
+        }
+    }
+}
+
 /** The linked notes counted for `target`, with their minutes and dates. */
 export function linkedNotesOf(
-    app: LinkedTimeApp,
     index: LinkedNotesIndex,
     target: TFile,
     config: LinkedTimeConfig
 ): LinkedNoteTime[] {
-    const notes: LinkedNoteTime[] = []
-    for (const path of index.sourcesFor(target.path, config)) {
-        const file = app.vault.getFileByPath(path)
-        if (!file) continue
-        const cache = app.metadataCache.getFileCache(file)
-        notes.push({
-            path,
-            minutes: linkedMinutes(frontmatterValue(cache, config.minutesProperty)),
-            date: linkedDate(frontmatterValue(cache, config.dateProperty))
-        })
-    }
-    return notes
+    return index.linkedFor(target.path, config)
 }
 
 /**
- * Whether an entry of `target` is a linked note's session: its description
- * is a wikilink that resolves (from the target's path) to a path in `linked`.
+ * Whether an entry is a linked note's session: its description is a
+ * wikilink that resolves (from `source`, the note holding the entry) to a
+ * path in `skipped` (see `skippedEntryPaths`).
  */
 export function linkedEntryMatcher(
     app: LinkedTimeApp,
-    target: TFile,
-    linked: ReadonlySet<string>
+    source: TFile,
+    skipped: ReadonlySet<string>
 ): (entry: TimeEntry) => boolean {
-    if (linked.size === 0) return () => false
+    if (skipped.size === 0) return () => false
     return (entry) => {
         const linkpath = entryDescriptionLinkpath(entry.description)
         if (linkpath === null) return false
-        const dest = app.metadataCache.getFirstLinkpathDest(linkpath, target.path)
-        return dest !== null && linked.has(dest.path)
+        const dest = app.metadataCache.getFirstLinkpathDest(linkpath, source.path)
+        return dest !== null && skipped.has(dest.path)
     }
 }
 
 /**
  * The tracked time of `target`: its entries (raw value of its entries
- * property) plus, when `config` is set, its linked notes.
+ * property) plus, when `config` is set, its linked notes. An entry linking
+ * to a linked note with minutes > 0 is skipped.
  */
 export function computeTrackedTimeOf(
     app: LinkedTimeApp,
@@ -245,7 +363,7 @@ export function computeTrackedTimeOf(
     rawEntries: unknown,
     config: LinkedTimeConfig | null
 ): TrackedTimeResult {
-    const linked = config ? linkedNotesOf(app, index, target, config) : []
-    const matcher = linkedEntryMatcher(app, target, new Set(linked.map((n) => n.path)))
+    const linked = config ? linkedNotesOf(index, target, config) : []
+    const matcher = linkedEntryMatcher(app, target, skippedEntryPaths(linked))
     return combineTrackedTime(parseTimeEntries(rawEntries), linked, matcher)
 }

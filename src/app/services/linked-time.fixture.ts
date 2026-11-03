@@ -6,7 +6,7 @@ import type { LinkedTimeApp } from './linked-time.service'
  * A tiny in-memory vault for the linked-time specs: notes by path with their
  * frontmatter; frontmatter wikilinks are derived the way Obsidian lists them
  * (`prop` / `prop.<i>` keys, the alias dropped from `link`), and link paths
- * resolve by basename or full path.
+ * resolve by full path, else by basename (the source's folder first).
  */
 export interface FakeVault {
     app: LinkedTimeApp
@@ -62,12 +62,27 @@ export function fakeVault(notes: Record<string, Record<string, unknown>> = {}): 
                 if (!fm) return null
                 return { frontmatter: fm, frontmatterLinks: linksOf(fm) }
             },
-            getFirstLinkpathDest: (linkpath: string, _source: string): TFile | null => {
-                for (const file of files.values()) {
-                    if (file.path === linkpath || file.path === `${linkpath}.md`) return file
-                    if (file.basename === linkpath) return file
-                }
-                return null
+            // Obsidian's order: an exact path, else a basename match in the
+            // source's own folder, else the first basename match by path.
+            getFirstLinkpathDest: (linkpath: string, source: string): TFile | null => {
+                const exact = files.get(linkpath) ?? files.get(`${linkpath}.md`)
+                if (exact) return exact
+                const name = linkpath.split('/').pop() ?? linkpath
+                const candidates = [...files.values()]
+                    .filter(
+                        (file) =>
+                            file.basename === name &&
+                            (file.path === `${linkpath}.md` ||
+                                file.path.endsWith(`/${linkpath}.md`) ||
+                                !linkpath.includes('/'))
+                    )
+                    .sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0))
+                const folder = (path: string): string => path.slice(0, path.lastIndexOf('/') + 1)
+                return (
+                    candidates.find((file) => folder(file.path) === folder(source)) ??
+                    candidates[0] ??
+                    null
+                )
             }
         }
     }

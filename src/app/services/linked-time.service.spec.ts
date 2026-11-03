@@ -2,6 +2,7 @@ import { describe, expect, test } from 'bun:test'
 import {
     LinkedNotesIndex,
     computeTrackedTimeOf,
+    linkedNotesEventHandlers,
     linkedNotesOf,
     linkedTargetsOf,
     linkedTimeConfigForType
@@ -120,6 +121,84 @@ describe('linkedTargetsOf', () => {
     })
 })
 
+describe('linkedTargetsOf: tags and link resolution', () => {
+    test("reads tags the way Obsidian does: comma / space strings and 'tag:'", () => {
+        const v = fakeVault({
+            [RUN]: {},
+            'comma.md': {
+                tags: 'journal, type/session/music',
+                related_activities: '[[Run (Activity)]]'
+            },
+            'space.md': { tags: 'journal #Type/Session', related_activities: '[[Run (Activity)]]' },
+            'tag.md': { tag: 'type/session', related_activities: '[[Run (Activity)]]' },
+            'prefix.md': { tags: 'type/sessions', related_activities: '[[Run (Activity)]]' }
+        })
+        for (const path of ['comma.md', 'space.md', 'tag.md']) {
+            expect([...linkedTargetsOf(v.app, v.file(path), CONFIG)]).toEqual([RUN])
+        }
+        expect(linkedTargetsOf(v.app, v.file('prefix.md'), CONFIG).size).toBe(0)
+    })
+
+    test('two targets with the same basename: each link resolves from its source', () => {
+        const v = fakeVault({
+            'Work/Run.md': {},
+            'Sport/Run.md': {},
+            'Work/a.md': session(['[[Run]]']),
+            'Sport/b.md': session(['[[Run]]']),
+            'Sport/c.md': session(['[[Work/Run]]'])
+        })
+        const index = new LinkedNotesIndex(v.app)
+        expect(index.sourcesFor('Work/Run.md', CONFIG)).toEqual(['Sport/c.md', 'Work/a.md'])
+        expect(index.sourcesFor('Sport/Run.md', CONFIG)).toEqual(['Sport/b.md'])
+    })
+})
+
+describe('linkedNotesEventHandlers (the plugin wiring)', () => {
+    test('ignores events until an index is built, then reports touched targets', () => {
+        const v = fakeVault({
+            [RUN]: {},
+            'a.md': session(['[[Run (Activity)]]'], { time_spent: 5 })
+        })
+        const index = new LinkedNotesIndex(v.app)
+        const seen: string[][] = []
+        const handlers = linkedNotesEventHandlers(
+            () => index,
+            (targets) => seen.push([...targets].sort())
+        )
+        v.set('a.md', session(['[[Run (Activity)]]'], { time_spent: 6 }))
+        handlers.changed(v.file('a.md'))
+        expect(seen).toEqual([])
+        index.sourcesFor(RUN, CONFIG)
+        handlers.changed(v.file('a.md'))
+        handlers.resolve(v.file('a.md'))
+        expect(seen).toEqual([])
+        v.set('a.md', session(['[[Run (Activity)]]'], { time_spent: 7 }))
+        handlers.changed(v.file('a.md'))
+        handlers.resolve(v.file('a.md'))
+        expect(seen).toEqual([[RUN]])
+        const fm = v.frontmatter.get('a.md') ?? {}
+        v.delete('a.md')
+        handlers.rename(v.set('b.md', fm), 'a.md')
+        expect(seen).toHaveLength(1)
+        expect(index.sourcesFor(RUN, CONFIG)).toEqual(['b.md'])
+        v.delete('b.md')
+        handlers.deleted('b.md')
+        expect(seen).toEqual([[RUN], [RUN]])
+    })
+
+    test('no index at all: handlers do nothing', () => {
+        const v = fakeVault({ 'a.md': {} })
+        const seen: unknown[] = []
+        const handlers = linkedNotesEventHandlers(
+            () => null,
+            (targets) => seen.push(targets)
+        )
+        handlers.changed(v.file('a.md'))
+        handlers.deleted('a.md')
+        expect(seen).toEqual([])
+    })
+})
+
 describe('LinkedNotesIndex', () => {
     test('builds lazily and answers sorted sources per target', () => {
         const v = fakeVault({
@@ -142,10 +221,90 @@ describe('LinkedNotesIndex', () => {
         expect([...index.update(v.file('a.md'))].sort()).toEqual([RUN, 'Swim.md'])
         expect(index.sourcesFor(RUN, CONFIG)).toEqual([])
         expect(index.sourcesFor('Swim.md', CONFIG)).toEqual(['a.md'])
-        // A minutes-only edit: membership mode reports nothing, 'all' the target.
-        v.set('a.md', session(['[[Swim]]'], { time_spent: 5 }))
-        expect(index.update(v.file('a.md'), 'membership').size).toBe(0)
-        expect([...index.update(v.file('a.md'), 'all')]).toEqual(['Swim.md'])
+    })
+
+    test('notifies a target only when the minutes, date or targets change', () => {
+        const v = fakeVault({
+            [RUN]: {},
+            'Swim.md': {},
+            'a.md': session(['[[Run (Activity)]]', '[[Swim]]'], {
+                time_spent: 5,
+                date: '2026-11-02'
+            })
+        })
+        const index = new LinkedNotesIndex(v.app)
+        index.sourcesFor(RUN, CONFIG)
+        // Body-only edit (same frontmatter): nothing to refresh.
+        expect(index.update(v.file('a.md')).size).toBe(0)
+        // Another property: nothing either.
+        v.set(
+            'a.md',
+            session(['[[Run (Activity)]]', '[[Swim]]'], {
+                time_spent: 5,
+                date: '2026-11-02',
+                mood: 'ok'
+            })
+        )
+        expect(index.update(v.file('a.md')).size).toBe(0)
+        // Minutes: every target. Rounding to the same value: none.
+        v.set(
+            'a.md',
+            session(['[[Run (Activity)]]', '[[Swim]]'], { time_spent: 6, date: '2026-11-02' })
+        )
+        expect([...index.update(v.file('a.md'))].sort()).toEqual([RUN, 'Swim.md'])
+        v.set(
+            'a.md',
+            session(['[[Run (Activity)]]', '[[Swim]]'], { time_spent: '6.2', date: '2026-11-02' })
+        )
+        expect(index.update(v.file('a.md')).size).toBe(0)
+        // Date: every target.
+        v.set(
+            'a.md',
+            session(['[[Run (Activity)]]', '[[Swim]]'], { time_spent: 6, date: '2026-11-03' })
+        )
+        expect([...index.update(v.file('a.md'))].sort()).toEqual([RUN, 'Swim.md'])
+        // Dropping one target: only that one.
+        v.set('a.md', session(['[[Run (Activity)]]'], { time_spent: 6, date: '2026-11-03' }))
+        expect([...index.update(v.file('a.md'))]).toEqual(['Swim.md'])
+        expect(index.linkedFor(RUN, CONFIG)).toEqual([
+            { path: 'a.md', minutes: 6, date: '2026-11-03' }
+        ])
+    })
+
+    test('rename re-keys a moved source and a moved target', () => {
+        const v = fakeVault({
+            [RUN]: {},
+            'a.md': session(['[[Run (Activity)]]'], { time_spent: 10, date: '2026-11-02' })
+        })
+        const index = new LinkedNotesIndex(v.app)
+        index.sourcesFor(RUN, CONFIG)
+        // The source moves.
+        const fm = v.frontmatter.get('a.md') ?? {}
+        v.delete('a.md')
+        const moved = v.set('Sessions/a.md', fm)
+        expect([...index.rename(moved, 'a.md')]).toEqual([])
+        expect(index.linkedFor(RUN, CONFIG)).toEqual([
+            { path: 'Sessions/a.md', minutes: 10, date: '2026-11-02' }
+        ])
+        // The target moves (its links keep resolving by basename).
+        v.delete(RUN)
+        const target = v.set('Areas/Run (Activity).md', {})
+        expect([...index.rename(target, RUN)].sort()).toEqual([RUN, 'Areas/Run (Activity).md'])
+        expect(index.sourcesFor(RUN, CONFIG)).toEqual([])
+        expect(index.sourcesFor('Areas/Run (Activity).md', CONFIG)).toEqual(['Sessions/a.md'])
+        expect(index.isBuilt).toBe(true)
+    })
+
+    test('retain drops the indexes no type uses', () => {
+        const v = fakeVault({ [RUN]: {}, 'a.md': session(['[[Run (Activity)]]']) })
+        const index = new LinkedNotesIndex(v.app)
+        const other = { ...CONFIG, requiredTag: 'type/play' }
+        index.sourcesFor(RUN, CONFIG)
+        index.sourcesFor(RUN, other)
+        index.retain([CONFIG])
+        expect(index.isBuilt).toBe(true)
+        index.retain([])
+        expect(index.isBuilt).toBe(false)
     })
 
     test('a note losing its tag leaves; remove drops a deleted note', () => {
@@ -201,7 +360,7 @@ describe('linkedNotesOf / computeTrackedTimeOf', () => {
     test('reads minutes and dates per note, each note once', () => {
         const v = vault()
         const index = new LinkedNotesIndex(v.app)
-        expect(linkedNotesOf(v.app, index, v.file(RUN), CONFIG)).toEqual([
+        expect(linkedNotesOf(index, v.file(RUN), CONFIG)).toEqual([
             { path: 'Sessions/2026-11-02 Run.md', minutes: 30, date: '2026-11-02' },
             { path: 'Sessions/2026-11-03 Run.md', minutes: 45, date: '2026-11-03' },
             { path: 'Sessions/2026-11-04 Play.md', minutes: 0, date: '2026-11-04' },
@@ -234,6 +393,36 @@ describe('linkedNotesOf / computeTrackedTimeOf', () => {
         expect(result.minutes).toBe(135)
         expect(result.lastSession).toBe('2026-11-04')
         expect(result.linkedNotes).toHaveLength(5)
+    })
+
+    test('an entry linking to a note with 0 minutes is kept (minutes and last session)', () => {
+        const v = vault()
+        const index = new LinkedNotesIndex(v.app)
+        const entries = [
+            {
+                startTime: '2026-11-05T19:00:00',
+                endTime: '2026-11-05T20:00:00',
+                description: '[[2026-11-04 Play]]'
+            }
+        ]
+        const result = computeTrackedTimeOf(v.app, index, v.file(RUN), entries, CONFIG)
+        expect(result.entryMinutes).toBe(60)
+        expect(result.lastSession).toBe('2026-11-05')
+    })
+
+    test('a session note with minutes hides its entry from the last session too', () => {
+        const v = vault()
+        const index = new LinkedNotesIndex(v.app)
+        const entries = [
+            {
+                startTime: '2026-11-09T07:00:00',
+                endTime: '2026-11-09T08:00:00',
+                description: '[[2026-11-03 Run]]'
+            }
+        ]
+        const result = computeTrackedTimeOf(v.app, index, v.file(RUN), entries, CONFIG)
+        expect(result.entryMinutes).toBe(0)
+        expect(result.lastSession).toBe('2026-11-04')
     })
 
     test('without a config only the entries count (no entry skipped)', () => {

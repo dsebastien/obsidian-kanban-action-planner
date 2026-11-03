@@ -529,4 +529,23 @@ describe('subtreeDuration (issue #119)', () => {
         const trees = forest(['solo'], {})
         expect(subtreeDuration(trees[0] as WbsNode, () => 45)).toBe(45)
     })
+
+    test("a target's linked notes are left out: already in its duration (rule 78)", () => {
+        // activity's duration (100) holds session's 40 linked minutes.
+        const trees = forest(['goal', 'activity', 'session', 'task'], {
+            goal: ['activity'],
+            activity: ['session', 'task']
+        })
+        const durations: Record<string, number> = { goal: 5, activity: 100, session: 40, task: 20 }
+        const durationOf = (path: string): number | null => durations[path] ?? null
+        const sources = (path: string): string[] => (path === 'activity' ? ['session'] : [])
+        expect(subtreeDuration(trees[0] as WbsNode, durationOf)).toBe(165)
+        // The goal above the target and the target itself both skip it.
+        expect(subtreeDuration(trees[0] as WbsNode, durationOf, sources)).toBe(125)
+        const activity = trees[0]?.children[0] as WbsNode
+        expect(subtreeDuration(activity, durationOf, sources)).toBe(120)
+        // A source outside the subtree changes nothing; the node itself always counts.
+        const session = activity.children[0] as WbsNode
+        expect(subtreeDuration(session, durationOf, () => ['session'])).toBe(40)
+    })
 })
