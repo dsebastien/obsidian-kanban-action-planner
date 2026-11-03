@@ -172,9 +172,12 @@ activePeriods}`) live in the daily note's `pomodoros` list. Domain: `time-entrie
   `requiredTag` (or nested) that link to a note give it their minutes on their date: weekly
   ring and **Recompute tracked time** (Business rule 78). Domain: `linked-time.ts` (tag match,
   minutes, date, entry-link skip, combine, week range; pure); service: `linked-time.service.ts`
-  (`LinkedNotesIndex` reverse index target → sources, lazy per (link property, tag), kept
-  current by the plugin from `changed` / `resolve` / `deleted`, reset on rename; open views get
-  `onLinkedNotesChanged(targets)` and refresh their rings, debounced). Public API:
+  (`LinkedNotesIndex` reverse index target → sources with each source's targets, minutes and
+  date, lazy per config, kept current by the plugin through `linkedNotesEventHandlers` from
+  `changed` / `resolve` / `deleted` / `rename` (re-key); open views get
+  `onLinkedNotesChanged(targets)` only when targets, minutes or date change, and refresh their
+  rings, debounced). The WBS tracked roll-up leaves a target's linked notes out
+  (`subtreeDuration(node, durationOf, linkedSourcesOf)`). Public API:
   `plugin.api.computeTrackedTime(path)` → `TrackedTimeResult`
   `{minutes, entryMinutes, linkedMinutes, lastSession, linkedNotes: [{path, minutes, date}]}`.
 - **Ideal week** (issue #172): `time_blocks` (list of `<days> HH:MM-HH:MM` strings, Monday-first

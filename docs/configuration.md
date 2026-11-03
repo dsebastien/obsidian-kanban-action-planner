@@ -90,13 +90,13 @@ notes that link to its notes (session notes: a run, a practice, a play). Off by 
 on, a session note's minutes count in the weekly budget ring (for the week its date falls in)
 and in **Recompute tracked time**. A blank field uses its default.
 
-| Setting                          | Default              | What it does                                                                                                                      |
-| -------------------------------- | -------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| **Count time from linked notes** | Off                  | Turns the feature on for this note type.                                                                                          |
-| **Link property**                | `related_activities` | Property on the session note holding the link(s) to this note: a list or a single link. Aliases (`[[Run (Activity)\|Run]]`) work. |
-| **Minutes property**             | `time_spent`         | The session's minutes. Counted only when it is a number above 0 (`"45"` counts).                                                  |
-| **Date property**                | `date`               | The session's day: the first 10 characters, `YYYY-MM-DD`. Without a valid date, the minutes count only in the all-time total.     |
-| **Required tag**                 | `type/session`       | Only notes with this tag or a nested one (`type/session/sport/running`) count. `#` and case are ignored.                          |
+| Setting                          | Default              | What it does                                                                                                                                                                |
+| -------------------------------- | -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Count time from linked notes** | Off                  | Turns the feature on for this note type.                                                                                                                                    |
+| **Link property**                | `related_activities` | Property on the session note holding the link(s) to this note: a list or a single link. Aliases (`[[Run (Activity)\|Run]]`) work; a plain name without brackets is ignored. |
+| **Minutes property**             | `time_spent`         | The session's minutes, rounded. Counted only when it rounds above 0 (`"45"` counts).                                                                                        |
+| **Date property**                | `date`               | The session's day: the first 10 characters, `YYYY-MM-DD`, read as written (no time zone conversion). Without a valid date, the minutes count only in the all-time total.    |
+| **Required tag**                 | `type/session`       | Only notes with this tag or a nested one (`type/session/sport/running`) count. `#` and case are ignored.                                                                    |
 
 The exact rule, for scripts that recompute the same values, is in the
 [time tracking section of the usage guide]({{ '/usage.html#time-tracking' | relative_url }}).

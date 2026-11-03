@@ -1506,24 +1506,40 @@ Markdown)`, `Export ideal week (JSON)`, `Export ideal week (Markdown)`); the for
 78. **Time from linked notes (per note type, opt-in).** `timeTracking.linkedNotes`
     (`enabled` false by default; `linkProperty` `related_activities`, `minutesProperty`
     `time_spent`, `dateProperty` `date`, `requiredTag` `type/session`; blank = that default).
-    A note N counts for a target T when: N is a Markdown note other than T; N's frontmatter
-    `tags` (a list, or one string) holds `requiredTag` or a nested tag (`type/session/…`),
-    case-insensitive, leading `#` ignored; and N's link property (a list or one value; property
-    names case-insensitive) holds a wikilink that `getFirstLinkpathDest(link, N.path)` resolves
-    to T (aliases and `#subpath` ignored). N counts at most once per T. It contributes
-    `Number(minutes)` when finite and > 0 (else 0) on its date (first 10 chars of a string,
-    must read `YYYY-MM-DD`). No valid date: its minutes count in all-time totals, never in a
-    week, and it never moves the last session. A valid date moves the last session even with 0
-    minutes. An entry of T whose `description` (trimmed) is exactly one wikilink
-    (`[[name]]`, `[[name|alias]]`) resolving from T's path to a counted N is skipped (minutes
-    and last-session date): the session counts once, with N's minutes. **Recompute tracked
-    time** then stores duration = `round(sum of the remaining entries' minutes)` + sum of N
-    minutes, and last session = the later of the latest remaining entry day and the latest N
-    date (unchanged when neither exists; no write at all when T has neither entries nor linked
-    notes). **Weekly ring:** tracked += minutes of the N dated inside the ISO week; a linked
-    note that is also a counted child counts once, as a linked note (its entries are not
-    added). `readTrackedMinutes`, the WBS total roll-up, the timer and the calendar / timeline
-    views ignore linked notes. The membership index (`LinkedNotesIndex`) is built lazily per
-    (link property, tag) on the first query and kept current from `changed` / `resolve` /
-    `deleted` events (a rename resets it); minutes and dates are read at query time. The
-    public `plugin.api.computeTrackedTime(path)` returns these exact values, read-only.
+    A note N counts for a target T when: N is a Markdown note other than T; N's tags, read with
+    Obsidian's `parseFrontMatterTags(frontmatter)` (`tags` or `tag`, a list or a comma / space
+    separated string), hold `requiredTag` or a nested tag (`type/session/…`), case-insensitive,
+    leading `#` ignored; and N's link property (a list or one value; property names
+    case-insensitive) holds a wikilink (from `frontmatterLinks`: a plain string without
+    brackets is ignored) that `getFirstLinkpathDest(link, N.path)` resolves to T (aliases and
+    `#subpath` ignored). N counts at most once per T. **Minutes:** a finite number or a numeric
+    string (trimmed, plain decimal; booleans, arrays, hex, exponents rejected), `Math.round`ed
+    per note, counted only when the rounded value is > 0 (else 0). **Date:** the first 10
+    characters of a string, must read `YYYY-MM-DD`, taken as written (no timezone
+    conversion). No valid date: its minutes count in all-time totals, never in a week, and it
+    never moves the last session. A valid date moves the last session even with 0 minutes.
+    **Entry skip:** an entry whose `description` (trimmed) is exactly one wikilink (`[[name]]`,
+    `[[name|alias]]`) resolving (from the path of the note holding the entry) to an N with
+    minutes > 0 is skipped (minutes and last-session date): the session counts once, with N's
+    minutes; an N with 0 minutes never hides an entry. For a week, an entry is skipped only
+    when, in addition, N's date falls in that same week; otherwise it counts as usual.
+    **Recompute tracked time** stores duration = the kept entries' minutes (each entry
+    `max(1, round(minutes))`, summed) + the sum of N minutes, and last session = the later of
+    the latest kept entry day (local day of its `endTime`, `startTime` for an open entry) and
+    the latest N date. With no entries and 0 linked minutes the duration is not written (a
+    hand-set value stays); only the last session is, when an N is dated. Each value is written
+    only when it differs from the stored one; nothing changed = no write. **Weekly ring:**
+    tracked += minutes of the N dated inside the ISO week; the entry skip applies to the
+    target's entries and to each counted child's entries (the child's links resolve from the
+    child's path); a linked note that is also a counted child counts once, as a linked note
+    (its entries are not added). **WBS total roll-up / Save total tracked time:** every linked
+    note of a note in the subtree whose type takes linked time is left out of the subtree sum
+    (its minutes are already in that note's duration); the row itself always counts.
+    `readTrackedMinutes`, the timer and the calendar / timeline views ignore linked notes. The
+    index (`LinkedNotesIndex`) is built lazily per config (link property, tag, minutes and date
+    properties) on the first query and keeps each source's targets, minutes and date; it is
+    kept current from `changed` / `resolve` / `deleted` events, and a rename re-keys the moved
+    path (as source and as target). Open boards are notified only when a source's targets,
+    minutes or date change (a body-only edit refreshes nothing). Saving settings drops the
+    indexes no note type uses. The public `plugin.api.computeTrackedTime(path)` returns these
+    exact values, read-only.

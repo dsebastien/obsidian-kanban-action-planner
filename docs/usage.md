@@ -1485,21 +1485,28 @@ records), straight from the cards, on **any note type**:
   note with its own minutes and date. Turn it on per note type in **Configure → Time tracking →
   Time from linked notes** (off by default) and set four fields:
     - **Link property** (`related_activities`): the property on the session note that links to
-      this note, a list of links or a single one (`[[Run (Activity)]]`, aliases allowed).
-    - **Minutes property** (`time_spent`): the session's minutes; only a number above 0 counts
-      (`"45"` counts, empty or `0` adds nothing).
-    - **Date property** (`date`): the session's day, `YYYY-MM-DD` or a datetime (the first 10
-      characters are read).
+      this note, a list of links or a single one (`[[Run (Activity)]]`, aliases allowed). A
+      plain name without brackets (`Run (Activity)`) is not a link and is ignored.
+    - **Minutes property** (`time_spent`): the session's minutes, a number or a number written
+      as text (`"45"`, `"12.5"`), rounded to the nearest minute; it counts only when the rounded
+      value is above 0 (empty, `0`, `0.4`, text such as `45 min`, or `true` add nothing).
+    - **Date property** (`date`): the session's day, `YYYY-MM-DD` or a datetime. The first 10
+      characters are read as written, with no time zone conversion
+      (`2026-11-03T23:30:00-05:00` is November 3).
     - **Required tag** (`type/session`): only notes carrying this tag or a nested one
-      (`type/session/sport/running`) count; `#` and case don't matter.
+      (`type/session/sport/running`) count; `#` and case don't matter, and `tags` written as one
+      string (`tags: journal, type/session`) works too.
 
     A session note counts once per note it links to, even when it links twice. Its minutes go to
     the weekly budget ring of the week its date falls in, and to **Recompute tracked time**. A
     session without a valid date still counts in the all-time total, never in a week. A session
     with a date but no minutes (a play without a duration) still counts as a session for the
     last-session date. A time entry whose description is a link to one of these session notes
-    (`[[2026-11-03 Run]]` or `[[2026-11-03 Run|Morning run]]`) is skipped, so a session logged
-    both ways counts once, with the session note's minutes.
+    (`[[2026-11-03 Run]]` or `[[2026-11-03 Run|Morning run]]`) is skipped when that session note
+    has minutes, so a session logged both ways counts once, with the session note's minutes. A
+    session note without minutes never hides an entry. In the weekly ring, the entry is skipped
+    only when the session note is dated in the same week; the same goes for entries on the
+    note's linked tasks.
 
 - **Pomodoro mode.** **Start pomodoro** in the card menu runs a timed work pomodoro on the
   card (25 minutes by default) and opens its time session at the same time, so the entry
@@ -1587,7 +1594,10 @@ records), straight from the cards, on **any note type**:
   hand or by TaskNotes); it drops minutes added outside the tracker, so use it only when the
   list is the whole story. When the note's type takes time from linked notes, it stores the
   entries plus the session notes' minutes, and the later of the latest entry day and the latest
-  session date; the item then shows when the note has entries or session notes. It also removes empty items from the list, like the `- ` placeholder
+  session date; the item then shows when the note has entries or session notes. A note with no
+  entries and no session minutes keeps its duration (only its last-session date is updated),
+  and nothing is written when no value changes. The ⏱ tracked total and **Save total tracked
+  time** leave out the session notes of such a note: their minutes are already in its duration. It also removes empty items from the list, like the `- ` placeholder
   older Starter Kit templates left under `time_entries`, which hides the note from TaskNotes.
 - Tracked time renders with the same `d / h / m` grammar as estimates, sized by **Minutes
   per day**, so tracked and estimated time read side by side.
