@@ -176,8 +176,11 @@ activePeriods}`) live in the daily note's `pomodoros` list. Domain: `time-entrie
   date, lazy per config, kept current by the plugin through `linkedNotesEventHandlers` from
   `changed` / `resolve` / `deleted` / `rename` (re-key); open views get
   `onLinkedNotesChanged(targets)` only when targets, minutes or date change, and refresh their
-  rings, debounced). The WBS tracked roll-up leaves a target's linked notes out
-  (`subtreeDuration(node, durationOf, linkedSourcesOf)`). Public API:
+  rings, debounced). The WBS tracked roll-up counts a linked-time target's live total
+  (`liveTrackedMinutesOf`) and leaves its linked notes with minutes > 0 out
+  (`subtreeDuration(node, durationOf, linkedSourcesOf)`); `wbsTrackingSignature` re-renders
+  the WBS when a card's linked notes change. A parent's weekly ring adds its children's linked
+  notes too (`weekBudgetOf`, each note once). Public API:
   `plugin.api.computeTrackedTime(path)` → `TrackedTimeResult`
   `{minutes, entryMinutes, linkedMinutes, lastSession, linkedNotes: [{path, minutes, date}]}`.
 - **Ideal week** (issue #172): `time_blocks` (list of `<days> HH:MM-HH:MM` strings, Monday-first

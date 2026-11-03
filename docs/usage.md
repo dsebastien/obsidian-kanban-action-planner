@@ -1513,6 +1513,13 @@ records), straight from the cards, on **any note type**:
     only when the session note is dated in the same week; the same goes for entries on the
     activity's linked tasks.
 
+    A project or goal whose weekly ring adds its children's time also adds the session notes
+    of those children whose type takes time from linked notes, each session once, so its own
+    ring agrees with the WBS. A child that is itself a session note counts as a session only
+    when it has minutes and is dated that week; otherwise its entries count. Stopping the
+    timer on an activity whose duration is empty stores the entry minutes plus the session
+    notes' minutes, like **Recompute tracked time**.
+
 - **Pomodoro mode.** **Start pomodoro** in the card menu runs a timed work pomodoro on the
   card (25 minutes by default) and opens its time session at the same time, so the entry
   ledger stays complete. The status bar counts down (`🍅 24:31 work pomodoro · Note`); when
@@ -1604,8 +1611,10 @@ records), straight from the cards, on **any note type**:
   minutes, and the later of the latest entry day and the latest session date; the item then
   shows on notes with entries or session notes. With no entries and no session minutes, a
   hand-typed duration stays as it is (only the last-session date moves, when a session note is
-  dated). A session note that also sits in the WBS subtree counts once in the ⏱ tracked total
-  and **Save total tracked time**: its minutes are already in the activity's duration.
+  dated). In the ⏱ tracked total and **Save total tracked time**, such an activity counts its
+  live total (entry minutes plus session minutes, what a recompute would store), so the total
+  is right without a recompute. A session note with minutes that also sits in the WBS subtree
+  counts once: its minutes are already in the activity's total.
 - Tracked time renders with the same `d / h / m` grammar as estimates, sized by **Minutes
   per day**, so tracked and estimated time read side by side.
 

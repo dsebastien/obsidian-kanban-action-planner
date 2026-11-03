@@ -1528,15 +1528,24 @@ Markdown)`, `Export ideal week (JSON)`, `Export ideal week (Markdown)`); the for
     the latest kept entry day (local day of its `endTime`, `startTime` for an open entry) and
     the latest N date. With no entries and 0 linked minutes the duration is not written (a
     hand-set value stays); only the last session is, when an N is dated. Each value is written
-    only when it differs from the stored one; nothing changed = no write. **Weekly ring:**
-    tracked += minutes of the N dated inside the ISO week; the entry skip applies to the
+    only when it differs from the stored one; nothing changed = no write. **Timer stop:** when
+    the duration is empty or not a number and the type takes linked time, the stop stores the
+    recompute value (kept entries, the new one included, + linked minutes); a numeric
+    duration only gets the session's minutes added. **Weekly ring:** the counted N are the
+    target's N plus, for each distinct child whose type takes linked time, the child's N (the
+    target itself excluded), each path once; tracked += minutes of the counted N dated inside
+    the ISO week. A child counts as a linked note (its entries are not added) only when it is
+    a counted N with minutes > 0 dated inside the week; any other child adds its entries. The
+    entry skip (against every counted N with minutes > 0 dated inside the week) applies to the
     target's entries and to each counted child's entries (the child's links resolve from the
-    child's path); a linked note that is also a counted child counts once, as a linked note
-    (its entries are not added). **WBS total roll-up / Save total tracked time:** every linked
-    note of a note in the subtree whose type takes linked time is left out of the subtree sum
-    (its minutes are already in that note's duration); the row itself always counts.
-    `readTrackedMinutes`, the timer and the calendar / timeline views ignore linked notes. The
-    index (`LinkedNotesIndex`) is built lazily per config (link property, tag, minutes and date
+    child's path), so each session counts once. **WBS ⏱ tracked total / Save total tracked
+    time:** a note whose type takes linked time counts its live total (the recompute value;
+    with no entries and 0 linked minutes, its stored value), so no manual recompute is
+    needed; each N with minutes > 0 of a note in the subtree is left out of the subtree sum
+    (already in that note's total), an N with 0 minutes keeps its own duration; the row itself
+    always counts. The WBS re-renders when a card's N (paths or minutes) change, with or
+    without a budget. `readTrackedMinutes`, the focus timer label and the calendar / timeline
+    views ignore linked notes. The index (`LinkedNotesIndex`) is built lazily per config (link property, tag, minutes and date
     properties) on the first query and keeps each source's targets, minutes and date; it is
     kept current from `changed` / `resolve` / `deleted` events, and a rename re-keys the moved
     path (as source and as target). Open boards are notified only when a source's targets,
