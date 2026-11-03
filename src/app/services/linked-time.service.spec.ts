@@ -323,13 +323,14 @@ describe('LinkedNotesIndex', () => {
         expect(index.sourcesFor(RUN, CONFIG)).toEqual([])
     })
 
-    test('invalidate forces a rebuild on the next query', () => {
+    test('dropping an unused index forces a rebuild on the next query', () => {
         const v = fakeVault({ [RUN]: {} })
         const index = new LinkedNotesIndex(v.app)
         expect(index.sourcesFor(RUN, CONFIG)).toEqual([])
         v.set('a.md', session(['[[Run (Activity)]]']))
         expect(index.sourcesFor(RUN, CONFIG)).toEqual([])
-        index.invalidate()
+        index.retain([])
+        expect(index.isBuilt).toBe(false)
         expect(index.sourcesFor(RUN, CONFIG)).toEqual(['a.md'])
     })
 })

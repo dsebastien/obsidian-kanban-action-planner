@@ -21,7 +21,7 @@ export interface WeekBudget {
     alarm: number | null
     /** The note's own minutes tracked this ISO week (entries; linked-session entries skipped). */
     ownTracked: number
-    /** Minutes of the notes giving their time to it, dated this ISO week. */
+    /** Minutes of the notes giving their time to it or to a counted child, dated this ISO week (each once). */
     linkedNotesTracked: number
     /** Own + children's entries + linked notes, this ISO week (each note once). */
     tracked: number
@@ -73,10 +73,13 @@ export function trackedInRange(
  * task, a goal, a plan). Tracked this week = the note's own entries plus the
  * entries of the notes linked to it as children (its tasks, on this board),
  * each counted once, all clipped to the week, plus the minutes of the notes
- * giving it their time (time from linked notes) dated this week. A linked
- * note that is also a child counts once, as a linked note. An entry (own or
- * a child's) whose description links to a linked note with minutes > 0
- * dated this week is skipped (counted with that note); otherwise it counts.
+ * giving their time (time from linked notes) to the card or to one of those
+ * children (when its type takes them), dated this week, each linked note
+ * counted once. A linked note with minutes > 0 dated this week that is also
+ * a child counts once, as a linked note (its entries are not added); any
+ * other child (0 minutes, dated another week) adds its entries. An entry
+ * (own or a child's) whose description links to a counted linked note is
+ * skipped (counted with that note); otherwise it counts.
  */
 export function weekBudgetOf(
     ctx: WeekBudgetContext,
@@ -89,9 +92,29 @@ export function weekBudgetOf(
     if (target === null && planned === null) return null
     const alarm = readMinutes(ctx.app, card, props.alarmMinutes)
     const { start, end } = isoWeekRange(now)
-    const linkedNotes = ctx.linkedNotesFor?.(card) ?? []
-    const linkedPaths = new Set(linkedNotes.map((note) => note.path))
-    const skipped = skippedEntryPaths(linkedNotes, { from: start, to: end })
+    const week = { from: start, to: end }
+    // The distinct children on the board (the card itself never counts as one).
+    const children: KanbanCard[] = []
+    const childKeys = new Set<string>([card.key])
+    for (const related of card.relationships.child) {
+        if (childKeys.has(related.key)) continue
+        childKeys.add(related.key)
+        const child = ctx.cardForKey(related.key)
+        if (child) children.push(child)
+    }
+    // The linked notes counted this week: the card's and its children's,
+    // each note once (by path), the card itself never.
+    const counted = new Map<string, LinkedNoteTime>()
+    for (const owner of [card, ...children]) {
+        for (const note of ctx.linkedNotesFor?.(owner) ?? []) {
+            if (note.path !== card.key && !counted.has(note.path)) counted.set(note.path, note)
+        }
+    }
+    const countedNotes = [...counted.values()]
+    const linkedNotesTracked = linkedMinutesInRange(countedNotes, start, end)
+    // The notes whose minutes count this week: their entries are skipped, and
+    // a child that is one counts once, as a linked note.
+    const skipped = skippedEntryPaths(countedNotes, week)
     const ownTracked = trackedInRange(
         ctx,
         card,
@@ -99,17 +122,11 @@ export function weekBudgetOf(
         end,
         linkedEntryMatcher(ctx.app, card.file, skipped)
     )
-    const linkedNotesTracked = linkedMinutesInRange(linkedNotes, start, end)
     let tracked = ownTracked + linkedNotesTracked
     const linked: string[] = []
-    // Linked notes are already counted: a child that is one counts once.
-    const seen = new Set<string>([card.key, ...linkedPaths])
-    for (const related of card.relationships.child) {
-        if (seen.has(related.key)) continue
-        seen.add(related.key)
-        const child = ctx.cardForKey(related.key)
-        if (!child) continue
-        linked.push(related.key)
+    for (const child of children) {
+        if (skipped.has(child.key)) continue
+        linked.push(child.key)
         // The child's links resolve from its own path.
         tracked += trackedInRange(
             ctx,

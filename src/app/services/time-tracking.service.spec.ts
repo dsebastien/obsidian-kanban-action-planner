@@ -4,11 +4,14 @@ import { KanbanActionPlannerPlugin } from '../plugin'
 import { createDefaultSettings } from '../types/plugin-settings.intf'
 import { createDefaultNoteType } from './note-type.service'
 import { fakeVault } from './linked-time.fixture'
+import { LinkedNotesIndex } from './linked-time.service'
+import type { LinkedTimeConfig } from '../domain/linked-time'
 import {
     computeTrackedTime,
     elapsedSessionMinutes,
     stopTimeSession,
     formatTrackedMinutes,
+    liveTrackedMinutesOf,
     readDurationMinutes,
     recomputeTrackedTime,
     trackingPropertiesForType
@@ -361,5 +364,95 @@ describe('recomputeTrackedTime with time from linked notes', () => {
         await recomputeTrackedTime(plugin, v.file(RUN))
         expect(keys).toEqual(['date_last_session'])
         expect(fm['time_spent']).toBe(80)
+    })
+})
+
+describe('stopTimeSession with time from linked notes (empty duration)', () => {
+    const RUN = 'Activities/Run (Activity).md'
+    const notes = (fm: Record<string, unknown>): Record<string, Record<string, unknown>> => ({
+        [RUN]: { time_entries: [old30], ...fm },
+        's.md': {
+            tags: ['type/session'],
+            related_activities: ['[[Run (Activity)]]'],
+            date: '2026-09-05',
+            time_spent: 50
+        }
+    })
+    const stop = async (on: boolean, fm: Record<string, unknown> = {}) => {
+        const { v, plugin } = linkedSetup(on, notes(fm))
+        plugin.settings = {
+            ...plugin.settings,
+            activeTimeSession: { path: RUN, startedAt: START },
+            askDescriptionOnStop: false
+        }
+        await stopTimeSession(plugin, END)
+        return v.frontmatter.get(RUN) ?? {}
+    }
+
+    test('writes entries + linked minutes (the recompute rule)', async () => {
+        const fm = await stop(true)
+        expect(fm['time_spent']).toBe(100)
+        expect(fm['date_last_session']).toBe('2026-09-09')
+    })
+
+    test('a set duration still only gets the session added', async () => {
+        expect((await stop(true, { time_spent: 90 }))['time_spent']).toBe(110)
+    })
+
+    test('off for the type: the entries sum, as before', async () => {
+        expect((await stop(false))['time_spent']).toBe(50)
+    })
+})
+
+describe('liveTrackedMinutesOf (the WBS total of a linked-time target)', () => {
+    const RUN = 'Run (Activity).md'
+    const CONFIG: LinkedTimeConfig = {
+        linkProperty: 'related_activities',
+        minutesProperty: 'time_spent',
+        dateProperty: 'date',
+        requiredTag: 'type/session'
+    }
+    const PROPS = {
+        duration: 'time_spent',
+        totalDuration: 'total_time_spent',
+        entries: 'time_entries',
+        lastSession: 'date_last_session'
+    }
+    const sessionNote = (minutes: number): Record<string, unknown> => ({
+        tags: ['type/session'],
+        related_activities: ['[[Run (Activity)]]'],
+        date: '2026-10-02',
+        time_spent: minutes
+    })
+    const live = (
+        fm: Record<string, unknown>,
+        minutes: number,
+        config: LinkedTimeConfig | null = CONFIG
+    ): number | null => {
+        const v = fakeVault({ [RUN]: fm, 'Run 2026-10-02.md': sessionNote(minutes) })
+        const index = new LinkedNotesIndex(v.app)
+        return liveTrackedMinutesOf(v.app, index, v.file(RUN), PROPS, config)
+    }
+    const linkedEntry = {
+        startTime: '2026-10-02T07:00:00',
+        endTime: '2026-10-02T08:00:00',
+        description: '[[Run 2026-10-02]]'
+    }
+
+    test('entries + linked minutes, ignoring a stale stored duration', () => {
+        expect(live({ time_spent: 999, time_entries: [old30, linkedEntry] }, 50)).toBe(80)
+    })
+
+    test('linked minutes alone are enough', () => {
+        expect(live({ time_spent: 5 }, 25)).toBe(25)
+    })
+
+    test('no entries and 0 linked minutes: the stored duration', () => {
+        expect(live({ time_spent: 120 }, 0)).toBe(120)
+        expect(live({}, 0)).toBeNull()
+    })
+
+    test('off for the type: the stored duration', () => {
+        expect(live({ time_spent: 999, time_entries: [old30] }, 50, null)).toBe(999)
     })
 })

@@ -11,9 +11,12 @@ import {
     effectiveProgress,
     parseProgress,
     subtreeDuration,
+    wbsTrackingSignature,
     subtreeSpan
 } from './wbs'
-import type { WbsNode } from './wbs'
+import type { WbsNode, WbsTrackingInput } from './wbs'
+
+type LinkedSource = { path: string; minutes: number }
 
 const byName = (a: string, b: string): number => a.localeCompare(b)
 
@@ -538,7 +541,8 @@ describe('subtreeDuration (issue #119)', () => {
         })
         const durations: Record<string, number> = { goal: 5, activity: 100, session: 40, task: 20 }
         const durationOf = (path: string): number | null => durations[path] ?? null
-        const sources = (path: string): string[] => (path === 'activity' ? ['session'] : [])
+        const sources = (path: string): LinkedSource[] =>
+            path === 'activity' ? [{ path: 'session', minutes: 40 }] : []
         expect(subtreeDuration(trees[0] as WbsNode, durationOf)).toBe(165)
         // The goal above the target and the target itself both skip it.
         expect(subtreeDuration(trees[0] as WbsNode, durationOf, sources)).toBe(125)
@@ -546,6 +550,68 @@ describe('subtreeDuration (issue #119)', () => {
         expect(subtreeDuration(activity, durationOf, sources)).toBe(120)
         // A source outside the subtree changes nothing; the node itself always counts.
         const session = activity.children[0] as WbsNode
-        expect(subtreeDuration(session, durationOf, () => ['session'])).toBe(40)
+        expect(subtreeDuration(session, durationOf, () => [{ path: 'session', minutes: 40 }])).toBe(
+            40
+        )
+    })
+
+    test('a linked note with 0 minutes is kept: it adds nothing to its target', () => {
+        const trees = forest(['activity', 'play', 'session'], {
+            activity: ['play', 'session']
+        })
+        // play has 0 linked minutes but its own entries total 25.
+        const durations: Record<string, number> = { activity: 70, play: 25, session: 40 }
+        const durationOf = (path: string): number | null => durations[path] ?? null
+        const sources = (path: string): LinkedSource[] =>
+            path === 'activity'
+                ? [
+                      { path: 'play', minutes: 0 },
+                      { path: 'session', minutes: 40 }
+                  ]
+                : []
+        expect(subtreeDuration(trees[0] as WbsNode, durationOf, sources)).toBe(95)
+    })
+})
+
+describe('wbsTrackingSignature', () => {
+    const input = (
+        linked: LinkedSource[],
+        ring: WbsTrackingInput['ring'] = null
+    ): WbsTrackingInput => ({
+        key: 'run.md',
+        duration: 'time_spent',
+        entries: 'time_entries',
+        ring,
+        linked
+    })
+
+    test('a link change re-renders a target without a budget', () => {
+        const before = wbsTrackingSignature([input([{ path: 'a.md', minutes: 30 }])])
+        const added = wbsTrackingSignature([
+            input([
+                { path: 'a.md', minutes: 30 },
+                { path: 'b.md', minutes: 0 }
+            ])
+        ])
+        const removed = wbsTrackingSignature([input([])])
+        expect(added).not.toBe(before)
+        expect(removed).not.toBe(before)
+    })
+
+    test("a linked note's minutes are part of it; source order is not", () => {
+        const a = { path: 'a.md', minutes: 30 }
+        const b = { path: 'b.md', minutes: 10 }
+        expect(wbsTrackingSignature([input([a, b])])).toBe(wbsTrackingSignature([input([b, a])]))
+        expect(wbsTrackingSignature([input([{ ...a, minutes: 45 }, b])])).not.toBe(
+            wbsTrackingSignature([input([a, b])])
+        )
+    })
+
+    test('rings and property names still count', () => {
+        const ring = { label: '1h / 2h', tone: 'ok', ratio: 0.5 }
+        expect(wbsTrackingSignature([input([], ring)])).not.toBe(wbsTrackingSignature([input([])]))
+        expect(wbsTrackingSignature([{ ...input([]), duration: 'spent' }])).not.toBe(
+            wbsTrackingSignature([input([])])
+        )
     })
 })

@@ -27,9 +27,11 @@ import {
     effectiveProgress,
     parseProgress,
     subtreeDuration,
+    wbsTrackingSignature,
     subtreeSpan
 } from '../../domain/wbs'
 import type { WbsNode } from '../../domain/wbs'
+import type { LinkedNoteTime } from '../../domain/linked-time'
 import { isDoneValue } from '../../domain/done'
 import type { ResolvedDoneConfig } from '../../domain/done'
 import type { RelationshipSet } from '../../domain/relationships'
@@ -133,10 +135,10 @@ export interface WbsHost {
     saveTotalTracked(card: KanbanCard, minutes: number): Promise<void>
     recomputeTracked(card: KanbanCard): Promise<number | null>
     /**
-     * Paths of the notes giving their time to the card (its type takes time
-     * from linked notes); empty otherwise.
+     * The notes giving their time to the card, with their minutes (its type
+     * takes time from linked notes); empty otherwise.
      */
-    linkedSourcesFor(card: KanbanCard): ReadonlySet<string>
+    linkedNotesFor(card: KanbanCard): readonly LinkedNoteTime[]
     scheduledProperty(): string
     /** Resolved due-date property (the rows' due chip reads and writes it). */
     deadlineProperty(): string
@@ -391,14 +393,15 @@ export class WbsController {
             }
             return value
         }
-        // Time from linked notes (rule 78): their minutes are already in the
-        // target's duration, so the roll-up leaves them out. Per-render cached.
-        const linkedSourcesCache = new Map<string, ReadonlySet<string>>()
-        const linkedSourcesOf = (path: string): ReadonlySet<string> => {
+        // Time from linked notes (rule 78): the minutes of those with
+        // minutes > 0 are already in the target's (live) total, so the
+        // roll-up leaves them out. Per-render cached.
+        const linkedSourcesCache = new Map<string, readonly LinkedNoteTime[]>()
+        const linkedSourcesOf = (path: string): readonly LinkedNoteTime[] => {
             let value = linkedSourcesCache.get(path)
             if (value === undefined) {
                 const card = byKey.get(path)
-                value = card ? this.host.linkedSourcesFor(card) : new Set<string>()
+                value = card ? this.host.linkedNotesFor(card) : []
                 linkedSourcesCache.set(path, value)
             }
             return value
@@ -1191,7 +1194,7 @@ export class WbsController {
         // Ledger repair (issue #172): the spent cache and last-session date
         // recomputed from the entries list (edited by hand or by TaskNotes)
         // plus, when the type takes them, the linked notes.
-        if (this.hasTimeEntries(card) || this.host.linkedSourcesFor(card).size > 0) {
+        if (this.hasTimeEntries(card) || this.host.linkedNotesFor(card).length > 0) {
             menu.addItem((item) =>
                 item
                     .setTitle('Recompute tracked time')
@@ -1213,21 +1216,22 @@ export class WbsController {
     }
 
     /**
-     * The tracking property names in play across the rendered cards, as one
-     * signature token (a per-type override change must re-render), plus each
-     * card's budget ring: time from linked notes changes a ring without
-     * touching the card's own frontmatter.
+     * The tracking render-gate token (see `wbsTrackingSignature`): property
+     * names, budget rings and each card's linked notes.
      */
     private trackingSignature(cards: readonly KanbanCard[]): string {
-        const names = new Set<string>()
-        const rings: string[] = []
-        for (const card of cards) {
-            const p = this.host.trackingPropertiesFor(card)
-            names.add(`${p.duration}|${p.entries}`)
-            const ring = card.display.budget
-            if (ring) rings.push(`${card.key}|${ring.label}|${ring.tone}|${String(ring.ratio)}`)
-        }
-        return `${[...names].sort().join(',')}#${rings.sort().join(',')}`
+        return wbsTrackingSignature(
+            cards.map((card) => {
+                const p = this.host.trackingPropertiesFor(card)
+                return {
+                    key: card.key,
+                    duration: p.duration,
+                    entries: p.entries,
+                    ring: card.display.budget,
+                    linked: this.host.linkedNotesFor(card)
+                }
+            })
+        )
     }
 
     /**
@@ -1266,9 +1270,9 @@ export class WbsController {
     }
 
     /** The notes giving their time to a path (menu-time, uncached). */
-    private readonly linkedSourcesOfPath = (path: string): ReadonlySet<string> => {
+    private readonly linkedSourcesOfPath = (path: string): readonly LinkedNoteTime[] => {
         const card = this.host.allCardForKey(path)
-        return card ? this.host.linkedSourcesFor(card) : new Set<string>()
+        return card ? this.host.linkedNotesFor(card) : []
     }
 
     /** A path's own progress, read from frontmatter (menu-time, uncached). */

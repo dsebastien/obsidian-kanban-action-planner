@@ -163,6 +163,7 @@ import {
     formatTrackedMinutes,
     isPomodoroOnPath,
     isTrackingPath,
+    liveTrackedMinutesOf,
     readTrackedMinutesOf,
     recomputeTrackedTime,
     saveTotalTrackedTime,
@@ -1071,13 +1072,19 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             progressProperty: () => this.resolveProgressProperty(),
             trackingPropertiesFor: (card) => this.trackingPropertiesFor(card),
             trackedMinutesFor: (card) =>
-                readTrackedMinutesOf(this.app, card.file, this.trackingPropertiesFor(card)),
+                liveTrackedMinutesOf(
+                    this.app,
+                    this.plugin.linkedNotesIndex,
+                    card.file,
+                    this.trackingPropertiesFor(card),
+                    this.linkedTimeConfigFor(card)
+                ),
             weekBudgetFor: (card) => this.weekBudgetFor(card),
             lifecycleDatesFor: (card) => this.lifecycleDatesFor(card),
             saveTotalTracked: (card, minutes) =>
                 saveTotalTrackedTime(this.plugin, card.file, minutes),
             recomputeTracked: (card) => recomputeTrackedTime(this.plugin, card.file),
-            linkedSourcesFor: (card) => new Set(this.linkedNotesFor(card).map((n) => n.path)),
+            linkedNotesFor: (card) => this.linkedNotesFor(card),
             scheduledProperty: () => this.scheduledDateProperty,
             deadlineProperty: () => this.dueDateProperty,
             dueSoonDays: () => this.plugin.settings.dueSoonThresholdDays,

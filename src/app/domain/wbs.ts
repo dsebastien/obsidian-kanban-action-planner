@@ -396,21 +396,25 @@ export function subtreeSpan(
  * counts once. Null when nothing in the subtree carries a duration.
  *
  * Time from linked notes (business rule 78): `linkedSourcesOf(path)` lists
- * the notes giving their time to `path` (empty when its type takes none).
- * Those notes' minutes are already in that note's duration, so every linked
- * source of a note in the subtree is left out of the sum (the node itself
- * always counts).
+ * the notes giving their time to `path`, with their minutes (empty when its
+ * type takes none). A source with minutes > 0 is already in that note's
+ * total (`durationOf` returns the live total of a linked-time target:
+ * entries + linked minutes), so every such source of a note in the subtree
+ * is left out of the sum; a source with 0 minutes adds nothing to its
+ * target and keeps its own duration. The node itself always counts.
  */
 export function subtreeDuration(
     node: WbsNode,
     durationOf: (path: string) => number | null,
-    linkedSourcesOf?: (path: string) => Iterable<string>
+    linkedSourcesOf?: (path: string) => Iterable<{ path: string; minutes: number }>
 ): number | null {
     const paths = [node.path, ...descendantPaths(node)]
     const excluded = new Set<string>()
     if (linkedSourcesOf) {
         for (const path of paths) {
-            for (const source of linkedSourcesOf(path)) excluded.add(source)
+            for (const source of linkedSourcesOf(path)) {
+                if (source.minutes > 0) excluded.add(source.path)
+            }
         }
         excluded.delete(node.path)
     }
@@ -425,6 +429,44 @@ export function subtreeDuration(
         }
     }
     return found ? sum : null
+}
+
+/** One card's inputs to the WBS tracking render gate. */
+export interface WbsTrackingInput {
+    key: string
+    /** Resolved duration / entries property names. */
+    duration: string
+    entries: string
+    /** The card's budget ring, null when none. */
+    ring: { label: string; tone: string; ratio: number | null } | null
+    /** The notes giving their time to the card (time from linked notes). */
+    linked: ReadonlyArray<{ path: string; minutes: number }>
+}
+
+/**
+ * The WBS render-gate token for tracked time: the tracking property names in
+ * play (a per-type override change must re-render), each card's budget ring,
+ * and each card's linked notes (sorted paths with their minutes): time from
+ * linked notes changes a total or a ring without touching the card's own
+ * frontmatter, with or without a budget.
+ */
+export function wbsTrackingSignature(cards: readonly WbsTrackingInput[]): string {
+    const names = new Set<string>()
+    const rings: string[] = []
+    const linked: string[] = []
+    for (const card of cards) {
+        names.add(`${card.duration}|${card.entries}`)
+        const ring = card.ring
+        if (ring) rings.push(`${card.key}|${ring.label}|${ring.tone}|${String(ring.ratio)}`)
+        if (card.linked.length > 0) {
+            const sources = card.linked
+                .map((note) => `${note.path}:${String(note.minutes)}`)
+                .sort()
+                .join(';')
+            linked.push(`${card.key}|${sources}`)
+        }
+    }
+    return `${[...names].sort().join(',')}#${rings.sort().join(',')}#${linked.sort().join(',')}`
 }
 
 /**

@@ -218,3 +218,59 @@ describe('weekBudgetOf with time from linked notes', () => {
         expect(weekBudgetOf(ctx, run, new Date(2026, 10, 9, 0, 0, 0))?.tracked).toBe(8)
     })
 })
+
+describe("weekBudgetOf: children's linked notes and the count-once rule", () => {
+    const PLAN = 'Plan.md'
+
+    test("adds a child's linked notes dated this week, each once; the own ring matches the child's", () => {
+        const v = fakeVault({
+            [PLAN]: { minutes_per_week: 300 },
+            [RUN]: {
+                minutes_per_week: 180,
+                time_entries: [
+                    {
+                        startTime: '2026-11-02T07:00:00',
+                        endTime: '2026-11-02T08:00:00',
+                        description: '[[monday]]'
+                    },
+                    { startTime: '2026-11-03T08:00:00', endTime: '2026-11-03T08:15:00' }
+                ]
+            },
+            'monday.md': session('2026-11-02', 40),
+            // Linked to both the plan and the run: counts once.
+            'both.md': {
+                ...session('2026-11-04', 20),
+                related_activities: ['[[Run (Activity)]]', '[[Plan]]']
+            },
+            'next-week.md': session('2026-11-10', 90)
+        })
+        const run = card(v.file(RUN))
+        const plan = card(v.file(PLAN), [RUN])
+        const ctx = context(v, [plan, run], true)
+        const own = weekBudgetOf(ctx, plan, NOW)
+        expect(own?.linkedNotesTracked).toBe(60)
+        expect(own?.tracked).toBe(75)
+        expect(own?.linked).toEqual([RUN])
+        // The child's own ring (what the derived ring and the WBS add up).
+        expect(weekBudgetOf(ctx, run, NOW)?.tracked).toBe(75)
+    })
+
+    test('a child session note with 0 minutes or dated another week still adds its entries', () => {
+        const entry = (day: string, minutes: number): Record<string, string> => ({
+            startTime: `${day}T08:00:00`,
+            endTime: `${day}T08:${String(minutes).padStart(2, '0')}:00`
+        })
+        const v = fakeVault({
+            [RUN]: { minutes_per_week: 180 },
+            'zero.md': { ...session('2026-11-03', 0), time_entries: [entry('2026-11-03', 15)] },
+            'old.md': { ...session('2026-10-30', 40), time_entries: [entry('2026-11-04', 20)] }
+        })
+        const zero = card(v.file('zero.md'))
+        const old = card(v.file('old.md'))
+        const run = card(v.file(RUN), ['zero.md', 'old.md'])
+        const budget = weekBudgetOf(context(v, [run, zero, old], true), run, NOW)
+        expect(budget?.linkedNotesTracked).toBe(0)
+        expect(budget?.tracked).toBe(35)
+        expect(budget?.linked).toEqual(['zero.md', 'old.md'])
+    })
+})

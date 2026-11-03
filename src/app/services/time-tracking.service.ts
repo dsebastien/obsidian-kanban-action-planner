@@ -7,12 +7,14 @@ import {
     buildTimeEntry,
     durationAfterEntryChange,
     latestEntryDate,
+    numericDuration,
     parseTimeEntries,
     readTrackedMinutes,
     withoutEmptyEntries
 } from '../domain/time-entries'
 import type { LinkedTimeConfig, TrackedTimeResult } from '../domain/linked-time'
 import { computeTrackedTimeOf, linkedTimeConfigForType } from './linked-time.service'
+import type { LinkedNotesIndex, LinkedTimeApp } from './linked-time.service'
 import {
     breakTypeAfter,
     buildPomodoroRecord,
@@ -130,7 +132,7 @@ export async function trackingPropertiesFor(
  * is not `duration` itself, so nothing is double-counted. Null = untracked.
  */
 export function readTrackedMinutesOf(
-    app: App,
+    app: { metadataCache: Pick<App['metadataCache'], 'getFileCache'> },
     file: TFile,
     properties: TrackingProperties
 ): number | null {
@@ -142,6 +144,30 @@ export function readTrackedMinutesOf(
                 ? undefined
                 : getFrontmatterValue(app, file, DEFAULT_DURATION_PROPERTY)
     })
+}
+
+/**
+ * A note's live tracked minutes (the WBS): for a type that takes time from
+ * linked notes, the value "Recompute tracked time" would store (kept entries
+ * + linked minutes, business rule 78), so totals are right without a manual
+ * recompute; with no entries and 0 linked minutes, or for any other type,
+ * the stored value ({@link readTrackedMinutesOf}).
+ */
+export function liveTrackedMinutesOf(
+    app: LinkedTimeApp,
+    index: LinkedNotesIndex,
+    file: TFile,
+    properties: TrackingProperties,
+    config: LinkedTimeConfig | null
+): number | null {
+    if (config) {
+        const raw = getFrontmatterValue(app, file, properties.entries)
+        const result = computeTrackedTimeOf(app, index, file, raw, config)
+        if (parseTimeEntries(raw).length > 0 || result.linkedMinutes > 0) {
+            return result.minutes > 0 ? result.minutes : null
+        }
+    }
+    return readTrackedMinutesOf(app, file, properties)
 }
 
 /** Whether the active session (if any) tracks this path. */
@@ -206,13 +232,15 @@ export async function stopTimeSession(
     const list = [...existing, entry]
     const parsed = parseTimeEntries(list)
     // Add the session to the existing duration (minutes added by hand or by
-    // other tools are kept); empty / non-numeric → the list's sum.
-    const total = durationAfterEntryChange(
-        getFrontmatterValue(plugin.app, file, properties.duration),
-        null,
-        entry,
-        parsed
-    )
+    // other tools are kept); empty / non-numeric → the list's sum, or, when
+    // the type takes time from linked notes, the recompute rule's value
+    // (kept entries + linked minutes, business rule 78).
+    const existingDuration = getFrontmatterValue(plugin.app, file, properties.duration)
+    const config =
+        numericDuration(existingDuration) === null ? await linkedTimeConfigFor(plugin, file) : null
+    const total = config
+        ? computeTrackedTimeOf(plugin.app, plugin.linkedNotesIndex, file, list, config).minutes
+        : durationAfterEntryChange(existingDuration, null, entry, parsed)
     const lastSession = latestEntryDate(parsed)
     const write: Record<string, unknown> = {
         [properties.entries]: list,

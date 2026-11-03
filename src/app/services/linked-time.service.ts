@@ -238,11 +238,6 @@ export class LinkedNotesIndex {
         }
     }
 
-    /** Forget everything; the next query rebuilds. */
-    invalidate(): void {
-        this.states.clear()
-    }
-
     private state(config: LinkedTimeConfig): IndexState {
         const key = indexKey(config)
         let state = this.states.get(key)
