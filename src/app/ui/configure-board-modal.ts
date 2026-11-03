@@ -977,8 +977,8 @@ export class ConfigureBoardModal extends Modal {
             cls: 'kap-modal-subtitle',
             text:
                 `Notes carrying the tag below (or a nested tag) whose link property links to a ` +
-                `${noteType.name} note add their own minutes, on their own date, to its weekly ` +
-                'budget and to "Recompute tracked time".'
+                `note of type "${noteType.name}" add their own minutes, on their own date, to its ` +
+                'weekly budget and to "Recompute tracked time".'
         })
         const defaults: NoteTypeLinkedNotesTimeConfig = {
             enabled: false,
