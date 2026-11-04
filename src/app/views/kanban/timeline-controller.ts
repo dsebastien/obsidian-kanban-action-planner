@@ -104,6 +104,10 @@ export interface TimelineHost {
     deadlineProperty(card: KanbanCard): string
     /** Changes whenever any type's date properties change (render signature). */
     datePropertiesSignature(): string
+    /** False when the card's Starter Kit type does not declare `property` (issue #232). */
+    mayWrite(card: KanbanCard, property: string): boolean
+    /** Like {@link mayWrite}, but shows a notice when the write is refused. */
+    guardWrite(card: KanbanCard, property: string): boolean
     /** The momentjs format dates are written with. */
     dateFormat(): string
     firstDayOfWeek(): number
@@ -541,12 +545,15 @@ export class TimelineController {
      */
     private async scheduleAt(card: KanbanCard, pct: number, window: TimelineRange): Promise<void> {
         const date = addDays(window.start, dayOffsetAtPct(pct, window))
+        const property = this.host.startProperty(card)
+        if (!this.host.guardWrite(card, property)) return
         const start = formatDate(date, this.host.dateFormat())
-        await setProperty(this.host.app, card.file, this.host.startProperty(card), start)
+        await setProperty(this.host.app, card.file, property, start)
     }
 
     /** Track double-click: prompt for a label, then append `<date> <label>`. */
     private promptMilestone(card: KanbanCard, pct: number, window: TimelineRange): void {
+        if (!this.host.guardWrite(card, this.host.milestoneProperty())) return
         this.openMilestoneModal(card, addDays(window.start, dayOffsetAtPct(pct, window)))
     }
 
@@ -693,13 +700,16 @@ export class TimelineController {
                     .onClick(() => this.promptEstimate(card))
             )
         }
-        menu.addItem((item) =>
-            item
-                .setTitle('Add milestone…')
-                .setIcon('diamond')
-                .setSection('kap-timeline')
-                .onClick(() => this.openMilestoneModal(card, startOfDay(new Date())))
-        )
+        // A type that does not declare the milestones list gets no item (issue #232).
+        if (this.host.mayWrite(card, this.host.milestoneProperty())) {
+            menu.addItem((item) =>
+                item
+                    .setTitle('Add milestone…')
+                    .setIcon('diamond')
+                    .setSection('kap-timeline')
+                    .onClick(() => this.openMilestoneModal(card, startOfDay(new Date())))
+            )
+        }
         if (this.readDate(card, startProperty) !== null) {
             menu.addItem((item) =>
                 item

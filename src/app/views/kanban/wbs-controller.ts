@@ -147,6 +147,12 @@ export interface WbsHost {
     deadlineProperty(card: KanbanCard): string
     /** Changes whenever any type's date properties change (render signature). */
     datePropertiesSignature(): string
+    /** False when the card's Starter Kit type does not declare `property` (issue #232). */
+    mayWrite(card: KanbanCard, property: string): boolean
+    /** Like {@link mayWrite}, but shows a notice when the write is refused. */
+    guardWrite(card: KanbanCard, property: string): boolean
+    /** {@link mayWrite} for any note path (context ancestors have no card). */
+    mayWritePath(path: string, property: string): boolean
     /** The global "due soon" threshold (days) for the countdown tone ramp. */
     dueSoonDays(): number
     /**
@@ -901,8 +907,24 @@ export class WbsController {
         // the source's parent property for this target, the target's children
         // property for this source. Old links are removed from whichever
         // properties actually hold them (`edgeStorage`).
-        const parentProp = this.host.parentPropertyFor(sourceKey, targetKey)
-        const targetChildProp = this.host.childPropertyFor(targetKey, sourceKey)
+        // A link property the note's Starter Kit type does not declare is
+        // not created (issue #232): that side is skipped, and when neither
+        // side may hold the link the drop changes nothing.
+        const allowed = (path: string, prop: string): string =>
+            prop !== '' && this.host.mayWritePath(path, prop) ? prop : ''
+        const wantedParentProp = this.host.parentPropertyFor(sourceKey, targetKey)
+        const wantedChildProp = this.host.childPropertyFor(targetKey, sourceKey)
+        const parentProp = allowed(sourceKey, wantedParentProp)
+        const targetChildProp = allowed(targetKey, wantedChildProp)
+        if (parentProp === '' && targetChildProp === '') {
+            const refused = wantedParentProp || wantedChildProp
+            new Notice(
+                refused
+                    ? `Neither note's type declares "${refused}" in the Starter Kit, so the link was not written.`
+                    : 'No relationship property links these notes.'
+            )
+            return
+        }
 
         // Where is the old edge physically stored? A redundantly stored edge
         // (parent link on the child AND a children link on the old parent)
@@ -1118,13 +1140,17 @@ export class WbsController {
                     .onClick(() => this.promptStartDate(card))
             )
         }
-        menu.addItem((item) =>
-            item
-                .setTitle('Set progress…')
-                .setIcon('percent')
-                .setSection('kap-wbs')
-                .onClick(() => this.promptProgress(card))
-        )
+        // Undeclared progress / total properties hide their items (issue #232).
+        const progressAllowed = this.host.mayWrite(card, this.host.progressProperty())
+        if (progressAllowed) {
+            menu.addItem((item) =>
+                item
+                    .setTitle('Set progress…')
+                    .setIcon('percent')
+                    .setSection('kap-wbs')
+                    .onClick(() => this.promptProgress(card))
+            )
+        }
         const own = this.resolvedEstimateFor(card)
         const node = this.nodeFor(card.key)
         // Save-the-rollup affordances (owner rule: rollups are displayed by
@@ -1156,7 +1182,7 @@ export class WbsController {
             this.progressOfPath,
             (n) => effectiveEstimate(n, this.estimateOfPath).value
         )
-        if (progress.derived && progress.value !== null) {
+        if (progressAllowed && progress.derived && progress.value !== null) {
             const value = progress.value
             menu.addItem((item) =>
                 item
@@ -1191,7 +1217,8 @@ export class WbsController {
         if (
             totalTracked !== null &&
             node.children.length > 0 &&
-            totalTracked !== (this.durationOfPath(card.key) ?? 0)
+            totalTracked !== (this.durationOfPath(card.key) ?? 0) &&
+            this.host.mayWrite(card, this.host.trackingPropertiesFor(card).totalDuration)
         ) {
             menu.addItem((item) =>
                 item
@@ -1405,6 +1432,8 @@ export class WbsController {
      */
     private promptProgress(card: KanbanCard): void {
         const property = this.host.progressProperty()
+        // The progress chip opens this too: refuse an undeclared property.
+        if (!this.host.guardWrite(card, property)) return
         const current = parseProgress(getFrontmatterValue(this.host.app, card.file, property))
         const derived = effectiveProgress(
             this.nodeFor(card.key),
@@ -1460,6 +1489,7 @@ export class WbsController {
         }
         const date = parseFrontmatterDate(isoDate)
         if (!date) return
+        if (!this.host.guardWrite(card, property)) return
         await setProperty(
             this.host.app,
             card.file,

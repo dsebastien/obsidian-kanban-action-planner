@@ -79,6 +79,10 @@ export interface CalendarHost {
     deadlineProperty(card: KanbanCard): string
     /** Changes whenever any type's date properties change (render signature). */
     datePropertiesSignature(): string
+    /** False when the card's Starter Kit type does not declare `property` (issue #232). */
+    mayWrite(card: KanbanCard, property: string): boolean
+    /** Like {@link mayWrite}, but shows a notice when the write is refused. */
+    guardWrite(card: KanbanCard, property: string): boolean
     /** Per-card estimate property + unit (issue #86 spans; per-type override). Null = the card's type has no estimate (issue #232): no estimate UI, no writes. */
     estimateConfigFor(card: KanbanCard): EstimateConfig | null
     /** Minutes one work day represents (minute-estimate → days conversion). */
@@ -511,6 +515,8 @@ export class CalendarController {
 
         const date = parseFrontmatterDate(target.dayKey)
         if (!date) return
+        // An undeclared date property is not created (issue #232).
+        if (!properties.every((property) => this.host.guardWrite(card, property))) return
         const value = formatDate(date, this.host.dateFormat())
         for (const property of properties)
             await setProperty(this.host.app, card.file, property, value)

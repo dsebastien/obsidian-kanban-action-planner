@@ -2140,6 +2140,10 @@ tracking and pomodoro commands work from anywhere:
   properties the board reads or writes (dates, estimate, tracked time, milestones, progress, week
   planner, relationship links) that the type does not declare, or declares with another type. It
   only reads; nothing is written, not even the board's own settings.
+  The board also refuses to create a property a Starter Kit type does not declare: those actions
+  are hidden (Add milestone, Set progress, Save total tracked time), or skipped with a notice
+  naming the type and the property (a calendar or timeline drop, a date prompt, a new
+  relationship link). Time tracking only warns when it starts: the session is still recorded.
 
 One command acts on **every open Kanban view** instead:
 

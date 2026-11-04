@@ -63,6 +63,8 @@ import {
     estimateConfigForType,
     type TypeDateProperties
 } from '../../domain/type-properties'
+import { mayWrite } from '../../domain/declared-properties'
+import { guardWrite } from '../../services/write-guard.service'
 import type { AggregateKind } from '../../domain/column-aggregate'
 import {
     computeAggregate,
@@ -927,6 +929,8 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             scheduledProperty: (card) => this.datePropertiesFor(card).start,
             deadlineProperty: (card) => this.datePropertiesFor(card).due,
             datePropertiesSignature: () => this.datePropertiesSignature(),
+            mayWrite: (card, property) => mayWrite(this.guardedTypeFor(card.key), property),
+            guardWrite: (card, property) => guardWrite(this.guardedTypeFor(card.key), property),
             estimateConfigFor: (card) => this.estimateConfigFor(card),
             minutesPerDay: () => this.plugin.settings.minutesPerDay,
             noteTypeFor: (card) => this.noteTypeByPath.get(card.key) ?? null,
@@ -969,6 +973,8 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             isActiveCard: (card) => this.isActiveCard(card),
             startPropertyFor: (card) => this.datePropertiesFor(card).start,
             duePropertyFor: (card) => this.datePropertiesFor(card).due,
+            mayWrite: (card, property) => mayWrite(this.guardedTypeFor(card.key), property),
+            guardWrite: (card, property) => guardWrite(this.guardedTypeFor(card.key), property),
             noteTypeFor: (card) => this.noteTypeByPath.get(card.key) ?? null,
             statusLabelFor: (card) => this.statusLabelFor(card),
             statusRankFor: (card) => {
@@ -1041,6 +1047,8 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             scheduledProperty: (card) => this.datePropertiesFor(card).start,
             deadlineProperty: (card) => this.datePropertiesFor(card).due,
             datePropertiesSignature: () => this.datePropertiesSignature(),
+            mayWrite: (card, property) => mayWrite(this.guardedTypeFor(card.key), property),
+            guardWrite: (card, property) => guardWrite(this.guardedTypeFor(card.key), property),
             dateFormat: () =>
                 this.noteType.calendar.dateFormat || this.plugin.settings.defaultDateFormat,
             firstDayOfWeek: () => this.plugin.settings.firstDayOfWeek,
@@ -1097,6 +1105,9 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             scheduledProperty: (card) => this.datePropertiesFor(card).start,
             deadlineProperty: (card) => this.datePropertiesFor(card).due,
             datePropertiesSignature: () => this.datePropertiesSignature(),
+            mayWrite: (card, property) => mayWrite(this.guardedTypeFor(card.key), property),
+            guardWrite: (card, property) => guardWrite(this.guardedTypeFor(card.key), property),
+            mayWritePath: (path, property) => mayWrite(this.guardedTypeFor(path), property),
             dueSoonDays: () => this.plugin.settings.dueSoonThresholdDays,
             // Per-path role properties: each note's OWN type decides where its
             // parent/children links live (mixed boards + context ancestors).
@@ -2584,6 +2595,15 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
      */
     private datePropertiesFor(card: KanbanCard): TypeDateProperties {
         return this.datePropertiesForPath(card.key)
+    }
+
+    /**
+     * The card's own stored note type, for the undeclared-property guard
+     * (issue #232); undefined for an untyped card (never guarded).
+     */
+    private guardedTypeFor(path: string): NoteType | undefined {
+        const typeId = this.noteTypeByPath.get(path)?.id
+        return typeId ? findNoteType(this.plugin, typeId) : undefined
     }
 
     private datePropertiesForPath(path: string): TypeDateProperties {
@@ -5636,6 +5656,8 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         // picker is open, orphaning the captured object (issue #105 review).
         // Optimistic: show the new badge at once, then write (issue #64).
         const card = this.liveCard(cardRef)
+        // An undeclared link property is not created (issue #232).
+        if (!guardWrite(this.guardedTypeFor(card.key), property)) return
         // A single-link property is REPLACED (rule 73): the links it held stop
         // being badges, links held by the role's other properties stay.
         const replaced =
@@ -5860,6 +5882,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         }
         const date = parseFrontmatterDate(isoDate)
         if (!date) return
+        if (!guardWrite(this.guardedTypeFor(card.key), property)) return
         const dateFormat =
             this.noteType.calendar.dateFormat || this.plugin.settings.defaultDateFormat
         const formatted = formatDate(date, dateFormat)

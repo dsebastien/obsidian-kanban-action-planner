@@ -117,6 +117,10 @@ export interface WeekHost {
     /** The card's start / due date property names (its type's calendar config). */
     startPropertyFor(card: KanbanCard): string
     duePropertyFor(card: KanbanCard): string
+    /** False when the card's Starter Kit type does not declare `property` (issue #232). */
+    mayWrite(card: KanbanCard, property: string): boolean
+    /** Like {@link mayWrite}, but shows a notice when the write is refused. */
+    guardWrite(card: KanbanCard, property: string): boolean
     /** The card's ideal-week property names (its type's override, else the globals). */
     weekPropertiesFor(card: KanbanCard): WeekProperties
     noteTypeFor(card: KanbanCard): { id: string; name: string } | null
@@ -350,6 +354,9 @@ export class WeekController {
         const entries: WeekEntry[] = []
         for (const card of cards) {
             const p = this.host.weekPropertiesFor(card)
+            // A Starter Kit type that does not declare the blocks property
+            // (tasks, goals) never gets time blocks (issue #232).
+            if (!this.host.mayWrite(card, p.timeBlocks)) continue
             const rawBlocks = getFrontmatterValue(this.host.app, card.file, p.timeBlocks)
             const pending = this.overlay.get(card.key)
             if (rawBlocks === undefined && !pending) continue
@@ -657,6 +664,7 @@ export class WeekController {
         const card = this.host.cardForKey(path)
         if (!card) return
         const p = this.host.weekPropertiesFor(card)
+        if (!this.host.guardWrite(card, p.timeBlocks)) return
         const entry = this.entries.get(path)
         if (entry && !this.replaying) {
             const step: HistoryStep = { path, before: entry.blocks, after: blocks }

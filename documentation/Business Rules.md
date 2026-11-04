@@ -1642,6 +1642,15 @@ Markdown)`, `Export ideal week (JSON)`, `Export ideal week (Markdown)`); the for
     with an unexpected type (dates: `date`/`datetime`; numbers: `number`; lists:
     `list`/`multitext`/`tags`). Declarations are read live; nothing is written, not even the
     mirror.
+    **Write guard** (`services/write-guard.service.ts`): on a type whose declarations are known,
+    the plugin does not CREATE an undeclared property. Hidden: Add milestone…, Set progress…, Save
+    rolled-up progress, Save total tracked time; the week rail skips notes whose type does not
+    declare the time-blocks property. Skipped with a notice naming the type and the property:
+    calendar drops, timeline drops, the date prompts (board and WBS), a milestone double-click,
+    the progress chip, relationship adds (card menu) and a WBS re-parent (the side that may not
+    hold the link is skipped; neither side → nothing changes). **Time tracking only warns** (on
+    start, listing the undeclared entries / duration / last-session properties): the session is
+    still recorded. Status and order writes and removals are never guarded.
 
 82. **Dates resolve per card, through the card's OWN type (issue #232).** The start (scheduled),
     due and defer properties of a card come from `datePropertiesForType(settings, ownType)`

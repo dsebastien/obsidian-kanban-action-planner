@@ -51,6 +51,7 @@ import { DescriptionPromptModal } from '../ui/description-prompt-modal'
 import { SessionRecoveryModal } from '../ui/session-recovery-modal'
 import type { ActivePomodoro, PomodoroConfig, PomodoroType } from '../domain/pomodoro'
 import { LEGACY_DURATION_PROPERTY } from '../constants'
+import { undeclaredOf } from './write-guard.service'
 import {
     appendRecordToListProperty,
     coerceOrder,
@@ -216,6 +217,33 @@ export async function startTimeSession(
     })
     await plugin.saveSettings('cards')
     new Notice(`Time tracking started: ${basename(path)}`)
+    await warnUndeclaredTracking(plugin, path)
+}
+
+/**
+ * Time tracking only WARNS about undeclared properties (issue #232): a
+ * session is never lost. Media declare `time_spent` but not `time_entries`,
+ * so the stop still writes the entry, the minutes and the last session; the
+ * notice names what the Starter Kit type does not declare.
+ */
+async function warnUndeclaredTracking(
+    plugin: KanbanActionPlannerPlugin,
+    path: string
+): Promise<void> {
+    const file = plugin.app.vault.getFileByPath(path)
+    if (!file) return
+    const type = await recognizeNoteTypeFor(plugin.app, plugin, file)
+    const noteType = type ? findNoteType(plugin, type.id) : undefined
+    const properties = trackingPropertiesForType(plugin.settings, noteType)
+    const missing = undeclaredOf(noteType, [
+        properties.entries,
+        properties.duration,
+        properties.lastSession
+    ])
+    if (!noteType || missing.length === 0) return
+    new Notice(
+        `${noteType.name} notes do not declare ${missing.map((m) => `"${m}"`).join(', ')} in the Starter Kit. The session is still recorded there. Add the properties to the note type, or pick others in Configure → Time tracking.`
+    )
 }
 
 /**
