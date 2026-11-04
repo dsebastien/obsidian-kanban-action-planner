@@ -219,9 +219,20 @@ export async function deleteProperty(app: App, file: TFile, propertyName: string
 }
 
 /**
+ * The items of a list value without a template's empty placeholders
+ * (`null`, `undefined`, `''`): a `- ` line in a template reads as `[null]`,
+ * and appending after it would keep the blank item in front of the real one.
+ * Same rule as quick capture's `mergeList`.
+ */
+export function withoutBlankItems(list: readonly unknown[]): unknown[] {
+    return list.filter((item) => item !== null && item !== undefined && item !== '')
+}
+
+/**
  * Append one entry to a list property (scalar values are promoted to a list;
- * the entry is deduped). Used by the timeline's milestone creation (issue #77).
- * `matches` overrides the dedupe equality (default: exact) — tags dedupe
+ * the entry is deduped; a template's blank placeholders are dropped, see
+ * {@link withoutBlankItems}). Used by the timeline's milestone creation (issue
+ * #77). `matches` overrides the dedupe equality (default: exact) — tags dedupe
  * case-insensitively via it.
  */
 export async function appendToListProperty(
@@ -234,7 +245,7 @@ export async function appendToListProperty(
     await processFrontMatter(app, file, (fm: Record<string, unknown>) => {
         const key = findKeyCaseInsensitive(fm, propertyName) ?? propertyName
         const raw = fm[key]
-        const list = Array.isArray(raw) ? raw : raw === null || raw === undefined ? [] : [raw]
+        const list = withoutBlankItems(Array.isArray(raw) ? raw : [raw])
         if (!list.some(matches)) list.push(entry)
         fm[key] = list
     })
@@ -255,9 +266,7 @@ export async function appendRecordToListProperty(
     await processFrontMatter(app, file, (fm: Record<string, unknown>) => {
         const key = findKeyCaseInsensitive(fm, propertyName) ?? propertyName
         const raw = fm[key]
-        const list = (
-            Array.isArray(raw) ? raw : raw === null || raw === undefined ? [] : [raw]
-        ).filter((item) => item !== null && item !== undefined)
+        const list = withoutBlankItems(Array.isArray(raw) ? raw : [raw])
         if (!list.some(matches)) list.push(record)
         fm[key] = list
     })

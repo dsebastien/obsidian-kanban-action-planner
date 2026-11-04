@@ -3,7 +3,9 @@ import { TFile } from 'obsidian'
 import type { App } from 'obsidian'
 import {
     appendRecordToListProperty,
+    appendToListProperty,
     coerceOrder,
+    withoutBlankItems,
     findKeyCaseInsensitive,
     keepListShape,
     queueFrontmatterWrite,
@@ -288,5 +290,38 @@ describe('replaceLeadingListValue / setLaneProperty (swimlane moves)', () => {
         const fm: Record<string, unknown> = { Contexts: ['home', 'phone'] }
         await setLaneProperty(stubApp(fm).app, file, 'contexts', 'work')
         expect(fm).toEqual({ Contexts: ['work', 'phone'] })
+    })
+})
+
+describe('appendToListProperty (template placeholders)', () => {
+    const file = Object.assign(new TFile(), { path: 'P/Project.md' })
+
+    it('drops null, undefined and empty-string items before appending', async () => {
+        const fm: Record<string, unknown> = { milestones: [null, '', '2026-01-01 Kickoff'] }
+        await appendToListProperty(stubApp(fm).app, file, 'milestones', '2026-02-01 Beta')
+        expect(fm['milestones']).toEqual(['2026-01-01 Kickoff', '2026-02-01 Beta'])
+    })
+
+    it('treats a bare null value as an empty list', async () => {
+        const fm: Record<string, unknown> = { milestones: null }
+        await appendToListProperty(stubApp(fm).app, file, 'milestones', '2026-02-01')
+        expect(fm['milestones']).toEqual(['2026-02-01'])
+    })
+
+    it('promotes a scalar and dedupes', async () => {
+        const fm: Record<string, unknown> = { tags: 'a' }
+        await appendToListProperty(stubApp(fm).app, file, 'tags', 'a')
+        expect(fm['tags']).toEqual(['a'])
+    })
+})
+
+describe('withoutBlankItems', () => {
+    it('keeps every non-blank item, in order', () => {
+        expect(withoutBlankItems([null, 'a', undefined, '', 0, false, 'b'])).toEqual([
+            'a',
+            0,
+            false,
+            'b'
+        ])
     })
 })
