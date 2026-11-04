@@ -1621,3 +1621,17 @@ Markdown)`, `Export ideal week (JSON)`, `Export ideal week (Markdown)`); the for
     a scalar tag) removes the key, and every scalar clear (estimate, dates, progress, weekly
     target) deletes the key: the plugin never writes `key: null`. Appends drop a template's blank
     placeholders (`null`, `''`) first (`withoutBlankItems`, the quick-capture `mergeList` rule).
+
+81. **Declared properties come from the Starter Kit (issue #232).** A Starter Kit–mirrored type
+    carries `declaredProperties` (`{name, type}`; the type's own properties plus the Kit's
+    global ones via `listGlobalProperties`, detected by method presence; own wins a clash;
+    names match case-insensitively). Read-only, refreshed on every mirror. Absent = unknown
+    (local type, untyped card, or a Starter Kit without `listGlobalProperties`): nothing is
+    guarded, behavior is unchanged. **Check note types against the Starter Kit** (palette
+    command, `services/note-type-check.service.ts`) lists, per Starter Kit type, every property
+    the plugin resolves for it (`plannedPropertiesForType`: status, order, start, due, defer,
+    estimate, tracked time, total, entries, last session, milestones, progress, time blocks,
+    planned and target minutes, relationship links) that the type does not declare, or declares
+    with an unexpected type (dates: `date`/`datetime`; numbers: `number`; lists:
+    `list`/`multitext`/`tags`). Declarations are read live; nothing is written, not even the
+    mirror.

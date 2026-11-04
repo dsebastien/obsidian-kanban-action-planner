@@ -26,7 +26,8 @@ import { matchesAnyMapping } from '../domain/note-type-recognition'
 import type { RecognitionFile } from '../domain/note-type-recognition'
 import { autoAssignColor } from './colors.service'
 import { log } from '../../utils/log'
-import type { SkArchive } from './starter-kit.service'
+import type { SkArchive, SkPropertyDefinition } from './starter-kit.service'
+import { mergeDeclaredProperties } from '../domain/declared-properties'
 import {
     getNoteTypeArchive,
     getNoteTypeRelationships,
@@ -35,6 +36,7 @@ import {
     getNoteTypeStatus,
     isStaleGuessedStatus,
     isStarterKitAvailable,
+    listGlobalProperties,
     namingOf,
     recognitionMappings,
     recognizeNoteType,
@@ -630,6 +632,7 @@ export async function mirrorStarterKitType(
     const skArchive = getNoteTypeArchive(app, skType.id)
     const skRelationships = getNoteTypeRelationships(app, skType.id)
     const skRunsAutomations = starterKitRunsAutomations(app)
+    const skGlobalProperties = listGlobalProperties(app)
     const status = skStatus?.explicit
         ? { name: skStatus.property, allowedValues: skStatus.values.map((v) => v.value) }
         : findStatusProperty(skType, defaults.statusProperty)
@@ -642,7 +645,8 @@ export async function mirrorStarterKitType(
         skStatus,
         skRunsAutomations,
         skArchive,
-        skRelationships
+        skRelationships,
+        skGlobalProperties
     )
     if (!noteTypesEqual(base, merged)) await upsertNoteType(plugin, merged)
     return { noteType: merged, statusValues: status?.allowedValues ?? null }
@@ -808,7 +812,8 @@ export function mirrorNoteType(
     skStatus: SkResolvedStatus | null = null,
     skRunsAutomations = false,
     skArchive: SkArchive | null = null,
-    skRelationships: ReadonlyArray<MirroredRelationshipSource> | null = null
+    skRelationships: ReadonlyArray<MirroredRelationshipSource> | null = null,
+    skGlobalProperties: ReadonlyArray<SkPropertyDefinition> | null = null
 ): NoteType {
     return produce(base, (draft) => {
         draft.name = noteType.name
@@ -846,6 +851,18 @@ export function mirrorNoteType(
         draft.relationships = relationships.relationships
         if (relationships.relationshipsMirrored) draft.relationshipsMirrored = true
         else delete draft.relationshipsMirrored
+        // What the type declares (issue #232): its own properties plus the
+        // global ones. Only known when the Starter Kit returned both lists;
+        // an older Starter Kit without global properties leaves it unknown,
+        // so nothing is guarded (a missing global would look undeclared).
+        if (Array.isArray(noteType.properties) && skGlobalProperties !== null) {
+            draft.declaredProperties = mergeDeclaredProperties(
+                noteType.properties,
+                skGlobalProperties
+            )
+        } else {
+            delete draft.declaredProperties
+        }
     })
 }
 

@@ -154,7 +154,12 @@ export type ArchiveConfig = z.infer<typeof archiveConfigSchema>
 export const estimateConfigSchema = z.object({
     /** Property name; '' falls back to the global default property. */
     property: z.string(),
-    unit: z.enum(['days', 'minutes'])
+    unit: z.enum(['days', 'minutes']),
+    /**
+     * `none` = the type has no estimate (issue #232): no estimate UI, nothing
+     * written. Absent = estimated with `property` + `unit`.
+     */
+    mode: z.enum(['none']).optional()
 })
 export type NoteTypeEstimateConfig = z.infer<typeof estimateConfigSchema>
 
@@ -399,6 +404,14 @@ export const noteTypeSchema = z.object({
      * backfill) = the global default property in days.
      */
     estimate: nullToAbsent(estimateConfigSchema),
+    /**
+     * Read-only mirror of the properties the Starter Kit type declares (its
+     * own + the global ones, with their Obsidian types; issue #232). Absent =
+     * unknown (local type or older Starter Kit): nothing is guarded.
+     */
+    declaredProperties: nullToAbsent(
+        z.array(z.object({ name: z.string(), type: z.string().optional() }))
+    ),
     /**
      * Time-tracking property overrides (issue #172); absent (older stored
      * types, no backfill) = the global default properties.

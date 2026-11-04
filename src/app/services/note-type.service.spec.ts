@@ -130,6 +130,26 @@ describe('mirrorNoteType (Starter Kit relationships)', () => {
         expect(noteTypeSchema.parse(out)).toEqual(out)
     })
 
+    it('mirrors the declared properties (own + global) when both are known (issue #232)', () => {
+        const base = createDefaultNoteType('tasks', 'Tasks', 'starter-kit')
+        const sk: SkNoteType = {
+            id: 'tasks',
+            name: 'Tasks',
+            properties: [{ name: 'date_due', type: 'date' }]
+        }
+        const out = mirrorNoteType(base, sk, null, defaults, null, false, null, null, [
+            { name: 'manual_order', type: 'number' }
+        ])
+        expect(out.declaredProperties).toEqual([
+            { name: 'date_due', type: 'date' },
+            { name: 'manual_order', type: 'number' }
+        ])
+        expect(noteTypeSchema.parse(out)).toEqual(out)
+        // An older Starter Kit (no global properties) leaves them unknown.
+        const older = mirrorNoteType(out, sk, null, defaults, null, false, null, null, null)
+        expect(older.declaredProperties).toBeUndefined()
+    })
+
     it('mirrors a single-link rule: cardinality survives and drives the rule', () => {
         const base = createDefaultNoteType('tv_seasons', 'TV Seasons', 'starter-kit')
         const out = mirrorNoteType(base, skTask, null, defaults, null, false, null, [

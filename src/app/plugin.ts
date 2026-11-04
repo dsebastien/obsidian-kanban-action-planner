@@ -5,6 +5,11 @@ import {
     pluginSettingsSchema
 } from './types/plugin-settings.intf'
 import { migrateSettings } from './domain/settings-migrations'
+import {
+    checkNoteTypesAgainstStarterKit,
+    describeFinding
+} from './services/note-type-check.service'
+import { NoteTypeCheckModal } from './ui/note-type-check-modal'
 import type { PluginSettings, SettingsRefreshScope } from './types/plugin-settings.intf'
 import { KanbanActionPlannerSettingTab } from './settings/settings-tab'
 import { KanbanActionPlannerView } from './views/kanban/kanban-view'
@@ -394,6 +399,19 @@ export class KanbanActionPlannerPlugin extends Plugin {
                 return true
             }
 
+        this.addCommand({
+            id: 'check-note-types-against-starter-kit',
+            name: 'Check note types against the Starter Kit',
+            callback: () => {
+                const report = checkNoteTypesAgainstStarterKit(this.app, this.settings)
+                if (report.kind === 'report') {
+                    for (const type of report.types)
+                        for (const finding of type.findings)
+                            log(`${type.name}: ${describeFinding(finding)}`, 'info')
+                }
+                new NoteTypeCheckModal(this.app, report).open()
+            }
+        })
         this.addCommand({
             id: 'archive-aged-notes',
             name: 'Archive aged done notes (open boards)',

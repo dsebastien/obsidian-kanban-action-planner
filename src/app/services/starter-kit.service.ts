@@ -65,6 +65,8 @@ interface SkApiLike {
     getNoteTypeRelationships?: (ref: string) => unknown
     /** Starter Kit: the plugin settings (`globalSettings.enableAutomations` ≥ 1.15). */
     getSettings?: () => unknown
+    /** Starter Kit: the global properties every note type carries. Detected by method presence. */
+    listGlobalProperties?: () => unknown
 }
 
 /** One status value of a Starter Kit note type, as its `getNoteTypeStatus` resolves it. */
@@ -135,6 +137,27 @@ export function starterKitRunsAutomations(app: App): boolean {
         return settings?.globalSettings?.enableAutomations === true
     } catch {
         return false
+    }
+}
+
+/**
+ * The Starter Kit's global properties (they apply to every note type), or
+ * `null` when the installed Starter Kit has no such method or the call fails.
+ */
+export function listGlobalProperties(app: App): SkPropertyDefinition[] | null {
+    const api = getStarterKitApi(app)
+    if (!api?.listGlobalProperties) return null
+    try {
+        const raw = unwrap<unknown>(api.listGlobalProperties())
+        if (!Array.isArray(raw)) return null
+        return (raw as unknown[]).filter(
+            (p): p is SkPropertyDefinition =>
+                typeof p === 'object' &&
+                p !== null &&
+                typeof (p as { name?: unknown }).name === 'string'
+        )
+    } catch {
+        return null
     }
 }
 

@@ -2058,13 +2058,14 @@ have it, this plugin becomes the board on top of that system, with **no configur
 
 When the Starter Kit plugin is installed and recognizes a note's type:
 
-| It provides                                                                       | What the board does with it                                                                                                                                                                                                                       |
-| --------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| The type's **status property** and its **allowed values**                         | Builds the columns, in the type's defined order, including the empty ones, so a board of Tasks shows every task status, not only the ones in use                                                                                                  |
-| The type's **recognition rules** (tag / folder / regex)                           | Recognizes each card's type, so a mixed board can give **each type its own lane with its own columns**. A project can never be given a task status                                                                                                |
-| The type's **allowed values** for any other property                              | Powers the card right-click **"Set …"** quick-set menu and the one-click controls in triage mode                                                                                                                                                  |
-| The type's **relationships** (when the kit declares them)                         | Which property links a note to a parent, child, sibling or blocker, and to which note types. Shown read-only in **Configure board → Relationships**, used for reading and for choosing where a new link is written                                |
-| The type's **associated folder**, **template**, and **note name prefix / suffix** | Drives [quick capture](#creating-cards-from-the-board-quick-capture): the **Add card** button creates a note exactly where a note of that type belongs, with the same template you would get from the Starter Kit's own "Create new note" command |
+| It provides                                                                        | What the board does with it                                                                                                                                                                                                                                              |
+| ---------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| The type's **status property** and its **allowed values**                          | Builds the columns, in the type's defined order, including the empty ones, so a board of Tasks shows every task status, not only the ones in use                                                                                                                         |
+| The type's **recognition rules** (tag / folder / regex)                            | Recognizes each card's type, so a mixed board can give **each type its own lane with its own columns**. A project can never be given a task status                                                                                                                       |
+| The type's **allowed values** for any other property                               | Powers the card right-click **"Set …"** quick-set menu and the one-click controls in triage mode                                                                                                                                                                         |
+| The type's **relationships** (when the kit declares them)                          | Which property links a note to a parent, child, sibling or blocker, and to which note types. Shown read-only in **Configure board → Relationships**, used for reading and for choosing where a new link is written                                                       |
+| The type's **declared properties** (its own and the global ones, with their types) | Lets the board know what a note of that type carries. Run **Check note types against the Starter Kit** to list every property the board uses that a type does not declare, or declares with another type (for example a start date stored as text). The check only reads |
+| The type's **associated folder**, **template**, and **note name prefix / suffix**  | Drives [quick capture](#creating-cards-from-the-board-quick-capture): the **Add card** button creates a note exactly where a note of that type belongs, with the same template you would get from the Starter Kit's own "Create new note" command                        |
 
 In short: point a Base at your tasks, add a Kanban Action Planner view, and you already have the
 right columns in the right order, the right template on new notes, and the right lanes on a
@@ -2132,6 +2133,11 @@ tracking and pomodoro commands work from anywhere:
 - **Normalize card order on this board**: give a `manual_order` to every card that lacks one and
   spread out duplicates, in the background, keeping every card where it is. A message tells you
   how many notes were updated. Works even when **Tidy card order automatically** is off.
+
+- **Check note types against the Starter Kit**: for every Starter Kit note type, list the
+  properties the board reads or writes (dates, estimate, tracked time, milestones, progress, week
+  planner, relationship links) that the type does not declare, or declares with another type. It
+  only reads; nothing is written, not even the board's own settings.
 
 One command acts on **every open Kanban view** instead:
 
