@@ -1080,8 +1080,9 @@ remembered per view.
 
 **Schedule from the timeline.** Drag a card out of the **Unplanned** panel and drop it anywhere
 over the timeline: its **start date** is set to the day under the pointer and it jumps onto its
-own row. A card without an estimate gets **an estimate of 1 day** as it lands, so every new
-entry starts as a one-day rectangle you can resize (an existing estimate is kept). While you
+own row. Only the start date is written: a card without an estimate lands as a **square**, and
+no estimate is invented for it. Use **Set estimate…** in its right-click menu to give it a span
+(an existing estimate is kept). While you
 drag, the timeline highlights and a striped **New entry** lane appears at the top. The drop
 creates a new row there (it never lands "inside" an existing card's line), with a guide line
 marking the snapped day and a floating label showing the exact date that will be written.

@@ -533,26 +533,16 @@ export class TimelineController {
     }
 
     /**
-     * Unplanned card dropped on the timeline: write the start date for that
-     * day, seeding a **1-day estimate** ONLY when the estimate property is
-     * absent or empty — a fresh entry lands as a resizable one-day rectangle,
-     * not a handle-less square. One transaction; any present value (even one
-     * the timeline can't parse) is never touched.
+     * Unplanned card dropped on the timeline: write ONLY the start date for
+     * that day (issue #232). No estimate is seeded: a seeded day is effort
+     * nobody entered, and it skews actual-vs-estimate reports. A card without
+     * an estimate renders as a start-only square; **Set estimate…** gives it a
+     * span.
      */
     private async scheduleAt(card: KanbanCard, pct: number, window: TimelineRange): Promise<void> {
         const date = addDays(window.start, dayOffsetAtPct(pct, window))
         const start = formatDate(date, this.host.dateFormat())
-        const config = this.host.estimateConfigFor(card)
-        const raw = getFrontmatterValue(this.host.app, card.file, config.property)
-        if (raw !== undefined && raw !== null && raw !== '') {
-            await setProperty(this.host.app, card.file, this.host.startProperty(), start)
-            return
-        }
-        await setProperties(this.host.app, card.file, {
-            [this.host.startProperty()]: start,
-            // One day, written in the card's own unit (minutes → minutesPerDay).
-            [config.property]: daysToUnit(1, config.unit, this.host.minutesPerDay())
-        })
+        await setProperty(this.host.app, card.file, this.host.startProperty(), start)
     }
 
     /** Track double-click: prompt for a label, then append `<date> <label>`. */
