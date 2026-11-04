@@ -9,14 +9,21 @@ import {
 } from './estimate'
 
 describe('readEstimate', () => {
-    test('days keep the historical semantics: ceil, minimum 1', () => {
+    test('days keep their exact value; only the span rounds up (issue #232)', () => {
         expect(readEstimate(3, 'days', 480)).toEqual({
             days: 3,
             spanDays: 3,
             raw: 3,
             label: '3d'
         })
-        expect(readEstimate(2.2, 'days', 480)?.days).toBe(3)
+        expect(readEstimate(2.2, 'days', 480)?.days).toBe(2.2)
+        expect(readEstimate(2.2, 'days', 480)?.spanDays).toBe(3)
+        expect(readEstimate(0.5, 'days', 480)).toEqual({
+            days: 0.5,
+            spanDays: 1,
+            raw: 0.5,
+            label: '4h'
+        })
         expect(readEstimate('4', 'days', 480)?.days).toBe(4)
         expect(readEstimate(0, 'days', 480)).toBeNull()
         expect(readEstimate('', 'days', 480)).toBeNull()
@@ -89,9 +96,16 @@ describe('formatting', () => {
 })
 
 describe('daysToUnit', () => {
-    test('days round to whole days, minimum 1', () => {
-        expect(daysToUnit(2.4, 'days', 480)).toBe(2)
-        expect(daysToUnit(0.2, 'days', 480)).toBe(1)
+    test('days keep two decimals, minimum 0.01 (issue #232)', () => {
+        expect(daysToUnit(2.4, 'days', 480)).toBe(2.4)
+        expect(daysToUnit(0.2, 'days', 480)).toBe(0.2)
+        expect(daysToUnit(1 / 3, 'days', 480)).toBe(0.33)
+        expect(daysToUnit(0.001, 'days', 480)).toBe(0.01)
+    })
+
+    test('a rolled-up fraction reads back as written', () => {
+        const written = daysToUnit(2.4, 'days', 480)
+        expect(readEstimate(written, 'days', 480)?.days).toBe(2.4)
     })
 
     test('minutes convert through minutesPerDay, minimum 1', () => {
@@ -102,10 +116,11 @@ describe('daysToUnit', () => {
 })
 
 describe('parseEstimateInput', () => {
-    test('bare numbers stay in the target unit (historical rounding)', () => {
+    test('bare numbers stay in the target unit (days keep fractions)', () => {
         expect(parseEstimateInput('120', 'minutes', 480)).toBe(120)
         expect(parseEstimateInput('3', 'days', 480)).toBe(3)
-        expect(parseEstimateInput('2.2', 'days', 480)).toBe(3)
+        expect(parseEstimateInput('2.2', 'days', 480)).toBe(2.2)
+        expect(parseEstimateInput('0,5', 'days', 480)).toBe(0.5)
         expect(parseEstimateInput('0', 'days', 480)).toBeNull()
     })
 
@@ -122,10 +137,10 @@ describe('parseEstimateInput', () => {
         expect(parseEstimateInput('2d', 'minutes', 480)).toBe(960)
     })
 
-    test('suffixed input on a days target rounds up to whole days', () => {
-        expect(parseEstimateInput('4h', 'days', 480)).toBe(1)
-        expect(parseEstimateInput('12h', 'days', 480)).toBe(2)
-        expect(parseEstimateInput('0.5d', 'days', 480)).toBe(1)
+    test('suffixed input on a days target converts to fractional days', () => {
+        expect(parseEstimateInput('4h', 'days', 480)).toBe(0.5)
+        expect(parseEstimateInput('12h', 'days', 480)).toBe(1.5)
+        expect(parseEstimateInput('0.5d', 'days', 480)).toBe(0.5)
         expect(parseEstimateInput('3d', 'days', 480)).toBe(3)
     })
 

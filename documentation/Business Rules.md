@@ -687,8 +687,10 @@ When a new business rule is mentioned:
     All rollup/weighting math runs in **days** (`domain/estimate.ts`: `readEstimate` →
     `ResolvedEstimate`); minute values convert via the global **`minutesPerDay`** setting
     (default 480 = an 8-hour workday). Date **geometry** (timeline bars, calendar #86 spans,
-    WBS date spans) uses the whole-day `spanDays` = max(1, ceil(days)); day-unit values keep
-    the historical ceil-to-≥1 parse. **Displays share ONE composite grammar** (`formatDuration`):
+    WBS date spans) uses the whole-day `spanDays` = max(1, ceil(days)); **day values keep
+    fractions** (issue #232: `time_estimate_days` is focused work-days, fractions allowed) in
+    reads, writes and roll-ups, two decimals, minimum 0.01; only geometry rounds up, and the
+    timeline span is calendar days. Distribute-to-children splits whole days only. **Displays share ONE composite grammar** (`formatDuration`):
     every estimate renders as `d / h / m` ("3d", "1h 30m", "Σ 5h 30m") — never decimal days —
     capped at the two most significant units (day-present values round to hour resolution,
     "1d 1h 30m" → "1d 2h") for chip alignment and scannability. **The WBS estimate chip
@@ -700,12 +702,11 @@ When a new business rule is mentioned:
     "–d" placeholder is gone).
     **Writes are always unit-native**: the estimate modal edits raw minutes/days, save-rollup
     and distribute-to-children convert day amounts into each TARGET note's own unit
-    (`daysToUnit`, ≥ 1), timeline resizes/seeds write the card's unit (a fresh drop seeds 1
-    day = `minutesPerDay` minutes on a minute-based type). **The estimate modal accepts a
+    (`daysToUnit`: days two decimals, minutes ≥ 1), timeline resizes write the card's unit
+    (a drop writes no estimate, rule 35). **The estimate modal accepts a
     generic duration syntax** (`parseEstimateInput`): a bare number is taken in the card's
-    own unit (historical rounding), while `d`/`h`/`m` suffixes convert to it — `2h` on a
-    minute task writes 120, `0.5d` writes `minutesPerDay`/2, `4h` on a day note rounds up to
-    1 day; tokens combine (`1d 4h`, `1h30m`), `.` and `,` decimals both parse, and a live
+    own unit (days keep two decimals), while `d`/`h`/`m` suffixes convert to it — `2h` on a
+    minute task writes 120, `0.5d` writes `minutesPerDay`/2, `4h` on a day note writes 0.5; tokens combine (`1d 4h`, `1h30m`), `.` and `,` decimals both parse, and a live
     hint previews the exact value Set will write (invalid input renders red and never
     submits). Older stored note types have no
     `estimate` block and degrade to the global default (no backfill).

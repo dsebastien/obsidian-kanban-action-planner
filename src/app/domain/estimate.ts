@@ -10,9 +10,10 @@
  * the global `defaultEstimateProperty`) or **minutes** (per-note-type
  * override — e.g. tasknotes-compatible `time_estimate`). All rollup /
  * timeline / span math runs in DAYS; minute values convert through the
- * global "minutes per day" setting (default 480 = an 8-hour workday). Date
- * geometry (timeline bars, derived spans) uses the whole-day `spanDays`
- * (≥ 1); writes always happen in the note's own unit.
+ * global "minutes per day" setting (default 480 = an 8-hour workday). Day
+ * values keep fractions (issue #232). Only date geometry (timeline bars,
+ * derived spans) uses the whole-day `spanDays` (≥ 1, rounded up); writes
+ * always happen in the note's own unit.
  */
 
 export type EstimateUnit = 'days' | 'minutes'
@@ -45,9 +46,21 @@ function toNumber(raw: unknown): number | null {
 }
 
 /**
- * Parse a raw frontmatter value in `unit`. Days keep the historical
- * semantics (rounded UP to whole days, minimum 1); minutes keep their exact
- * value (minimum 1 minute) and convert to fractional days for the math.
+ * Day values keep two decimals: `time_estimate_days` is focused work-days and
+ * fractions are allowed (issue #232), so `0.5` stays `0.5`.
+ */
+function roundDays(days: number): number {
+    return Math.round(days * 100) / 100
+}
+
+/** The smallest writable day estimate (two decimals). */
+const MIN_DAYS = 0.01
+
+/**
+ * Parse a raw frontmatter value in `unit`. Days keep their exact value
+ * (fractions allowed, issue #232; must be > 0); minutes keep their exact value
+ * (minimum 1 minute) and convert to fractional days for the math. Only the
+ * whole-day `spanDays` used by date geometry rounds up.
  */
 export function readEstimate(
     raw: unknown,
@@ -57,9 +70,13 @@ export function readEstimate(
     const value = toNumber(raw)
     if (value === null) return null
     if (unit === 'days') {
-        const days = Math.ceil(value)
-        if (days < 1) return null
-        return { days, spanDays: days, raw: days, label: formatDuration(days, minutesPerDay) }
+        if (value <= 0) return null
+        return {
+            days: value,
+            spanDays: Math.max(1, Math.ceil(value)),
+            raw: value,
+            label: formatDuration(value, minutesPerDay)
+        }
     }
     const minutes = Math.round(value)
     if (minutes < 1) return null
@@ -122,9 +139,12 @@ export function formatUnitValue(value: number, unit: EstimateUnit, minutesPerDay
     return formatDuration(unit === 'days' ? value : value / perDay, minutesPerDay)
 }
 
-/** Convert a days quantity into a writable unit-native value (≥ 1). */
+/**
+ * Convert a days quantity into a writable unit-native value: days keep two
+ * decimals (minimum 0.01, issue #232), minutes round to the minute (≥ 1).
+ */
 export function daysToUnit(days: number, unit: EstimateUnit, minutesPerDay: number): number {
-    if (unit === 'days') return Math.max(1, Math.round(days))
+    if (unit === 'days') return Math.max(MIN_DAYS, roundDays(days))
     const perDay = minutesPerDay > 0 ? minutesPerDay : 1
     return Math.max(1, Math.round(days * perDay))
 }
@@ -132,11 +152,11 @@ export function daysToUnit(days: number, unit: EstimateUnit, minutesPerDay: numb
 /**
  * Parse a human duration input into the TARGET unit's writable value.
  *
- * A bare number is already in the target unit (the historical behavior:
- * days round UP to whole days, minutes round to the minute — both ≥ 1).
+ * A bare number is already in the target unit (days keep two decimals,
+ * issue #232; minutes round to the minute, ≥ 1).
  * `d` / `h` / `m` suffixes convert regardless of the target unit — days via
  * `minutesPerDay` (so "0.5d" → 240 minutes at the 480 default, and "4h" on a
- * day-based note → 1 day). Tokens combine ("1d 4h", "1h30m"); decimals with
+ * day-based note → 0.5 day). Tokens combine ("1d 4h", "1h30m"); decimals with
  * `.` or `,` both parse. Returns null for anything unrecognized.
  */
 export function parseEstimateInput(
@@ -150,7 +170,9 @@ export function parseEstimateInput(
     if (/^\d+(?:\.\d+)?$/.test(text)) {
         const value = Number(text)
         if (!Number.isFinite(value) || value <= 0) return null
-        return targetUnit === 'days' ? Math.ceil(value) : Math.max(1, Math.round(value))
+        return targetUnit === 'days'
+            ? Math.max(MIN_DAYS, roundDays(value))
+            : Math.max(1, Math.round(value))
     }
     if (!/^(?:\d+(?:\.\d+)?\s*[dhm]\s*)+$/.test(text)) return null
     let minutes = 0
@@ -162,6 +184,6 @@ export function parseEstimateInput(
     }
     if (minutes <= 0) return null
     return targetUnit === 'days'
-        ? Math.max(1, Math.ceil(minutes / perDay))
+        ? Math.max(MIN_DAYS, roundDays(minutes / perDay))
         : Math.max(1, Math.round(minutes))
 }

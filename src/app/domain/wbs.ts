@@ -485,7 +485,9 @@ export function distributeEstimate(
     const missing = children.filter((c) => c.total === null)
     if (missing.length === 0) return null
     const allocated = children.reduce((sum, c) => sum + (c.total ?? 0), 0)
-    const remaining = parentOwn - allocated
+    // Whole days only: a fractional own estimate or child total (issue #232)
+    // distributes its whole-day part, so the children never exceed the parent.
+    const remaining = Math.floor(parentOwn - allocated + 1e-9)
     if (remaining < missing.length) return null
     const base = Math.floor(remaining / missing.length)
     const extra = remaining % missing.length

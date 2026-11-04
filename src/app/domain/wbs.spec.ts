@@ -361,6 +361,20 @@ describe('distributeEstimate', () => {
         )
     })
 
+    test('a fractional budget distributes its whole days only (issue #232)', () => {
+        const shares = distributeEstimate(4.5, [
+            { path: 'a', total: 0.5 },
+            { path: 'b', total: null },
+            { path: 'c', total: null }
+        ])
+        expect(shares).toEqual(
+            new Map([
+                ['b', 2],
+                ['c', 2]
+            ])
+        )
+    })
+
     test('null when every child already has an estimate', () => {
         expect(distributeEstimate(10, [{ path: 'a', total: 2 }])).toBeNull()
     })

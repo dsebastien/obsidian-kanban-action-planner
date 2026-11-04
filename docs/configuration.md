@@ -353,8 +353,8 @@ property** (`estimate`, days), and each note type can override the **property an
 or minutes) in its **Configure → Estimate** section. Minute estimates convert to days via the
 global **Minutes per day** setting and always span at least one whole day on the chart. Per
 view, **Configure view → Timeline** only sets the **Default range** (Quarter by default).
-Estimates are written as plain numbers in the note's own unit; fractional day values round up
-to whole days, minimum 1. Old per-view start/estimate/end/milestone keys in a `.base` file are
+Estimates are written as plain numbers in the note's own unit. Day values keep fractions (two
+decimals: `0.5` is half a work day); only the bar on the chart rounds up to whole calendar days. Old per-view start/estimate/end/milestone keys in a `.base` file are
 ignored.
 
 ## WBS mode
