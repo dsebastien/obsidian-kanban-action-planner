@@ -73,10 +73,13 @@ export interface CalendarHost {
     openCard(card: KanbanCard, newTab: boolean): void
     showCardMenu(card: KanbanCard, event: MouseEvent): void
     cardForKey(key: string): KanbanCard | undefined
-    scheduledProperty(): string
-    deadlineProperty(): string
-    /** Per-card estimate property + unit (issue #86 spans; per-type override). */
-    /** Null = the card's type has no estimate (issue #232): no estimate UI, no writes. */
+    /** The card's OWN type's scheduled date property (issue #232: never the board's dominant type). */
+    scheduledProperty(card: KanbanCard): string
+    /** The card's OWN type's deadline property. */
+    deadlineProperty(card: KanbanCard): string
+    /** Changes whenever any type's date properties change (render signature). */
+    datePropertiesSignature(): string
+    /** Per-card estimate property + unit (issue #86 spans; per-type override). Null = the card's type has no estimate (issue #232): no estimate UI, no writes. */
     estimateConfigFor(card: KanbanCard): EstimateConfig | null
     /** Minutes one work day represents (minute-estimate → days conversion). */
     minutesPerDay(): number
@@ -237,8 +240,7 @@ export class CalendarController {
             this.showDeadlines,
             this.focusedDay,
             [...this.panelCollapsedGroups.entries()].sort(),
-            this.host.scheduledProperty(),
-            this.host.deadlineProperty(),
+            this.host.datePropertiesSignature(),
             this.host.firstDayOfWeek(),
             this.host.minutesPerDay(),
             this.host.sortMode()
@@ -254,11 +256,12 @@ export class CalendarController {
         const anchor = this.effectiveAnchor()
         const today = startOfDay(new Date())
         const dimension = this.tab
-        const scheduledProperty = this.host.scheduledProperty()
-        const deadlineProperty = this.host.deadlineProperty()
-
+        // Each card reads its OWN type's date properties (issue #232).
         const dateFor = (card: KanbanCard, dim: DateDimension): Date | null => {
-            const prop = dim === 'scheduled' ? scheduledProperty : deadlineProperty
+            const prop =
+                dim === 'scheduled'
+                    ? this.host.scheduledProperty(card)
+                    : this.host.deadlineProperty(card)
             return parseFrontmatterDate(getFrontmatterValue(this.host.app, card.file, prop))
         }
 
@@ -477,11 +480,11 @@ export class CalendarController {
     }
 
     /** The frontmatter date properties a drag of `dimension` writes/clears. */
-    private propertiesForDimension(dimension: string): string[] {
-        if (dimension === 'deadline') return [this.host.deadlineProperty()]
+    private propertiesForDimension(card: KanbanCard, dimension: string): string[] {
+        if (dimension === 'deadline') return [this.host.deadlineProperty(card)]
         if (dimension === 'both')
-            return [this.host.scheduledProperty(), this.host.deadlineProperty()]
-        return [this.host.scheduledProperty()]
+            return [this.host.scheduledProperty(card), this.host.deadlineProperty(card)]
+        return [this.host.scheduledProperty(card)]
     }
 
     /**
@@ -496,7 +499,7 @@ export class CalendarController {
     ): Promise<void> {
         const card = this.host.cardForKey(cardKey)
         if (!card) return
-        const properties = this.propertiesForDimension(dimension)
+        const properties = this.propertiesForDimension(card, dimension)
 
         if (target.kind === 'panel') {
             for (const property of properties)

@@ -317,6 +317,14 @@ frontmatter property name, resolved at three levels; the most specific wins:
 Every per-type field is **empty = inherit**, and shows the inherited value as its placeholder.
 Blank one out to follow the global setting again.
 
+**Each card uses its own type's dates.** On a board that mixes types (a Tasks board that also
+shows projects, an "All actions" board), every mode reads and writes each card through **its own
+note type**: dropping a project on a calendar day writes the project's start property (for example
+`date_started`), dropping a task writes the task's `date_scheduled`. The same goes for the
+timeline, the WBS, the date prompts, the agenda, the due badge and the filters. Only a card
+without a recognized type uses the board's properties. A per-board key (level 1) still applies
+to every card on that board.
+
 > Before 1.29, a note type silently copied the global defaults when it was first created, and
 > there was no UI to change them. So editing the global **Scheduled date property** or **Due
 > date property** seemed to do nothing: the frozen copy won, and the timeline showed

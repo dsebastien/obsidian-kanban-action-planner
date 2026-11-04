@@ -105,8 +105,8 @@ export interface WbsHost {
      * the tree; mutated in place for the optimistic re-parent.
      */
     relationshipSets(): Map<string, RelationshipSet>
-    /** Resolved property names (start = the scheduled date; the rest global). */
-    startProperty(): string
+    /** The card's OWN type's start date property (issue #232: never the board's dominant type). */
+    startProperty(card: KanbanCard): string
     /** Per-card estimate property + unit (per-note-type override). */
     /** Null = the card's type has no estimate (issue #232): no estimate UI, no writes. */
     estimateConfigFor(card: KanbanCard): EstimateConfig | null
@@ -142,9 +142,11 @@ export interface WbsHost {
      * takes time from linked notes); empty otherwise.
      */
     linkedNotesFor(card: KanbanCard): readonly LinkedNoteTime[]
-    scheduledProperty(): string
-    /** Resolved due-date property (the rows' due chip reads and writes it). */
-    deadlineProperty(): string
+    scheduledProperty(card: KanbanCard): string
+    /** The card's own due-date property (the rows' due chip reads and writes it). */
+    deadlineProperty(card: KanbanCard): string
+    /** Changes whenever any type's date properties change (render signature). */
+    datePropertiesSignature(): string
     /** The global "due soon" threshold (days) for the countdown tone ramp. */
     dueSoonDays(): number
     /**
@@ -433,7 +435,7 @@ export class WbsController {
             let value = startCache.get(path)
             if (value === undefined) {
                 const card = byKey.get(path)
-                value = card ? this.readDate(card, this.host.startProperty()) : null
+                value = card ? this.readDate(card, this.host.startProperty(card)) : null
                 startCache.set(path, value)
             }
             return value
@@ -502,7 +504,7 @@ export class WbsController {
                     datesDerived = true
                 }
             }
-            const due = card ? this.readDate(card, this.host.deadlineProperty()) : null
+            const due = card ? this.readDate(card, this.host.deadlineProperty(card)) : null
             const countdown = formatCountdown(due, today, this.host.dueSoonDays(), 'chip')
             // Tracked time (issue #119): own minutes + distinct-descendant sum
             // (actuals ADD — own never replaces the children's contribution).
@@ -694,8 +696,8 @@ export class WbsController {
             },
             {
                 minutesPerDay: this.host.minutesPerDay(),
-                startProperty: this.host.startProperty(),
-                deadlineProperty: this.host.deadlineProperty(),
+                startProperty: this.host.datePropertiesSignature(),
+                deadlineProperty: '',
                 progressProperty: this.host.progressProperty(),
                 durationProperty: this.trackingSignature(cards),
                 dueSoonDays: this.host.dueSoonDays(),
@@ -725,9 +727,11 @@ export class WbsController {
         const compare = this.host.comparator()
         const needsPlanning = cards
             .filter((card) => {
-                const start = this.readDate(card, this.host.startProperty())
+                const start = this.readDate(card, this.host.startProperty(card))
+                // A type without an estimate (issue #232) never needs one.
                 const estimate = this.resolvedEstimateFor(card)
-                return start === null || estimate === null
+                const estimated = this.host.estimateConfigFor(card) !== null
+                return start === null || (estimated && estimate === null)
             })
             .sort(compare)
         return groupByTypeAndStatus(
@@ -1105,7 +1109,7 @@ export class WbsController {
         }
         // The standard "Schedule on a date…" item already writes exactly the
         // scheduled property — skip the duplicate (the timeline convention).
-        if (this.host.startProperty() !== this.host.scheduledProperty()) {
+        if (this.host.startProperty(card) !== this.host.scheduledProperty(card)) {
             menu.addItem((item) =>
                 item
                     .setTitle('Set start date…')
@@ -1421,7 +1425,7 @@ export class WbsController {
 
     /** "Set start date…": pre-filled ISO date prompt; Set writes, Clear deletes. */
     private promptStartDate(card: KanbanCard): void {
-        const property = this.host.startProperty()
+        const property = this.host.startProperty(card)
         const current = this.readDate(card, property)
         new DatePromptModal(
             this.host.app,
@@ -1434,7 +1438,7 @@ export class WbsController {
 
     /** Due chip click: the same date prompt on the due-date property. */
     private promptDueDate(card: KanbanCard): void {
-        const property = this.host.deadlineProperty()
+        const property = this.host.deadlineProperty(card)
         const current = this.readDate(card, property)
         new DatePromptModal(
             this.host.app,

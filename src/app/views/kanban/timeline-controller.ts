@@ -86,8 +86,8 @@ export interface TimelineHost {
     isTimelineMode(): boolean
     openCard(card: KanbanCard, newTab: boolean): void
     showCardMenu(card: KanbanCard, event: MouseEvent, extend?: (menu: Menu) => void): void
-    /** Resolved start date + milestone list property names. */
-    startProperty(): string
+    /** The card's OWN type's start date property (issue #232: never the board's dominant type). */
+    startProperty(card: KanbanCard): string
     /** Per-card estimate property + unit (per-note-type override). */
     /** Null = the card's type has no estimate (issue #232): no estimate UI, no writes. */
     estimateConfigFor(card: KanbanCard): EstimateConfig | null
@@ -99,9 +99,11 @@ export interface TimelineHost {
      * property IS this one, the menu's own "Set start date…" item is skipped —
      * the standard schedule items already write exactly that property.
      */
-    scheduledProperty(): string
-    /** Resolved due-date property (issue #85): the row's red deadline line. */
-    deadlineProperty(): string
+    scheduledProperty(card: KanbanCard): string
+    /** The card's own due-date property (issue #85): the row's red deadline line. */
+    deadlineProperty(card: KanbanCard): string
+    /** Changes whenever any type's date properties change (render signature). */
+    datePropertiesSignature(): string
     /** The momentjs format dates are written with. */
     dateFormat(): string
     firstDayOfWeek(): number
@@ -263,10 +265,8 @@ export class TimelineController {
             [...this.undatedCollapsed.entries()].sort(),
             [...this.typeGroupsCollapsed.entries()].sort(),
             [...this.hiddenTypes].sort(),
-            this.host.startProperty(),
+            this.host.datePropertiesSignature(),
             this.host.milestoneProperty(),
-            this.host.scheduledProperty(),
-            this.host.deadlineProperty(),
             this.host.firstDayOfWeek(),
             this.host.minutesPerDay(),
             this.host.boardEl()?.clientWidth ?? 0
@@ -284,7 +284,6 @@ export class TimelineController {
         const firstDay = this.host.firstDayOfWeek()
         const window = periodRange(kind, anchor, firstDay)
 
-        const startProperty = this.host.startProperty()
         const milestoneProperty = this.host.milestoneProperty()
 
         // The PRE-hiding type set: the Types menu and the grouping decision
@@ -310,7 +309,7 @@ export class TimelineController {
             const type = this.typeFor(card)
             // Hiding a type removes its rows AND its undated cards.
             if (this.hiddenTypes.has(type.id)) continue
-            const start = this.readDate(card, startProperty)
+            const start = this.readDate(card, this.host.startProperty(card))
             const estimate = this.readCardEstimate(card)
             const milestones = parseMilestones(
                 getFrontmatterValue(this.host.app, card.file, milestoneProperty)
@@ -543,7 +542,7 @@ export class TimelineController {
     private async scheduleAt(card: KanbanCard, pct: number, window: TimelineRange): Promise<void> {
         const date = addDays(window.start, dayOffsetAtPct(pct, window))
         const start = formatDate(date, this.host.dateFormat())
-        await setProperty(this.host.app, card.file, this.host.startProperty(), start)
+        await setProperty(this.host.app, card.file, this.host.startProperty(card), start)
     }
 
     /** Track double-click: prompt for a label, then append `<date> <label>`. */
@@ -585,7 +584,7 @@ export class TimelineController {
 
     /** Move-drag commit: shift ONLY the start date; the estimate rides along. */
     private async moveStart(card: KanbanCard, dayDelta: number): Promise<void> {
-        const property = this.host.startProperty()
+        const property = this.host.startProperty(card)
         const current = this.readDate(card, property)
         if (!current) return
         await setProperty(
@@ -623,7 +622,7 @@ export class TimelineController {
             )
             return
         }
-        const startProperty = this.host.startProperty()
+        const startProperty = this.host.startProperty(card)
         const start = this.readDate(card, startProperty)
         if (!start) return
         const resized = resizeFromStart(estimate.spanDays, dayDelta)
@@ -640,7 +639,7 @@ export class TimelineController {
      * scheduled property, so the card also leaves the calendar.
      */
     private async unschedule(card: KanbanCard): Promise<void> {
-        const property = this.host.startProperty()
+        const property = this.host.startProperty(card)
         if (getFrontmatterValue(this.host.app, card.file, property) === undefined) return
         await deleteProperty(this.host.app, card.file, property)
     }
@@ -672,10 +671,10 @@ export class TimelineController {
      * the sectioned menu groups them at the end (no manual separators).
      */
     private extendCardMenu(menu: Menu, card: KanbanCard): void {
-        const startProperty = this.host.startProperty()
+        const startProperty = this.host.startProperty(card)
         // The standard "Schedule on a date…" item already writes exactly the
         // scheduled property — skip the duplicate.
-        if (startProperty !== this.host.scheduledProperty()) {
+        if (startProperty !== this.host.scheduledProperty(card)) {
             menu.addItem((item) =>
                 item
                     .setTitle('Set start date…')
@@ -834,7 +833,7 @@ export class TimelineController {
         }
 
         // The deadline line (issue #85): only when it lands in the window.
-        const deadlineDate = this.readDate(card, this.host.deadlineProperty())
+        const deadlineDate = this.readDate(card, this.host.deadlineProperty(card))
         const deadlinePct = deadlineDate ? pointPct(deadlineDate, window) : null
         const deadline =
             deadlineDate && deadlinePct !== null

@@ -506,9 +506,9 @@ When a new business rule is mentioned:
     **Timeline** / Triage; `timelineMode` config flag, `toggle-timeline-mode` command): one row
     per card, placed by **start date + estimate** on a shared week/month/quarter/year axis (the
     calendar's range vocabulary; per-view `timelineRange` default + persisted
-    `timelineRangeOverride`; the anchor is transient → today). The timeline's properties are **global plugin
-    settings, not per-view options** (owner decision; stale per-view keys in old `.base` files
-    are ignored): the start is the resolved **scheduled date property**, the estimate a
+    `timelineRangeOverride`; the anchor is transient → today). The timeline's properties are **not
+    per-view options** (owner decision; stale per-view keys in old `.base` files are ignored):
+    the start is each card's OWN type's **scheduled date property** (rule 82), the estimate a
     **number of days** in `defaultEstimateProperty` (`estimate`), the milestones list in
     `defaultMilestonesProperty` (`milestones`). **There is no
     end-date property.** `parseEstimate` accepts numbers or numeric strings, `Math.ceil`s, and
@@ -1642,3 +1642,14 @@ Markdown)`, `Export ideal week (JSON)`, `Export ideal week (Markdown)`); the for
     with an unexpected type (dates: `date`/`datetime`; numbers: `number`; lists:
     `list`/`multitext`/`tags`). Declarations are read live; nothing is written, not even the
     mirror.
+
+82. **Dates resolve per card, through the card's OWN type (issue #232).** The start (scheduled),
+    due and defer properties of a card come from `datePropertiesForType(settings, ownType)`
+    (per-type calendar field, blank = global default), never from the board's dominant type.
+    Calendar placement and drops, timeline rows, drops, moves, resizes and Clear start date, WBS
+    rows, chips and prompts, the board's Schedule / Deadline prompts, the agenda, the card's due
+    state and countdown, the `due:` / `defer:` / `scheduled:` filters, lifecycle and the week grid
+    all use it. A per-view key (`scheduledDateProperty` / `dueDateProperty` / `deferDateProperty`
+    in the `.base`) still wins for every card; an untyped card uses the board's resolved
+    properties. Render signatures carry `datePropertiesSignature()` (every visible type's
+    triple), so a per-type change re-renders.

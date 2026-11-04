@@ -58,7 +58,11 @@ import { NO_TYPE_ID, groupByTypeAndStatus } from '../../domain/timeline'
 import { resolvePaneGroupDrop, resolveRailStatusDrop } from '../../domain/pane-drop'
 import type { EstimateConfig } from '../../domain/estimate'
 import { formatDuration, readEstimate } from '../../domain/estimate'
-import { estimateConfigForType } from '../../domain/type-properties'
+import {
+    datePropertiesForType,
+    estimateConfigForType,
+    type TypeDateProperties
+} from '../../domain/type-properties'
 import type { AggregateKind } from '../../domain/column-aggregate'
 import {
     computeAggregate,
@@ -920,8 +924,9 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             openCard: (card, newTab) => this.openCard(card, newTab),
             showCardMenu: (card, event) => this.showCardMenu(card, event),
             cardForKey: (key) => this.cardsByKey.get(key),
-            scheduledProperty: () => this.scheduledDateProperty,
-            deadlineProperty: () => this.dueDateProperty,
+            scheduledProperty: (card) => this.datePropertiesFor(card).start,
+            deadlineProperty: (card) => this.datePropertiesFor(card).due,
+            datePropertiesSignature: () => this.datePropertiesSignature(),
             estimateConfigFor: (card) => this.estimateConfigFor(card),
             minutesPerDay: () => this.plugin.settings.minutesPerDay,
             noteTypeFor: (card) => this.noteTypeByPath.get(card.key) ?? null,
@@ -1029,12 +1034,13 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             isTimelineMode: () => this.timelineMode(),
             openCard: (card, newTab) => this.openCard(card, newTab),
             showCardMenu: (card, event, extend) => this.showCardMenu(card, event, extend),
-            startProperty: () => this.resolveTimelineStartProperty(),
+            startProperty: (card) => this.datePropertiesFor(card).start,
             estimateConfigFor: (card) => this.estimateConfigFor(card),
             minutesPerDay: () => this.plugin.settings.minutesPerDay,
             milestoneProperty: () => this.resolveTimelineMilestoneProperty(),
-            scheduledProperty: () => this.scheduledDateProperty,
-            deadlineProperty: () => this.dueDateProperty,
+            scheduledProperty: (card) => this.datePropertiesFor(card).start,
+            deadlineProperty: (card) => this.datePropertiesFor(card).due,
+            datePropertiesSignature: () => this.datePropertiesSignature(),
             dateFormat: () =>
                 this.noteType.calendar.dateFormat || this.plugin.settings.defaultDateFormat,
             firstDayOfWeek: () => this.plugin.settings.firstDayOfWeek,
@@ -1067,7 +1073,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             cardForKey: (key) => this.cardsByKey.get(key),
             allCardForKey: (key) => this.allCards.find((c) => c.key === key),
             relationshipSets: () => this.relationshipsByPath,
-            startProperty: () => this.resolveTimelineStartProperty(),
+            startProperty: (card) => this.datePropertiesFor(card).start,
             estimateConfigFor: (card) => this.estimateConfigFor(card),
             doneConfigFor: (card) => this.doneConfigFor(card),
             minutesPerDay: () => this.plugin.settings.minutesPerDay,
@@ -1088,8 +1094,9 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
                 saveTotalTrackedTimeWithDecision(this.plugin, card.file, total),
             recomputeTracked: (card) => recomputeTrackedTimeWithDecisions(this.plugin, [card.file]),
             linkedNotesFor: (card) => this.linkedNotesFor(card),
-            scheduledProperty: () => this.scheduledDateProperty,
-            deadlineProperty: () => this.dueDateProperty,
+            scheduledProperty: (card) => this.datePropertiesFor(card).start,
+            deadlineProperty: (card) => this.datePropertiesFor(card).due,
+            datePropertiesSignature: () => this.datePropertiesSignature(),
             dueSoonDays: () => this.plugin.settings.dueSoonThresholdDays,
             // Per-path role properties: each note's OWN type decides where its
             // parent/children links live (mixed boards + context ancestors).
@@ -1675,17 +1682,18 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
                 buildCardSearchRecord(
                     this.app,
                     c,
-                    this.dueDateProperty,
+                    // The card's OWN type's dates (issue #232).
+                    this.datePropertiesFor(c).due,
                     // Transitive parents, climbed through the board's notes,
                     // for `ancestor:` / descendants zoom (issue #74).
                     ancestorPaths(c.key, this.relationshipsByPath).map(labelForPath),
                     // Defer date + done state back `defer:` / `is:` (issue #113).
-                    this.deferDateProperty,
+                    this.datePropertiesFor(c).defer,
                     this.isCardDone(c),
                     // Configured-property filter aliases (issue #169):
                     // `scheduled:` / `estimate:` / `progress:` / `order:`.
                     {
-                        scheduledDateProperty: this.scheduledDateProperty,
+                        scheduledDateProperty: this.datePropertiesFor(c).start,
                         estimateDays: this.estimateDaysFor(c),
                         progressProperty: this.resolveProgressProperty(),
                         orderProperty: this.orderProperty,
@@ -2568,20 +2576,50 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
     }
 
     /**
-     * The start (scheduled) and due date properties of a card's OWN type —
-     * a project's blocks apply between its `date_started` and `date_due`
-     * while an activity's type may name neither (issue #172).
+     * The start (scheduled), due and defer date properties of a card's OWN
+     * type (issue #232): a project on a Tasks board reads and writes its own
+     * `date_started`, a task on a Projects board its `date_scheduled`. A
+     * per-view override (old `.base` key) still wins for every card; an
+     * untyped card uses the board's resolved properties.
      */
-    private datePropertiesFor(card: KanbanCard): { start: string; due: string } {
-        const typeId = this.noteTypeByPath.get(card.key)?.id
+    private datePropertiesFor(card: KanbanCard): TypeDateProperties {
+        return this.datePropertiesForPath(card.key)
+    }
+
+    private datePropertiesForPath(path: string): TypeDateProperties {
+        const typeId = this.noteTypeByPath.get(path)?.id
         const noteType = typeId ? findNoteType(this.plugin, typeId) : undefined
-        if (!noteType) return { start: this.scheduledDateProperty, due: this.dueDateProperty }
+        const own = noteType
+            ? datePropertiesForType(this.plugin.settings, noteType)
+            : {
+                  start: this.scheduledDateProperty,
+                  due: this.dueDateProperty,
+                  defer: this.deferDateProperty
+              }
         return {
-            start:
-                noteType.calendar.scheduledDateProperty ||
-                this.plugin.settings.defaultScheduledDateProperty,
-            due: noteType.calendar.dueDateProperty || this.plugin.settings.defaultDueDateProperty
+            start: basesPropToName(this.viewConfig.get('scheduledDateProperty')) ?? own.start,
+            due: basesPropToName(this.viewConfig.get('dueDateProperty')) ?? own.due,
+            defer: basesPropToName(this.viewConfig.get('deferDateProperty')) ?? own.defer
         }
+    }
+
+    /**
+     * Render-signature key for the per-type date properties: changes when
+     * any type's (or the board's) start/due/defer property changes.
+     */
+    private datePropertiesSignature(): string {
+        const types = [
+            ...new Set([...this.noteTypeByPath.values()].flatMap((t) => (t ? [t.id] : [])))
+        ].sort()
+        return JSON.stringify([
+            this.scheduledDateProperty,
+            this.dueDateProperty,
+            this.deferDateProperty,
+            types.map((id) => {
+                const noteType = findNoteType(this.plugin, id)
+                return noteType ? datePropertiesForType(this.plugin.settings, noteType) : null
+            })
+        ])
     }
 
     /** Persist the durable calendar UI state per-view — issue #19. */
@@ -2664,14 +2702,6 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         if (card.statusValue === null) return null
         const column = this.cardColumns(card).find((c) => c.statusValue === card.statusValue)
         return column?.label ?? splitStatusValue(card.statusValue).label
-    }
-
-    // Timeline properties are GLOBAL (plugin settings) — no per-view overrides
-    // (owner decision; old per-view keys in .base files are simply ignored).
-
-    /** Timeline bar start date property: the resolved scheduled property. */
-    private resolveTimelineStartProperty(): string {
-        return this.scheduledDateProperty
     }
 
     /**
@@ -3341,10 +3371,9 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
      * Only the badge follows this — the overdue/due-today card emphasis stays on
      * the deadline.
      */
-    private countdownDateProperty(): string {
-        return this.viewConfig.get('countdownSource') === 'scheduled'
-            ? this.scheduledDateProperty
-            : this.dueDateProperty
+    private countdownDateProperty(path: string): string {
+        const dates = this.datePropertiesForPath(path)
+        return this.viewConfig.get('countdownSource') === 'scheduled' ? dates.start : dates.due
     }
 
     /**
@@ -3363,13 +3392,13 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             this.entriesByPath.get(file.path),
             this.config,
             this.titlePropertyId(),
-            this.dueDateProperty,
+            this.datePropertiesForPath(file.path).due,
             startOfDay(new Date()),
             {
                 show: this.viewConfig.get('showDueCountdown') === true,
                 soonDays: this.plugin.settings.dueSoonThresholdDays,
                 placement: this.plugin.settings.dueCountdownStyle,
-                property: this.countdownDateProperty()
+                property: this.countdownDateProperty(file.path)
             },
             (id) => this.allowedValuesForCardField(file, id),
             overrides,
@@ -3405,7 +3434,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             this.laneGrouping.kind === 'none' ? null : (this.laneValueByPath.get(file.path) ?? null)
         const relationships = toCardRelationships(this.relationshipsByPath.get(file.path))
         const defer = parseFrontmatterDate(
-            getFrontmatterValue(this.app, file, this.deferDateProperty)
+            getFrontmatterValue(this.app, file, this.datePropertiesForPath(file.path).defer)
         )
         return {
             key: file.path,
@@ -5769,12 +5798,15 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         const soonDays = this.plugin.settings.dueSoonThresholdDays
         const placement = this.plugin.settings.dueCountdownStyle
         const today = startOfDay(new Date())
-        const countdownProperty = this.countdownDateProperty()
         for (const card of this.allCards) {
             const countdown = show
                 ? formatCountdown(
                       parseFrontmatterDate(
-                          getFrontmatterValue(this.app, card.file, countdownProperty)
+                          getFrontmatterValue(
+                              this.app,
+                              card.file,
+                              this.countdownDateProperty(card.key)
+                          )
                       ),
                       today,
                       soonDays,
@@ -5789,8 +5821,8 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
 
     /** Read a card's scheduled/deadline date (null when unset). */
     private cardDate(card: KanbanCard, dimension: DateDimension): Date | null {
-        const property =
-            dimension === 'scheduled' ? this.scheduledDateProperty : this.dueDateProperty
+        const dates = this.datePropertiesFor(card)
+        const property = dimension === 'scheduled' ? dates.start : dates.due
         return parseFrontmatterDate(getFrontmatterValue(this.app, card.file, property))
     }
 
@@ -5819,8 +5851,8 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         dimension: DateDimension,
         isoDate: string | null
     ): Promise<void> {
-        const property =
-            dimension === 'scheduled' ? this.scheduledDateProperty : this.dueDateProperty
+        const dates = this.datePropertiesFor(card)
+        const property = dimension === 'scheduled' ? dates.start : dates.due
         if (isoDate === null) {
             await deleteProperty(this.app, card.file, property)
             this.applyCardWrite(card, property, null)
@@ -6294,7 +6326,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
                 title: card.display.title,
                 due: rec?.due ?? null,
                 scheduled: parseFrontmatterDate(
-                    getFrontmatterValue(this.app, card.file, this.scheduledDateProperty)
+                    getFrontmatterValue(this.app, card.file, this.datePropertiesFor(card).start)
                 ),
                 available: rec ? isAvailable(rec, today) : true
             }

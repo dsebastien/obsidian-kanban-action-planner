@@ -1028,9 +1028,11 @@ command).
 ![The timeline placing cards by start date and estimate]({{ '/images/timeline.png' | relative_url }})
 
 **A card is placed by its start date plus an estimate.** There is no end-date property. The
-properties are **global plugin settings** (no per-view overrides):
+properties come from each card's **own note type**, else the global plugin settings (no per-view
+options):
 
-- **Start date**: your scheduled-date property (`date_scheduled` by default).
+- **Start date**: the card's type's scheduled-date property (`date_scheduled` by default; a
+  project type may use `date_started`).
 - **Estimate property**: a plain **number of days** (default `estimate`). A note type can
   override both the **property and the unit** (days or **minutes**, e.g. a
   tasknotes-compatible `time_estimate`) in its Configure dialog. Minute estimates convert to
