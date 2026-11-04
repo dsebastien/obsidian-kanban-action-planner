@@ -162,7 +162,7 @@ When a new business rule is mentioned:
    wikilinks physically stored in _this note's own_ role link-property — using the card's own
    type's `roleProperties` so writes and reads agree. Inverse-derived and heuristic relations stay
    read-only (they live on the other note / are computed). Adds store the canonical `[[wikilink]]`
-   form and dedup by resolved path; removes delete the property when it empties. The metadata-cache
+   form and dedup by resolved path; removes keep an emptied list as `[]` and drop a removed scalar link with its key (rule 80). The metadata-cache
    refresh above re-renders badges/blocked state live after a write.
    **Per-type resolution on mixed boards (owner, supersedes the former dominant-type rule).**
    Every file's role link-properties, active roles, and heuristics come from its **OWN
@@ -545,7 +545,7 @@ When a new business rule is mentioned:
     scalar promoted to list); dragging a diamond shifts its date by the snapped whole-day delta — the entry is rewritten
     IN PLACE via `replaceInListProperty` (position + label kept; unparseable raw = no-op);
     right-click a diamond removes its entry (keyed by the raw list
-    entry; property deleted when the list empties). **Drag a square/rectangle horizontally** to
+    entry; an emptied list stays `[]`, rule 80). **Drag a square/rectangle horizontally** to
     shift it by the snapped whole-day delta — the commit writes **only the start date** (the
     estimate is intrinsic, so the span follows). Rows sort by start (then milestone/title);
     the toolbar filter and #74 zoom apply as in every mode. Pure math in `domain/timeline.ts`
@@ -1606,3 +1606,12 @@ Markdown)`, `Export ideal week (JSON)`, `Export ideal week (Markdown)`); the for
     The WBS live total of a linked-time note never shows less than its stored duration.
     `computeTrackedTime` keeps `minutes` = computed and adds `storedMinutes` and `decision`
     (`{stored, computed, difference}` or null).
+
+80. **Empty lists are `[]`, cleared scalars lose their key (decided 2026-11-04).** Every removal
+    that empties a LIST property writes `key: []` (`emptiedValue`, `frontmatter.service.ts`):
+    the Starter Kit's convention is that an empty list is `[]`, never a bare `-` item and never a
+    missing key, so the note keeps its declared shape. Covers `removeFromListProperty` (milestones,
+    tags, contexts) and `removeRelationshipLink`. Removing a SCALAR value (a single-link property,
+    a scalar tag) removes the key, and every scalar clear (estimate, dates, progress, weekly
+    target) deletes the key: the plugin never writes `key: null`. Appends drop a template's blank
+    placeholders (`null`, `''`) first (`withoutBlankItems`, the quick-capture `mergeList` rule).

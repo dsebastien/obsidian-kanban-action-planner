@@ -5,6 +5,8 @@ import {
     appendRecordToListProperty,
     appendToListProperty,
     coerceOrder,
+    emptiedValue,
+    removeFromListProperty,
     withoutBlankItems,
     findKeyCaseInsensitive,
     keepListShape,
@@ -323,5 +325,41 @@ describe('withoutBlankItems', () => {
             false,
             'b'
         ])
+    })
+})
+
+describe('emptiedValue (business rule 80)', () => {
+    it('returns what is kept when something is left', () => {
+        expect(emptiedValue(['a', 'b'], ['a'])).toEqual(['a'])
+    })
+
+    it('an emptied list becomes []', () => {
+        expect(emptiedValue(['a'], [])).toEqual([])
+    })
+
+    it('an emptied scalar removes the key', () => {
+        expect(emptiedValue('a', [])).toBeUndefined()
+    })
+})
+
+describe('removeFromListProperty (business rule 80)', () => {
+    const file = Object.assign(new TFile(), { path: 'P/Project.md' })
+
+    it('keeps an emptied list as []', async () => {
+        const fm: Record<string, unknown> = { milestones: ['2026-01-01'] }
+        await removeFromListProperty(stubApp(fm).app, file, 'milestones', '2026-01-01')
+        expect(fm['milestones']).toEqual([])
+    })
+
+    it('removes the key of a scalar equal to the entry', async () => {
+        const fm: Record<string, unknown> = { tags: 'a' }
+        await removeFromListProperty(stubApp(fm).app, file, 'tags', 'a')
+        expect('tags' in fm).toBe(false)
+    })
+
+    it('leaves the value alone when nothing matches (a scalar is not promoted)', async () => {
+        const fm: Record<string, unknown> = { tags: 'a' }
+        await removeFromListProperty(stubApp(fm).app, file, 'tags', 'b')
+        expect(fm['tags']).toBe('a')
     })
 })

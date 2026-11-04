@@ -229,6 +229,17 @@ export function withoutBlankItems(list: readonly unknown[]): unknown[] {
 }
 
 /**
+ * The value to store when a removal leaves `kept` (business rule 80): a list
+ * that empties is written as `[]` (an empty list is `[]`, never a bare `-`
+ * item, and the key stays so the note keeps its declared shape); a scalar
+ * that was removed has no list shape to keep, so the key goes (`undefined`).
+ */
+export function emptiedValue(current: unknown, kept: unknown[]): unknown[] | undefined {
+    if (kept.length > 0) return kept
+    return Array.isArray(current) ? [] : undefined
+}
+
+/**
  * Append one entry to a list property (scalar values are promoted to a list;
  * the entry is deduped; a template's blank placeholders are dropped, see
  * {@link withoutBlankItems}). Used by the timeline's milestone creation (issue
@@ -300,8 +311,8 @@ export async function replaceInListProperty(
 
 /**
  * Remove one entry (exact match by default; override via `matches`) from a
- * list property; the property is deleted when the list empties. Scalars equal
- * to `entry` are removed the same way. A missing/empty (`null`) property is a
+ * list property; a list that empties is kept as `[]`, a scalar equal to
+ * `entry` is removed with its key ({@link emptiedValue}, business rule 80). A missing/empty (`null`) property is a
  * no-op — promoting it to `[null]` would corrupt it.
  */
 export async function removeFromListProperty(
@@ -318,7 +329,9 @@ export async function removeFromListProperty(
         if (raw === null || raw === undefined) return
         const list = Array.isArray(raw) ? raw : [raw]
         const kept = list.filter((item) => !matches(item))
-        if (kept.length === 0) delete fm[key]
-        else fm[key] = kept
+        if (kept.length === list.length) return
+        const next = emptiedValue(raw, kept)
+        if (next === undefined) delete fm[key]
+        else fm[key] = next
     })
 }

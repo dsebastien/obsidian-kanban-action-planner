@@ -185,8 +185,31 @@ describe('removeRelationshipLink (from the property that holds the link)', () =>
             }
         })
         await removeRelationshipLink(app, file, 'related_projects', 'X/Project (Project).md')
-        expect('related_projects' in fm).toBe(false)
+        // An emptied list stays as `[]` (business rule 80).
+        expect(fm['related_projects']).toEqual([])
         expect(fm['related_goals']).toEqual(['[[Goal (Goal)]]'])
+    })
+
+    it('removes the key when the removed link was a single (scalar) link', async () => {
+        const fm: Record<string, unknown> = { show: '[[Show]]' }
+        const file = Object.assign(new TFile(), { path: 'T/Season.md', basename: 'Season' })
+        const app = Object.assign(new App(), {
+            metadataCache: {
+                getFirstLinkpathDest: (linkpath: string): TFile | null =>
+                    Object.assign(new TFile(), { path: `X/${linkpath}.md`, basename: linkpath })
+            },
+            fileManager: {
+                processFrontMatter: async (
+                    _file: TFile,
+                    fn: (frontmatter: Record<string, unknown>) => void
+                ): Promise<void> => {
+                    fn(fm)
+                    await Promise.resolve()
+                }
+            }
+        })
+        await removeRelationshipLink(app, file, 'show', 'X/Show.md')
+        expect('show' in fm).toBe(false)
     })
 })
 

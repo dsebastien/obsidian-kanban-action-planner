@@ -5,7 +5,7 @@ import { RELATIONSHIP_ROLES, normalizeTag, resolveRelationships } from '../domai
 import type { HeuristicRule, NoteRecord, RelationshipSet } from '../domain/relationships'
 import { isArchivedPath } from '../domain/archive-paths'
 import { formatWikiLink, parseWikiLinkTarget, toLinkStringList } from '../domain/wikilinks'
-import { findKeyCaseInsensitive, queueFrontmatterWrite } from './frontmatter.service'
+import { emptiedValue, findKeyCaseInsensitive, queueFrontmatterWrite } from './frontmatter.service'
 import { roleProperties } from '../domain/relationship-rules'
 import type { LinkCardinality } from '../domain/relationship-rules'
 
@@ -145,7 +145,8 @@ export async function addRelationshipLink(
 
 /**
  * Remove every link in `file`'s `property` that resolves to `targetPath` (issue
- * #14). Deletes the property when it becomes empty so no stray `[]` is left.
+ * #14). A list that empties is written as `[]`; a single (scalar) link that
+ * goes takes its key with it (business rule 80, {@link emptiedValue}).
  */
 export async function removeRelationshipLink(
     app: App,
@@ -163,9 +164,11 @@ export async function removeRelationshipLink(
                 const dest = app.metadataCache.getFirstLinkpathDest(linkpath, file.path)
                 return (dest?.path ?? linkpath) !== targetPath
             })
-            if (kept.length === 0) delete fm[key]
             // Nothing matched: leave the value as it is (a scalar stays a scalar).
-            else if (kept.length !== before.length) fm[key] = kept
+            if (kept.length === before.length) return
+            const next = emptiedValue(fm[key], kept)
+            if (next === undefined) delete fm[key]
+            else fm[key] = next
         })
     )
 }

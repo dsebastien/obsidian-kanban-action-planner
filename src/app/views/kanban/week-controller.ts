@@ -60,7 +60,12 @@ import type { WeekPickerItem } from '../../ui/week/week-note-picker'
 import { EstimatePromptModal } from '../../ui/timeline/estimate-modal'
 import type { ContextLegendItem } from '../../ui/calendar/calendar-renderer'
 import { contextColor } from '../../services/colors.service'
-import { coerceOrder, getFrontmatterValue, setProperties } from '../../services/frontmatter.service'
+import {
+    coerceOrder,
+    deleteProperty,
+    getFrontmatterValue,
+    setProperties
+} from '../../services/frontmatter.service'
 import { stringifyForSearch } from '../../services/card-search.service'
 import {
     WEEK_SCROLLER_SELECTORS,
@@ -981,7 +986,10 @@ export class WeekController {
         const targetProperty = this.host.weekPropertiesFor(card).targetMinutes
         this.overlay.set(path, { blocks: entry.blocks, target: value, at: Date.now() })
         this.host.refresh()
-        void setProperties(this.host.app, card.file, { [targetProperty]: value ?? null })
+        // Clearing a scalar removes its key (business rule 80): never `null`.
+        void (value === null
+            ? deleteProperty(this.host.app, card.file, targetProperty)
+            : setProperties(this.host.app, card.file, { [targetProperty]: value }))
     }
 
     /**
