@@ -1651,6 +1651,11 @@ Markdown)`, `Export ideal week (JSON)`, `Export ideal week (Markdown)`); the for
     hold the link is skipped; neither side → nothing changes). **Time tracking only warns** (on
     start, listing the undeclared entries / duration / last-session properties): the session is
     still recorded. Status and order writes and removals are never guarded.
+    **Relationship seeds:** a NEW Starter Kit type whose declarations are known seeds only the
+    default rules (`parent` / `siblings` / `children` / `blocked_by`) whose link property it
+    declares (`createDefaultNoteType(…, declared)`); a local type, or an unknown declaration,
+    seeds all four. Stored types are not rewritten: the write guard covers their undeclared
+    rules.
 
 82. **Dates resolve per card, through the card's OWN type (issue #232).** The start (scheduled),
     due and defer properties of a card come from `datePropertiesForType(settings, ownType)`

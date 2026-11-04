@@ -22,6 +22,30 @@ describe('createDefaultNoteType', () => {
     })
 })
 
+describe('createDefaultNoteType relationship seeds (issue #232)', () => {
+    it('seeds all four default rules when declarations are unknown', () => {
+        const noteType = createDefaultNoteType('l', 'Local', 'local')
+        expect(noteType.relationships.map((r) => r.linkProperty)).toEqual([
+            'parent',
+            'siblings',
+            'children',
+            'blocked_by'
+        ])
+    })
+
+    it('seeds only the rules whose link property the Starter Kit type declares', () => {
+        const movie = createDefaultNoteType('movies', 'Movies', 'starter-kit', undefined, [
+            { name: 'status' }
+        ])
+        expect(movie.relationships).toEqual([])
+        const task = createDefaultNoteType('tasks', 'Tasks', 'starter-kit', undefined, [
+            { name: 'Blocked_By' }
+        ])
+        expect(task.relationships).toEqual([{ role: 'blocked_by', linkProperty: 'blocked_by' }])
+        expect(() => noteTypeSchema.parse(movie)).not.toThrow()
+    })
+})
+
 describe('colorForStatus', () => {
     const base = createDefaultNoteType('p', 'P', 'local')
 

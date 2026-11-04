@@ -42,11 +42,11 @@ export function checkNoteTypesAgainstStarterKit(
     const types: NoteTypeCheck[] = []
     for (const skType of listNoteTypes(app)) {
         const stored = settings.noteTypes.find((t) => t.id === skType.id)
-        const base = stored ?? createDefaultNoteType(skType.id, skType.name, 'starter-kit')
-        const noteType: NoteType = {
-            ...base,
-            declaredProperties: mergeDeclaredProperties(skType.properties ?? [], globals)
-        }
+        const declared = mergeDeclaredProperties(skType.properties ?? [], globals)
+        const base =
+            stored ??
+            createDefaultNoteType(skType.id, skType.name, 'starter-kit', undefined, declared)
+        const noteType: NoteType = { ...base, declaredProperties: declared }
         types.push({
             id: skType.id,
             name: skType.name,

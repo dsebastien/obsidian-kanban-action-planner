@@ -108,8 +108,26 @@ export function createDefaultNoteType(
         scheduledDateProperty: DEFAULT_SCHEDULED_DATE_PROPERTY,
         dueDateProperty: DEFAULT_DUE_DATE_PROPERTY,
         dateFormat: DEFAULT_DATE_FORMAT
-    }
+    },
+    /**
+     * The Starter Kit type's declared properties, when known (issue #232):
+     * only the default relationship rules whose link property it declares
+     * are seeded (none of `parent` / `siblings` / `children` on a movie;
+     * `blocked_by` on an action that declares it). Absent = all four.
+     */
+    declared?: ReadonlyArray<{ name: string }>
 ): NoteType {
+    const seeds: NoteType['relationships'] = [
+        { role: 'parent', linkProperty: DEFAULT_PARENT_PROPERTY },
+        { role: 'sibling', linkProperty: DEFAULT_SIBLING_PROPERTY },
+        { role: 'child', linkProperty: DEFAULT_CHILD_PROPERTY },
+        { role: 'blocked_by', linkProperty: DEFAULT_BLOCKED_BY_PROPERTY }
+    ]
+    const relationships = declared
+        ? seeds.filter((rule) =>
+              declared.some((p) => p.name.toLowerCase() === rule.linkProperty.toLowerCase())
+          )
+        : seeds
     return {
         id,
         name,
@@ -127,12 +145,7 @@ export function createDefaultNoteType(
         wipLimits: {},
         enumProperties: {},
         automations: [],
-        relationships: [
-            { role: 'parent', linkProperty: DEFAULT_PARENT_PROPERTY },
-            { role: 'sibling', linkProperty: DEFAULT_SIBLING_PROPERTY },
-            { role: 'child', linkProperty: DEFAULT_CHILD_PROPERTY },
-            { role: 'blocked_by', linkProperty: DEFAULT_BLOCKED_BY_PROPERTY }
-        ],
+        relationships,
         calendar: {
             enabled: false,
             // Every date field is EMPTY = follow the global default (issue #201).
@@ -187,11 +200,13 @@ export async function getOrCreateNoteType(
     plugin: KanbanActionPlannerPlugin,
     id: string,
     name: string,
-    source: NoteType['source']
+    source: NoteType['source'],
+    /** A new Starter Kit type's declared properties (relationship seeding, issue #232). */
+    declared?: ReadonlyArray<{ name: string }>
 ): Promise<NoteType> {
     const existing = findNoteType(plugin, id)
     if (existing) return existing
-    const created = createDefaultNoteType(id, name, source, defaultsFromPlugin(plugin))
+    const created = createDefaultNoteType(id, name, source, defaultsFromPlugin(plugin), declared)
     await upsertNoteType(plugin, created)
     return created
 }
@@ -636,7 +651,12 @@ export async function mirrorStarterKitType(
     const status = skStatus?.explicit
         ? { name: skStatus.property, allowedValues: skStatus.values.map((v) => v.value) }
         : findStatusProperty(skType, defaults.statusProperty)
-    const base = (await getOrCreateNoteType(plugin, skType.id, skType.name, 'starter-kit')) ?? null
+    const declared =
+        Array.isArray(skType.properties) && skGlobalProperties !== null
+            ? mergeDeclaredProperties(skType.properties, skGlobalProperties)
+            : undefined
+    const base =
+        (await getOrCreateNoteType(plugin, skType.id, skType.name, 'starter-kit', declared)) ?? null
     const merged = mirrorNoteType(
         base,
         skType,
