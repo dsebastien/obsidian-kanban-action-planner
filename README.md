@@ -161,10 +161,11 @@ Vault scripts (Templater, QuickAdd, the developer console) can read a note's tra
 ```js
 const kap = app.plugins.plugins['kanban-action-planner']
 const result = await kap.api.computeTrackedTime('Activities/Run (Activity).md')
-// { minutes, entryMinutes, linkedMinutes, lastSession, linkedNotes: [{ path, minutes, date }] }
+// { minutes, entryMinutes, linkedMinutes, lastSession, linkedNotes: [{ path, minutes, date }],
+//   storedMinutes, decision: { stored, computed, difference } | null }
 ```
 
-`computeTrackedTime(path: string): Promise<TrackedTimeResult | null>` reads, never writes. `minutes` (`entryMinutes` + `linkedMinutes`) is what **Recompute tracked time** stores in the duration property and `lastSession` what it stores as the last-session date (null when there is neither an entry nor a dated linked note). Linked notes count only when the note's type has **Time from linked notes** on. It returns `null` when no Markdown note exists at `path`. The rule is in the [usage guide](./docs/usage.md#time-tracking).
+`computeTrackedTime(path: string): Promise<TrackedTimeReport | null>` reads, never writes. `minutes` (`entryMinutes` + `linkedMinutes`) is what **Recompute tracked time** stores in the duration property and `lastSession` what it stores as the last-session date (null when there is neither an entry nor a dated linked note). `storedMinutes` is the duration property as a number (null when empty). `decision` is set when the stored duration is higher than `minutes`: the plugin never lowers it without the user (Keep adds the difference as a `Manual adjustment` time entry, Drop writes `minutes`), so a script shouldn't either. Linked notes count only when the note's type has **Time from linked notes** on. It returns `null` when no Markdown note exists at `path`. The rule is in the [usage guide](./docs/usage.md#time-tracking).
 
 ## Development
 

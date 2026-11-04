@@ -1511,9 +1511,11 @@ records), straight from the cards, on **any note type**:
       session the later of the latest entry day and the latest session date (a dated session
       without minutes, like a play without a duration, still counts for that date). It shows on
       notes that only have session notes, too. With no entries and no session minutes, a
-      hand-typed duration stays as it is.
+      hand-typed duration stays as it is. A stored duration above the computed one is never
+      lowered without you (see [Keep or drop a higher stored time](#keep-or-drop-a-higher-stored-time)).
     - **The WBS ⏱ tracked total** and **Save total tracked time** use the activity's live total,
-      the value a recompute would store. No need to recompute first.
+      the value a recompute would store (or the stored value, when it is higher). No need to
+      recompute first.
     - **Stopping the timer** on an activity whose duration is empty stores that same value: the
       entries, the new one included, plus the session minutes. A duration that holds a number
       only gets the session's minutes added, as always.
@@ -1614,15 +1616,41 @@ records), straight from the cards, on **any note type**:
   never replaces the children's contribution). A total the children contributed to is shown in
   the derived style, and the row menu offers **Save total tracked time** to persist it (in minutes) to
   the **total duration** property (`total_duration` by default). **Recompute tracked time**
-  resets a note's duration and last-session date to the list (after it was edited by
-  hand or by TaskNotes); it drops minutes added outside the tracker, so use it only when the
-  list is the whole story. It also removes empty items from the list, like the `- ` placeholder
+  sets a note's duration and last-session date from the list (after it was edited by
+  hand or by TaskNotes). When the stored duration is higher than the list, it asks first (see
+  below). It also removes empty items from the list, like the `- ` placeholder
   older Starter Kit templates left under `time_entries`, which hides the note from TaskNotes.
   It writes nothing when no value changes. When the note's type takes
   [time from linked notes](#time-tracking), the recompute, the ⏱ total and **Save total tracked
   time** also count its session notes, each once (details in that section).
 - Tracked time renders with the same `d / h / m` grammar as estimates, sized by **Minutes
   per day**, so tracked and estimated time read side by side.
+
+### Keep or drop a higher stored time
+
+A recompute never lowers a stored time on its own. The stored duration can be higher than
+the time entries and session notes: you typed a total by hand, another tool added minutes,
+or you removed or shortened a session note. **Recompute tracked time** then writes
+everything else and opens one dialog that lists each such note with its stored time, the
+time from its entries and sessions, and the difference:
+
+- **Keep** keeps the stored time. The difference becomes one time entry described
+  `Manual adjustment`, starting at midnight on the day in the note's `created` property (the
+  file's creation day when there is none) and lasting the difference. It counts in the week
+  the note was created, so this week's rings don't jump (unless the note is from this week).
+  The next recompute finds nothing to change.
+- **Drop** sets the duration to the entries and sessions.
+- **Keep all** / **Drop all** answer every note still open. Closing the dialog changes
+  nothing.
+
+**Save total tracked time** works the same way when the saved total is higher than the
+subtree's total: **Keep** adds the difference to the row's own time as a `Manual adjustment`
+entry, **Drop** saves the lower total.
+
+When a session note changes in the background (deleted, or its minutes lowered), the plugin
+never rewrites the activity. It shows one notice: _N notes hold more time than their entries
+and sessions: run Recompute tracked time to decide_. The **Recompute tracked time** command
+covers the note open in the editor plus those notes.
 
 ## Focus mode
 
@@ -2062,6 +2090,8 @@ tracking and pomodoro commands work from anywhere:
 - **Import ideal week (JSON or Markdown)**
 - **Export ideal week (JSON)** / **Export ideal week (Markdown)**
 - **Stop time tracking** (only while a session runs)
+- **Recompute tracked time** (the active note, plus the notes the background check found
+  holding more time than their entries and sessions)
 - **Start time tracking on the active note** / **Switch time tracking to…**
 - **Add or remove the time-tracking shortcut of the active note**, and one **Start time
   tracking: _note_** command per note given a shortcut

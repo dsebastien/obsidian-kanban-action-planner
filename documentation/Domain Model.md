@@ -181,8 +181,15 @@ activePeriods}`) live in the daily note's `pomodoros` list. Domain: `time-entrie
   (`subtreeDuration(node, durationOf, linkedSourcesOf)`); `wbsTrackingSignature` re-renders
   the WBS when a card's linked notes change. A parent's weekly ring adds its children's linked
   notes too (`weekBudgetOf`, each note once). Public API:
-  `plugin.api.computeTrackedTime(path)` → `TrackedTimeResult`
-  `{minutes, entryMinutes, linkedMinutes, lastSession, linkedNotes: [{path, minutes, date}]}`.
+  `plugin.api.computeTrackedTime(path)` → `TrackedTimeReport`
+  `{minutes, entryMinutes, linkedMinutes, lastSession, linkedNotes: [{path, minutes, date}],
+storedMinutes, decision}`.
+- **Never lower a stored time** (Business rule 79): stored > computed = `TrackedTimeDecision`
+  `{stored, computed, difference}`; the user keeps (one `Manual adjustment` entry dated on the
+  `created` day) or drops. Domain: `tracked-time-decision.ts` (`durationVerdict`,
+  `lowerDecision`, `manualAdjustmentEntry`, `planRecompute`; pure); service:
+  `tracked-time-decision.service.ts` (explicit recomputes → `TrackedTimeDecisionModal`;
+  `LowerTimeWatch` flags linked-time targets after linked-note changes, one notice, no write).
 - **Ideal week** (issue #172): `time_blocks` (list of `<days> HH:MM-HH:MM` strings, Monday-first
   day indexes 0..6, 15-minute grid, midnight crossing), `minutes_planned_per_week` (plugin
   cache, sum of the blocks), `minutes_per_week` (user target; the Needs planning rail). A

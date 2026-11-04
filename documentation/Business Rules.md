@@ -1007,9 +1007,9 @@ When a new business rule is mentioned:
     whole list is written instead) and the last-session date as the day of the latest entry —
     one `setProperties` transaction. Any future write that edits or deletes an entry applies the
     **delta** (`minutes(after) − minutes(before)`, clamped at 0) through the same function, never
-    a recompute. The only full recompute is the explicit WBS row action **Recompute tracked
-    time** (a user-chosen reset that drops minutes added outside the tracker; with time from
-    linked notes on, rule 78 decides what it stores). Existing list items
+    a recompute. The only full recompute is the explicit **Recompute tracked time** (WBS row
+    action and palette command; with time from linked notes on, rule 78 decides what it
+    computes; minutes added outside the tracker are never dropped without the user: rule 79). Existing list items
     are kept verbatim (an unknown shape is not the plugin's to drop; only a template's `null`
     placeholder goes, on stop and on **Recompute tracked time**, which removes it
     even when no well-formed entry is left: `[null]` → `[]`, `withoutEmptyEntries`, issue #218); the
@@ -1527,7 +1527,8 @@ Markdown)`, `Export ideal week (JSON)`, `Export ideal week (Markdown)`); the for
     `max(1, round(minutes))`, summed) + the sum of N minutes, and last session = the later of
     the latest kept entry day (local day of its `endTime`, `startTime` for an open entry) and
     the latest N date. With no entries and 0 linked minutes the duration is not written (a
-    hand-set value stays); only the last session is, when an N is dated. Each value is written
+    hand-set value stays); only the last session is, when an N is dated. A stored duration
+    above that value is never lowered without the user (rule 79). Each value is written
     only when it differs from the stored one; nothing changed = no write. **Timer stop:** when
     the duration is empty or not a number and the type takes linked time, the stop stores the
     recompute value (kept entries, the new one included, + linked minutes); a numeric
@@ -1539,8 +1540,9 @@ Markdown)`, `Export ideal week (JSON)`, `Export ideal week (Markdown)`); the for
     entry skip (against every counted N with minutes > 0 dated inside the week) applies to the
     target's entries and to each counted child's entries (the child's links resolve from the
     child's path), so each session counts once. **WBS ⏱ tracked total / Save total tracked
-    time:** a note whose type takes linked time counts its live total (the recompute value;
-    with no entries and 0 linked minutes, its stored value), so no manual recompute is
+    time:** a note whose type takes linked time counts its live total (the recompute value, or
+    the stored value when it is higher (rule 79); with no entries and 0 linked minutes, its
+    stored value), so no manual recompute is
     needed; each N with minutes > 0 of a note in the subtree is left out of the subtree sum
     (already in that note's total), an N with 0 minutes keeps its own duration; the row itself
     always counts. The WBS re-renders when a card's N (paths or minutes) change, with or
@@ -1551,4 +1553,33 @@ Markdown)`, `Export ideal week (JSON)`, `Export ideal week (Markdown)`); the for
     path (as source and as target). Open boards are notified only when a source's targets,
     minutes or date change (a body-only edit refreshes nothing). Saving settings drops the
     indexes no note type uses. The public `plugin.api.computeTrackedTime(path)` returns these
-    exact values, read-only.
+    exact values, read-only, plus `storedMinutes` and `decision` (rule 79).
+
+79. **A recompute never lowers a stored tracked time on its own (notesSeb-8rsl).** Applies to
+    the duration property (`time_spent`) and to the saved rollup (`total_time_spent`). Stored
+    (a number or numeric string, `Math.round`ed) > computed (rule 78; for a rollup the WBS
+    subtree total) = a **decision**: a total typed by hand, minutes added by another tool, or a
+    linked session removed or shortened. Stored ≤ computed, empty or not a number: the computed
+    value is written without asking (equal = no write). No entries and 0 linked minutes: left
+    as it is (rule 78). **Keep:** ONE entry `{startTime, endTime, description: "Manual
+adjustment"}`, startTime = local midnight of the note's `created` day (first 10 chars,
+    `YYYY-MM-DD`, as written; else the local day of the file's creation time), endTime = start
+    - difference minutes (local ISO, rule 47; past midnight it ends on a later day, and the end
+      day is the entry's day); then duration = computed with that entry = the stored value
+      (rounded), so a second recompute writes nothing. For a rollup, Keep appends that entry to
+      the row's OWN note and adds its minutes to its duration (the timer-stop write), so the
+      subtree total equals the stored total, which is not rewritten. **Drop:** the computed value
+      is written. **Explicit** (WBS **Recompute tracked time** / **Save total tracked time**,
+      palette **Recompute tracked time** on the active note plus the flagged notes): every write
+      that lowers nothing happens at once (entry cleanup, last session, a raised duration); the
+      notes to decide are listed in ONE modal (`TrackedTimeDecisionModal`: stored, entries and
+      sessions, difference; Keep / Drop per note, Keep all / Drop all); closing it writes
+      nothing. **Background** (`LowerTimeWatch`): after a linked-note change (rule 78 index
+      events), the targets whose type takes linked time are checked after 4 s without further
+      change; a target with stored > computed is never written, it is flagged, and one notice
+      (`N notes hold more time than their entries and sessions: run Recompute tracked time to
+decide`) shows only when a note newly becomes flagged. Nothing is checked on load. The
+      timer stop only adds minutes (rule 47), so it never lowers; no other write path recomputes
+      the duration. The WBS live total of a linked-time note never shows less than its stored
+      value. `computeTrackedTime` keeps `minutes` = computed and adds `storedMinutes` and
+      `decision` (`{stored, computed, difference}` or null).

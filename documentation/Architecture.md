@@ -9,7 +9,8 @@ for invariants see [`Business Rules.md`](./Business%20Rules.md).
 - `src/main.ts` — default-exports the plugin class only.
 - `src/app/plugin.ts` — `KanbanActionPlannerPlugin`: settings load/save (Zod-validated,
   Immer-immutable), registers the Bases view, adds the settings tab, owns the shared
-  `linkedNotesIndex` (time from linked notes, Business rule 78) and exposes the public `api`
+  `linkedNotesIndex` (time from linked notes, Business rule 78) and the `lowerTimeWatch`
+  (never lower a stored time, Business rule 79), and exposes the public `api`
   (`computeTrackedTime(path)`, read via `app.plugins.plugins['kanban-action-planner'].api`).
 
 ## The Bases view

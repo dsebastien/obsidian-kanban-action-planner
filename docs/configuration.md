@@ -105,7 +105,9 @@ The exact rule, for scripts that recompute the same values, is in the
 [time tracking section of the usage guide]({{ '/usage.html#time-tracking' | relative_url }}).
 Scripts can also call the plugin's public API:
 `app.plugins.plugins['kanban-action-planner'].api.computeTrackedTime(path)` returns
-`{ minutes, entryMinutes, linkedMinutes, lastSession, linkedNotes }` for a note, read-only.
+`{ minutes, entryMinutes, linkedMinutes, lastSession, linkedNotes, storedMinutes, decision }`
+for a note, read-only. `decision` (`{ stored, computed, difference }`) is set when the stored
+duration is higher than `minutes`: don't write `minutes` over it without asking.
 
 ### Filter and review settings
 
