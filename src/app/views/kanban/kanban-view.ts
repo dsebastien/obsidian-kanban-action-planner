@@ -58,6 +58,7 @@ import { NO_TYPE_ID, groupByTypeAndStatus } from '../../domain/timeline'
 import { resolvePaneGroupDrop, resolveRailStatusDrop } from '../../domain/pane-drop'
 import type { EstimateConfig } from '../../domain/estimate'
 import { formatDuration, readEstimate } from '../../domain/estimate'
+import { estimateConfigForType } from '../../domain/type-properties'
 import type { AggregateKind } from '../../domain/column-aggregate'
 import {
     computeAggregate,
@@ -2249,8 +2250,8 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
                 // The dated renderers read these straight from the note.
                 cache?.frontmatter ?? null,
                 cache ? (getAllTags(cache) ?? []).join(',') : '',
-                estimate.property,
-                estimate.unit,
+                estimate?.property ?? '',
+                estimate?.unit ?? 'none',
                 sortRef ? this.readScalarProperty(card, sortRef) : null
             ])
         })
@@ -2816,17 +2817,16 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         }
     }
 
-    private estimateConfigFor(card: KanbanCard): EstimateConfig {
+    /**
+     * The card's estimate property + unit through its OWN type
+     * (`estimateConfigForType`, issue #232), or null when the type has no
+     * estimate (mode none, or a Starter Kit type that declares none): then no
+     * estimate UI shows and nothing is written.
+     */
+    private estimateConfigFor(card: KanbanCard): EstimateConfig | null {
         const typeId = this.noteTypeByPath.get(card.key)?.id
         const noteType = typeId ? findNoteType(this.plugin, typeId) : undefined
-        const override = noteType?.estimate
-        if (!override) {
-            return { property: this.plugin.settings.defaultEstimateProperty, unit: 'days' }
-        }
-        return {
-            property: override.property.trim() || this.plugin.settings.defaultEstimateProperty,
-            unit: override.unit
-        }
+        return estimateConfigForType(this.plugin.settings, noteType)
     }
 
     /**
@@ -2835,6 +2835,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
      */
     private estimateDaysFor(card: KanbanCard): number | null {
         const config = this.estimateConfigFor(card)
+        if (!config) return null
         const resolved = readEstimate(
             getFrontmatterValue(this.app, card.file, config.property),
             config.unit,
@@ -3259,7 +3260,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
     ): { value: number | null; isEstimate: boolean } {
         if (ref.kind === 'note') {
             const estimate = this.estimateConfigFor(card)
-            if (estimate.property.toLowerCase() === ref.name.toLowerCase()) {
+            if (estimate && estimate.property.toLowerCase() === ref.name.toLowerCase()) {
                 const resolved = readEstimate(
                     getFrontmatterValue(this.app, card.file, ref.name),
                     estimate.unit,
@@ -4801,11 +4802,13 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             minutes += elapsedSessionMinutes(session.startedAt, Date.now())
         }
         const config = this.estimateConfigFor(card)
-        const estimate = readEstimate(
-            getFrontmatterValue(this.app, card.file, config.property),
-            config.unit,
-            perDay
-        )
+        const estimate = config
+            ? readEstimate(
+                  getFrontmatterValue(this.app, card.file, config.property),
+                  config.unit,
+                  perDay
+              )
+            : null
         return {
             trackedLabel: minutes > 0 ? formatTrackedMinutes(minutes, perDay) : null,
             estimateLabel: estimate?.label ?? null

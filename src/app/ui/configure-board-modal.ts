@@ -70,6 +70,7 @@ import {
     titleAffixesFor
 } from '../services/note-type.service'
 import { listEnumProperties, resolveAllowedValues } from '../services/enum.service'
+import { estimateConfigForType } from '../domain/type-properties'
 
 const AUTO = '__auto__'
 const NONE = '__none__'
@@ -843,22 +844,50 @@ export class ConfigureBoardModal extends Modal {
 
     private renderEstimate(noteType: NoteType): void {
         new Setting(this.body).setName('Estimate').setHeading()
+        const resolved = estimateConfigForType(this.plugin.settings, noteType)
         this.body.createEl('p', {
             cls: 'kap-modal-subtitle',
             text:
                 `Which frontmatter property holds the time estimate for ${noteType.name} ` +
                 'notes, and its unit. Leave the property empty to use the global default ' +
-                `("${this.plugin.settings.defaultEstimateProperty}"). Minute-based estimates ` +
-                'convert to days for rollups and timeline spans via the global ' +
-                '"Minutes per day" setting.'
+                `("${this.plugin.settings.defaultEstimateProperty}"). Without a setting here, a ` +
+                'Starter Kit type uses time_estimate (minutes) or time_estimate_days (days) when ' +
+                'it declares one, and has no estimate when it declares none. Minute-based ' +
+                'estimates convert to days for rollups and timeline spans via the global ' +
+                '"Minutes per day" setting. ' +
+                (resolved ? `Now: ${resolved.property} (${resolved.unit}).` : 'Now: no estimate.')
         })
         const current = noteType.estimate
-        const persist = (property: string, unit: 'days' | 'minutes'): void => {
+        const persist = (property: string, unit: 'days' | 'minutes', none = false): void => {
             const trimmed = property.trim()
-            // Empty property + days = pure global default → store nothing.
-            const next = trimmed === '' && unit === 'days' ? undefined : { property: trimmed, unit }
-            void setEstimateConfig(this.plugin, this.noteTypeId, next).then(() => this.onChange())
+            // Empty property + days = pure default → store nothing.
+            const next = none
+                ? { property: trimmed, unit, mode: 'none' as const }
+                : trimmed === '' && unit === 'days'
+                  ? undefined
+                  : { property: trimmed, unit }
+            void setEstimateConfig(this.plugin, this.noteTypeId, next).then(() => {
+                this.onChange()
+                // The mode shows or hides the property and unit fields.
+                if (none !== (current?.mode === 'none')) this.render()
+            })
         }
+        new Setting(this.body)
+            .setName('Estimates')
+            .setDesc(
+                'No estimate: the type shows no estimate controls and nothing writes an estimate on its notes.'
+            )
+            .addDropdown((dropdown) => {
+                dropdown
+                    .addOption('estimate', 'Estimated')
+                    .addOption('none', 'No estimate')
+                    .setValue(current?.mode === 'none' ? 'none' : 'estimate')
+                    .onChange((value) => {
+                        const now = this.noteType()?.estimate
+                        persist(now?.property ?? '', now?.unit ?? 'days', value === 'none')
+                    })
+            })
+        if (current?.mode === 'none') return
         new Setting(this.body)
             .setName('Estimate property')
             .setDesc('Empty = the global default property.')

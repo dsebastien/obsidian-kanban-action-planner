@@ -76,7 +76,8 @@ export interface CalendarHost {
     scheduledProperty(): string
     deadlineProperty(): string
     /** Per-card estimate property + unit (issue #86 spans; per-type override). */
-    estimateConfigFor(card: KanbanCard): EstimateConfig
+    /** Null = the card's type has no estimate (issue #232): no estimate UI, no writes. */
+    estimateConfigFor(card: KanbanCard): EstimateConfig | null
     /** Minutes one work day represents (minute-estimate → days conversion). */
     minutesPerDay(): number
     /** The card's recognized note type, or null (→ the "No type" bucket) — panel grouping. */
@@ -294,6 +295,7 @@ export class CalendarController {
             // Whole-day geometry: a minute estimate spans ceil(days) days.
             if (!sched) continue
             const config = this.host.estimateConfigFor(card)
+            if (!config) continue
             const estimate = readEstimate(
                 getFrontmatterValue(this.host.app, card.file, config.property),
                 config.unit,

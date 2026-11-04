@@ -709,7 +709,14 @@ When a new business rule is mentioned:
     minute task writes 120, `0.5d` writes `minutesPerDay`/2, `4h` on a day note writes 0.5; tokens combine (`1d 4h`, `1h30m`), `.` and `,` decimals both parse, and a live
     hint previews the exact value Set will write (invalid input renders red and never
     submits). Older stored note types have no
-    `estimate` block and degrade to the global default (no backfill).
+    `estimate` block and degrade to the global default (no backfill). **Estimate mode `none`
+    (issue #232):** `estimateConfigForType` resolves an explicit override first (`mode: 'none'` =
+    no estimate); without one, a type whose Starter Kit declarations are known (rule 81) uses
+    `time_estimate` (minutes), else `time_estimate_days` (days), else the global property when
+    declared, else **none**; unknown declarations (local type, untyped card) keep the global
+    property in days. With none, `estimateConfigFor` is null: no Set estimate / Distribute / Save
+    rolled-up estimate items, the WBS chip shows the children's rollup read-only, the calendar
+    draws no span, a Distribute skips such children, and nothing writes an estimate.
 
 39. **Per-type done state (issue #56).** A note type may declare a **done definition** via
     its plugin-owned `done` config (`doneConfigSchema`: `enabled` + `property` + `values`;

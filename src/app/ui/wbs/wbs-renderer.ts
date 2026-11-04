@@ -72,6 +72,11 @@ export interface WbsRowModel {
     /** The card's estimate unit — the inline editor parses input against it. */
     estimateUnit: EstimateUnit
     /**
+     * False when the card's type has no estimate (issue #232): the chip
+     * still shows the children's rollup but cannot be edited.
+     */
+    estimateEditable: boolean
+    /**
      * The inline editor's prefill in the card's unit (issue #106): the own
      * raw value, else the derived rollup — same as the estimate modal, so
      * persisting the bottom-up total stays a two-keystroke affair.
@@ -408,6 +413,7 @@ function rowSignature(row: WbsRowModel): string {
         ed: row.estimateDerived,
         rs: row.rollupSuffix,
         eu: row.estimateUnit,
+        ee: row.estimateEditable,
         ef: row.estimatePrefill,
         s: row.startLabel,
         e: row.endLabel,
@@ -752,11 +758,13 @@ function renderEstimateChip(
     const card = row.card
     const title = !card
         ? 'Children rollup — read-only (note outside this view’s filters)'
-        : row.rollupSuffix !== null
-          ? `Set estimate — children rollup ${row.rollupSuffix.slice(2)} differs`
-          : row.estimateDerived
-            ? 'Derived from children — click to persist or adjust'
-            : 'Set estimate'
+        : !row.estimateEditable
+          ? 'Children rollup — read-only (this note type has no estimate)'
+          : row.rollupSuffix !== null
+            ? `Set estimate — children rollup ${row.rollupSuffix.slice(2)} differs`
+            : row.estimateDerived
+              ? 'Derived from children — click to persist or adjust'
+              : 'Set estimate'
     const btn = parent.createEl('button', {
         cls: 'kap-wbs-chip-btn kap-wbs-estimate',
         attr: { type: 'button', title }
@@ -784,7 +792,7 @@ function renderEstimateChip(
         btn.addClass('kap-wbs-chip-unset')
         grid.createSpan({ cls: 'kap-wbs-est-empty', text: '–' })
     }
-    if (card) {
+    if (card && row.estimateEditable) {
         btn.addEventListener('click', () =>
             startEstimateEdit(btn, row, card, callbacks, minutesPerDay)
         )

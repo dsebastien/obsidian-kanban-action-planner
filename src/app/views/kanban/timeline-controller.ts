@@ -89,7 +89,8 @@ export interface TimelineHost {
     /** Resolved start date + milestone list property names. */
     startProperty(): string
     /** Per-card estimate property + unit (per-note-type override). */
-    estimateConfigFor(card: KanbanCard): EstimateConfig
+    /** Null = the card's type has no estimate (issue #232): no estimate UI, no writes. */
+    estimateConfigFor(card: KanbanCard): EstimateConfig | null
     /** Minutes one work day represents (minute-estimate → days conversion). */
     minutesPerDay(): number
     milestoneProperty(): string
@@ -612,7 +613,7 @@ export class TimelineController {
         const config = this.host.estimateConfigFor(card)
         const minutesPerDay = this.host.minutesPerDay()
         const estimate = this.readCardEstimate(card)
-        if (estimate === null) return
+        if (config === null || estimate === null) return
         if (edge === 'end') {
             await setProperty(
                 this.host.app,
@@ -683,13 +684,16 @@ export class TimelineController {
                     .onClick(() => this.promptStartDate(card, startProperty))
             )
         }
-        menu.addItem((item) =>
-            item
-                .setTitle('Set estimate…')
-                .setIcon('ruler')
-                .setSection('kap-timeline')
-                .onClick(() => this.promptEstimate(card))
-        )
+        // A type without an estimate (issue #232) gets no estimate item.
+        if (this.host.estimateConfigFor(card)) {
+            menu.addItem((item) =>
+                item
+                    .setTitle('Set estimate…')
+                    .setIcon('ruler')
+                    .setSection('kap-timeline')
+                    .onClick(() => this.promptEstimate(card))
+            )
+        }
         menu.addItem((item) =>
             item
                 .setTitle('Add milestone…')
@@ -750,6 +754,7 @@ export class TimelineController {
      */
     private promptEstimate(card: KanbanCard): void {
         const config = this.host.estimateConfigFor(card)
+        if (!config) return
         const current = this.readCardEstimate(card)
         new EstimatePromptModal(
             this.host.app,
@@ -764,6 +769,7 @@ export class TimelineController {
     /** Write (or clear) the card's estimate, in the card's own unit. */
     private async writeEstimate(card: KanbanCard, value: number | null): Promise<void> {
         const config = this.host.estimateConfigFor(card)
+        if (!config) return
         if (value === null) {
             await deleteProperty(this.host.app, card.file, config.property)
             return
@@ -774,6 +780,7 @@ export class TimelineController {
     /** The card's parsed estimate (unit-aware; null when unset/unusable). */
     private readCardEstimate(card: KanbanCard): ResolvedEstimate | null {
         const config = this.host.estimateConfigFor(card)
+        if (!config) return null
         return readEstimate(
             getFrontmatterValue(this.host.app, card.file, config.property),
             config.unit,

@@ -108,7 +108,8 @@ export interface WbsHost {
     /** Resolved property names (start = the scheduled date; the rest global). */
     startProperty(): string
     /** Per-card estimate property + unit (per-note-type override). */
-    estimateConfigFor(card: KanbanCard): EstimateConfig
+    /** Null = the card's type has no estimate (issue #232): no estimate UI, no writes. */
+    estimateConfigFor(card: KanbanCard): EstimateConfig | null
     /**
      * Per-card done-state definition (issue #56), resolved from the card's
      * note type; null = no done state. A done card reads as 100% progress in
@@ -541,6 +542,7 @@ export class WbsController {
                 estimateDerived: own === null && rollup !== null,
                 rollupSuffix: rollupDiffers ? `Σ ${formatDuration(rollup, minutesPerDay)}` : null,
                 estimateUnit: estimateConfig?.unit ?? 'days',
+                estimateEditable: estimateConfig !== null,
                 // Inline-edit prefill (issue #106): the own raw value, else
                 // the rollup in the card's unit — the modal's prefill rule.
                 estimatePrefill:
@@ -659,8 +661,8 @@ export class WbsController {
                 statusColor: this.host.statusColorFor(card),
                 blocked: card.relationships.blocked_by.length > 0,
                 done: this.isCardDone(card),
-                estimateProperty: estimate.property,
-                estimateUnit: estimate.unit,
+                estimateProperty: estimate?.property ?? '',
+                estimateUnit: estimate?.unit ?? 'none',
                 frontmatter: JSON.stringify(cache?.frontmatter ?? null),
                 tags: cache ? (getAllTags(cache) ?? []).join(',') : '',
                 parent: rel?.parent ?? [],
@@ -1090,13 +1092,17 @@ export class WbsController {
                     .onClick(() => this.host.addParentRelationship(card))
             )
         }
-        menu.addItem((item) =>
-            item
-                .setTitle('Set estimate…')
-                .setIcon('ruler')
-                .setSection('kap-wbs')
-                .onClick(() => this.promptEstimate(card))
-        )
+        const config = this.host.estimateConfigFor(card)
+        // A type without an estimate (issue #232) gets no estimate items.
+        if (config) {
+            menu.addItem((item) =>
+                item
+                    .setTitle('Set estimate…')
+                    .setIcon('ruler')
+                    .setSection('kap-wbs')
+                    .onClick(() => this.promptEstimate(card))
+            )
+        }
         // The standard "Schedule on a date…" item already writes exactly the
         // scheduled property — skip the duplicate (the timeline convention).
         if (this.host.startProperty() !== this.host.scheduledProperty()) {
@@ -1115,7 +1121,6 @@ export class WbsController {
                 .setSection('kap-wbs')
                 .onClick(() => this.promptProgress(card))
         )
-        const config = this.host.estimateConfigFor(card)
         const own = this.resolvedEstimateFor(card)
         const node = this.nodeFor(card.key)
         // Save-the-rollup affordances (owner rule: rollups are displayed by
@@ -1124,6 +1129,7 @@ export class WbsController {
         // the own value. Progress: the derived combination, when derived.
         const estimateRollup = childrenEstimate(node, this.estimateOfPath)
         if (
+            config !== null &&
             estimateRollup !== null &&
             (own === null || Math.abs(estimateRollup - own.days) > 0.05)
         ) {
@@ -1268,6 +1274,7 @@ export class WbsController {
     /** A card's parsed estimate (per-type property + unit; null when unset). */
     private resolvedEstimateFor(card: KanbanCard): ResolvedEstimate | null {
         const config = this.host.estimateConfigFor(card)
+        if (!config) return null
         return readEstimate(
             getFrontmatterValue(this.host.app, card.file, config.property),
             config.unit,
@@ -1315,10 +1322,16 @@ export class WbsController {
     private async distributeToChildren(card: KanbanCard, own: number): Promise<void> {
         // Each child's effective estimate (own, else its children's rollup)
         // decides whether it still needs a share and what's allocated.
-        const childEntries = this.nodeFor(card.key).children.map((child) => ({
-            path: child.path,
-            total: effectiveEstimate(child, this.estimateOfPath).value
-        }))
+        // Children whose type has no estimate (issue #232) take no share.
+        const childEntries = this.nodeFor(card.key)
+            .children.filter((child) => {
+                const childCard = this.host.allCardForKey(child.path)
+                return childCard !== undefined && this.host.estimateConfigFor(childCard) !== null
+            })
+            .map((child) => ({
+                path: child.path,
+                total: effectiveEstimate(child, this.estimateOfPath).value
+            }))
         const shares = distributeEstimate(own, childEntries)
         if (!shares) {
             new Notice('Nothing to distribute: every child is estimated, or no days remain.')
@@ -1328,6 +1341,8 @@ export class WbsController {
             const child = this.host.allCardForKey(path)
             if (!child) continue
             const childConfig = this.host.estimateConfigFor(child)
+            // A child whose type has no estimate (issue #232) gets nothing.
+            if (!childConfig) continue
             await setProperty(
                 this.host.app,
                 child.file,
@@ -1346,6 +1361,7 @@ export class WbsController {
      */
     private commitEstimate(card: KanbanCard, value: number | null): void {
         const config = this.host.estimateConfigFor(card)
+        if (!config) return
         void (value === null
             ? deleteProperty(this.host.app, card.file, config.property)
             : setProperty(this.host.app, card.file, config.property, value))
@@ -1358,6 +1374,7 @@ export class WbsController {
      */
     private promptEstimate(card: KanbanCard): void {
         const config = this.host.estimateConfigFor(card)
+        if (!config) return
         const current = this.resolvedEstimateFor(card)
         const rollup = childrenEstimate(this.nodeFor(card.key), this.estimateOfPath)
         // Pre-fill the own value, else the derived rollup — in the card's unit.
