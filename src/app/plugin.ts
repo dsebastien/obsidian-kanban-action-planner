@@ -30,6 +30,7 @@ import {
     stopPomodoro,
     stopTimeSession,
     computeTrackedTime,
+    canRecomputeTrackedTime,
     tickPomodoro,
     tickSessionGuard,
     togglePomodoroPause,
@@ -121,6 +122,20 @@ export class KanbanActionPlannerPlugin extends Plugin {
         return this.lowerWatch
     }
 
+    /** The active note and whether "Recompute tracked time" applies to it (palette gate). */
+    private activeRecompute: { path: string; can: boolean } | null = null
+
+    /** Re-evaluate the palette gate for the active note (async: type recognition). */
+    private async refreshActiveRecompute(): Promise<void> {
+        const file = activeNote(this)
+        if (!file) {
+            this.activeRecompute = null
+            return
+        }
+        const can = await canRecomputeTrackedTime(this, file)
+        if (activeNote(this)?.path === file.path) this.activeRecompute = { path: file.path, can }
+    }
+
     /** Status-bar item showing the running session / pomodoro (issue #172). */
     private statusBarEl: HTMLElement | null = null
 
@@ -210,6 +225,22 @@ export class KanbanActionPlannerPlugin extends Plugin {
             }
         )
         this.register(() => this.lowerWatch?.dispose())
+        // A flagged note edited by hand is checked again; a rename moves its flag.
+        this.registerEvent(
+            this.app.metadataCache.on('changed', (file) => {
+                this.lowerWatch?.noteChanged(file.path)
+                if (file.path === this.activeRecompute?.path) void this.refreshActiveRecompute()
+            })
+        )
+        this.registerEvent(
+            this.app.vault.on('rename', (file, oldPath) =>
+                this.lowerWatch?.rename(oldPath, file.path)
+            )
+        )
+        this.registerEvent(
+            this.app.workspace.on('file-open', () => void this.refreshActiveRecompute())
+        )
+        this.app.workspace.onLayoutReady(() => void this.refreshActiveRecompute())
         this.registerEvent(this.app.metadataCache.on('changed', (file) => handlers.changed(file)))
         this.registerEvent(this.app.metadataCache.on('resolve', (file) => handlers.resolve(file)))
         this.registerEvent(
@@ -483,8 +514,12 @@ export class KanbanActionPlannerPlugin extends Plugin {
             id: 'recompute-tracked-time',
             name: 'Recompute tracked time',
             checkCallback: (checking: boolean): boolean => {
+                // The active note counts only when it has entries or linked
+                // notes (the WBS row action's condition), checked on file open.
                 const note = activeNote(this)
-                const files = [...(note ? [note] : []), ...this.lowerTimeWatch.flaggedFiles()]
+                const own =
+                    note && this.activeRecompute?.path === note.path && this.activeRecompute.can
+                const files = [...(own ? [note] : []), ...this.lowerTimeWatch.flaggedFiles()]
                 if (files.length === 0) return false
                 if (!checking) void recomputeTrackedTimeWithDecisions(this, files)
                 return true

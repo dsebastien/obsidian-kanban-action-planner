@@ -132,7 +132,8 @@ export interface WbsHost {
     weekBudgetFor(card: KanbanCard): WeekBudget | null
     /** Lifecycle dates (issue #172, phase C): committed / started / due / done, null when unset. */
     lifecycleDatesFor(card: KanbanCard): LifecycleDates
-    saveTotalTracked(card: KanbanCard, minutes: number): Promise<void>
+    /** Save the subtree total; `total` is evaluated again when a decision is applied (rule 79). */
+    saveTotalTracked(card: KanbanCard, total: () => number | null): Promise<void>
     /** Recompute; a stored time above the computed one is asked about (rule 79). */
     recomputeTracked(card: KanbanCard): Promise<void>
     /**
@@ -1189,7 +1190,12 @@ export class WbsController {
                     )
                     .setIcon('timer')
                     .setSection('kap-wbs')
-                    .onClick(() => void this.host.saveTotalTracked(card, totalTracked))
+                    .onClick(
+                        () =>
+                            void this.host.saveTotalTracked(card, () =>
+                                subtreeDuration(node, this.durationOfPath, this.linkedSourcesOfPath)
+                            )
+                    )
             )
         }
         // Ledger repair (issue #172): the spent cache and last-session date

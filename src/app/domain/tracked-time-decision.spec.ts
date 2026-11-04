@@ -5,6 +5,8 @@ import { entryMinutes, latestEntryDate, parseTimeEntries } from './time-entries'
 import {
     MANUAL_ADJUSTMENT,
     durationVerdict,
+    earliestTrackedDay,
+    laterLastSession,
     lowerDecision,
     manualAdjustmentEntry,
     manualAdjustmentStart,
@@ -43,23 +45,42 @@ describe('durationVerdict (rule 79)', () => {
     })
 })
 
+/** Far in the future: "now" never moves the entry in these tests. */
+const LATER = new Date(2030, 0, 1).getTime()
+const noFallback = (fileCreatedMs = 0) => ({ earliestDay: null, fileCreatedMs })
+
 describe('manual adjustment entry', () => {
     test('starts at local midnight of the created day, taken as written', () => {
         const midnight = new Date(2026, 2, 14).getTime()
-        expect(manualAdjustmentStart('2026-03-14', 0)).toBe(midnight)
-        expect(manualAdjustmentStart('2026-03-14T18:30:00+05:00', 0)).toBe(midnight)
+        expect(manualAdjustmentStart('2026-03-14', noFallback())).toBe(midnight)
+        expect(manualAdjustmentStart('2026-03-14T18:30:00+05:00', noFallback())).toBe(midnight)
     })
 
-    test('falls back to the local day of the file creation time', () => {
+    test('without created: the earliest tracked day, then the file creation day', () => {
         const ctime = new Date(2025, 6, 2, 15, 45).getTime()
-        const midnight = new Date(2025, 6, 2).getTime()
-        expect(manualAdjustmentStart(undefined, ctime)).toBe(midnight)
-        expect(manualAdjustmentStart('soon', ctime)).toBe(midnight)
-        expect(manualAdjustmentStart(20250702, ctime)).toBe(midnight)
+        const fileDay = new Date(2025, 6, 2).getTime()
+        expect(manualAdjustmentStart(undefined, noFallback(ctime))).toBe(fileDay)
+        expect(manualAdjustmentStart('soon', noFallback(ctime))).toBe(fileDay)
+        expect(manualAdjustmentStart(20250702, noFallback(ctime))).toBe(fileDay)
+        expect(
+            manualAdjustmentStart(undefined, { earliestDay: '2024-01-09', fileCreatedMs: ctime })
+        ).toBe(new Date(2024, 0, 9).getTime())
+    })
+
+    test('earliestTrackedDay: the first entry start or linked-note date', () => {
+        const entries = [
+            { startTime: '2026-03-02T23:30:00', endTime: '2026-03-03T00:30:00' },
+            { startTime: '2026-05-01T10:00:00' }
+        ]
+        expect(earliestTrackedDay(entries, [{ date: '2026-04-01' }, { date: null }])).toBe(
+            '2026-03-02'
+        )
+        expect(earliestTrackedDay([], [{ date: '2026-04-01' }])).toBe('2026-04-01')
+        expect(earliestTrackedDay([], [{ date: null }])).toBeNull()
     })
 
     test('lasts the difference and counts exactly that many minutes', () => {
-        const entry = manualAdjustmentEntry('2026-03-14', 0, 45)
+        const entry = manualAdjustmentEntry('2026-03-14', noFallback(), 45, LATER)
         expect(entry).toEqual({
             startTime: '2026-03-14T00:00:00',
             endTime: '2026-03-14T00:45:00',
@@ -69,10 +90,47 @@ describe('manual adjustment entry', () => {
     })
 
     test('a difference past midnight ends on a later day (the entry day is its end day)', () => {
-        const entry = manualAdjustmentEntry('2026-03-14', 0, 1500)
+        const entry = manualAdjustmentEntry('2026-03-14', noFallback(), 1500, LATER)
         expect(entry.endTime).toBe('2026-03-15T01:00:00')
         expect(entryMinutes(entry)).toBe(1500)
         expect(latestEntryDate([entry])).toBe('2026-03-15')
+    })
+
+    test('never ends after now: start = min(created midnight, now − difference)', () => {
+        const now = new Date(2026, 10, 4, 9, 0).getTime()
+        // Created yesterday, 2000 minutes to keep: midnight + 2000 min would end tomorrow.
+        const entry = manualAdjustmentEntry('2026-11-03', noFallback(), 2000, now)
+        expect(entry.endTime).toBe('2026-11-04T09:00:00')
+        expect(entry.startTime).toBe('2026-11-02T23:40:00') // 33h20 before now
+        expect(entryMinutes(entry)).toBe(2000)
+        expect(latestEntryDate([entry])).toBe('2026-11-04')
+    })
+
+    test('the day clocks go back: the stored entry still reads back as the difference', () => {
+        const tz = process.env['TZ']
+        process.env['TZ'] = 'Europe/Brussels'
+        try {
+            // 2026-10-25: 03:00 CEST → 02:00 CET. Midnight + 210 min ends at the
+            // SECOND 02:30, which reads back as the first one (150 min).
+            const entry = manualAdjustmentEntry('2026-10-25', noFallback(), 210, LATER)
+            expect(entryMinutes(entry)).toBe(210)
+            expect(entry.startTime.slice(0, 10)).toBe('2026-10-25')
+            for (const minutes of [60, 120, 150, 180, 200, 240, 1500]) {
+                const other = manualAdjustmentEntry('2026-10-25', noFallback(), minutes, LATER)
+                expect(entryMinutes(other)).toBe(minutes)
+            }
+        } finally {
+            if (tz === undefined) delete process.env['TZ']
+            else process.env['TZ'] = tz
+        }
+    })
+
+    test('laterLastSession: an append never moves the last session earlier', () => {
+        expect(laterLastSession('2026-10-02', ['2026-01-05', null])).toBeNull()
+        expect(laterLastSession('2026-10-02', ['2026-01-05', '2026-10-20'])).toBe('2026-10-20')
+        expect(laterLastSession(undefined, ['2026-01-05'])).toBe('2026-01-05')
+        expect(laterLastSession('garbage', ['2026-01-05'])).toBe('2026-01-05')
+        expect(laterLastSession('2026-10-02', [null])).toBeNull()
     })
 })
 
@@ -93,7 +151,8 @@ function input(
         compute: (raw) => combineTrackedTime(parseTimeEntries(raw), linked, () => false),
         choice,
         created: fm['created'],
-        fallbackCreatedMs: new Date(2020, 0, 1, 12).getTime()
+        fileCreatedMs: new Date(2020, 0, 1, 12).getTime(),
+        now: LATER
     }
 }
 
@@ -171,10 +230,17 @@ describe('planRecompute (rule 79)', () => {
         expect(plan.result.minutes).toBe(60)
     })
 
-    test('keep without created: dated on the file creation day', () => {
-        const plan = planRecompute(input({ time_spent: 100, time_entries: [e30] }, 'keep', []))
-        const added = plan.entries?.[1] as { startTime: string } | undefined
-        expect(added?.startTime).toBe('2020-01-01T00:00:00')
+    test('keep without created: dated on the earliest tracked day, else the file creation day', () => {
+        const fromEntry = planRecompute(input({ time_spent: 100, time_entries: [e30] }, 'keep', []))
+        const added = fromEntry.entries?.[1] as { startTime: string } | undefined
+        expect(added?.startTime).toBe('2026-09-08T00:00:00')
+        const fromSession = planRecompute(input({ time_spent: 100 }, 'keep'))
+        const first = fromSession.entries?.[0] as { startTime: string } | undefined
+        expect(first?.startTime).toBe('2026-10-02T00:00:00')
+        const linkedNoDate = { path: 'x.md', minutes: 50, date: null }
+        const fromFile = planRecompute(input({ time_spent: 100 }, 'keep', [linkedNoDate]))
+        const fileDay = fromFile.entries?.[0] as { startTime: string } | undefined
+        expect(fileDay?.startTime).toBe('2020-01-01T00:00:00')
     })
 
     test('drop: the computed value is written', () => {

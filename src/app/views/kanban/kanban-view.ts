@@ -1083,8 +1083,8 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
                 ),
             weekBudgetFor: (card) => this.weekBudgetFor(card),
             lifecycleDatesFor: (card) => this.lifecycleDatesFor(card),
-            saveTotalTracked: (card, minutes) =>
-                saveTotalTrackedTimeWithDecision(this.plugin, card.file, minutes),
+            saveTotalTracked: (card, total) =>
+                saveTotalTrackedTimeWithDecision(this.plugin, card.file, total),
             recomputeTracked: (card) => recomputeTrackedTimeWithDecisions(this.plugin, [card.file]),
             linkedNotesFor: (card) => this.linkedNotesFor(card),
             scheduledProperty: () => this.scheduledDateProperty,

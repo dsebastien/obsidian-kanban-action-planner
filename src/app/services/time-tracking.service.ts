@@ -17,16 +17,19 @@ import type { TimeEntry } from '../domain/time-entries'
 import {
     CREATED_PROPERTY,
     durationVerdict,
+    earliestTrackedDay,
+    laterLastSession,
     lowerDecision,
     manualAdjustmentEntry,
     planRecompute
 } from '../domain/tracked-time-decision'
 import type {
     LowerChoice,
+    RecomputePlan,
     TrackedTimeDecision,
     TrackedTimeReport
 } from '../domain/tracked-time-decision'
-import { computeTrackedTimeOf, linkedTimeConfigForType } from './linked-time.service'
+import { computeTrackedTimeOf, linkedNotesOf, linkedTimeConfigForType } from './linked-time.service'
 import type { LinkedNotesIndex, LinkedTimeApp } from './linked-time.service'
 import {
     breakTypeAfter,
@@ -51,8 +54,11 @@ import {
     appendRecordToListProperty,
     coerceOrder,
     getFrontmatterValue,
+    readFrontmatterKey,
     setProperties,
-    setProperty
+    setProperty,
+    updateFrontmatter,
+    writeFrontmatterKey
 } from './frontmatter.service'
 import { findNoteType, recognizeNoteTypeFor } from './note-type.service'
 import { ensureDailyNote } from './daily-note.service'
@@ -284,26 +290,37 @@ async function appendTimeEntry(
     properties: TrackingProperties,
     entry: TimeEntry
 ): Promise<{ total: number; parsed: TimeEntry[] }> {
-    const raw = getFrontmatterValue(plugin.app, file, properties.entries)
-    // Existing items are kept verbatim (a shape this version doesn't know is
-    // not the plugin's to drop); only the sum reads the well-formed ones. A
-    // template's empty placeholder (`- ` → null) is dropped.
-    const existing: unknown[] = Array.isArray(raw) ? (withoutEmptyEntries(raw) ?? raw) : []
-    const list = [...existing, entry]
-    const parsed = parseTimeEntries(list)
-    const existingDuration = getFrontmatterValue(plugin.app, file, properties.duration)
-    const config =
-        numericDuration(existingDuration) === null ? await linkedTimeConfigFor(plugin, file) : null
-    const total = config
-        ? computeTrackedTimeOf(plugin.app, plugin.linkedNotesIndex, file, list, config).minutes
-        : durationAfterEntryChange(existingDuration, null, entry, parsed)
-    const lastSession = latestEntryDate(parsed)
-    const write: Record<string, unknown> = {
-        [properties.entries]: list,
-        [properties.duration]: total
-    }
-    if (lastSession) write[properties.lastSession] = lastSession
-    await setProperties(plugin.app, file, write)
+    const config = await linkedTimeConfigFor(plugin, file)
+    let total = 0
+    let parsed: TimeEntry[] = []
+    // Planned from what is on disk, inside the write: an entry another tool
+    // (TaskNotes) wrote meanwhile is kept.
+    await updateFrontmatter(plugin.app, file, (fm) => {
+        const raw = readFrontmatterKey(fm, properties.entries)
+        // Existing items are kept verbatim (a shape this version doesn't know is
+        // not the plugin's to drop); only the sum reads the well-formed ones. A
+        // template's empty placeholder (`- ` → null) is dropped.
+        const existing: unknown[] = Array.isArray(raw) ? (withoutEmptyEntries(raw) ?? raw) : []
+        const list = [...existing, entry]
+        parsed = parseTimeEntries(list)
+        const existingDuration = readFrontmatterKey(fm, properties.duration)
+        const linked = config
+            ? computeTrackedTimeOf(plugin.app, plugin.linkedNotesIndex, file, list, config)
+            : null
+        total =
+            linked && numericDuration(existingDuration) === null
+                ? linked.minutes
+                : durationAfterEntryChange(existingDuration, null, entry, parsed)
+        // An append never makes the last session earlier (a kept rollup entry
+        // is dated on the note's created day).
+        const lastSession = laterLastSession(readFrontmatterKey(fm, properties.lastSession), [
+            latestEntryDate(parsed),
+            linked?.lastSession ?? null
+        ])
+        writeFrontmatterKey(fm, properties.entries, list)
+        writeFrontmatterKey(fm, properties.duration, total)
+        if (lastSession !== null) writeFrontmatterKey(fm, properties.lastSession, lastSession)
+    })
     return { total, parsed }
 }
 
@@ -402,6 +419,15 @@ export interface RecomputeOutcome {
     decision: TrackedTimeDecision | null
     /** Minutes kept as a "Manual adjustment" entry (`keep`), else 0. */
     adjusted: number
+    /** Whether anything was written. */
+    changed: boolean
+}
+
+/** Whether a plan writes anything. */
+function planWrites(plan: RecomputePlan): boolean {
+    return (
+        plan.entries !== undefined || plan.duration !== undefined || plan.lastSession !== undefined
+    )
 }
 
 /**
@@ -409,15 +435,17 @@ export interface RecomputeOutcome {
  * (the WBS row menu's and the palette's "Recompute tracked time"): duration
  * = the entries' minutes, or, when the note's type takes time from linked
  * notes, entries (linked-session entries skipped) + linked minutes; last
- * session = the later of the latest entry day and the latest linked date.
- * Empty items in the list are removed (issue #218), even when no entry is
- * left. A note without entries and without linked minutes keeps its
- * duration (it may be its only record): only its last session is written,
- * when a linked note is dated. The duration is NEVER lowered on its own
- * (business rule 79): when the stored value is above the computed one,
- * `choice` decides (`keep` = a "Manual adjustment" entry for the
- * difference, `drop` = the computed value); without a choice the duration
- * stays and the outcome carries the decision to ask for. Each value is
+ * session = the later of the latest entry day and the latest linked date
+ * (it follows the sources, earlier too). Empty items in the list are
+ * removed (issue #218), even when no entry is left. A note without entries
+ * and without linked minutes keeps its duration (it may be its only
+ * record): only its last session is written, when a linked note is dated.
+ * The duration is NEVER lowered on its own (business rule 79): when the
+ * stored value is above the computed one, `choice` decides (`keep` = a
+ * "Manual adjustment" entry for the difference, `drop` = the computed
+ * value); without a choice the duration stays and the outcome carries the
+ * decision to ask for. The plan is made again inside the write, from what
+ * is on disk, so an entry written meanwhile is never lost. Each value is
  * written only when it differs from the stored one; nothing changed = no
  * write at all (no sync churn).
  */
@@ -428,23 +456,51 @@ export async function recomputeTrackedTime(
 ): Promise<RecomputeOutcome> {
     const properties = await trackingPropertiesFor(plugin, file)
     const config = await linkedTimeConfigFor(plugin, file)
-    const read = (name: string): unknown => getFrontmatterValue(plugin.app, file, name)
-    const plan = planRecompute({
-        rawEntries: read(properties.entries),
-        storedDuration: read(properties.duration),
-        storedLastSession: read(properties.lastSession),
-        compute: (raw) =>
-            computeTrackedTimeOf(plugin.app, plugin.linkedNotesIndex, file, raw, config),
-        choice,
-        created: read(CREATED_PROPERTY),
-        fallbackCreatedMs: fileCreatedMs(file)
-    })
-    const write: Record<string, unknown> = {}
-    if (plan.entries) write[properties.entries] = plan.entries
-    if (plan.duration !== undefined) write[properties.duration] = plan.duration
-    if (plan.lastSession !== undefined) write[properties.lastSession] = plan.lastSession
-    if (Object.keys(write).length > 0) await setProperties(plugin.app, file, write)
-    return { minutes: plan.minutes, decision: plan.decision, adjusted: plan.adjusted }
+    const now = Date.now()
+    const planFrom = (fm: Record<string, unknown> | undefined): RecomputePlan =>
+        planRecompute({
+            rawEntries: readFrontmatterKey(fm, properties.entries),
+            storedDuration: readFrontmatterKey(fm, properties.duration),
+            storedLastSession: readFrontmatterKey(fm, properties.lastSession),
+            compute: (raw) =>
+                computeTrackedTimeOf(plugin.app, plugin.linkedNotesIndex, file, raw, config),
+            choice,
+            created: readFrontmatterKey(fm, CREATED_PROPERTY),
+            fileCreatedMs: fileCreatedMs(file),
+            now
+        })
+    let plan = planFrom(plugin.app.metadataCache.getFileCache(file)?.frontmatter)
+    let changed = false
+    if (planWrites(plan)) {
+        await updateFrontmatter(plugin.app, file, (fm) => {
+            plan = planFrom(fm)
+            if (plan.entries) writeFrontmatterKey(fm, properties.entries, plan.entries)
+            if (plan.duration !== undefined) {
+                writeFrontmatterKey(fm, properties.duration, plan.duration)
+            }
+            if (plan.lastSession !== undefined) {
+                writeFrontmatterKey(fm, properties.lastSession, plan.lastSession)
+            }
+            changed = planWrites(plan)
+        })
+    }
+    return { minutes: plan.minutes, decision: plan.decision, adjusted: plan.adjusted, changed }
+}
+
+/**
+ * Whether "Recompute tracked time" has something to compute for the note:
+ * it holds at least one entries item, or its type takes time from linked
+ * notes and some link to it (the WBS row action's condition).
+ */
+export async function canRecomputeTrackedTime(
+    plugin: KanbanActionPlannerPlugin,
+    file: TFile
+): Promise<boolean> {
+    const properties = await trackingPropertiesFor(plugin, file)
+    const raw = getFrontmatterValue(plugin.app, file, properties.entries)
+    if (Array.isArray(raw) && raw.some((item) => item !== null)) return true
+    const config = await linkedTimeConfigFor(plugin, file)
+    return config !== null && plugin.linkedNotesIndex.linkedFor(file.path, config).length > 0
 }
 
 /** The file's creation time (epoch ms); now when the file carries no stats. */
@@ -489,36 +545,57 @@ export async function computeTrackedTime(
     }
 }
 
+/** What saving a subtree total did. */
+export interface SaveTotalOutcome {
+    /** Stored total > `totalMinutes` and no choice given: nothing written; the user decides. */
+    decision: TrackedTimeDecision | null
+    /** The stored total afterwards (null when undecided). */
+    minutes: number | null
+    /** Minutes kept as a "Manual adjustment" entry on the note's own time (`keep`), else 0. */
+    adjusted: number
+}
+
 /**
  * Persist a subtree's tracked total to the note's total-duration property
  * (the WBS row menu's "Save total tracked time"). Never lowers a stored
  * total on its own (business rule 79): when the stored total is above
  * `totalMinutes`, `choice` decides — `keep` adds the difference to the
- * note's OWN time as a "Manual adjustment" entry (so the subtree total
- * equals the stored one and the total is not rewritten), `drop` writes
- * `totalMinutes`; without a choice nothing is written and the decision is
- * returned. Null = written (or already equal) / kept.
+ * note's OWN time as a "Manual adjustment" entry (an append: the duration
+ * grows by the difference, the last session never moves earlier), so the
+ * subtree total equals the stored one, which is not rewritten; `drop`
+ * writes `totalMinutes`. Without a choice nothing is written and the
+ * decision is returned.
  */
 export async function saveTotalTrackedTime(
     plugin: KanbanActionPlannerPlugin,
     file: TFile,
     totalMinutes: number,
     choice: LowerChoice | null = null
-): Promise<TrackedTimeDecision | null> {
+): Promise<SaveTotalOutcome> {
     const properties = await trackingPropertiesFor(plugin, file)
     const stored = getFrontmatterValue(plugin.app, file, properties.totalDuration)
     const decision = lowerDecision(stored, totalMinutes)
-    if (decision && choice === null) return decision
+    if (decision && choice === null) return { decision, minutes: null, adjusted: 0 }
     if (decision && choice === 'keep') {
-        const created = getFrontmatterValue(plugin.app, file, CREATED_PROPERTY)
-        const entry = manualAdjustmentEntry(created, fileCreatedMs(file), decision.difference)
+        const config = await linkedTimeConfigFor(plugin, file)
+        const raw = getFrontmatterValue(plugin.app, file, properties.entries)
+        const linked = config ? linkedNotesOf(plugin.linkedNotesIndex, file, config) : []
+        const entry = manualAdjustmentEntry(
+            getFrontmatterValue(plugin.app, file, CREATED_PROPERTY),
+            {
+                earliestDay: earliestTrackedDay(parseTimeEntries(raw), linked),
+                fileCreatedMs: fileCreatedMs(file)
+            },
+            decision.difference,
+            Date.now()
+        )
         await appendTimeEntry(plugin, file, properties, entry)
-        return null
+        return { decision: null, minutes: decision.stored, adjusted: decision.difference }
     }
     if (stored !== totalMinutes) {
         await setProperty(plugin.app, file, properties.totalDuration, totalMinutes)
     }
-    return null
+    return { decision: null, minutes: totalMinutes, adjusted: 0 }
 }
 
 // ── Pomodoro mode ─────────────────────────────────────────────────────

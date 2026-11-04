@@ -82,6 +82,35 @@ function processFrontMatter(
     return queueFrontmatterWrite(file, () => app.fileManager.processFrontMatter(file, fn))
 }
 
+/**
+ * Read and write a note's frontmatter in ONE transaction, serialized per file
+ * (see {@link queueFrontmatterWrite}): `fn` decides from what is on disk, so
+ * a value written meanwhile by another tool is never lost.
+ */
+export function updateFrontmatter(
+    app: App,
+    file: TFile,
+    fn: (fm: Record<string, unknown>) => void
+): Promise<void> {
+    return processFrontMatter(app, file, fn)
+}
+
+/** A frontmatter value by property name (case-insensitive) from a frontmatter object. */
+export function readFrontmatterKey(fm: Record<string, unknown> | undefined, name: string): unknown {
+    if (!fm) return undefined
+    const key = findKeyCaseInsensitive(fm, name)
+    return key === null ? undefined : fm[key]
+}
+
+/** Write `value` under `name`, reusing an existing differently-cased key. */
+export function writeFrontmatterKey(
+    fm: Record<string, unknown>,
+    name: string,
+    value: unknown
+): void {
+    fm[findKeyCaseInsensitive(fm, name) ?? name] = value
+}
+
 /** Set a frontmatter property, reusing an existing differently-cased key. */
 export async function setProperty(
     app: App,

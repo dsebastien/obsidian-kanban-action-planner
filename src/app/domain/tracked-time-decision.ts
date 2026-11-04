@@ -2,7 +2,10 @@ import type { TrackedTimeResult } from './linked-time'
 import type { TimeEntry } from './time-entries'
 import {
     buildTimeEntry,
+    entryMinutes,
+    formatEntryDate,
     numericDuration,
+    parseEntryDateTime,
     parseTimeEntries,
     withoutEmptyEntries
 } from './time-entries'
@@ -15,8 +18,8 @@ import {
  * and reports a {@link TrackedTimeDecision}; the user decides:
  * - keep: the difference becomes ONE time entry described
  *   {@link MANUAL_ADJUSTMENT}, starting at local midnight of the note's
- *   `created` day (fallback: the file's creation time) and lasting the
- *   difference, so no current week's ring jumps; the stored total then
+ *   `created` day (fallback: the earliest tracked day, then the file's
+ *   creation time) and lasting the difference, never ending after now; the stored total then
  *   equals the computed one, that entry included;
  * - drop: the computed value is written.
  *
@@ -92,32 +95,103 @@ export function lowerDecision(storedRaw: unknown, computed: number): TrackedTime
     return rounded > computed ? { stored: rounded, computed, difference: rounded - computed } : null
 }
 
+/** Local midnight (epoch ms) of a `YYYY-MM-DD…` string's day (taken as written), or null. */
+function dayStart(raw: unknown): number | null {
+    if (typeof raw !== 'string') return null
+    const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw.trim().slice(0, 10))
+    if (!match) return null
+    const day = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]))
+    return Number.isNaN(day.getTime()) ? null : day.getTime()
+}
+
+/** Where a manual adjustment is dated when the note has no usable `created` value. */
+export interface AdjustmentFallback {
+    /** The earliest day the note was tracked (`YYYY-MM-DD`: first entry or linked note), or null. */
+    earliestDay: string | null
+    /** The file's creation time (epoch ms). */
+    fileCreatedMs: number
+}
+
 /**
  * Local midnight (epoch ms) of the day a manual adjustment is dated on: the
  * first 10 characters of `created` when they read `YYYY-MM-DD` (taken as
- * written, no timezone conversion), else the local day of `fallbackMs`
- * (the file's creation time).
+ * written, no timezone conversion), else the earliest tracked day (first
+ * entry start or linked-note date), else the local day of the file's
+ * creation time.
  */
-export function manualAdjustmentStart(createdRaw: unknown, fallbackMs: number): number {
-    if (typeof createdRaw === 'string') {
-        const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(createdRaw.trim().slice(0, 10))
-        if (match) {
-            const day = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]))
-            if (!Number.isNaN(day.getTime())) return day.getTime()
-        }
-    }
-    const fallback = new Date(fallbackMs)
-    return new Date(fallback.getFullYear(), fallback.getMonth(), fallback.getDate()).getTime()
+export function manualAdjustmentStart(createdRaw: unknown, fallback: AdjustmentFallback): number {
+    const created = dayStart(createdRaw) ?? dayStart(fallback.earliestDay)
+    if (created !== null) return created
+    const ctime = new Date(fallback.fileCreatedMs)
+    return new Date(ctime.getFullYear(), ctime.getMonth(), ctime.getDate()).getTime()
 }
 
-/** The entry a "keep" writes: `difference` minutes from the adjustment day's midnight. */
+const HOUR_MS = 3600000
+
+/**
+ * The entry a "keep" writes: `difference` minutes from the adjustment day's
+ * midnight, moved earlier when it would end after `now` (start = min(midnight,
+ * now − difference)), so it never lies in the future nor moves the last session
+ * forward. Entries are local datetimes without offset, so an end inside the
+ * hour repeated when clocks go back would read back an hour short: the start
+ * is then moved by whole hours (later when that still ends by `now`, else
+ * earlier) until the stored entry reads back as exactly `difference` minutes.
+ */
 export function manualAdjustmentEntry(
     createdRaw: unknown,
-    fallbackMs: number,
-    difference: number
+    fallback: AdjustmentFallback,
+    difference: number,
+    now: number
 ): TimeEntry {
-    const start = manualAdjustmentStart(createdRaw, fallbackMs)
-    return buildTimeEntry(start, start + difference * 60000, MANUAL_ADJUSTMENT)
+    const latestStart = now - difference * 60000
+    const start = Math.min(manualAdjustmentStart(createdRaw, fallback), latestStart)
+    const build = (at: number): TimeEntry =>
+        buildTimeEntry(at, at + difference * 60000, MANUAL_ADJUSTMENT)
+    for (const shift of [0, 1, 2, 3, -1, -2, -3]) {
+        const at = start + shift * HOUR_MS
+        if (at > latestStart) continue
+        const entry = build(at)
+        if (entryMinutes(entry) === difference) return entry
+    }
+    return build(start)
+}
+
+/** The earliest local day of the entries' starts and the linked notes' dates, or null. */
+export function earliestTrackedDay(
+    entries: readonly TimeEntry[],
+    linked: readonly { date: string | null }[]
+): string | null {
+    let earliest: string | null = null
+    const consider = (day: string | null): void => {
+        if (day !== null && (earliest === null || day < earliest)) earliest = day
+    }
+    for (const entry of entries) {
+        const start = parseEntryDateTime(entry.startTime)
+        consider(start ? formatEntryDate(start) : null)
+    }
+    for (const note of linked) consider(note.date)
+    return earliest
+}
+
+/**
+ * The last-session day an APPEND writes (timer stop, a kept rollup): the
+ * latest of `candidates`, only when it is later than the stored day (an
+ * append never makes the last session earlier). Null = write nothing.
+ */
+export function laterLastSession(
+    storedRaw: unknown,
+    candidates: readonly (string | null)[]
+): string | null {
+    let latest: string | null = null
+    for (const day of candidates) {
+        if (day !== null && (latest === null || day > latest)) latest = day
+    }
+    if (latest === null) return null
+    const stored =
+        typeof storedRaw === 'string' && /^\d{4}-\d{2}-\d{2}/.test(storedRaw)
+            ? storedRaw.slice(0, 10)
+            : null
+    return stored === null || latest > stored ? latest : null
 }
 
 /** The stored values and inputs a recompute plans from. */
@@ -134,8 +208,10 @@ export interface RecomputeInput {
     choice: LowerChoice | null
     /** Raw value of the `created` property. */
     created: unknown
-    /** The file's creation time (epoch ms), when `created` is missing. */
-    fallbackCreatedMs: number
+    /** The file's creation time (epoch ms), when `created` and the tracked days are missing. */
+    fileCreatedMs: number
+    /** Now (epoch ms): a manual adjustment never ends after it. */
+    now: number
 }
 
 /** The writes a recompute makes (each only when it changes the stored value). */
@@ -186,8 +262,15 @@ export function planRecompute(input: RecomputeInput): RecomputePlan {
             if (input.choice === 'keep') {
                 const entry = manualAdjustmentEntry(
                     input.created,
-                    input.fallbackCreatedMs,
-                    verdict.decision.difference
+                    {
+                        earliestDay: earliestTrackedDay(
+                            parseTimeEntries(input.rawEntries),
+                            result.linkedNotes
+                        ),
+                        fileCreatedMs: input.fileCreatedMs
+                    },
+                    verdict.decision.difference,
+                    input.now
                 )
                 const list = [...base, entry]
                 result = input.compute(list)
