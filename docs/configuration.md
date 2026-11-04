@@ -320,11 +320,20 @@ Blank one out to follow the global setting again.
 
 **Each card uses its own type's dates.** On a board that mixes types (a Tasks board that also
 shows projects, an "All actions" board), every mode reads and writes each card through **its own
-note type**: dropping a project on a calendar day writes the project's start property (for example
-`date_started`), dropping a task writes the task's `date_scheduled`. The same goes for the
-timeline, the WBS, the date prompts, the agenda, the due badge and the filters. Only a card
-without a recognized type uses the board's properties. A per-board key (level 1) still applies
-to every card on that board.
+note type**: dropping a card on a calendar day writes that card's type's start property. The
+same goes for the timeline, the WBS, the date prompts, the agenda, the due badge and the filters.
+Only a card without a recognized type uses the board's properties. A per-board key (level 1)
+still applies to every card on that board.
+
+**One planning property per type: `date_scheduled`.** A drop plans work; it never writes a
+lifecycle date. `date_started` and `date_completed` are facts: the Starter Kit stamps them when
+the status changes (for example `date_started` when a project becomes _30 - Active_, only if
+empty), and cycle and lead times read them. A drop that wrote `date_started` would fill it before
+the work starts, and the real start would never be stamped. So when the board sets up a Starter
+Kit type, it never picks a date the type's automations stamp, and uses `date_scheduled` when the
+type declares it. You can still choose another property in **Configure → Dates**; **Check note
+types against the Starter Kit** then shows a note when that property is one the Starter Kit
+stamps.
 
 > Before 1.29, a note type silently copied the global defaults when it was first created, and
 > there was no UI to change them. So editing the global **Scheduled date property** or **Due

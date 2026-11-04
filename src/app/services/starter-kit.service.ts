@@ -4,6 +4,7 @@ import { STARTER_KIT_PLUGIN_ID } from '../constants'
 import type { NamingConfig } from '../domain/card-title'
 import type { RelationshipRole } from '../domain/note-type'
 import type { InheritedCreationDefaults } from '../domain/note-creation'
+import { stampedDatesOf, type StampedDate } from '../domain/stamped-dates'
 
 /**
  * Adapter for the optional Obsidian Starter Kit plugin.
@@ -47,6 +48,8 @@ export interface SkNoteType {
     noteNameSuffixOptional?: boolean
     /** Tags the Starter Kit associates with this type. */
     tags?: string[]
+    /** The type's automation rules (shape normalized by `stampedDatesOf`). */
+    automations?: unknown
 }
 
 interface SkApiLike {
@@ -67,6 +70,8 @@ interface SkApiLike {
     getSettings?: () => unknown
     /** Starter Kit: the global properties every note type carries. Detected by method presence. */
     listGlobalProperties?: () => unknown
+    /** Starter Kit: a type's automation rules. Detected by method presence. */
+    getNoteTypeAutomations?: (ref: string) => unknown
 }
 
 /** One status value of a Starter Kit note type, as its `getNoteTypeStatus` resolves it. */
@@ -159,6 +164,26 @@ export function listGlobalProperties(app: App): SkPropertyDefinition[] | null {
     } catch {
         return null
     }
+}
+
+/**
+ * The date properties a Starter Kit type's automations stamp (issue #232):
+ * from `getNoteTypeAutomations` when present, else the rules on the type
+ * itself, plus the status values that stamp a date. Empty when unavailable.
+ */
+export function stampedDatesFor(app: App, skType: SkNoteType): StampedDate[] {
+    const api = getStarterKitApi(app)
+    let rules: unknown = skType.automations
+    if (api?.getNoteTypeAutomations) {
+        try {
+            const raw = unwrap<unknown>(api.getNoteTypeAutomations(skType.id))
+            if (Array.isArray(raw)) rules = raw
+        } catch {
+            // keep the type's own rules
+        }
+    }
+    const status = getNoteTypeStatus(app, skType.id)
+    return stampedDatesOf(rules, status?.values ?? [])
 }
 
 /** List the Starter Kit note types (empty when unavailable). */

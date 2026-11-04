@@ -77,6 +77,40 @@ describe('checkNoteTypesAgainstStarterKit (issue #232)', () => {
         expect(report.types[0]?.findings).toEqual([])
     })
 
+    it('a planning date the Starter Kit stamps is a note, not a finding', () => {
+        const plans = {
+            id: 'plans',
+            name: 'Plans',
+            properties: [
+                { name: 'date_started', type: 'date' },
+                { name: 'date_scheduled', type: 'date' },
+                { name: 'date_due', type: 'date' }
+            ],
+            automations: [
+                {
+                    enabled: true,
+                    trigger: { kind: 'status-entered', statuses: ['30 - Applied'] },
+                    actions: [{ kind: 'set-property', property: 'date_started', value: '{{date}}' }]
+                }
+            ]
+        }
+        const stored = createDefaultNoteType('plans', 'Plans', 'starter-kit')
+        stored.relationships = []
+        stored.calendar.enabled = true
+        stored.calendar.scheduledDateProperty = 'date_started'
+        const app = appWith({ listNoteTypes: () => [plans], listGlobalProperties: () => [] })
+        const report = checkNoteTypesAgainstStarterKit(app, {
+            ...createDefaultSettings(),
+            noteTypes: [stored]
+        })
+        if (report.kind !== 'report') throw new Error(report.kind)
+        const [type] = report.types
+        expect(type?.findings.map((f) => f.name)).toEqual(['milestones', 'progress'])
+        expect(type?.notes.map((n) => describeFinding(n))).toEqual([
+            'Start date: `date_started` is stamped by the Starter Kit when the status becomes 30 - Applied. A drop fills it before the real date (date_scheduled is the planning alternative).'
+        ])
+    })
+
     it('says why there is no report', () => {
         const settings = { ...createDefaultSettings(), noteTypes: [] }
         expect(checkNoteTypesAgainstStarterKit(appWith(null), settings).kind).toBe('unavailable')

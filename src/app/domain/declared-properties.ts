@@ -92,7 +92,15 @@ export interface PlannedProperty {
 export interface PropertyFinding {
     role: string
     name: string
-    problem: 'undeclared' | 'wrong-type'
+    /**
+     * `stamped`: a planning date that is a lifecycle fact the Starter Kit
+     * stamps (issue #232); a drop would fill it early.
+     */
+    problem: 'undeclared' | 'wrong-type' | 'stamped'
+    /** For `stamped`: the statuses (or triggers) that stamp it; empty = a known lifecycle date. */
+    stampedWhen?: string[]
+    /** For `stamped`: the planning property to use instead, when the type has one. */
+    suggestion?: string
     /** The declared type, for `wrong-type`. */
     declaredType: string | null
     expected: ReadonlyArray<string>

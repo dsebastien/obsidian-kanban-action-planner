@@ -174,6 +174,38 @@ describe('mirrorNoteType (Starter Kit relationships)', () => {
         expect(older.declaredProperties).toBeUndefined()
     })
 
+    it('never inherits a stamped lifecycle date as the scheduled property (issue #232)', () => {
+        const base = createDefaultNoteType('plans', 'Plans', 'starter-kit')
+        const sk: SkNoteType = {
+            id: 'plans',
+            name: 'Plans',
+            properties: [{ name: 'date_scheduled', type: 'date' }]
+        }
+        const stamped = [{ property: 'date_started', when: ['30 - Applied'] }]
+        const out = mirrorNoteType(
+            base,
+            sk,
+            null,
+            { ...defaults, scheduledDateProperty: 'date_started' },
+            null,
+            false,
+            null,
+            null,
+            [],
+            stamped
+        )
+        expect(out.calendar.scheduledDateProperty).toBe('date_scheduled')
+        // An explicit choice is kept.
+        const chosen = {
+            ...base,
+            calendar: { ...base.calendar, scheduledDateProperty: 'date_started' }
+        }
+        expect(
+            mirrorNoteType(chosen, sk, null, defaults, null, false, null, null, [], stamped)
+                .calendar.scheduledDateProperty
+        ).toBe('date_started')
+    })
+
     it('mirrors a single-link rule: cardinality survives and drives the rule', () => {
         const base = createDefaultNoteType('tv_seasons', 'TV Seasons', 'starter-kit')
         const out = mirrorNoteType(base, skTask, null, defaults, null, false, null, [

@@ -405,9 +405,12 @@ export class KanbanActionPlannerPlugin extends Plugin {
             callback: () => {
                 const report = checkNoteTypesAgainstStarterKit(this.app, this.settings)
                 if (report.kind === 'report') {
-                    for (const type of report.types)
+                    for (const type of report.types) {
                         for (const finding of type.findings)
                             log(`${type.name}: ${describeFinding(finding)}`, 'info')
+                        for (const note of type.notes)
+                            log(`${type.name} (note): ${describeFinding(note)}`, 'info')
+                    }
                 }
                 new NoteTypeCheckModal(this.app, report).open()
             }

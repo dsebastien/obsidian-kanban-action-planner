@@ -28,6 +28,7 @@ import { autoAssignColor } from './colors.service'
 import { log } from '../../utils/log'
 import type { SkArchive, SkPropertyDefinition } from './starter-kit.service'
 import { mergeDeclaredProperties } from '../domain/declared-properties'
+import { pickScheduledProperty, type StampedDate } from '../domain/stamped-dates'
 import {
     getNoteTypeArchive,
     getNoteTypeRelationships,
@@ -38,6 +39,7 @@ import {
     isStarterKitAvailable,
     listGlobalProperties,
     namingOf,
+    stampedDatesFor,
     recognitionMappings,
     recognizeNoteType,
     type SkNoteType,
@@ -666,7 +668,8 @@ export async function mirrorStarterKitType(
         skRunsAutomations,
         skArchive,
         skRelationships,
-        skGlobalProperties
+        skGlobalProperties,
+        stampedDatesFor(app, skType)
     )
     if (!noteTypesEqual(base, merged)) await upsertNoteType(plugin, merged)
     return { noteType: merged, statusValues: status?.allowedValues ?? null }
@@ -833,7 +836,8 @@ export function mirrorNoteType(
     skRunsAutomations = false,
     skArchive: SkArchive | null = null,
     skRelationships: ReadonlyArray<MirroredRelationshipSource> | null = null,
-    skGlobalProperties: ReadonlyArray<SkPropertyDefinition> | null = null
+    skGlobalProperties: ReadonlyArray<SkPropertyDefinition> | null = null,
+    stamped: ReadonlyArray<StampedDate> = []
 ): NoteType {
     return produce(base, (draft) => {
         draft.name = noteType.name
@@ -883,6 +887,16 @@ export function mirrorNoteType(
         } else {
             delete draft.declaredProperties
         }
+        // One planning property per type (issue #232): never inherit a
+        // lifecycle date the Starter Kit stamps (`date_started` on 30 -
+        // Active); prefer `date_scheduled` when declared. An explicit per-type
+        // value is kept (the type check flags a stamped one).
+        draft.calendar.scheduledDateProperty = pickScheduledProperty(
+            draft.calendar.scheduledDateProperty,
+            defaults.scheduledDateProperty,
+            draft.declaredProperties,
+            stamped
+        )
     })
 }
 

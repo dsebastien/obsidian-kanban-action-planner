@@ -1031,8 +1031,9 @@ command).
 properties come from each card's **own note type**, else the global plugin settings (no per-view
 options):
 
-- **Start date**: the card's type's scheduled-date property (`date_scheduled` by default; a
-  project type may use `date_started`).
+- **Start date**: the card's type's scheduled-date property (`date_scheduled` for tasks,
+  projects and goals). A drop plans work and never writes a lifecycle date such as
+  `date_started`, which the Starter Kit stamps when the work really starts.
 - **Estimate property**: a plain **number of days** (default `estimate`). A note type can
   override both the **property and the unit** (days or **minutes**, e.g. a
   tasknotes-compatible `time_estimate`) in its Configure dialog. Minute estimates convert to
@@ -1293,7 +1294,7 @@ command), or embed it with `mode=ideal-week` (`mode=week` works too).
   type's status configuration (mirrored from the Obsidian Starter Kit; without roles, every
   non-done status counts) **and** that carries the **time blocks** property (`time_blocks`
   by default; an empty list is enough, an absent property keeps the note out, and tasks stay in
-  calendar and agenda modes). A note with a start and a due date (a project's `date_started`
+  calendar and agenda modes). A note with a start and a due date (a project's `date_scheduled`
   and `date_due`) is part of the ideal week only while today lies between them.
 - **The rail** on the left lists **every** note of the board that carries the time blocks
   property, whatever its status: a **Not planned yet** section and a **Planned** one, each
@@ -2142,7 +2143,8 @@ tracking and pomodoro commands work from anywhere:
   start and due dates only when its calendar is on or it names its own date property, the
   estimate only when you set one in Configure → Estimate, tracking only when it has a Time
   tracking setting, milestones and progress only when it plans (calendar or estimate), time
-  blocks only when it is in the ideal week, plus the relationship links it carries. It only reads;
+  blocks only when it is in the ideal week, plus the relationship links it carries. It also shows a **note** (a choice, not a fault, and not counted) when a type plans with a date
+  the Starter Kit stamps as a lifecycle fact, such as `date_started`. It only reads;
   nothing is written, not even the board's own settings.
   The board also refuses to create a property a Starter Kit type does not declare: those actions
   are hidden (Add milestone, Set progress, Save total tracked time), or skipped with a notice

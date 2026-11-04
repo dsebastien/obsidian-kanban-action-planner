@@ -1673,6 +1673,16 @@ Markdown)`, `Export ideal week (JSON)`, `Export ideal week (Markdown)`); the for
     in the `.base`) still wins for every card; an untyped card uses the board's resolved
     properties. Render signatures carry `datePropertiesSignature()` (every visible type's
     triple), so a per-type change re-renders.
+    **One planning property per type, never a lifecycle date (decided 2026-11-04):** the start
+    property is the type's single scheduled property (`date_scheduled` for tasks, projects and
+    goals); calendar and timeline share it. A drop plans work and never writes a lifecycle fact:
+    `date_started` / `date_completed` and every date a Starter Kit automation of the type stamps
+    (`stampedDatesOf`: enabled `set-property` actions whose value is a date token, plus status
+    `stampsDate`; read via `getNoteTypeAutomations` by method presence, else the type's own
+    rules). On mirror, `pickScheduledProperty` keeps an explicit per-type value and never lets an
+    empty one inherit such a date: it pins `date_scheduled` when declared. The type check shows a
+    configured stamped start / due / defer property as a NOTE (an informed choice, e.g. Plans keep
+    `date_started`), never as a finding, and does not count it.
     **Write format follows the property type:** every date write (calendar, timeline, WBS,
     prompts) formats through `dateFormatFor(card, property)` → `dateFormatForType`: a `date`
     property (Starter Kit declaration, else Obsidian's `metadataTypeManager` widget) gets
