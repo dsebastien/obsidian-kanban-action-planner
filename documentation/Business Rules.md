@@ -193,7 +193,8 @@ When a new business rule is mentioned:
 11. **Archiving (issue #7).** A card's note can be archived by **moving** it to a
     configurable archive folder that supports Starter-Kit-style placeholders (`{{year}}`,
     `{{month}}`, `{{week}}`, `{{quarter}}`, `{{day}}`, `{{date}}`, `{{datetime}}`,
-    `{{uuid}}`). Archiving is manual (context menu) plus an **optional, opt-in** per-note type
+    `{{now}}`, `{{uuid}}`; `{{datetime}}` is `YYYY-MM-DD-HHmmss` for names and folders, `{{now}}`
+    the ISO `YYYY-MM-DDTHH:mm` for date & time property values, issue #232). Archiving is manual (context menu) plus an **optional, opt-in** per-note type
     status trigger (auto-archive when a card transitions into **any of one or more** chosen
     statuses — issue #32; stored as `triggerStatuses`, migrated from the legacy single
     `triggerStatus`). File moves preserve links; auto-archiving is guarded against accidental

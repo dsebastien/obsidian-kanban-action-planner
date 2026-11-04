@@ -255,6 +255,7 @@ board → Archiving**:
     | `{{quarter}}`  | quarter (Q-prefix)  | `Q2`                |
     | `{{date}}`     | `YYYY-MM-DD`        | `2026-06-26`        |
     | `{{datetime}}` | `YYYY-MM-DD-HHmmss` | `2026-06-26-143015` |
+    | `{{now}}`      | `YYYY-MM-DDTHH:mm`  | `2026-06-26T14:30`  |
     | `{{uuid}}`     | a fresh unique id   | `a1b2c3…`           |
 
     Placeholders are case-insensitive. Leave the folder blank to disable archiving. Missing
@@ -497,8 +498,10 @@ happens to a note, do that". Each rule has a trigger and a list of actions that 
 **Actions**
 
 - **Set property**: the value supports the archive placeholders (`{{date}}`,
-  `{{year}}`, `{{month}}`, `{{day}}`, `{{week}}`, `{{quarter}}`, `{{datetime}}`,
-  `{{uuid}}`); plain numbers and `true`/`false` are written as numbers and booleans. The
+  `{{year}}`, `{{month}}`, `{{day}}`, `{{week}}`, `{{quarter}}`, `{{datetime}}`, `{{now}}`,
+  `{{uuid}}`). Stamp a date property with `{{date}}` and a date & time property with `{{now}}`
+  (ISO, `2026-06-26T14:30`); `{{datetime}}` (`2026-06-26-143015`) is not ISO and is meant for
+  names and folders; plain numbers and `true`/`false` are written as numbers and booleans. The
   **only if empty** toggle skips the write when the property already has a value. Use it for
   date stamps (`date_completed` = `{{date}}`), so a date set by hand wins.
 - **Remove property**: deletes the property (e.g. clear `date_due` when a task is done).

@@ -21,6 +21,13 @@ describe('resolvePlaceholders', () => {
         expect(resolvePlaceholders('{{datetime}}', ctx())).toBe('2026-06-26-143015')
     })
 
+    test('{{now}} is the ISO local date and time of a datetime property (issue #232)', () => {
+        expect(resolvePlaceholders('{{now}}', ctx())).toBe('2026-06-26T14:30')
+        expect(resolvePlaceholders('{{NOW}}', ctx({ now: new Date(2026, 0, 5, 9, 7) }))).toBe(
+            '2026-01-05T09:07'
+        )
+    })
+
     test('uuid comes from the context generator', () => {
         expect(resolvePlaceholders('{{uuid}}', ctx())).toBe('fixed-uuid')
     })

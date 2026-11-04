@@ -284,7 +284,9 @@ export class ConfigureBoardModal extends Modal {
                 `Run actions when a note of type "${noteType.name}" transitions into a status ` +
                 '(from a drag, a menu, a bulk edit, or triage) — once per transition. ' +
                 'Values and folders support {{year}}, {{month}}, {{day}}, {{week}}, ' +
-                '{{quarter}}, {{date}}, {{datetime}} and {{uuid}}.'
+                '{{quarter}}, {{date}}, {{datetime}}, {{now}} and {{uuid}}. Stamp a date ' +
+                'property with {{date}} and a date & time property with {{now}} ' +
+                '(YYYY-MM-DDTHH:mm); {{datetime}} (YYYY-MM-DD-HHmmss) is for names and folders.'
         })
 
         const rules = noteType.automations
