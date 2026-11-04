@@ -59,11 +59,12 @@ import { resolvePaneGroupDrop, resolveRailStatusDrop } from '../../domain/pane-d
 import type { EstimateConfig } from '../../domain/estimate'
 import { formatDuration, readEstimate } from '../../domain/estimate'
 import {
+    dateFormatForType,
     datePropertiesForType,
     estimateConfigForType,
     type TypeDateProperties
 } from '../../domain/type-properties'
-import { mayWrite } from '../../domain/declared-properties'
+import { declaredTypeOf, mayWrite } from '../../domain/declared-properties'
 import { guardWrite } from '../../services/write-guard.service'
 import type { AggregateKind } from '../../domain/column-aggregate'
 import {
@@ -934,8 +935,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             estimateConfigFor: (card) => this.estimateConfigFor(card),
             minutesPerDay: () => this.plugin.settings.minutesPerDay,
             noteTypeFor: (card) => this.noteTypeByPath.get(card.key) ?? null,
-            dateFormat: () =>
-                this.noteType.calendar.dateFormat || this.plugin.settings.defaultDateFormat,
+            dateFormatFor: (card, property) => this.dateFormatFor(card.key, property),
             firstDayOfWeek: () => this.plugin.settings.firstDayOfWeek,
             configuredRange: () => this.viewConfig.get('calendarRange'),
             sortMode: () => readSortMode(this.viewConfig.get('calendarTabSort')),
@@ -1049,8 +1049,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             datePropertiesSignature: () => this.datePropertiesSignature(),
             mayWrite: (card, property) => mayWrite(this.guardedTypeFor(card.key), property),
             guardWrite: (card, property) => guardWrite(this.guardedTypeFor(card.key), property),
-            dateFormat: () =>
-                this.noteType.calendar.dateFormat || this.plugin.settings.defaultDateFormat,
+            dateFormatFor: (card, property) => this.dateFormatFor(card.key, property),
             firstDayOfWeek: () => this.plugin.settings.firstDayOfWeek,
             noteTypeFor: (card) => this.noteTypeByPath.get(card.key) ?? null,
             configuredRange: () => this.viewConfig.get('timelineRange'),
@@ -1121,8 +1120,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
                 this.relationshipCardinalityFor('parent', path, parentPath),
             childCardinalityFor: (path, childPath) =>
                 this.relationshipCardinalityFor('child', path, childPath),
-            dateFormat: () =>
-                this.noteType.calendar.dateFormat || this.plugin.settings.defaultDateFormat,
+            dateFormatFor: (card, property) => this.dateFormatFor(card.key, property),
             noteTypeFor: (card) => this.noteTypeByPath.get(card.key) ?? null,
             statusColorFor: (card) => this.statusColorFor(card),
             statusLabelFor: (card) => this.statusLabelFor(card),
@@ -2604,6 +2602,23 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
     private guardedTypeFor(path: string): NoteType | undefined {
         const typeId = this.noteTypeByPath.get(path)?.id
         return typeId ? findNoteType(this.plugin, typeId) : undefined
+    }
+
+    /**
+     * The momentjs format a date is written into `property` on the note at
+     * `path` with (issue #232): ISO from the property's type (the Starter Kit
+     * declaration, else Obsidian's property type), so a `date` never gets a
+     * time and a `datetime` always does; an untyped property uses the
+     * card's own type's format, else the board's, else the global one.
+     */
+    private dateFormatFor(path: string, property: string): string {
+        const own = this.guardedTypeFor(path)
+        const type = declaredTypeOf(own, property) ?? propertyTypeLookup(this.app)(property)
+        const fallback =
+            own?.calendar.dateFormat ||
+            this.noteType.calendar.dateFormat ||
+            this.plugin.settings.defaultDateFormat
+        return dateFormatForType(type, fallback)
     }
 
     private datePropertiesForPath(path: string): TypeDateProperties {
@@ -5883,9 +5898,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         const date = parseFrontmatterDate(isoDate)
         if (!date) return
         if (!guardWrite(this.guardedTypeFor(card.key), property)) return
-        const dateFormat =
-            this.noteType.calendar.dateFormat || this.plugin.settings.defaultDateFormat
-        const formatted = formatDate(date, dateFormat)
+        const formatted = formatDate(date, this.dateFormatFor(card.key, property))
         await setProperty(this.app, card.file, property, formatted)
         this.applyCardWrite(card, property, formatted)
     }

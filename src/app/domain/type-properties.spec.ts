@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 import {
+    dateFormatForType,
     datePropertiesForType,
     estimateConfigForType,
     plannedPropertiesForType,
@@ -114,5 +115,17 @@ describe('plannedPropertiesForType', () => {
         expect(plannedPropertiesForType(settings, type).some((p) => p.role === 'Estimate')).toBe(
             false
         )
+    })
+})
+
+describe('dateFormatForType (issue #232)', () => {
+    it('a typed date property is written in ISO, whatever the board format', () => {
+        expect(dateFormatForType('date', 'DD/MM/YYYY HH:mm')).toBe('YYYY-MM-DD')
+        expect(dateFormatForType('datetime', 'DD/MM/YYYY')).toBe('YYYY-MM-DDTHH:mm')
+    })
+
+    it('an untyped or other property keeps the configured format', () => {
+        expect(dateFormatForType(null, 'DD/MM/YYYY')).toBe('DD/MM/YYYY')
+        expect(dateFormatForType('text', 'YYYY-MM-DD')).toBe('YYYY-MM-DD')
     })
 })

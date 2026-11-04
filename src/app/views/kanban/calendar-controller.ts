@@ -89,8 +89,11 @@ export interface CalendarHost {
     minutesPerDay(): number
     /** The card's recognized note type, or null (→ the "No type" bucket) — panel grouping. */
     noteTypeFor(card: KanbanCard): { id: string; name: string } | null
-    /** The momentjs date format dates are written with. */
-    dateFormat(): string
+    /**
+     * The momentjs format to write `property` on `card` with: ISO from the
+     * property's type (`date` / `datetime`, issue #232), else the configured format.
+     */
+    dateFormatFor(card: KanbanCard, property: string): string
     firstDayOfWeek(): number
     /** Raw per-view `calendarRange` option (validated here against the override). */
     configuredRange(): unknown
@@ -517,9 +520,10 @@ export class CalendarController {
         if (!date) return
         // An undeclared date property is not created (issue #232).
         if (!properties.every((property) => this.host.guardWrite(card, property))) return
-        const value = formatDate(date, this.host.dateFormat())
-        for (const property of properties)
+        for (const property of properties) {
+            const value = formatDate(date, this.host.dateFormatFor(card, property))
             await setProperty(this.host.app, card.file, property, value)
+        }
     }
 
     private anchorLabel(anchor: Date, range: CalendarRange): string {

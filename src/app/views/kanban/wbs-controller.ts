@@ -178,7 +178,11 @@ export interface WbsHost {
      */
     parentCardinalityFor(path: string, parentPath: string): LinkCardinality
     childCardinalityFor(path: string, childPath: string): LinkCardinality
-    dateFormat(): string
+    /**
+     * The momentjs format to write `property` on `card` with: ISO from the
+     * property's type (`date` / `datetime`, issue #232), else the configured format.
+     */
+    dateFormatFor(card: KanbanCard, property: string): string
     noteTypeFor(card: KanbanCard): { id: string; name: string } | null
     /** Resolved status column color/label for the row's dot (null = neutral). */
     statusColorFor(card: KanbanCard): string | null
@@ -1494,7 +1498,7 @@ export class WbsController {
             this.host.app,
             card.file,
             property,
-            formatDate(date, this.host.dateFormat())
+            formatDate(date, this.host.dateFormatFor(card, property))
         )
     }
 

@@ -108,8 +108,11 @@ export interface TimelineHost {
     mayWrite(card: KanbanCard, property: string): boolean
     /** Like {@link mayWrite}, but shows a notice when the write is refused. */
     guardWrite(card: KanbanCard, property: string): boolean
-    /** The momentjs format dates are written with. */
-    dateFormat(): string
+    /**
+     * The momentjs format to write `property` on `card` with: ISO from the
+     * property's type (`date` / `datetime`, issue #232), else the configured format.
+     */
+    dateFormatFor(card: KanbanCard, property: string): string
     firstDayOfWeek(): number
     /** The card's recognized note type, or null (→ the "No type" bucket). */
     noteTypeFor(card: KanbanCard): { id: string; name: string } | null
@@ -547,7 +550,7 @@ export class TimelineController {
         const date = addDays(window.start, dayOffsetAtPct(pct, window))
         const property = this.host.startProperty(card)
         if (!this.host.guardWrite(card, property)) return
-        const start = formatDate(date, this.host.dateFormat())
+        const start = formatDate(date, this.host.dateFormatFor(card, property))
         await setProperty(this.host.app, card.file, property, start)
     }
 
@@ -598,7 +601,7 @@ export class TimelineController {
             this.host.app,
             card.file,
             property,
-            formatDate(addDays(current, dayDelta), this.host.dateFormat())
+            formatDate(addDays(current, dayDelta), this.host.dateFormatFor(card, property))
         )
     }
 
@@ -634,7 +637,10 @@ export class TimelineController {
         if (!start) return
         const resized = resizeFromStart(estimate.spanDays, dayDelta)
         await setProperties(this.host.app, card.file, {
-            [startProperty]: formatDate(addDays(start, resized.startDelta), this.host.dateFormat()),
+            [startProperty]: formatDate(
+                addDays(start, resized.startDelta),
+                this.host.dateFormatFor(card, startProperty)
+            ),
             [config.property]: daysToUnit(resized.estimate, config.unit, minutesPerDay)
         })
     }
@@ -752,7 +758,7 @@ export class TimelineController {
             this.host.app,
             card.file,
             property,
-            formatDate(date, this.host.dateFormat())
+            formatDate(date, this.host.dateFormatFor(card, property))
         )
     }
 

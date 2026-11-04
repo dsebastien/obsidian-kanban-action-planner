@@ -161,3 +161,23 @@ export function plannedPropertiesForType(
     }
     return planned
 }
+
+/** The ISO formats a typed date property is written with (issue #232). */
+export const ISO_DATE_FORMAT = 'YYYY-MM-DD'
+export const ISO_DATETIME_FORMAT = 'YYYY-MM-DDTHH:mm'
+
+/**
+ * The momentjs format to write a date into a property of `propertyType`
+ * (issue #232): a `date` property gets `YYYY-MM-DD`, a `datetime` property
+ * `YYYY-MM-DDTHH:mm`, whatever the board's free-text format says. Only an
+ * untyped (or otherwise typed) property uses `fallback`, the configured
+ * date format.
+ */
+export function dateFormatForType(
+    propertyType: string | null | undefined,
+    fallback: string
+): string {
+    if (propertyType === 'date') return ISO_DATE_FORMAT
+    if (propertyType === 'datetime') return ISO_DATETIME_FORMAT
+    return fallback
+}

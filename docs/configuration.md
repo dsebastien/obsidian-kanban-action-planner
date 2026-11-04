@@ -341,8 +341,11 @@ you drag a card to schedule it:
 | Scheduled date | `date_scheduled` | The **Unplanned** tab + the calendar's scheduled day. |
 | Due date       | `date_due`       | The **No deadline** tab + the calendar's due day.     |
 
-Dates are parsed leniently (a `YYYY-MM-DD` or full date string, or a real date value) and
-written with the note type's momentjs **date format** (default `YYYY-MM-DD`). The calendar's
+Dates are parsed leniently (a `YYYY-MM-DD` or full date string, or a real date value). They are
+written in the form the property's **type** asks for: a **Date** property gets `YYYY-MM-DD`, a
+**Date & time** property gets `YYYY-MM-DDTHH:mm`. The type comes from the Starter Kit note type,
+else from Obsidian's property types. Only a property without a date type uses the note type's
+momentjs **date format** (default `YYYY-MM-DD`). The calendar's
 default **range** (week/month/quarter/year) and the **panel sort** (manual order / name /
 a property) are view options. To narrow the calendar (grid and panel together), use the
 toolbar **filter box**; see the usage guide's "Filtering" section.

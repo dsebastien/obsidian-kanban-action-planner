@@ -1667,3 +1667,8 @@ Markdown)`, `Export ideal week (JSON)`, `Export ideal week (Markdown)`); the for
     in the `.base`) still wins for every card; an untyped card uses the board's resolved
     properties. Render signatures carry `datePropertiesSignature()` (every visible type's
     triple), so a per-type change re-renders.
+    **Write format follows the property type:** every date write (calendar, timeline, WBS,
+    prompts) formats through `dateFormatFor(card, property)` → `dateFormatForType`: a `date`
+    property (Starter Kit declaration, else Obsidian's `metadataTypeManager` widget) gets
+    `YYYY-MM-DD`, a `datetime` gets `YYYY-MM-DDTHH:mm`; only an untyped property uses the free-text
+    format (card's own type, else the board's type, else `defaultDateFormat`).
