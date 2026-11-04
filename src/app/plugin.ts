@@ -53,7 +53,11 @@ import {
     linkedNotesEventHandlers,
     linkedTimeConfigForType
 } from './services/linked-time.service'
-import type { TrackedTimeResult } from './domain/linked-time'
+import type { TrackedTimeReport } from './domain/tracked-time-decision'
+import {
+    LowerTimeWatch,
+    recomputeTrackedTimeWithDecisions
+} from './services/tracked-time-decision.service'
 
 /**
  * The plugin's public API for vault scripts:
@@ -62,11 +66,13 @@ import type { TrackedTimeResult } from './domain/linked-time'
 export interface KanbanActionPlannerApi {
     /**
      * The tracked time of the note at `path`: its entries plus, when its note
-     * type takes time from linked notes, those notes (the exact values
-     * "Recompute tracked time" stores). Read-only. Null when no markdown note
-     * exists at `path`.
+     * type takes time from linked notes, those notes (the values "Recompute
+     * tracked time" stores), with `storedMinutes` and `decision`: set when
+     * the stored duration is above `minutes`, which a recompute never writes
+     * without the user (business rule 79). Read-only. Null when no markdown
+     * note exists at `path`.
      */
-    computeTrackedTime(path: string): Promise<TrackedTimeResult | null>
+    computeTrackedTime(path: string): Promise<TrackedTimeReport | null>
 }
 
 export class KanbanActionPlannerPlugin extends Plugin {
@@ -105,6 +111,14 @@ export class KanbanActionPlannerPlugin extends Plugin {
     get linkedNotesIndex(): LinkedNotesIndex {
         this.linkedIndex ??= new LinkedNotesIndex(this.app)
         return this.linkedIndex
+    }
+
+    private lowerWatch: LowerTimeWatch | null = null
+
+    /** Notes whose stored time is above their entries and sessions (rule 79; built lazily). */
+    get lowerTimeWatch(): LowerTimeWatch {
+        this.lowerWatch ??= new LowerTimeWatch(this)
+        return this.lowerWatch
     }
 
     /** Status-bar item showing the running session / pomodoro (issue #172). */
@@ -191,8 +205,11 @@ export class KanbanActionPlannerPlugin extends Plugin {
             () => this.linkedIndex,
             (targets) => {
                 for (const view of this.openKanbanViews) view.onLinkedNotesChanged(targets)
+                // Never lowers a stored time: only checks, then tells (rule 79).
+                this.lowerTimeWatch.note(targets)
             }
         )
+        this.register(() => this.lowerWatch?.dispose())
         this.registerEvent(this.app.metadataCache.on('changed', (file) => handlers.changed(file)))
         this.registerEvent(this.app.metadataCache.on('resolve', (file) => handlers.resolve(file)))
         this.registerEvent(
@@ -457,6 +474,19 @@ export class KanbanActionPlannerPlugin extends Plugin {
             checkCallback: (checking: boolean): boolean => {
                 if (!this.settings.activeTimeSession) return false
                 if (!checking) void stopTimeSession(this)
+                return true
+            }
+        })
+        // Rule 79: recompute the active note plus the notes the background
+        // check flagged; a stored time above the computed one is asked about.
+        this.addCommand({
+            id: 'recompute-tracked-time',
+            name: 'Recompute tracked time',
+            checkCallback: (checking: boolean): boolean => {
+                const note = activeNote(this)
+                const files = [...(note ? [note] : []), ...this.lowerTimeWatch.flaggedFiles()]
+                if (files.length === 0) return false
+                if (!checking) void recomputeTrackedTimeWithDecisions(this, files)
                 return true
             }
         })

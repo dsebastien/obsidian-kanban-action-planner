@@ -165,8 +165,6 @@ import {
     isTrackingPath,
     liveTrackedMinutesOf,
     readTrackedMinutesOf,
-    recomputeTrackedTime,
-    saveTotalTrackedTime,
     startPomodoro,
     startTimeSession,
     stopPomodoro,
@@ -174,6 +172,10 @@ import {
     trackingPropertiesForType
 } from '../../services/time-tracking.service'
 import type { TrackingProperties } from '../../services/time-tracking.service'
+import {
+    recomputeTrackedTimeWithDecisions,
+    saveTotalTrackedTimeWithDecision
+} from '../../services/tracked-time-decision.service'
 import {
     addTrackingCommand,
     hasTrackingCommand,
@@ -1082,8 +1084,8 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             weekBudgetFor: (card) => this.weekBudgetFor(card),
             lifecycleDatesFor: (card) => this.lifecycleDatesFor(card),
             saveTotalTracked: (card, minutes) =>
-                saveTotalTrackedTime(this.plugin, card.file, minutes),
-            recomputeTracked: (card) => recomputeTrackedTime(this.plugin, card.file),
+                saveTotalTrackedTimeWithDecision(this.plugin, card.file, minutes),
+            recomputeTracked: (card) => recomputeTrackedTimeWithDecisions(this.plugin, [card.file]),
             linkedNotesFor: (card) => this.linkedNotesFor(card),
             scheduledProperty: () => this.scheduledDateProperty,
             deadlineProperty: () => this.dueDateProperty,

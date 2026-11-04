@@ -133,7 +133,8 @@ export interface WbsHost {
     /** Lifecycle dates (issue #172, phase C): committed / started / due / done, null when unset. */
     lifecycleDatesFor(card: KanbanCard): LifecycleDates
     saveTotalTracked(card: KanbanCard, minutes: number): Promise<void>
-    recomputeTracked(card: KanbanCard): Promise<number | null>
+    /** Recompute; a stored time above the computed one is asked about (rule 79). */
+    recomputeTracked(card: KanbanCard): Promise<void>
     /**
      * The notes giving their time to the card, with their minutes (its type
      * takes time from linked notes); empty otherwise.

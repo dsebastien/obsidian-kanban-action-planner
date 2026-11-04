@@ -12,8 +12,10 @@ import {
     stopTimeSession,
     formatTrackedMinutes,
     liveTrackedMinutesOf,
+    fileCreatedMs,
     readDurationMinutes,
     recomputeTrackedTime,
+    saveTotalTrackedTime,
     trackingPropertiesForType
 } from './time-tracking.service'
 
@@ -167,14 +169,14 @@ describe('stopTimeSession on a template placeholder (issue #218)', () => {
 describe('recomputeTrackedTime drops empty items (issue #218)', () => {
     test('[null] becomes an empty list; the duration is left alone', async () => {
         const { fm, plugin, file } = setup({ time_spent: 45, time_entries: [null] })
-        expect(await recomputeTrackedTime(plugin, file)).toBeNull()
+        expect((await recomputeTrackedTime(plugin, file)).minutes).toBeNull()
         expect(fm['time_entries']).toEqual([])
         expect(fm['time_spent']).toBe(45)
     })
 
     test('[entry, null] keeps the entry and recomputes from it', async () => {
-        const { fm, plugin, file } = setup({ time_spent: 999, time_entries: [old30, null] })
-        expect(await recomputeTrackedTime(plugin, file)).toBe(30)
+        const { fm, plugin, file } = setup({ time_spent: 10, time_entries: [old30, null] })
+        expect((await recomputeTrackedTime(plugin, file)).minutes).toBe(30)
         expect(fm['time_entries']).toEqual([old30])
         expect(fm['time_spent']).toBe(30)
         expect(fm['date_last_session']).toBe('2026-09-08')
@@ -274,7 +276,7 @@ describe('recomputeTrackedTime with time from linked notes', () => {
 
     test('stores entries + linked minutes and the later last-session date', async () => {
         const { v, plugin } = linkedSetup(true, notes())
-        expect(await recomputeTrackedTime(plugin, v.file(RUN))).toBe(80)
+        expect((await recomputeTrackedTime(plugin, v.file(RUN), 'drop')).minutes).toBe(80)
         const fm = v.frontmatter.get(RUN) ?? {}
         expect(fm['time_spent']).toBe(80)
         expect(fm['date_last_session']).toBe('2026-10-20')
@@ -282,7 +284,7 @@ describe('recomputeTrackedTime with time from linked notes', () => {
 
     test('off for the type: entries only, as before', async () => {
         const { v, plugin } = linkedSetup(false, notes())
-        expect(await recomputeTrackedTime(plugin, v.file(RUN))).toBe(90)
+        expect((await recomputeTrackedTime(plugin, v.file(RUN), 'drop')).minutes).toBe(90)
         expect(v.frontmatter.get(RUN)?.['date_last_session']).toBe('2026-10-02')
     })
 
@@ -296,7 +298,7 @@ describe('recomputeTrackedTime with time from linked notes', () => {
                 time_spent: 25
             }
         })
-        expect(await recomputeTrackedTime(plugin, v.file(RUN))).toBe(25)
+        expect((await recomputeTrackedTime(plugin, v.file(RUN))).minutes).toBe(25)
         expect(v.frontmatter.get(RUN)?.['date_last_session']).toBe('2026-11-03')
     })
 
@@ -314,6 +316,8 @@ describe('recomputeTrackedTime with time from linked notes', () => {
             'Sessions/2026-10-20 Games.md'
         ])
         expect(v.frontmatter.get(RUN)?.['time_spent']).toBe(999)
+        expect(result?.storedMinutes).toBe(999)
+        expect(result?.decision).toEqual({ stored: 999, computed: 80, difference: 919 })
         expect(await computeTrackedTime(plugin, 'missing.md')).toBeNull()
     })
 
@@ -327,7 +331,7 @@ describe('recomputeTrackedTime with time from linked notes', () => {
                 time_spent: 0
             }
         })
-        expect(await recomputeTrackedTime(plugin, v.file(RUN))).toBeNull()
+        expect((await recomputeTrackedTime(plugin, v.file(RUN))).minutes).toBeNull()
         expect(v.frontmatter.get(RUN)).toEqual({
             time_spent: 120,
             date_last_session: '2026-11-03'
@@ -336,9 +340,9 @@ describe('recomputeTrackedTime with time from linked notes', () => {
 
     test('nothing changed: no write at all', async () => {
         const { v, plugin, writes } = linkedSetup(true, notes())
-        await recomputeTrackedTime(plugin, v.file(RUN))
+        await recomputeTrackedTime(plugin, v.file(RUN), 'drop')
         expect(writes.count).toBe(1)
-        expect(await recomputeTrackedTime(plugin, v.file(RUN))).toBe(80)
+        expect((await recomputeTrackedTime(plugin, v.file(RUN))).minutes).toBe(80)
         expect(writes.count).toBe(1)
     })
 
@@ -439,8 +443,12 @@ describe('liveTrackedMinutesOf (the WBS total of a linked-time target)', () => {
         description: '[[Run 2026-10-02]]'
     }
 
-    test('entries + linked minutes, ignoring a stale stored duration', () => {
-        expect(live({ time_spent: 999, time_entries: [old30, linkedEntry] }, 50)).toBe(80)
+    test('entries + linked minutes, ignoring a stale lower stored duration', () => {
+        expect(live({ time_spent: 10, time_entries: [old30, linkedEntry] }, 50)).toBe(80)
+    })
+
+    test('never below a higher stored duration (rule 79)', () => {
+        expect(live({ time_spent: 999, time_entries: [old30, linkedEntry] }, 50)).toBe(999)
     })
 
     test('linked minutes alone are enough', () => {
@@ -454,5 +462,136 @@ describe('liveTrackedMinutesOf (the WBS total of a linked-time target)', () => {
 
     test('off for the type: the stored duration', () => {
         expect(live({ time_spent: 999, time_entries: [old30] }, 50, null)).toBe(999)
+    })
+})
+
+describe('never lower a stored tracked time (rule 79)', () => {
+    const RUN = 'Activities/Run (Activity).md'
+    const notes = (fm: Record<string, unknown>): Record<string, Record<string, unknown>> => ({
+        [RUN]: { time_entries: [old30], date_last_session: '2026-10-02', ...fm },
+        's.md': {
+            tags: ['type/session'],
+            related_activities: ['[[Run (Activity)]]'],
+            date: '2026-10-02',
+            time_spent: 50
+        }
+    })
+
+    test('no choice: the higher stored value stays and the decision is returned', async () => {
+        const { v, plugin, writes } = linkedSetup(true, notes({ time_spent: 120 }))
+        const outcome = await recomputeTrackedTime(plugin, v.file(RUN))
+        expect(outcome).toEqual({
+            minutes: 120,
+            decision: { stored: 120, computed: 80, difference: 40 },
+            adjusted: 0
+        })
+        expect(v.frontmatter.get(RUN)?.['time_spent']).toBe(120)
+        expect(writes.count).toBe(0)
+    })
+
+    test('keep: a manual adjustment entry on the created day, then nothing to do', async () => {
+        const { v, plugin, writes } = linkedSetup(
+            true,
+            notes({ time_spent: 120, Created: '2026-01-05T09:12:00' })
+        )
+        const outcome = await recomputeTrackedTime(plugin, v.file(RUN), 'keep')
+        expect(outcome).toEqual({ minutes: 120, decision: null, adjusted: 40 })
+        const fm = v.frontmatter.get(RUN) ?? {}
+        expect(fm['time_entries']).toEqual([
+            old30,
+            {
+                startTime: '2026-01-05T00:00:00',
+                endTime: '2026-01-05T00:40:00',
+                description: 'Manual adjustment'
+            }
+        ])
+        expect(fm['time_spent']).toBe(120)
+        expect(fm['date_last_session']).toBe('2026-10-02')
+        expect(writes.count).toBe(1)
+        expect(await recomputeTrackedTime(plugin, v.file(RUN))).toEqual({
+            minutes: 120,
+            decision: null,
+            adjusted: 0
+        })
+        expect(writes.count).toBe(1)
+        expect((await computeTrackedTime(plugin, RUN))?.decision).toBeNull()
+    })
+
+    test('keep without created: dated on the file creation day', async () => {
+        const { v, plugin } = linkedSetup(true, notes({ time_spent: 100 }))
+        const ctime = new Date(2025, 4, 6, 17, 30).getTime()
+        Object.assign(v.file(RUN), { stat: { ctime, mtime: ctime, size: 0 } })
+        expect(fileCreatedMs(v.file(RUN))).toBe(ctime)
+        await recomputeTrackedTime(plugin, v.file(RUN), 'keep')
+        const entries = v.frontmatter.get(RUN)?.['time_entries'] as { startTime: string }[]
+        expect(entries[1]?.startTime).toBe('2025-05-06T00:00:00')
+    })
+
+    test('drop: the computed value is written', async () => {
+        const { v, plugin } = linkedSetup(true, notes({ time_spent: 120 }))
+        expect((await recomputeTrackedTime(plugin, v.file(RUN), 'drop')).minutes).toBe(80)
+        expect(v.frontmatter.get(RUN)?.['time_spent']).toBe(80)
+        expect(v.frontmatter.get(RUN)?.['time_entries']).toEqual([old30])
+    })
+
+    test('a lower stored value is raised without asking', async () => {
+        const { v, plugin } = linkedSetup(true, notes({ time_spent: 10 }))
+        expect(await recomputeTrackedTime(plugin, v.file(RUN))).toEqual({
+            minutes: 80,
+            decision: null,
+            adjusted: 0
+        })
+        expect(v.frontmatter.get(RUN)?.['time_spent']).toBe(80)
+    })
+
+    test('a timer stop only adds: never below the stored value', async () => {
+        const { fm, plugin } = setup({ time_spent: 500, time_entries: [old30] })
+        await stopTimeSession(plugin, END)
+        expect(fm['time_spent']).toBe(520)
+    })
+})
+
+describe('saveTotalTrackedTime never lowers a stored total (rule 79)', () => {
+    test('a higher stored total: nothing written, the decision returned', async () => {
+        const { fm, plugin, file } = setup({ total_time_spent: 300, time_spent: 60 })
+        expect(await saveTotalTrackedTime(plugin, file, 200)).toEqual({
+            stored: 300,
+            computed: 200,
+            difference: 100
+        })
+        expect(fm['total_time_spent']).toBe(300)
+    })
+
+    test('drop writes the subtree total', async () => {
+        const { fm, plugin, file } = setup({ total_time_spent: 300, time_spent: 60 })
+        expect(await saveTotalTrackedTime(plugin, file, 200, 'drop')).toBeNull()
+        expect(fm['total_time_spent']).toBe(200)
+    })
+
+    test("keep adds the difference to the note's own time; the total stays", async () => {
+        const { fm, plugin, file } = setup({
+            total_time_spent: 300,
+            time_spent: 60,
+            created: '2026-02-01'
+        })
+        expect(await saveTotalTrackedTime(plugin, file, 200, 'keep')).toBeNull()
+        expect(fm['total_time_spent']).toBe(300)
+        expect(fm['time_spent']).toBe(160)
+        expect(fm['time_entries']).toEqual([
+            {
+                startTime: '2026-02-01T00:00:00',
+                endTime: '2026-02-01T01:40:00',
+                description: 'Manual adjustment'
+            }
+        ])
+    })
+
+    test('a lower or missing stored total is written without asking', async () => {
+        const lower = setup({ total_time_spent: 100 })
+        expect(await saveTotalTrackedTime(lower.plugin, lower.file, 200)).toBeNull()
+        expect(lower.fm['total_time_spent']).toBe(200)
+        const missing = setup({})
+        await saveTotalTrackedTime(missing.plugin, missing.file, 200)
+        expect(missing.fm['total_time_spent']).toBe(200)
     })
 })
