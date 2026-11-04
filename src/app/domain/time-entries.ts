@@ -28,17 +28,22 @@ function pad(n: number): string {
     return n < 10 ? `0${n}` : String(n)
 }
 
+/** A year on at least four digits (ISO `YYYY`). */
+function year(date: Date): string {
+    return String(date.getFullYear()).padStart(4, '0')
+}
+
 /** A `Date` as a local ISO datetime without offset (`YYYY-MM-DDTHH:mm:ss`). */
 export function formatEntryDateTime(date: Date): string {
     return (
-        `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}` +
+        `${year(date)}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}` +
         `T${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`
     )
 }
 
 /** A `Date` as a local ISO day (`YYYY-MM-DD`). */
 export function formatEntryDate(date: Date): string {
-    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
+    return `${year(date)}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
 }
 
 /**

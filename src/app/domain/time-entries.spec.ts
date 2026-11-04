@@ -323,3 +323,12 @@ describe('withoutEmptyEntries (issue #218)', () => {
         expect(withoutEmptyEntries('text')).toBeNull()
     })
 })
+
+describe('formatEntryDateTime pads the year', () => {
+    test('a year below 1000 keeps four digits and parses back', () => {
+        const date = new Date(999, 0, 2, 3, 4, 5)
+        expect(formatEntryDateTime(date)).toBe('0999-01-02T03:04:05')
+        expect(formatEntryDate(date)).toBe('0999-01-02')
+        expect(parseEntryDateTime(formatEntryDateTime(date))?.getTime()).toBe(date.getTime())
+    })
+})

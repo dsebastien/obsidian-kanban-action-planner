@@ -73,14 +73,14 @@ export class TrackedTimeDecisionSession {
             const applied = await state.row.apply(choice)
             state.status = 'done'
             state.message =
-                applied.minutes === null
+                applied.minutes === null || (choice === 'keep' && applied.adjusted === 0)
                     ? 'Nothing to decide any more'
                     : choice === 'keep'
                       ? `Kept ${this.format(applied.minutes)}: ${this.format(applied.adjusted)} added as a manual adjustment`
                       : `Set to ${this.format(applied.minutes)}`
         } catch {
             state.status = 'failed'
-            state.message = 'Not saved: the note could not be written'
+            state.message = 'Not saved: the note was not changed'
         }
         await this.refreshOpen()
         this.onChange()

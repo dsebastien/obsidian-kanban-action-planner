@@ -243,6 +243,29 @@ describe('planRecompute (rule 79)', () => {
         expect(fileDay?.startTime).toBe('2020-01-01T00:00:00')
     })
 
+    test('keep with a difference too large for a date: nothing kept, the decision stays', () => {
+        const huge = { ...fm, time_spent: 2_000_000_000 }
+        const plan = planRecompute({ ...input(huge, 'keep'), now: Date.now() })
+        expect(plan.decision).toEqual({
+            stored: 2_000_000_000,
+            computed: 80,
+            difference: 2_000_000_000 - 80
+        })
+        expect(plan.duration).toBeUndefined()
+        expect(plan.entries).toBeUndefined()
+        expect(plan.adjusted).toBe(0)
+        expect(plan.minutes).toBe(2_000_000_000)
+    })
+
+    test('a difference reaching back before year 1000 still round-trips (padded year)', () => {
+        const now = new Date(2026, 10, 4).getTime()
+        const plan = planRecompute({ ...input({ ...fm, time_spent: 600_000_080 }, 'keep'), now })
+        expect(plan.adjusted).toBe(600_000_000)
+        const added = plan.entries?.[1] as { startTime: string } | undefined
+        expect(added?.startTime.startsWith('0')).toBe(true)
+        expect(plan.result.minutes).toBe(600_000_080)
+    })
+
     test('drop: the computed value is written', () => {
         const plan = planRecompute(input(fm, 'drop'))
         expect(plan.duration).toBe(80)

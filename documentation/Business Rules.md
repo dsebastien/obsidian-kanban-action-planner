@@ -1577,9 +1577,11 @@ Markdown)`, `Export ideal week (JSON)`, `Export ideal week (Markdown)`); the for
     value (rounded): a second recompute writes nothing. For a rollup, Keep appends that entry
     to the row's OWN note and adds its minutes to its duration (the timer-stop append), so the
     subtree total equals the stored total, which is not rewritten. **Drop** writes the computed
-    value. Keep / Drop are planned again inside the write from the note as written
+    value. A Keep whose entry does not read back as the difference (a difference too large
+    for a date) keeps nothing and the decision stays open. Keep / Drop are planned again inside the write from the note as written
     (`processFrontMatter`), so an entry written meanwhile (TaskNotes, a timer stop) is kept;
-    a rollup's subtree total is computed again at click time.
+    a rollup's subtree is built again at click time, and its stored total is read again inside
+    the write (no longer above the total: nothing is appended).
 
     **Explicit** (WBS **Recompute tracked time** / **Save total tracked time**, palette
     **Recompute tracked time**): every write that lowers no duration happens at once (entry
@@ -1596,7 +1598,8 @@ Markdown)`, `Export ideal week (JSON)`, `Export ideal week (Markdown)`); the for
     note whose type takes linked time and whose stored duration is above the computed one is
     never written: it is flagged, and one notice ("N notes hold more time than their entries
     and sessions: run Recompute tracked time to decide") shows only when a note newly becomes
-    flagged. A rename moves the flag. Nothing is checked on load; nothing runs after unload.
+    flagged. One check runs at a time; notes arriving during it are checked in a second pass.
+    A rename moves the flag. Nothing is checked on load; nothing runs after unload.
     The timer stop only adds minutes (rule 47); no other write path recomputes the duration.
     The WBS live total of a linked-time note never shows less than its stored duration.
     `computeTrackedTime` keeps `minutes` = computed and adds `storedMinutes` and `decision`

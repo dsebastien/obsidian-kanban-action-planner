@@ -625,6 +625,22 @@ describe('saveTotalTrackedTime never lowers a stored total (rule 79)', () => {
         expect(fm['date_last_session']).toBe('2026-02-01')
     })
 
+    test('keep re-reads the stored total inside the write: settled meanwhile = no append', async () => {
+        const { fm, plugin, file } = setup({ total_time_spent: 300, time_spent: 60 })
+        const original = plugin.app.fileManager.processFrontMatter.bind(plugin.app.fileManager)
+        plugin.app.fileManager.processFrontMatter = (f, fn) => {
+            fm['total_time_spent'] = 180 // another device saved a lower total
+            return original(f, fn)
+        }
+        expect(await saveTotalTrackedTime(plugin, file, 200, 'keep')).toEqual({
+            decision: null,
+            minutes: null,
+            adjusted: 0
+        })
+        expect(fm['time_entries']).toBeUndefined()
+        expect(fm['time_spent']).toBe(60)
+    })
+
     test('keep never moves the last session earlier', async () => {
         const { fm, plugin, file } = setup({
             total_time_spent: 300,

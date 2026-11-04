@@ -68,6 +68,8 @@ export async function recomputeTrackedTimeWithDecisions(
             decision,
             apply: async (choice) => {
                 const applied = await recomputeTrackedTime(plugin, file, choice)
+                // Still open after a choice: the entry could not be stored.
+                if (applied.decision) throw new Error('Manual adjustment not stored')
                 plugin.lowerTimeWatch.forget(file.path)
                 return { minutes: applied.minutes, adjusted: applied.adjusted }
             },
@@ -129,6 +131,7 @@ export async function saveTotalTrackedTimeWithDecision(
                 const now = total()
                 if (now === null) return { minutes: null, adjusted: 0 }
                 const applied = await saveTotalTrackedTime(plugin, file, now, choice)
+                if (applied.decision) throw new Error('Manual adjustment not stored')
                 return { minutes: applied.minutes, adjusted: applied.adjusted }
             },
             refresh: () => totalDecision(plugin, file, total)
@@ -175,6 +178,9 @@ export class LowerTimeWatch {
     private readonly flagged = new Set<string>()
     private timer: number | null = null
     private disposed = false
+    /** The check running now, and whether notes arrived during it. */
+    private running: Promise<void> | null = null
+    private again = false
 
     constructor(plugin: KanbanActionPlannerPlugin, deps: LowerTimeWatchDeps = defaultDeps) {
         this.plugin = plugin
@@ -233,8 +239,31 @@ export class LowerTimeWatch {
         this.pending.clear()
     }
 
-    /** Check the pending notes; one notice when a note newly holds more time. */
-    async check(): Promise<void> {
+    /**
+     * Check the pending notes; one notice when a note newly holds more time.
+     * One run at a time: a call during a run returns that run, which goes
+     * round once more for the notes that arrived meanwhile.
+     */
+    check(): Promise<void> {
+        if (this.running) {
+            this.again = true
+            return this.running
+        }
+        const run = async (): Promise<void> => {
+            try {
+                do {
+                    this.again = false
+                    await this.checkOnce()
+                } while (this.again && !this.disposed)
+            } finally {
+                this.running = null
+            }
+        }
+        this.running = run()
+        return this.running
+    }
+
+    private async checkOnce(): Promise<void> {
         const paths = [...this.pending]
         this.pending.clear()
         let added = 0

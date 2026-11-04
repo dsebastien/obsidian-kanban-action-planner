@@ -6,6 +6,7 @@ import type { NoteType } from '../domain/note-type'
 import {
     buildTimeEntry,
     durationAfterEntryChange,
+    entryMinutes,
     latestEntryDate,
     numericDuration,
     parseTimeEntries,
@@ -248,7 +249,7 @@ export async function stopTimeSession(
     const now = Math.max(session.startedAt, endedAt)
     const properties = await trackingPropertiesFor(plugin, file)
     const entry = buildTimeEntry(session.startedAt, now)
-    const { total, parsed } = await appendTimeEntry(plugin, file, properties, entry)
+    const { total, parsed } = await appendTimeEntry(plugin, file, properties, () => entry)
     await plugin.saveSettings('cards')
     const perDay = plugin.settings.minutesPerDay
     const elapsed = elapsedSessionMinutes(session.startedAt, now)
@@ -288,14 +289,19 @@ async function appendTimeEntry(
     plugin: KanbanActionPlannerPlugin,
     file: TFile,
     properties: TrackingProperties,
-    entry: TimeEntry
-): Promise<{ total: number; parsed: TimeEntry[] }> {
+    /** The entry to append, decided from the note as written; null = append nothing. */
+    entryFor: (fm: Record<string, unknown>) => TimeEntry | null
+): Promise<{ total: number; parsed: TimeEntry[]; appended: TimeEntry | null }> {
     const config = await linkedTimeConfigFor(plugin, file)
     let total = 0
     let parsed: TimeEntry[] = []
+    let appended: TimeEntry | null = null
     // Planned from what is on disk, inside the write: an entry another tool
     // (TaskNotes) wrote meanwhile is kept.
     await updateFrontmatter(plugin.app, file, (fm) => {
+        const entry = entryFor(fm)
+        if (!entry) return
+        appended = entry
         const raw = readFrontmatterKey(fm, properties.entries)
         // Existing items are kept verbatim (a shape this version doesn't know is
         // not the plugin's to drop); only the sum reads the well-formed ones. A
@@ -321,7 +327,7 @@ async function appendTimeEntry(
         writeFrontmatterKey(fm, properties.duration, total)
         if (lastSession !== null) writeFrontmatterKey(fm, properties.lastSession, lastSession)
     })
-    return { total, parsed }
+    return { total, parsed, appended }
 }
 
 // ── Session guard (issue #197) ────────────────────────────────────────
@@ -578,19 +584,40 @@ export async function saveTotalTrackedTime(
     if (decision && choice === null) return { decision, minutes: null, adjusted: 0 }
     if (decision && choice === 'keep') {
         const config = await linkedTimeConfigFor(plugin, file)
-        const raw = getFrontmatterValue(plugin.app, file, properties.entries)
         const linked = config ? linkedNotesOf(plugin.linkedNotesIndex, file, config) : []
-        const entry = manualAdjustmentEntry(
-            getFrontmatterValue(plugin.app, file, CREATED_PROPERTY),
-            {
-                earliestDay: earliestTrackedDay(parseTimeEntries(raw), linked),
-                fileCreatedMs: fileCreatedMs(file)
-            },
-            decision.difference,
-            Date.now()
-        )
-        await appendTimeEntry(plugin, file, properties, entry)
-        return { decision: null, minutes: decision.stored, adjusted: decision.difference }
+        const now = Date.now()
+        // The stored total is read again inside the write: when it is no
+        // longer above the subtree total, nothing is appended.
+        const read: { kept: TrackedTimeDecision | null } = { kept: null }
+        const { appended } = await appendTimeEntry(plugin, file, properties, (fm) => {
+            const kept = lowerDecision(
+                readFrontmatterKey(fm, properties.totalDuration),
+                totalMinutes
+            )
+            read.kept = kept
+            if (!kept) return null
+            const entry = manualAdjustmentEntry(
+                readFrontmatterKey(fm, CREATED_PROPERTY),
+                {
+                    earliestDay: earliestTrackedDay(
+                        parseTimeEntries(readFrontmatterKey(fm, properties.entries)),
+                        linked
+                    ),
+                    fileCreatedMs: fileCreatedMs(file)
+                },
+                kept.difference,
+                now
+            )
+            // An entry that does not read back as the difference is not kept.
+            return entryMinutes(entry) === kept.difference ? entry : null
+        })
+        const kept = read.kept
+        if (appended && kept) {
+            return { decision: null, minutes: kept.stored, adjusted: kept.difference }
+        }
+        // Settled meanwhile (nothing to decide: minutes null), or an entry
+        // that cannot be stored (the decision stays open).
+        return { decision: kept, minutes: null, adjusted: 0 }
     }
     if (stored !== totalMinutes) {
         await setProperty(plugin.app, file, properties.totalDuration, totalMinutes)

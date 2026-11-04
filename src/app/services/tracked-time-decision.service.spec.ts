@@ -171,6 +171,26 @@ describe('LowerTimeWatch debounce, notice and lifecycle', () => {
         expect(watch.isFlagged('Activities/Running (Activity).md')).toBe(true)
     })
 
+    test('one check at a time: a call during a run re-runs for the notes that arrived', async () => {
+        const { plugin } = setup({
+            [RUN]: { time_spent: 120 },
+            'Activities/Swim (Activity).md': { time_spent: 100 },
+            's.md': session(50),
+            'w.md': { ...session(30), related_activities: ['[[Swim (Activity)]]'] }
+        })
+        const f = fakeDeps()
+        const watch = new LowerTimeWatch(plugin, f.deps)
+        watch['pending'].add(RUN)
+        const first = watch.check()
+        watch['pending'].add('Activities/Swim (Activity).md')
+        const second = watch.check()
+        expect(second).toBe(first)
+        await first
+        expect(watch.isFlagged(RUN)).toBe(true)
+        expect(watch.isFlagged('Activities/Swim (Activity).md')).toBe(true)
+        expect(watch['running']).toBeNull()
+    })
+
     test('dispose cancels the pending check; no notice after unload', async () => {
         const { plugin } = setup({ [RUN]: { time_spent: 120 }, 's.md': session(50) })
         const f = fakeDeps()
@@ -308,6 +328,14 @@ describe('TrackedTimeDecisionSession (the Keep / Drop dialog)', () => {
         expect(renders).toBeGreaterThan(0)
         await session.decide(0, 'drop') // already decided: ignored
         expect(a.applied).toEqual(['keep'])
+    })
+
+    test('a keep that added nothing says so', async () => {
+        const a = row('A', d(120, 80))
+        a.apply = () => Promise.resolve({ minutes: 120, adjusted: 0 })
+        const session = new TrackedTimeDecisionSession([a], fmt, () => {})
+        await session.decide(0, 'keep')
+        expect(session.states[0]?.message).toBe('Nothing to decide any more')
     })
 
     test('Keep all / Drop all answer every open row', async () => {

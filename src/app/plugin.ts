@@ -124,16 +124,20 @@ export class KanbanActionPlannerPlugin extends Plugin {
 
     /** The active note and whether "Recompute tracked time" applies to it (palette gate). */
     private activeRecompute: { path: string; can: boolean } | null = null
+    /** Sequence of gate refreshes: only the latest one may store its answer. */
+    private activeRecomputeSeq = 0
 
     /** Re-evaluate the palette gate for the active note (async: type recognition). */
     private async refreshActiveRecompute(): Promise<void> {
+        const seq = ++this.activeRecomputeSeq
         const file = activeNote(this)
         if (!file) {
             this.activeRecompute = null
             return
         }
         const can = await canRecomputeTrackedTime(this, file)
-        if (activeNote(this)?.path === file.path) this.activeRecompute = { path: file.path, can }
+        if (seq !== this.activeRecomputeSeq || activeNote(this)?.path !== file.path) return
+        this.activeRecompute = { path: file.path, can }
     }
 
     /** Status-bar item showing the running session / pomodoro (issue #172). */
@@ -222,6 +226,9 @@ export class KanbanActionPlannerPlugin extends Plugin {
                 for (const view of this.openKanbanViews) view.onLinkedNotesChanged(targets)
                 // Never lowers a stored time: only checks, then tells (rule 79).
                 this.lowerTimeWatch.note(targets)
+                // The active note may have gained or lost its linked notes.
+                const active = activeNote(this)
+                if (active && targets.has(active.path)) void this.refreshActiveRecompute()
             }
         )
         this.register(() => this.lowerWatch?.dispose())

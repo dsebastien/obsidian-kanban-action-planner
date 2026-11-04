@@ -1192,8 +1192,13 @@ export class WbsController {
                     .setSection('kap-wbs')
                     .onClick(
                         () =>
+                            // The subtree is built again at click time (rule 79).
                             void this.host.saveTotalTracked(card, () =>
-                                subtreeDuration(node, this.durationOfPath, this.linkedSourcesOfPath)
+                                subtreeDuration(
+                                    this.nodeFor(card.key),
+                                    this.durationOfPath,
+                                    this.linkedSourcesOfPath
+                                )
                             )
                     )
             )

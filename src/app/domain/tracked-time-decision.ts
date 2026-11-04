@@ -273,7 +273,16 @@ export function planRecompute(input: RecomputeInput): RecomputePlan {
                     input.now
                 )
                 const list = [...base, entry]
-                result = input.compute(list)
+                const kept = input.compute(list)
+                // An entry that does not read back as the difference (a
+                // difference too large for a date) would write a LOWER
+                // total while saying "kept": write nothing, ask again.
+                if (kept.minutes !== verdict.decision.stored) {
+                    plan.decision = verdict.decision
+                    plan.minutes = verdict.decision.stored
+                    break
+                }
+                result = kept
                 plan.entries = list
                 plan.adjusted = verdict.decision.difference
                 plan.result = result
