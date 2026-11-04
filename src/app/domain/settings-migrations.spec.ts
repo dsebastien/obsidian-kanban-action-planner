@@ -5,6 +5,7 @@ import {
     migrateTrackingDefaults
 } from './settings-migrations'
 import type { MigratableSettings, MigratableTrackingDefaults } from './settings-migrations'
+import { SETTINGS_SCHEMA_VERSION } from '../types/plugin-settings.intf'
 
 const settingsWith = (
     calendar: Partial<MigratableSettings['noteTypes'][number]['calendar']>,
@@ -98,6 +99,13 @@ describe('migrateSettings', () => {
         const result = migrateSettings(settingsWith({}), 3)
         expect(result.schemaVersion).toBe(3)
         expect(result.noteTypes[0]?.calendar.dueDateProperty).toBe('')
+        expect(result.defaultDurationProperty).toBe('time_spent')
+        expect(result.defaultTotalDurationProperty).toBe('total_time_spent')
+    })
+
+    it('the plugin targets v3, so stored v2 settings get the tracking migration', () => {
+        expect(SETTINGS_SCHEMA_VERSION).toBe(3)
+        const result = migrateSettings(settingsWith({}, 2), SETTINGS_SCHEMA_VERSION)
         expect(result.defaultDurationProperty).toBe('time_spent')
         expect(result.defaultTotalDurationProperty).toBe('total_time_spent')
     })

@@ -55,8 +55,10 @@ import {
  *
  * 2 — note-type calendar date properties became "empty = inherit the global
  *     default" (issue #201); the seeded snapshots are cleared on load.
+ * 3 — the tracking defaults `duration` / `total_duration` became
+ *     `time_spent` / `total_time_spent` (issue #232).
  */
-export const SETTINGS_SCHEMA_VERSION = 2
+export const SETTINGS_SCHEMA_VERSION = 3
 
 /**
  * Plugin settings.
