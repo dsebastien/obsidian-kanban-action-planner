@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import { daysBetween, formatDays, lifecycleDays, parseDay } from './lifecycle'
+import { parseFrontmatterDate } from './calendar'
 
 const day = (y: number, m: number, d: number): Date => new Date(y, m - 1, d)
 
@@ -11,6 +12,12 @@ describe('parseDay', () => {
     test('a datetime keeps its local day', () => {
         expect(parseDay('2026-09-09T23:30:00')).toEqual(day(2026, 9, 9))
         expect(parseDay('2026-09-09T08:10:03.000+02:00')?.getFullYear()).toBe(2026)
+        // One parser (issue #232): the literal day, whatever the offset or the
+        // local zone — the calendar and the timeline show the same day.
+        expect(parseDay('2026-09-08T23:30-05:00')).toEqual(day(2026, 9, 8))
+        expect(parseDay('2026-09-08T23:30-05:00')).toEqual(
+            parseFrontmatterDate('2026-09-08T23:30-05:00')
+        )
     })
 
     test('blanks and junk are null', () => {

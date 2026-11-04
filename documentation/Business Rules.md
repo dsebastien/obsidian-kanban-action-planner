@@ -1672,3 +1672,7 @@ Markdown)`, `Export ideal week (JSON)`, `Export ideal week (Markdown)`); the for
     property (Starter Kit declaration, else Obsidian's `metadataTypeManager` widget) gets
     `YYYY-MM-DD`, a `datetime` gets `YYYY-MM-DDTHH:mm`; only an untyped property uses the free-text
     format (card's own type, else the board's type, else `defaultDateFormat`).
+    **One date parser:** every read (calendar, timeline, WBS, agenda, filters, lifecycle) goes
+    through `parseFrontmatterDate`, which takes the LITERAL `YYYY-MM-DD` part of an ISO value and
+    never converts an offset to local time (`lifecycle.parseDay` delegates to it), so
+    `2026-09-08T23:30-05:00` is the 8th everywhere.

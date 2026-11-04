@@ -1,3 +1,5 @@
+import { parseFrontmatterDate } from './calendar'
+
 /**
  * Lifecycle durations of an action (issue #172, phase C), in whole calendar
  * days, computed from the lifecycle dates and never stored:
@@ -7,24 +9,19 @@
  * - active = today − started, for an item still open.
  * Every value is null when a date it needs is missing or unreadable: a
  * missing date is a blank, never a guess. Dates may be `YYYY-MM-DD` or a full
- * ISO datetime; only the local calendar day matters.
+ * ISO datetime; only its literal calendar day matters (never converted).
  *
  * Pure: no Obsidian imports.
  */
 
-/** The local calendar day of a frontmatter date value, or null. */
+/**
+ * The local calendar day of a frontmatter date value, or null. One parser for
+ * the whole plugin (issue #232): {@link parseFrontmatterDate}, which takes the
+ * LITERAL date part of an ISO value, so `2026-09-08T23:30-05:00` is the 8th
+ * here too, the same day the calendar and the timeline show.
+ */
 export function parseDay(raw: unknown): Date | null {
-    if (raw instanceof Date) return Number.isNaN(raw.getTime()) ? null : startOfDay(raw)
-    if (typeof raw !== 'string' || raw.trim() === '') return null
-    const value = raw.trim()
-    // A bare date is local (`new Date('2026-09-09')` would be UTC midnight).
-    const bare = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value)
-    if (bare) {
-        const date = new Date(Number(bare[1]), Number(bare[2]) - 1, Number(bare[3]))
-        return Number.isNaN(date.getTime()) ? null : date
-    }
-    const date = new Date(value)
-    return Number.isNaN(date.getTime()) ? null : startOfDay(date)
+    return parseFrontmatterDate(raw)
 }
 
 function startOfDay(date: Date): Date {
