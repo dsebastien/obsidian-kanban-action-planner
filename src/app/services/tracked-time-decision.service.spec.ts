@@ -7,8 +7,10 @@ import { fakeVault } from './linked-time.fixture'
 import {
     LOWER_CHECK_DELAY_MS,
     LowerTimeWatch,
+    formatExactMinutes,
     lowerTimeNoticeText,
     recomputeNoticeText,
+    recomputeSummaryNotice,
     recomputeTrackedTimeWithDecisions
 } from './tracked-time-decision.service'
 import type { LowerTimeWatchDeps } from './tracked-time-decision.service'
@@ -383,5 +385,43 @@ describe('TrackedTimeDecisionSession (the Keep / Drop dialog)', () => {
         await session.decide(0, 'keep')
         expect(session.states[0]?.status).toBe('failed')
         expect(session.openCount).toBe(0)
+    })
+})
+
+describe('formatExactMinutes (the decision dialog)', () => {
+    test('hours and minutes, never days', () => {
+        expect(formatExactMinutes(500)).toBe('8h 20m')
+        expect(formatExactMinutes(470)).toBe('7h 50m')
+        expect(formatExactMinutes(30)).toBe('30m')
+        expect(formatExactMinutes(120)).toBe('2h')
+        expect(formatExactMinutes(3000)).toBe('50h')
+        expect(formatExactMinutes(0)).toBe('0m')
+    })
+})
+
+describe('recomputeSummaryNotice', () => {
+    test('notes sent to the dialog are never claimed as recomputed', () => {
+        expect(recomputeSummaryNotice([{ name: 'Run', changed: true, asked: true }])).toBeNull()
+        expect(
+            recomputeSummaryNotice([
+                { name: 'Run', changed: true, asked: true },
+                { name: 'Swim', changed: false, asked: false }
+            ])
+        ).toBeNull()
+        expect(
+            recomputeSummaryNotice([
+                { name: 'Run', changed: true, asked: true },
+                { name: 'Swim', changed: true, asked: false }
+            ])
+        ).toBe('Tracked time recomputed: Swim')
+    })
+
+    test('without a dialog: what changed, or nothing to change', () => {
+        expect(recomputeSummaryNotice([{ name: 'Run', changed: true, asked: false }])).toBe(
+            'Tracked time recomputed: Run'
+        )
+        expect(recomputeSummaryNotice([{ name: 'Run', changed: false, asked: false }])).toBe(
+            'Tracked time of Run: nothing to change'
+        )
     })
 })

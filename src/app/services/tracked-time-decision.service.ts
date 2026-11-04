@@ -7,7 +7,6 @@ import type { TrackedTimeDecisionRow } from '../ui/tracked-time-decision-session
 import { getFrontmatterValue } from './frontmatter.service'
 import {
     computeTrackedTime,
-    formatTrackedMinutes,
     linkedTimeConfigFor,
     recomputeTrackedTime,
     saveTotalTrackedTime,
@@ -23,10 +22,44 @@ import {
 /** Open the Keep / Drop modal for the rows (no-op without rows). */
 function askAbout(plugin: KanbanActionPlannerPlugin, rows: TrackedTimeDecisionRow[]): void {
     if (rows.length === 0) return
-    new TrackedTimeDecisionModal(plugin.app, {
-        rows,
-        format: (minutes) => formatTrackedMinutes(minutes, plugin.settings.minutesPerDay)
-    }).open()
+    new TrackedTimeDecisionModal(plugin.app, { rows, format: formatExactMinutes }).open()
+}
+
+/**
+ * Exact minutes in hours and minutes ("8h 20m", "45m", "2h", "0m"), never
+ * days: the decision dialog shows what is written to the minute, whatever
+ * the board's display grammar (days of "Minutes per day" hide minutes).
+ */
+export function formatExactMinutes(minutes: number): string {
+    const total = Math.max(0, Math.round(minutes))
+    const hours = Math.floor(total / 60)
+    const rest = total % 60
+    if (hours === 0) return `${rest}m`
+    return rest === 0 ? `${hours}h` : `${hours}h ${rest}m`
+}
+
+/** One note's explicit recompute, for the summary notice. */
+export interface RecomputeSummaryItem {
+    name: string
+    changed: boolean
+    /** Sent to the decision dialog. */
+    asked: boolean
+}
+
+/**
+ * The notice after an explicit recompute, or null for none: the notes sent
+ * to the dialog are left out (it speaks for them; nothing is claimed as
+ * recomputed while it waits); with only those notes, no notice.
+ */
+export function recomputeSummaryNotice(items: readonly RecomputeSummaryItem[]): string | null {
+    const others = items.filter((item) => !item.asked)
+    if (others.length === 0) return null
+    const changed = others.filter((item) => item.changed).length
+    if (changed === 0 && others.length < items.length) return null
+    return recomputeNoticeText(
+        others.map((item) => item.name),
+        changed
+    )
 }
 
 /** The notice after an explicit recompute that asked nothing. */
@@ -54,11 +87,11 @@ export async function recomputeTrackedTimeWithDecisions(
 ): Promise<void> {
     const unique = [...new Map(files.map((file) => [file.path, file])).values()]
     const rows: TrackedTimeDecisionRow[] = []
-    let changed = 0
+    const summary: RecomputeSummaryItem[] = []
     for (const file of unique) {
         const outcome = await recomputeTrackedTime(plugin, file)
-        if (outcome.changed) changed++
         const decision = outcome.decision
+        summary.push({ name: file.basename, changed: outcome.changed, asked: decision !== null })
         if (!decision) {
             plugin.lowerTimeWatch.forget(file.path)
             continue
@@ -76,23 +109,9 @@ export async function recomputeTrackedTimeWithDecisions(
             refresh: async () => (await computeTrackedTime(plugin, file.path))?.decision ?? null
         })
     }
-    if (rows.length > 0) {
-        if (changed > 0)
-            new Notice(
-                recomputeNoticeText(
-                    unique.map((f) => f.basename),
-                    changed
-                )
-            )
-        askAbout(plugin, rows)
-        return
-    }
-    new Notice(
-        recomputeNoticeText(
-            unique.map((f) => f.basename),
-            changed
-        )
-    )
+    const notice = recomputeSummaryNotice(summary)
+    if (notice !== null) new Notice(notice)
+    askAbout(plugin, rows)
 }
 
 /** The stored subtree total's decision against the total computed NOW (null = nothing to decide). */

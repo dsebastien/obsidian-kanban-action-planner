@@ -1589,8 +1589,10 @@ Markdown)`, `Export ideal week (JSON)`, `Export ideal week (Markdown)`); the for
     (`TrackedTimeDecisionModal` over `TrackedTimeDecisionSession`: stored, entries and
     sessions, difference; Keep / Drop per note, Keep all / Drop all; after each choice the row
     shows what was written and the open rows re-read their numbers); closing it writes
-    nothing. With nothing to decide, one notice says what changed ("nothing to change", or how
-    many notes changed). The palette command covers the active note when it has entries or
+    nothing. The dialog shows exact hours and minutes (`formatExactMinutes`, never days),
+    whatever the board's duration grammar. One notice says what changed for the notes NOT sent
+    to the dialog ("nothing to change", or how many notes changed); no notice when only dialog
+    notes changed or every note went to the dialog. The palette command covers the active note when it has entries or
     linked notes (checked on file open), plus the flagged notes; it is hidden otherwise.
 
     **Background** (`LowerTimeWatch`): after a linked-note change (rule 78 index events), or a
