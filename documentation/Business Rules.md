@@ -1555,31 +1555,49 @@ Markdown)`, `Export ideal week (JSON)`, `Export ideal week (Markdown)`); the for
     indexes no note type uses. The public `plugin.api.computeTrackedTime(path)` returns these
     exact values, read-only, plus `storedMinutes` and `decision` (rule 79).
 
-79. **A recompute never lowers a stored tracked time on its own (notesSeb-8rsl).** Applies to
-    the duration property (`time_spent`) and to the saved rollup (`total_time_spent`). Stored
-    (a number or numeric string, `Math.round`ed) > computed (rule 78; for a rollup the WBS
-    subtree total) = a **decision**: a total typed by hand, minutes added by another tool, or a
-    linked session removed or shortened. Stored ≤ computed, empty or not a number: the computed
-    value is written without asking (equal = no write). No entries and 0 linked minutes: left
-    as it is (rule 78). **Keep:** ONE entry `{startTime, endTime, description: "Manual
-adjustment"}`, startTime = local midnight of the note's `created` day (first 10 chars,
-    `YYYY-MM-DD`, as written; else the local day of the file's creation time), endTime = start
-    - difference minutes (local ISO, rule 47; past midnight it ends on a later day, and the end
-      day is the entry's day); then duration = computed with that entry = the stored value
-      (rounded), so a second recompute writes nothing. For a rollup, Keep appends that entry to
-      the row's OWN note and adds its minutes to its duration (the timer-stop write), so the
-      subtree total equals the stored total, which is not rewritten. **Drop:** the computed value
-      is written. **Explicit** (WBS **Recompute tracked time** / **Save total tracked time**,
-      palette **Recompute tracked time** on the active note plus the flagged notes): every write
-      that lowers nothing happens at once (entry cleanup, last session, a raised duration); the
-      notes to decide are listed in ONE modal (`TrackedTimeDecisionModal`: stored, entries and
-      sessions, difference; Keep / Drop per note, Keep all / Drop all); closing it writes
-      nothing. **Background** (`LowerTimeWatch`): after a linked-note change (rule 78 index
-      events), the targets whose type takes linked time are checked after 4 s without further
-      change; a target with stored > computed is never written, it is flagged, and one notice
-      (`N notes hold more time than their entries and sessions: run Recompute tracked time to
-decide`) shows only when a note newly becomes flagged. Nothing is checked on load. The
-      timer stop only adds minutes (rule 47), so it never lowers; no other write path recomputes
-      the duration. The WBS live total of a linked-time note never shows less than its stored
-      value. `computeTrackedTime` keeps `minutes` = computed and adds `storedMinutes` and
-      `decision` (`{stored, computed, difference}` or null).
+79. **A recompute never lowers a stored tracked DURATION on its own (notesSeb-8rsl).** Applies
+    to the duration property (`time_spent`) and to the saved rollup (`total_time_spent`), never
+    to the last-session date: a recompute sets that date from the sources (rule 78), earlier
+    too when a linked session was deleted; only an append (timer stop, a kept rollup entry)
+    never moves it earlier (`laterLastSession`). Stored (a number or numeric string, rounded)
+    above computed (rule 78; for a rollup, the WBS subtree total) is a **decision**: a total
+    typed by hand, minutes added by another tool, or a linked session removed or shortened.
+    Stored at or below computed, empty or not a number: the computed value is written without
+    asking (equal: no write). No entries and 0 linked minutes: left as it is (rule 78).
+
+    **Keep** writes ONE entry described `Manual adjustment` whose length is the difference.
+    Its start is the earlier of local midnight of the note's day and now minus the difference,
+    so it never ends after now. The note's day is the first 10 chars of `created`
+    (`YYYY-MM-DD`, as written), else the earliest tracked day (first entry start, first
+    linked-note date), else the local day of the file's creation time. Entries are local ISO
+    without offset (rule 47): when the end falls in the hour repeated as clocks go back, the
+    start moves by whole hours (later while it still ends by now, else earlier) until the
+    stored entry reads back as exactly the difference. Past midnight it ends on a later day,
+    and the end day is the entry's day. Then duration = computed with that entry = the stored
+    value (rounded): a second recompute writes nothing. For a rollup, Keep appends that entry
+    to the row's OWN note and adds its minutes to its duration (the timer-stop append), so the
+    subtree total equals the stored total, which is not rewritten. **Drop** writes the computed
+    value. Keep / Drop are planned again inside the write from the note as written
+    (`processFrontMatter`), so an entry written meanwhile (TaskNotes, a timer stop) is kept;
+    a rollup's subtree total is computed again at click time.
+
+    **Explicit** (WBS **Recompute tracked time** / **Save total tracked time**, palette
+    **Recompute tracked time**): every write that lowers no duration happens at once (entry
+    cleanup, last session, a raised duration); the notes to decide are listed in ONE modal
+    (`TrackedTimeDecisionModal` over `TrackedTimeDecisionSession`: stored, entries and
+    sessions, difference; Keep / Drop per note, Keep all / Drop all; after each choice the row
+    shows what was written and the open rows re-read their numbers); closing it writes
+    nothing. With nothing to decide, one notice says what changed ("nothing to change", or how
+    many notes changed). The palette command covers the active note when it has entries or
+    linked notes (checked on file open), plus the flagged notes; it is hidden otherwise.
+
+    **Background** (`LowerTimeWatch`): after a linked-note change (rule 78 index events), or a
+    change of a flagged note itself, the notes are checked after 4 s without further change. A
+    note whose type takes linked time and whose stored duration is above the computed one is
+    never written: it is flagged, and one notice ("N notes hold more time than their entries
+    and sessions: run Recompute tracked time to decide") shows only when a note newly becomes
+    flagged. A rename moves the flag. Nothing is checked on load; nothing runs after unload.
+    The timer stop only adds minutes (rule 47); no other write path recomputes the duration.
+    The WBS live total of a linked-time note never shows less than its stored duration.
+    `computeTrackedTime` keeps `minutes` = computed and adds `storedMinutes` and `decision`
+    (`{stored, computed, difference}` or null).

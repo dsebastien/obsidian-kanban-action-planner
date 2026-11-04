@@ -181,12 +181,14 @@ activePeriods}`) live in the daily note's `pomodoros` list. Domain: `time-entrie
   (`subtreeDuration(node, durationOf, linkedSourcesOf)`); `wbsTrackingSignature` re-renders
   the WBS when a card's linked notes change. A parent's weekly ring adds its children's linked
   notes too (`weekBudgetOf`, each note once). Public API:
-  `plugin.api.computeTrackedTime(path)` → `TrackedTimeReport`
-  `{minutes, entryMinutes, linkedMinutes, lastSession, linkedNotes: [{path, minutes, date}],
-storedMinutes, decision}`.
+  `plugin.api.computeTrackedTime(path)` → `TrackedTimeReport`: `minutes`, `entryMinutes`,
+  `linkedMinutes`, `lastSession`, `linkedNotes` (`[{path, minutes, date}]`), `storedMinutes`,
+  `decision`.
 - **Never lower a stored time** (Business rule 79): stored > computed = `TrackedTimeDecision`
   `{stored, computed, difference}`; the user keeps (one `Manual adjustment` entry dated on the
-  `created` day) or drops. Domain: `tracked-time-decision.ts` (`durationVerdict`,
+  `created` day, else the earliest tracked day, else the file's creation day; never ending
+  after now) or drops. Only the duration is protected: the last-session date follows the
+  sources. Domain: `tracked-time-decision.ts` (`durationVerdict`,
   `lowerDecision`, `manualAdjustmentEntry`, `planRecompute`; pure); service:
   `tracked-time-decision.service.ts` (explicit recomputes → `TrackedTimeDecisionModal`;
   `LowerTimeWatch` flags linked-time targets after linked-note changes, one notice, no write).
