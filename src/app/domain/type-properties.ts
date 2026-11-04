@@ -89,70 +89,116 @@ export function estimateConfigForType(
 }
 
 /**
- * Every property the plugin reads or writes for notes of `noteType`, with
- * the declared types it expects. Feeds the read-only "Check note types
- * against the Starter Kit" command.
+ * The properties the plugin reads or writes for notes of `noteType`, limited
+ * to the features the type USES (issue #232), with the declared types it
+ * expects. Feeds the read-only "Check note types against the Starter Kit"
+ * command, so a type is never blamed for a feature it does not use:
+ * - status + manual order: the type has board columns;
+ * - start / due date: the type's calendar is on, or it names its own
+ *   start / due property; defer: it names its own defer property;
+ * - estimate: an explicit estimate setting that is not "No estimate" (a
+ *   derived estimate comes from a declared property by construction);
+ * - tracked time, total, entries, last session: the type has a
+ *   Configure → Time tracking setting;
+ * - milestones + progress: the type plans (calendar on, or an explicit
+ *   estimate);
+ * - time blocks + planned / target minutes: the type has a week planner
+ *   setting, or declares the time-blocks property (it is in the ideal week);
+ * - relationship links: every rule the type carries (seeded or configured),
+ *   once per property.
  */
 export function plannedPropertiesForType(
     settings: TypePropertyDefaults,
     noteType: NoteType
 ): PlannedProperty[] {
     const dates = datePropertiesForType(settings, noteType)
-    const estimate = estimateConfigForType(settings, noteType)
+    const calendar = noteType.calendar
+    const calendarOn = calendar.enabled
+    const explicitEstimate =
+        noteType.estimate && noteType.estimate.mode !== 'none' ? noteType.estimate : null
+    const plans = calendarOn || explicitEstimate !== null
     const tracking = noteType.timeTracking
     const week = noteType.weekPlanner
-    const planned: PlannedProperty[] = [
-        { role: 'Status', name: noteType.statusProperty, expected: [] },
-        {
-            role: 'Manual order',
-            name: pick(noteType.orderProperty, settings.defaultOrderProperty),
+    const timeBlocks = pick(week?.timeBlocksProperty, settings.defaultTimeBlocksProperty)
+    const inWeek =
+        week !== undefined ||
+        (noteType.declaredProperties ?? []).some(
+            (p) => p.name.toLowerCase() === timeBlocks.toLowerCase()
+        )
+    const planned: PlannedProperty[] = []
+    if (noteType.columns.length > 0) {
+        planned.push(
+            { role: 'Status', name: noteType.statusProperty, expected: [] },
+            {
+                role: 'Manual order',
+                name: pick(noteType.orderProperty, settings.defaultOrderProperty),
+                expected: NUMBER_TYPES
+            }
+        )
+    }
+    if (calendarOn || calendar.scheduledDateProperty.trim() !== '')
+        planned.push({ role: 'Start date', name: dates.start, expected: DATE_TYPES })
+    if (calendarOn || calendar.dueDateProperty.trim() !== '')
+        planned.push({ role: 'Due date', name: dates.due, expected: DATE_TYPES })
+    if (calendar.deferDateProperty.trim() !== '')
+        planned.push({ role: 'Defer date', name: dates.defer, expected: DATE_TYPES })
+    if (explicitEstimate) {
+        planned.push({
+            role: 'Estimate',
+            name: pick(explicitEstimate.property, settings.defaultEstimateProperty),
             expected: NUMBER_TYPES
-        },
-        { role: 'Start date', name: dates.start, expected: DATE_TYPES },
-        { role: 'Due date', name: dates.due, expected: DATE_TYPES },
-        { role: 'Defer date', name: dates.defer, expected: DATE_TYPES },
-        ...(estimate
-            ? [{ role: 'Estimate', name: estimate.property, expected: NUMBER_TYPES }]
-            : []),
-        {
-            role: 'Tracked time',
-            name: pick(tracking?.durationProperty, settings.defaultDurationProperty),
-            expected: NUMBER_TYPES
-        },
-        {
-            role: 'Total tracked time',
-            name: pick(tracking?.totalDurationProperty, settings.defaultTotalDurationProperty),
-            expected: NUMBER_TYPES
-        },
-        {
-            role: 'Time entries',
-            name: pick(tracking?.entriesProperty, settings.defaultTimeEntriesProperty),
-            expected: [...LIST_TYPES, 'object']
-        },
-        {
-            role: 'Last session',
-            name: pick(tracking?.lastSessionProperty, settings.defaultLastSessionProperty),
-            expected: DATE_TYPES
-        },
-        { role: 'Milestones', name: settings.defaultMilestonesProperty, expected: LIST_TYPES },
-        { role: 'Progress', name: settings.defaultProgressProperty, expected: NUMBER_TYPES },
-        {
-            role: 'Time blocks',
-            name: pick(week?.timeBlocksProperty, settings.defaultTimeBlocksProperty),
-            expected: LIST_TYPES
-        },
-        {
-            role: 'Planned minutes',
-            name: pick(week?.plannedMinutesProperty, settings.defaultPlannedMinutesProperty),
-            expected: NUMBER_TYPES
-        },
-        {
-            role: 'Target minutes',
-            name: pick(week?.targetMinutesProperty, settings.defaultTargetMinutesProperty),
-            expected: NUMBER_TYPES
-        }
-    ]
+        })
+    }
+    if (tracking) {
+        planned.push(
+            {
+                role: 'Tracked time',
+                name: pick(tracking.durationProperty, settings.defaultDurationProperty),
+                expected: NUMBER_TYPES
+            },
+            {
+                role: 'Total tracked time',
+                name: pick(tracking.totalDurationProperty, settings.defaultTotalDurationProperty),
+                expected: NUMBER_TYPES
+            },
+            {
+                role: 'Time entries',
+                name: pick(tracking.entriesProperty, settings.defaultTimeEntriesProperty),
+                expected: [...LIST_TYPES, 'object']
+            },
+            {
+                role: 'Last session',
+                name: pick(tracking.lastSessionProperty, settings.defaultLastSessionProperty),
+                expected: DATE_TYPES
+            }
+        )
+    }
+    if (plans) {
+        planned.push(
+            { role: 'Milestones', name: settings.defaultMilestonesProperty, expected: LIST_TYPES },
+            { role: 'Progress', name: settings.defaultProgressProperty, expected: NUMBER_TYPES }
+        )
+    }
+    if (inWeek) {
+        planned.push(
+            { role: 'Time blocks', name: timeBlocks, expected: LIST_TYPES },
+            {
+                role: 'Planned minutes',
+                name: pick(week?.plannedMinutesProperty, settings.defaultPlannedMinutesProperty),
+                expected: NUMBER_TYPES
+            },
+            {
+                role: 'Target minutes',
+                name: pick(week?.targetMinutesProperty, settings.defaultTargetMinutesProperty),
+                expected: NUMBER_TYPES
+            }
+        )
+    }
+    const seen = new Set<string>()
     for (const rule of noteType.relationships) {
+        const key = rule.linkProperty.toLowerCase()
+        if (key === '' || seen.has(key)) continue
+        seen.add(key)
         planned.push({
             role: `Relationship (${rule.role.replace('_', ' ')})`,
             name: rule.linkProperty,

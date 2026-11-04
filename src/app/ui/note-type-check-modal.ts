@@ -35,8 +35,8 @@ export class NoteTypeCheckModal extends Modal {
         root.createEl('p', {
             text:
                 withFindings.length === 0
-                    ? `All ${String(report.types.length)} note types declare every property the planner uses.`
-                    : `${String(withFindings.length)} of ${String(report.types.length)} note types do not declare every property the planner uses (${String(clean)} match). The planner does not write an undeclared property on a Starter Kit type: the action is hidden or skipped with a notice (time tracking only warns).`
+                    ? `All ${String(report.types.length)} note types declare every property the planner uses for them.`
+                    : `${String(withFindings.length)} of ${String(report.types.length)} note types use a property their Starter Kit type does not declare, or declares with another type (${String(clean)} match). Only the features a type uses are checked: dates when its calendar is on or it names a date property, tracking when it has a Time tracking setting, the week planner when it has time blocks, its relationship links, and so on. The planner does not write an undeclared property on a Starter Kit type: the action is hidden or skipped with a notice (time tracking only warns).`
         })
         for (const type of withFindings) {
             const section = root.createDiv({ cls: 'kap-type-check-type' })

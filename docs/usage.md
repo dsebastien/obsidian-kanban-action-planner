@@ -2137,9 +2137,13 @@ tracking and pomodoro commands work from anywhere:
   how many notes were updated. Works even when **Tidy card order automatically** is off.
 
 - **Check note types against the Starter Kit**: for every Starter Kit note type, list the
-  properties the board reads or writes (dates, estimate, tracked time, milestones, progress, week
-  planner, relationship links) that the type does not declare, or declares with another type. It
-  only reads; nothing is written, not even the board's own settings.
+  properties the board reads or writes for the features that type uses, when the type does not
+  declare them or declares them with another type. A feature a type does not use is not checked:
+  start and due dates only when its calendar is on or it names its own date property, the
+  estimate only when you set one in Configure → Estimate, tracking only when it has a Time
+  tracking setting, milestones and progress only when it plans (calendar or estimate), time
+  blocks only when it is in the ideal week, plus the relationship links it carries. It only reads;
+  nothing is written, not even the board's own settings.
   The board also refuses to create a property a Starter Kit type does not declare: those actions
   are hidden (Add milestone, Set progress, Save total tracked time), or skipped with a notice
   naming the type and the property (a calendar or timeline drop, a date prompt, a new

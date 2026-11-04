@@ -26,6 +26,14 @@ describe('checkNoteTypesAgainstStarterKit (issue #232)', () => {
         const settings = createDefaultSettings()
         const stored = createDefaultNoteType('movies', 'Movies', 'starter-kit')
         stored.relationships = []
+        // The type uses the calendar and time tracking: those are checked.
+        stored.calendar.enabled = true
+        stored.timeTracking = {
+            durationProperty: '',
+            totalDurationProperty: '',
+            entriesProperty: '',
+            lastSessionProperty: ''
+        }
         const app = appWith({
             listNoteTypes: () => [movies],
             listGlobalProperties: () => ({
@@ -46,12 +54,27 @@ describe('checkNoteTypesAgainstStarterKit (issue #232)', () => {
         expect(names).toContain('time_entries:undeclared')
         expect(names).not.toContain('time_spent:undeclared')
         expect(names).not.toContain('manual_order:undeclared')
+        // Features the type does not use are not checked.
+        expect(names.some((n) => n.startsWith('time_blocks'))).toBe(false)
         // Movies declare no estimate property: no estimate is planned at all.
         expect(names.some((n) => n.startsWith('estimate'))).toBe(false)
         const wrong = type?.findings.find((f) => f.name === 'date_scheduled')
         expect(wrong && describeFinding(wrong)).toBe(
             'Start date: `date_scheduled` is declared as text, expected date or datetime'
         )
+    })
+
+    it('an unconfigured type is checked with the defaults a new type would get', () => {
+        const settings = createDefaultSettings()
+        const app = appWith({
+            listNoteTypes: () => [movies],
+            listGlobalProperties: () => []
+        })
+        const report = checkNoteTypesAgainstStarterKit(app, { ...settings, noteTypes: [] })
+        if (report.kind !== 'report') throw new Error(report.kind)
+        // Seeded with only the declared relationships, no features on: nothing to report.
+        expect(report.types[0]?.configured).toBe(false)
+        expect(report.types[0]?.findings).toEqual([])
     })
 
     it('says why there is no report', () => {

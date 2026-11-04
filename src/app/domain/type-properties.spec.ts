@@ -95,26 +95,96 @@ describe('estimateConfigForType (issue #232)', () => {
     })
 })
 
-describe('plannedPropertiesForType', () => {
-    it('lists every property the planner uses, relationships included', () => {
-        const type = createDefaultNoteType('t', 'T', 'local')
-        const planned = plannedPropertiesForType(settings, type)
-        const names = planned.map((p) => p.name)
-        expect(names).toContain('date_scheduled')
-        expect(names).toContain('estimate')
-        expect(names).toContain('time_spent')
-        expect(names).toContain('time_blocks')
-        expect(planned.find((p) => p.name === 'children')?.role).toBe('Relationship (child)')
+describe('plannedPropertiesForType: only the features a type uses (issue #232)', () => {
+    const names = (type: Parameters<typeof plannedPropertiesForType>[1]): string[] =>
+        plannedPropertiesForType(settings, type).map((p) => `${p.role}=${p.name}`)
+
+    it('a type that uses nothing is only checked for its relationship links', () => {
+        const anime = createDefaultNoteType('anime', 'Anime', 'starter-kit')
+        expect(names(anime)).toEqual([
+            'Relationship (parent)=parent',
+            'Relationship (sibling)=siblings',
+            'Relationship (child)=children',
+            'Relationship (blocked by)=blocked_by'
+        ])
+        anime.relationships = []
+        expect(names(anime)).toEqual([])
     })
 
-    it('leaves out the estimate of a type without one', () => {
-        const type = {
-            ...createDefaultNoteType('t', 'T', 'local'),
-            estimate: { property: '', unit: 'days' as const, mode: 'none' as const }
+    it('board columns bring status and order', () => {
+        const type = createDefaultNoteType('t', 'T', 'local')
+        type.relationships = []
+        type.columns = [
+            {
+                id: 'c',
+                statusValue: 'Open',
+                label: 'Open',
+                sortKey: '0',
+                color: { kind: 'palette', token: 'blue' }
+            }
+        ]
+        expect(names(type)).toEqual(['Status=status', 'Manual order=manual_order'])
+    })
+
+    it('a calendar brings start, due, milestones and progress; an own date property alone brings that date', () => {
+        const projects = createDefaultNoteType('p', 'Projects', 'starter-kit')
+        projects.relationships = []
+        projects.calendar.enabled = true
+        projects.calendar.scheduledDateProperty = 'date_started'
+        expect(names(projects)).toEqual([
+            'Start date=date_started',
+            'Due date=date_due',
+            'Milestones=milestones',
+            'Progress=progress'
+        ])
+        const own = createDefaultNoteType('o', 'O', 'starter-kit')
+        own.relationships = []
+        own.calendar.dueDateProperty = 'deadline'
+        own.calendar.deferDateProperty = 'not_before'
+        expect(names(own)).toEqual(['Due date=deadline', 'Defer date=not_before'])
+    })
+
+    it('an explicit estimate brings the estimate, milestones and progress; No estimate brings nothing', () => {
+        const tasks = createDefaultNoteType('t', 'Tasks', 'starter-kit')
+        tasks.relationships = []
+        tasks.estimate = { property: 'time_estimate', unit: 'minutes' }
+        expect(names(tasks)).toEqual([
+            'Estimate=time_estimate',
+            'Milestones=milestones',
+            'Progress=progress'
+        ])
+        tasks.estimate = { property: '', unit: 'days', mode: 'none' }
+        expect(names(tasks)).toEqual([])
+    })
+
+    it('time tracking and the week planner only when the type takes part', () => {
+        const activities = createDefaultNoteType('a', 'Activities', 'starter-kit')
+        activities.relationships = []
+        activities.timeTracking = {
+            durationProperty: '',
+            totalDurationProperty: '',
+            entriesProperty: '',
+            lastSessionProperty: ''
         }
-        expect(plannedPropertiesForType(settings, type).some((p) => p.role === 'Estimate')).toBe(
-            false
-        )
+        activities.declaredProperties = [{ name: 'time_blocks', type: 'list' }]
+        expect(names(activities)).toEqual([
+            'Tracked time=time_spent',
+            'Total tracked time=total_time_spent',
+            'Time entries=time_entries',
+            'Last session=date_last_session',
+            'Time blocks=time_blocks',
+            'Planned minutes=minutes_planned_per_week',
+            'Target minutes=minutes_per_week'
+        ])
+    })
+
+    it('lists a relationship property once, even when mirrored and local rules share it', () => {
+        const type = createDefaultNoteType('t', 'T', 'starter-kit')
+        type.relationships = [
+            { role: 'parent', linkProperty: 'related_projects', mirrored: true },
+            { role: 'parent', linkProperty: 'related_projects' }
+        ]
+        expect(names(type)).toEqual(['Relationship (parent)=related_projects'])
     })
 })
 

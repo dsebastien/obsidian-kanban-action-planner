@@ -1637,9 +1637,14 @@ Markdown)`, `Export ideal week (JSON)`, `Export ideal week (Markdown)`); the for
     (local type, untyped card, or a Starter Kit without `listGlobalProperties`): nothing is
     guarded, behavior is unchanged. **Check note types against the Starter Kit** (palette
     command, `services/note-type-check.service.ts`) lists, per Starter Kit type, every property
-    the plugin resolves for it (`plannedPropertiesForType`: status, order, start, due, defer,
-    estimate, tracked time, total, entries, last session, milestones, progress, time blocks,
-    planned and target minutes, relationship links) that the type does not declare, or declares
+    the plugin resolves for the FEATURES the type uses (`plannedPropertiesForType`): status +
+    order when it has board columns; start / due when its calendar is on or it names that
+    property; defer when it names one; the estimate when an explicit estimate setting is not `none`
+    (a derived estimate is declared by construction); tracked time, total, entries, last session
+    when it has a `timeTracking` setting; milestones + progress when it plans (calendar on or an
+    explicit estimate); time blocks + planned / target minutes when it has a `weekPlanner` setting
+    or declares the time-blocks property; each relationship link property it carries, once. A
+    property is reported when the type does not declare it, or declares it
     with an unexpected type (dates: `date`/`datetime`; numbers: `number`; lists:
     `list`/`multitext`/`tags`). Declarations are read live; nothing is written, not even the
     mirror.
