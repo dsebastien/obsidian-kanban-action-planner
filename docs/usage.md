@@ -1512,7 +1512,8 @@ records), straight from the cards, on **any note type**:
       without minutes, like a play without a duration, still counts for that date). It shows on
       notes that only have session notes, too. With no entries and no session minutes, a
       hand-typed duration stays as it is. A stored duration above the computed one is never
-      lowered without you (see [Keep or drop a higher stored time](#keep-or-drop-a-higher-stored-time)).
+      lowered without asking you (see
+      [Keep or drop a higher stored time](#keep-or-drop-a-higher-stored-time)).
     - **The WBS ⏱ tracked total** and **Save total tracked time** use the activity's live total,
       the value a recompute would store (or the stored value, when it is higher). No need to
       recompute first.
@@ -1617,8 +1618,9 @@ records), straight from the cards, on **any note type**:
   the derived style, and the row menu offers **Save total tracked time** to persist it (in minutes) to
   the **total duration** property (`total_duration` by default). **Recompute tracked time**
   sets a note's duration and last-session date from the list (after it was edited by
-  hand or by TaskNotes). When the stored duration is higher than the list, it asks first (see
-  below). It also removes empty items from the list, like the `- ` placeholder
+  hand or by TaskNotes). When the stored duration is higher, it asks you first (see
+  [Keep or drop a higher stored time](#keep-or-drop-a-higher-stored-time)). It also removes
+  empty items from the list, like the `- ` placeholder
   older Starter Kit templates left under `time_entries`, which hides the note from TaskNotes.
   It writes nothing when no value changes. When the note's type takes
   [time from linked notes](#time-tracking), the recompute, the ⏱ total and **Save total tracked
@@ -1628,29 +1630,51 @@ records), straight from the cards, on **any note type**:
 
 ### Keep or drop a higher stored time
 
-A recompute never lowers a stored time on its own. The stored duration can be higher than
-the time entries and session notes: you typed a total by hand, another tool added minutes,
-or you removed or shortened a session note. **Recompute tracked time** then writes
-everything else and opens one dialog that lists each such note with its stored time, the
-time from its entries and sessions, and the difference:
+A recompute never lowers a stored duration on its own. The stored duration can be higher than
+what the time entries and session notes add up to: you typed a total by hand on an activity,
+another tool added minutes, or you deleted or shortened one of its session notes.
+**Recompute tracked time** then writes everything else at once (the entry cleanup, the
+last-session date, a duration that goes up) and opens one dialog listing each such note with
+its stored time, the time from its entries and sessions, and the difference:
 
 - **Keep** keeps the stored time. The difference becomes one time entry described
-  `Manual adjustment`, starting at midnight on the day in the note's `created` property (the
-  file's creation day when there is none) and lasting the difference. It counts in the week
-  the note was created, so this week's rings don't jump (unless the note is from this week).
-  The next recompute finds nothing to change.
-- **Drop** sets the duration to the entries and sessions.
-- **Keep all** / **Drop all** answer every note still open. Closing the dialog changes
-  nothing.
+  `Manual adjustment`, lasting the difference. It starts at midnight on the day in the note's
+  `created` property; without one, on the day of its first entry or session, else on the
+  file's creation day. When that entry would end after now, it starts earlier, so it never
+  ends in the future. It lands on that old day, so the current week's rings don't jump
+  (unless the note is from this week). The next recompute finds nothing to change.
+- **Drop** sets the duration to the entries and sessions total.
+- After each choice, the row shows what was written, for example
+  `Kept 2h 30m: 45m added as a manual adjustment` or `Set to 1h 45m`. The rows still open
+  update their numbers.
+- **Keep all** / **Drop all** (when the dialog lists several notes) answer every note still
+  open.
+- **Decide later**, or closing the dialog, changes nothing: the notes keep their stored time
+  until you run the recompute again.
 
-**Save total tracked time** works the same way when the saved total is higher than the
-subtree's total: **Keep** adds the difference to the row's own time as a `Manual adjustment`
-entry, **Drop** saves the lower total.
+With nothing to decide, a notice says what happened: nothing to change, or how many notes
+changed.
 
-When a session note changes in the background (deleted, or its minutes lowered), the plugin
-never rewrites the activity. It shows one notice: _N notes hold more time than their entries
-and sessions: run Recompute tracked time to decide_. The **Recompute tracked time** command
-covers the note open in the editor plus those notes.
+Only the duration is protected. The last-session date still follows the entries and
+sessions: delete your latest session note and a recompute moves the date back to the session
+before it. **Keep** never moves it earlier.
+
+**Save total tracked time** asks the same way when the stored total is higher than the
+subtree's total. **Keep** adds the difference to the row's own note as a `Manual adjustment`
+entry (and to its duration), so the subtree adds up to the stored total again. **Drop** saves
+the lower total.
+
+The plugin never rewrites an activity behind your back either. When one of its session notes
+is deleted, shortened or unlinked, it checks the activity a few seconds after the last change
+(for note types that take [time from linked notes](#time-tracking)). If the stored time is now
+higher, it flags the activity and shows one notice, for example _2 notes hold more time than
+their entries and sessions: run Recompute tracked time to decide_. A new notice shows only
+when another note gets flagged. A flagged note is checked again when it changes, so fixing
+its duration by hand clears the flag. A renamed note keeps its flag. The flags last until
+Obsidian restarts.
+
+The **Recompute tracked time** command covers the note open in the editor, when it has time
+entries or session notes, plus every flagged note. With neither, the command is hidden.
 
 ## Focus mode
 
@@ -2090,8 +2114,9 @@ tracking and pomodoro commands work from anywhere:
 - **Import ideal week (JSON or Markdown)**
 - **Export ideal week (JSON)** / **Export ideal week (Markdown)**
 - **Stop time tracking** (only while a session runs)
-- **Recompute tracked time** (the active note, plus the notes the background check found
-  holding more time than their entries and sessions)
+- **Recompute tracked time** (the note open in the editor when it has time entries or session
+  notes, plus the notes flagged as holding more time than their entries and sessions; see
+  [Keep or drop a higher stored time](#keep-or-drop-a-higher-stored-time))
 - **Start time tracking on the active note** / **Switch time tracking to…**
 - **Add or remove the time-tracking shortcut of the active note**, and one **Start time
   tracking: _note_** command per note given a shortcut

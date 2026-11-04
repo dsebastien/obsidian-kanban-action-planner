@@ -107,7 +107,8 @@ Scripts can also call the plugin's public API:
 `app.plugins.plugins['kanban-action-planner'].api.computeTrackedTime(path)` returns
 `{ minutes, entryMinutes, linkedMinutes, lastSession, linkedNotes, storedMinutes, decision }`
 for a note, read-only. `decision` (`{ stored, computed, difference }`) is set when the stored
-duration is higher than `minutes`: don't write `minutes` over it without asking.
+duration is higher than `minutes`: the plugin never lowers it without asking, so don't
+write `minutes` over it without asking either.
 
 ### Filter and review settings
 
