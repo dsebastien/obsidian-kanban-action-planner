@@ -1,7 +1,11 @@
 import {
     DEFAULT_DATE_FORMAT,
     DEFAULT_DUE_DATE_PROPERTY,
-    DEFAULT_SCHEDULED_DATE_PROPERTY
+    DEFAULT_DURATION_PROPERTY,
+    DEFAULT_SCHEDULED_DATE_PROPERTY,
+    DEFAULT_TOTAL_DURATION_PROPERTY,
+    LEGACY_DURATION_PROPERTY,
+    LEGACY_TOTAL_DURATION_PROPERTY
 } from '../constants'
 
 /**
@@ -61,16 +65,49 @@ export function migrateCalendarDateSeeds<T extends MigratableSettings>(settings:
     }
 }
 
+/** The global tracking defaults a migration touches. */
+export interface MigratableTrackingDefaults {
+    defaultDurationProperty: string
+    defaultTotalDurationProperty: string
+}
+
+/**
+ * v2 → v3 (issue #232). The fresh-install tracking defaults were `duration`
+ * and `total_duration`. `duration` is a real property on music albums,
+ * exercises and recordings (their length in minutes), so a tracked session
+ * added minutes to it. The defaults are now `time_spent` / `total_time_spent`
+ * (TaskNotes and the Starter Kit). Each value is replaced only while it is
+ * still EXACTLY the old default; any other value is a choice and stays. Old
+ * tracked minutes stay visible: the reader falls back to a legacy `duration`
+ * number when the new property is empty, and the time-entries ledger is
+ * unchanged. Per-type overrides are explicit choices and are not touched.
+ */
+export function migrateTrackingDefaults<T extends MigratableTrackingDefaults>(settings: T): T {
+    return {
+        ...settings,
+        defaultDurationProperty:
+            settings.defaultDurationProperty === LEGACY_DURATION_PROPERTY
+                ? DEFAULT_DURATION_PROPERTY
+                : settings.defaultDurationProperty,
+        defaultTotalDurationProperty:
+            settings.defaultTotalDurationProperty === LEGACY_TOTAL_DURATION_PROPERTY
+                ? DEFAULT_TOTAL_DURATION_PROPERTY
+                : settings.defaultTotalDurationProperty
+    }
+}
+
 /**
  * Run every migration between the stored `schemaVersion` and `targetVersion`,
  * in order, and stamp the result. Already-current settings are returned as-is.
  */
-export function migrateSettings<T extends MigratableSettings>(
+export function migrateSettings<T extends MigratableSettings & MigratableTrackingDefaults>(
     settings: T,
     targetVersion: number
 ): T {
     let current = settings
-    if (current.schemaVersion < 2) current = migrateCalendarDateSeeds(current)
+    const runs = (from: number): boolean => current.schemaVersion <= from && targetVersion > from
+    if (runs(1)) current = migrateCalendarDateSeeds(current)
+    if (runs(2)) current = migrateTrackingDefaults(current)
     return current.schemaVersion === targetVersion
         ? current
         : { ...current, schemaVersion: targetVersion }

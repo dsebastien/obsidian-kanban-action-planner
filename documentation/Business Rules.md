@@ -1017,7 +1017,11 @@ When a new business rule is mentioned:
     duration property when it holds a positive number, else the entries list's sum (a note
     tracked only by TaskNotes), else a legacy `duration`
     number (only when the configured duration property is not `duration` itself — no double
-    counting); nothing migrates data. The four property names resolve **per note type**
+    counting); nothing migrates data. **Global defaults are `time_spent` /
+    `total_time_spent`** (issue #232; TaskNotes and the Starter Kit names): `duration` is a real
+    property on music albums, exercises and recordings, so tracking into it corrupted them.
+    Settings schema 3 replaces a stored `duration` / `total_duration` only while it is still
+    exactly that old default; any other name stays. The four property names resolve **per note type**
     (`timeTracking` override, blank = global default: `trackingPropertiesForType`), and a
     change of names is part of the WBS render signature. **Pomodoro is a mode of the same
     tracker**, not a second one: a work pomodoro on a note opens that note's session and

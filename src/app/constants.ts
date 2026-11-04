@@ -39,10 +39,22 @@ export const DEFAULT_MINUTES_PER_DAY = 480
 export const DEFAULT_MILESTONES_PROPERTY = 'milestones'
 /** Completion percentage 0–100 (drives the WBS progress bars; issue #76). */
 export const DEFAULT_PROGRESS_PROPERTY = 'progress'
-/** Tracked time in minutes, accumulated by start/stop sessions (issue #119). */
-export const DEFAULT_DURATION_PROPERTY = 'duration'
-/** Persisted subtree tracked-time rollup in minutes (issue #119). */
-export const DEFAULT_TOTAL_DURATION_PROPERTY = 'total_duration'
+/**
+ * Tracked time in minutes, accumulated by start/stop sessions (issue #119).
+ * TaskNotes' and the Starter Kit's name: `duration` is a real property on
+ * music albums, exercises and recordings (their length), so tracking into it
+ * corrupted them (issue #232).
+ */
+export const DEFAULT_DURATION_PROPERTY = 'time_spent'
+/** Persisted subtree tracked-time rollup in minutes (issue #119; Starter Kit name). */
+export const DEFAULT_TOTAL_DURATION_PROPERTY = 'total_time_spent'
+/**
+ * The pre-2.11 fresh-install defaults. The settings migration to schema 3
+ * replaces a stored value only when it is still exactly one of these; the
+ * tracked-minutes reader keeps reading a legacy `duration` number.
+ */
+export const LEGACY_DURATION_PROPERTY = 'duration'
+export const LEGACY_TOTAL_DURATION_PROPERTY = 'total_duration'
 /**
  * TaskNotes-compatible tracking (issue #172): the entries ledger and the
  * last-session date. Defaults are TaskNotes' mapped names.

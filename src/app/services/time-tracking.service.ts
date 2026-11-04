@@ -50,7 +50,7 @@ import { pushRecentPath } from '../domain/tracking-commands'
 import { DescriptionPromptModal } from '../ui/description-prompt-modal'
 import { SessionRecoveryModal } from '../ui/session-recovery-modal'
 import type { ActivePomodoro, PomodoroConfig, PomodoroType } from '../domain/pomodoro'
-import { DEFAULT_DURATION_PROPERTY } from '../constants'
+import { LEGACY_DURATION_PROPERTY } from '../constants'
 import {
     appendRecordToListProperty,
     coerceOrder,
@@ -160,9 +160,9 @@ export function readTrackedMinutesOf(
         entries: getFrontmatterValue(app, file, properties.entries),
         spent: getFrontmatterValue(app, file, properties.duration),
         legacy:
-            properties.duration === DEFAULT_DURATION_PROPERTY
+            properties.duration === LEGACY_DURATION_PROPERTY
                 ? undefined
-                : getFrontmatterValue(app, file, DEFAULT_DURATION_PROPERTY)
+                : getFrontmatterValue(app, file, LEGACY_DURATION_PROPERTY)
     })
 }
 

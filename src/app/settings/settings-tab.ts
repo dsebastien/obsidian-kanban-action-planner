@@ -182,13 +182,13 @@ const PROGRESS_SETTINGS: TextSetting[] = [
         key: 'defaultDurationProperty',
         name: 'Duration property',
         desc: 'Own tracked minutes: recomputed from the time-entries list on every stop (a note type can override it in its Configure dialog).',
-        fallback: 'duration'
+        fallback: 'time_spent'
     },
     {
         key: 'defaultTotalDurationProperty',
         name: 'Total duration property',
         desc: 'Persisted tracked-time rollup (minutes): the WBS row menu’s "Save total tracked time" writes the subtree total here.',
-        fallback: 'total_duration'
+        fallback: 'total_time_spent'
     },
     {
         key: 'defaultTimeEntriesProperty',

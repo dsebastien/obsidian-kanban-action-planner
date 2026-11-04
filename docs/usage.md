@@ -1616,7 +1616,7 @@ records), straight from the cards, on **any note type**:
   minutes plus every distinct descendant's (actuals **add**; unlike estimates, an own value
   never replaces the children's contribution). A total the children contributed to is shown in
   the derived style, and the row menu offers **Save total tracked time** to persist it (in minutes) to
-  the **total duration** property (`total_duration` by default). **Recompute tracked time**
+  the **total duration** property (`total_time_spent` by default). **Recompute tracked time**
   sets a note's duration and last-session date from the list (after it was edited by
   hand or by TaskNotes). When the stored duration is higher, it asks you first (see
   [Keep or drop a higher stored time](#keep-or-drop-a-higher-stored-time)). It also removes
