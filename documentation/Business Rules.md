@@ -757,7 +757,9 @@ When a new business rule is mentioned:
     ahead (`moveNoteToFolder`'s `beforeMove`): no destination folder or a refused move
     (collision) leaves the note untagged, so its card stays visible; a note already in the
     destination gets the tag (nothing moves); a failed tag write is logged and the note still
-    moves. Tag normalization as the Starter Kit's `normalizeArchiveTag`. Only mirrored configs
+    moves. A file appearing at the destination during the tag write, or a failed folder creation
+    or rename, leaves the note tagged and in place, reported (`reason: 'error'`, a Notice). Tag
+    normalization as the Starter Kit's `normalizeArchiveTag`. Only mirrored configs
     carry a tag: types the planner owns have none, even by a hand edit (decision 2026-11-09);
     no tag declared = exactly the behaviour and stored config of before.
 

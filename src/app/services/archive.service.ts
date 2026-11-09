@@ -98,7 +98,11 @@ export async function moveNoteToFolder(
     file: TFile,
     folderTemplate: string,
     ctx: ExpressionContext = liveExpressionContext(),
-    /** Runs once the move is known to go ahead (or the note is already there), before it. */
+    /**
+     * Runs once the move is known to go ahead (or the note is already there),
+     * before it. Must not throw: it runs outside the error handling of the
+     * move (`archiveNote`'s hook catches and logs its own errors).
+     */
     beforeMove?: () => Promise<void>
 ): Promise<ArchiveResult> {
     const folder = resolveArchiveFolder(folderTemplate, ctx)
