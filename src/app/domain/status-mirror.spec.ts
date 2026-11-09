@@ -1,3 +1,4 @@
+import { archiveConfigSchema } from './note-type'
 import { describe, expect, test } from 'bun:test'
 import type { AutomationRule } from './note-type'
 import type { SkResolvedStatus } from '../services/starter-kit.service'
@@ -229,6 +230,32 @@ describe('archive mirror (Starter Kit ≥ 1.19)', () => {
             'statut/archive'
         )
         expect(mirroredArchiveConfig(skArchive, explicit)).not.toHaveProperty('tag')
+    })
+
+    test('when the Starter Kit drops the tag, the mirror drops it too (re-sync)', () => {
+        const before = reconcileArchive(
+            { archiveFolder: '', triggerStatuses: [], doneDateProperties: [] },
+            { ...skArchive, tag: 'statut/archive' },
+            explicit
+        )
+        expect(before.tag).toBe('statut/archive')
+        const after = reconcileArchive(before, skArchive, explicit)
+        expect(after).not.toHaveProperty('tag')
+        expect(JSON.stringify(after)).not.toBe(JSON.stringify(before))
+    })
+
+    test('stored config: the tag survives a round trip on a mirror, never on a planner-owned or empty one', () => {
+        const mirrored = mirroredArchiveConfig({ ...skArchive, tag: 'statut/archive' }, explicit)
+        if (!mirrored) throw new Error('setup')
+        expect(archiveConfigSchema.parse(JSON.parse(JSON.stringify(mirrored)))).toEqual(mirrored)
+        expect(
+            JSON.stringify(archiveConfigSchema.parse(JSON.parse(JSON.stringify(mirrored))))
+        ).toBe(JSON.stringify(mirrored))
+        const own = { archiveFolder: 'Local', triggerStatuses: ['x'], tag: 'manual' }
+        expect(archiveConfigSchema.parse(own)).not.toHaveProperty('tag')
+        expect(archiveConfigSchema.parse({ ...own, tag: '', mirrored: true })).not.toHaveProperty(
+            'tag'
+        )
     })
 
     test('a status that stamps no date contributes no done-date property', () => {

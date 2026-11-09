@@ -63,19 +63,28 @@ export async function archiveNote(
     archive: ArchiveConfig,
     ctx: ExpressionContext = liveExpressionContext()
 ): Promise<ArchiveResult> {
-    // The Starter Kit's archive tag (≥ 1.50, mirrored): added right before the
-    // move, like the Starter Kit's own archive rule (add-tag, then move), so
-    // Bases that hide archived notes by tag hide this one at once. Nothing to
-    // tag when there is no destination.
-    const tag = normalizeTag(archive.tag ?? '')
-    if (tag && resolveArchiveFolder(archive.archiveFolder, ctx) !== null) {
-        try {
-            await appendToListProperty(app, file, 'tags', tag, (item) => tagMatches(item, tag))
-        } catch (error: unknown) {
-            log(`Archive tag "${tag}" not added to "${file.path}"; moving anyway.`, 'error', error)
-        }
-    }
-    return moveNoteToFolder(app, file, archive.archiveFolder, ctx)
+    // The Starter Kit's archive tag (≥ 1.50, mirrored configs only): added
+    // right before the move, like the Starter Kit's own archive rule (add-tag,
+    // then move), so Bases that hide archived notes by tag hide this one at
+    // once. Only when the move will happen (or the note is already there): a
+    // refused move (no folder, collision) leaves the note untagged and visible.
+    const tag = archive.mirrored ? normalizeTag(archive.tag ?? '') : ''
+    const beforeMove = tag
+        ? async (): Promise<void> => {
+              try {
+                  await appendToListProperty(app, file, 'tags', tag, (item) =>
+                      tagMatches(item, tag)
+                  )
+              } catch (error: unknown) {
+                  log(
+                      `Archive tag "${tag}" not added to "${file.path}"; moving anyway.`,
+                      'error',
+                      error
+                  )
+              }
+          }
+        : undefined
+    return moveNoteToFolder(app, file, archive.archiveFolder, ctx, beforeMove)
 }
 
 /**
@@ -88,7 +97,9 @@ export async function moveNoteToFolder(
     app: App,
     file: TFile,
     folderTemplate: string,
-    ctx: ExpressionContext = liveExpressionContext()
+    ctx: ExpressionContext = liveExpressionContext(),
+    /** Runs once the move is known to go ahead (or the note is already there), before it. */
+    beforeMove?: () => Promise<void>
 ): Promise<ArchiveResult> {
     const folder = resolveArchiveFolder(folderTemplate, ctx)
     if (folder === null) {
@@ -114,12 +125,13 @@ export async function moveNoteToFolder(
         folder,
         (path) => app.vault.getAbstractFileByPath(path) !== null
     )
-    if (plan.kind === 'noop') return { ok: true, destPath: file.path }
     if (plan.kind === 'collision') {
         const message = `"${plan.path}" already exists at the destination; nothing moved`
         log(`Move refused for "${file.path}": ${message}`, 'warn')
         return { ok: false, reason: 'collision', message }
     }
+    if (beforeMove) await beforeMove()
+    if (plan.kind === 'noop') return { ok: true, destPath: file.path }
 
     try {
         await ensureFolder(app, folder)

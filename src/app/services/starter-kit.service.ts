@@ -237,9 +237,11 @@ export function getNoteTypeArchive(app: App, id: string): SkArchive | null {
         if (!folder || statuses.length === 0) return null
         const afterDays =
             typeof raw.afterDays === 'number' && raw.afterDays >= 0 ? Math.floor(raw.afterDays) : 0
-        // Stored without `#` and trimmed by the Starter Kit; a tag with white
-        // space inside is not a tag (the Starter Kit refuses it too).
-        const tag = typeof raw.tag === 'string' ? raw.tag.trim().replace(/^#+/, '') : ''
+        // As the Starter Kit's `normalizeArchiveTag` (it returns the tag that
+        // way already): leading `#` and white space off, trailing white space
+        // off. A tag with white space inside is not a tag (the Starter Kit
+        // refuses to store one).
+        const tag = typeof raw.tag === 'string' ? raw.tag.replace(/^[#\s]+/, '').trimEnd() : ''
         return tag && !/\s/.test(tag)
             ? { folder, afterDays, statuses, tag }
             : { folder, afterDays, statuses }

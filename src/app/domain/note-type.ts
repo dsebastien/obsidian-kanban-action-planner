@@ -142,7 +142,8 @@ export const archiveConfigSchema = z
                 triggerStatuses: [...new Set(list)],
                 doneDateProperties: doneDateProperties ?? [],
                 ...(graceDays !== undefined ? { graceDays } : {}),
-                ...(tag ? { tag } : {}),
+                // Only the Starter Kit's archive carries a tag (owner decision).
+                ...(tag && mirrored ? { tag } : {}),
                 ...(mirrored ? { mirrored: true } : {})
             }
         }

@@ -142,35 +142,56 @@ describe('planMove', () => {
 })
 
 describe('archiveNote: the Starter Kit archive tag (OSK ≥ 1.50, Archive Tag Rule)', () => {
+    interface Options {
+        path?: string
+        parent?: { path: string; name: string; parentPath: string } | null
+        exists?: (path: string) => boolean
+        failTagWrite?: boolean
+        fm?: Record<string, unknown>
+    }
     /** A vault with one note; records frontmatter writes and moves, in order. */
-    function vault(tags: unknown): {
+    function vault(
+        tags: unknown,
+        o: Options = {}
+    ): {
         app: App
         file: TFile
         fm: Record<string, unknown>
         events: string[]
     } {
-        const fm: Record<string, unknown> = { tags }
+        const fm: Record<string, unknown> = o.fm ?? { tags }
         const events: string[] = []
+        const path = o.path ?? 'Tasks/Do it.md'
+        const name = path.slice(path.lastIndexOf('/') + 1)
+        const parent = o.parent
+            ? {
+                  path: o.parent.path,
+                  name: o.parent.name,
+                  isRoot: () => false,
+                  parent: { path: o.parent.parentPath }
+              }
+            : null
         const file = Object.assign(new TFile(), {
-            path: 'Tasks/Do it.md',
-            name: 'Do it.md',
-            basename: 'Do it',
-            parent: null
+            path,
+            name,
+            basename: name.replace(/\.md$/, ''),
+            parent
         })
         const app: App = Object.assign(new App(), {
             fileManager: {
                 processFrontMatter: (_f: TFile, cb: (x: Record<string, unknown>) => void) => {
+                    if (o.failTagWrite) return Promise.reject(new Error('locked'))
                     events.push('frontmatter')
                     cb(fm)
                     return Promise.resolve()
                 },
-                renameFile: (_f: TFile, to: string) => {
+                renameFile: (_f: unknown, to: string) => {
                     events.push(`move ${to}`)
                     return Promise.resolve()
                 }
             },
             vault: {
-                getAbstractFileByPath: () => null,
+                getAbstractFileByPath: (p: string) => (o.exists?.(p) ? {} : null),
                 getFolderByPath: () => ({}),
                 createFolder: () => Promise.resolve()
             }
@@ -184,10 +205,11 @@ describe('archiveNote: the Starter Kit archive tag (OSK ≥ 1.50, Archive Tag Ru
         mirrored: true,
         ...extra
     })
+    const tagged = archive({ tag: 'statut/archive' })
 
     test('adds the tag, then moves the note', async () => {
         const v = vault(['type/task'])
-        const result = await archiveNote(v.app, v.file, archive({ tag: 'statut/archive' }), ctx)
+        const result = await archiveNote(v.app, v.file, tagged, ctx)
         expect(result).toEqual({ ok: true, destPath: 'Archives/2026/Do it.md' })
         expect(v.events).toEqual(['frontmatter', 'move Archives/2026/Do it.md'])
         expect(v.fm['tags']).toEqual(['type/task', 'statut/archive'])
@@ -195,8 +217,22 @@ describe('archiveNote: the Starter Kit archive tag (OSK ≥ 1.50, Archive Tag Ru
 
     test('a tag already there (any case, with #) is not added twice', async () => {
         const v = vault(['type/task', '#Statut/Archive'])
-        await archiveNote(v.app, v.file, archive({ tag: 'statut/archive' }), ctx)
+        await archiveNote(v.app, v.file, tagged, ctx)
         expect(v.fm['tags']).toEqual(['type/task', '#Statut/Archive'])
+    })
+
+    test('tags as text, null, a null item, missing, or under another casing', async () => {
+        for (const [fm, key, expected] of [
+            [{ tags: 'type/task' }, 'tags', ['type/task', 'statut/archive']],
+            [{ tags: null }, 'tags', ['statut/archive']],
+            [{ tags: [null] }, 'tags', ['statut/archive']],
+            [{}, 'tags', ['statut/archive']],
+            [{ Tags: ['type/task'] }, 'Tags', ['type/task', 'statut/archive']]
+        ] as const) {
+            const v = vault(undefined, { fm: { ...fm } })
+            await archiveNote(v.app, v.file, tagged, ctx)
+            expect(v.fm[key]).toEqual([...expected])
+        }
     })
 
     test('no tag: only the move, as before', async () => {
@@ -206,15 +242,53 @@ describe('archiveNote: the Starter Kit archive tag (OSK ≥ 1.50, Archive Tag Ru
         expect(v.fm['tags']).toEqual(['type/task'])
     })
 
+    test('a tag on a config the planner owns is ignored (only the Starter Kit tags)', async () => {
+        const v = vault(['type/task'])
+        await archiveNote(v.app, v.file, archive({ tag: 'statut/archive', mirrored: false }), ctx)
+        expect(v.events).toEqual(['move Archives/2026/Do it.md'])
+    })
+
     test('no destination folder: neither tagged nor moved', async () => {
         const v = vault(['type/task'])
-        const result = await archiveNote(
-            v.app,
-            v.file,
-            archive({ archiveFolder: ' ', tag: 'statut/archive' }),
-            ctx
-        )
+        const result = await archiveNote(v.app, v.file, { ...tagged, archiveFolder: ' ' }, ctx)
         expect(result).toEqual({ ok: false, reason: 'no-folder' })
         expect(v.events).toEqual([])
+    })
+
+    test('a refused move (collision): not tagged, so the card stays visible', async () => {
+        const v = vault(['type/task'], { exists: (p) => p === 'Archives/2026/Do it.md' })
+        const result = await archiveNote(v.app, v.file, tagged, ctx)
+        expect(result.ok).toBe(false)
+        expect(result.ok ? null : result.reason).toBe('collision')
+        expect(v.events).toEqual([])
+    })
+
+    test('a failed tag write is logged and the note still moves', async () => {
+        const v = vault(['type/task'], { failTagWrite: true })
+        const original = console.error
+        console.error = (): void => {}
+        try {
+            const result = await archiveNote(v.app, v.file, tagged, ctx)
+            expect(result).toEqual({ ok: true, destPath: 'Archives/2026/Do it.md' })
+        } finally {
+            console.error = original
+        }
+        expect(v.events).toEqual(['move Archives/2026/Do it.md'])
+    })
+
+    test('a folder note: the note is tagged, then its folder moves', async () => {
+        const v = vault(['type/project'], {
+            path: 'Projects/Foo/Foo (Project).md',
+            parent: { path: 'Projects/Foo', name: 'Foo', parentPath: 'Projects' }
+        })
+        await archiveNote(v.app, v.file, tagged, ctx)
+        expect(v.events).toEqual(['frontmatter', 'move Archives/2026/Foo'])
+    })
+
+    test('a note already in the archive folder gets the tag, nothing moves', async () => {
+        const v = vault(['type/task'], { path: 'Archives/2026/Do it.md' })
+        const result = await archiveNote(v.app, v.file, tagged, ctx)
+        expect(result).toEqual({ ok: true, destPath: 'Archives/2026/Do it.md' })
+        expect(v.events).toEqual(['frontmatter'])
     })
 })

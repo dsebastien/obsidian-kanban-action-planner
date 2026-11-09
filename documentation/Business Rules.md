@@ -753,10 +753,13 @@ When a new business rule is mentioned:
     `#`; one with white space inside is ignored) and `archiveNote` adds it to the note's `tags`
     (deduped case- and `#`-insensitively, through the per-file frontmatter queue) right before
     the move, as the Starter Kit's own archive rule does (add-tag, then move), on every archive
-    path (card menu, bulk and column Archive, sweep). No destination folder: neither tagged nor
-    moved; a failed tag write is logged and the note still moves; a refused move (collision)
-    keeps the tag, as in the Starter Kit. Types the planner owns have no tag (decision
-    2026-11-09); no tag declared = exactly the behaviour and stored config of before.
+    path (card menu, bulk and column Archive, auto-archive, sweep), once the move is known to go
+    ahead (`moveNoteToFolder`'s `beforeMove`): no destination folder or a refused move
+    (collision) leaves the note untagged, so its card stays visible; a note already in the
+    destination gets the tag (nothing moves); a failed tag write is logged and the note still
+    moves. Tag normalization as the Starter Kit's `normalizeArchiveTag`. Only mirrored configs
+    carry a tag: types the planner owns have none, even by a hand edit (decision 2026-11-09);
+    no tag declared = exactly the behaviour and stored config of before.
 
 40. **Per-type automation rules (owner).** A note type carries an ordered list of
     **automation rules** (`automations`, plugin-owned `automationRuleSchema`; Configure
