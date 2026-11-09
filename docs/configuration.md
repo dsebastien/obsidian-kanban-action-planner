@@ -274,7 +274,9 @@ board → Archiving**:
 archive (Settings → Obsidian Starter Kit → Note types → Edit → Archive), this panel shows that
 declaration read-only instead: its folder, its archiving statuses, the dates they stamp (used as
 the done-date properties), and its per-type delay, which replaces the global grace period below
-for that type. Edit it there; boards re-sync on every load. Both plugins may keep archiving the
+for that type. When the Starter Kit (1.50+) also names an archive tag, the planner adds that tag
+to the note right before it moves it, so Bases that hide archived notes by tag hide it at once.
+Edit it there; boards re-sync on every load. Both plugins may keep archiving the
 same type: neither one ever moves a note that's already under the archive folder.
 
 You can also archive by hand from a card's right-click menu (**Archive**). Moves go through

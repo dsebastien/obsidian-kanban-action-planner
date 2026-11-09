@@ -224,6 +224,13 @@ describe('archive mirror (Starter Kit ≥ 1.19)', () => {
         })
     })
 
+    test('mirrors the archive tag (Starter Kit ≥ 1.50); none = no tag key', () => {
+        expect(mirroredArchiveConfig({ ...skArchive, tag: 'statut/archive' }, explicit)?.tag).toBe(
+            'statut/archive'
+        )
+        expect(mirroredArchiveConfig(skArchive, explicit)).not.toHaveProperty('tag')
+    })
+
     test('a status that stamps no date contributes no done-date property', () => {
         const only = { ...skArchive, statuses: ['30 - Active'] }
         expect(mirroredArchiveConfig(only, explicit)?.doneDateProperties).toEqual([])

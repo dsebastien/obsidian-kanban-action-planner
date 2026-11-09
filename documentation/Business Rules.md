@@ -748,7 +748,15 @@ When a new business rule is mentioned:
     mirrored type carries a delay). A Starter Kit that stops declaring it hands back a blank,
     editable config. Unlike stamps there is no exactly-one-executor rule: both plugins may
     archive the same type, because a move is a no-op for a note already under the archive
-    folder on both sides.
+    folder on both sides. **Archive tag (Starter Kit ≥ 1.50, Archive Tag Rule):** when the
+    Starter Kit's archive names a `tag`, the mirror carries it (`archive.tag`, trimmed, without
+    `#`; one with white space inside is ignored) and `archiveNote` adds it to the note's `tags`
+    (deduped case- and `#`-insensitively, through the per-file frontmatter queue) right before
+    the move, as the Starter Kit's own archive rule does (add-tag, then move), on every archive
+    path (card menu, bulk and column Archive, sweep). No destination folder: neither tagged nor
+    moved; a failed tag write is logged and the note still moves; a refused move (collision)
+    keeps the tag, as in the Starter Kit. Types the planner owns have no tag (decision
+    2026-11-09); no tag declared = exactly the behaviour and stored config of before.
 
 40. **Per-type automation rules (owner).** A note type carries an ordered list of
     **automation rules** (`automations`, plugin-owned `automationRuleSchema`; Configure

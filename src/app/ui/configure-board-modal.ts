@@ -1450,7 +1450,9 @@ export class ConfigureBoardModal extends Modal {
                 .setName('Mirrored from the Obsidian Starter Kit')
                 .setDesc(
                     `The Starter Kit declares where these notes archive (Settings → Obsidian Starter Kit → Note types → Edit → Archive): ` +
-                        `folder "${archive.archiveFolder}", on ${statuses || 'no status'}, ${delay}. ` +
+                        `folder "${archive.archiveFolder}", on ${statuses || 'no status'}, ${delay}` +
+                        (archive.tag ? `, tagged "${archive.tag}"` : '') +
+                        '. ' +
                         'Edit it there; this plugin re-syncs on every board load. Both plugins may archive: a note already under the folder is never moved again.'
                 )
             return

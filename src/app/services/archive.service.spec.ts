@@ -1,5 +1,13 @@
 import { describe, expect, test } from 'bun:test'
-import { isNamesake, normalizeFolderPath, planMove, resolveArchiveFolder } from './archive.service'
+import { App, TFile } from 'obsidian'
+import {
+    archiveNote,
+    isNamesake,
+    normalizeFolderPath,
+    planMove,
+    resolveArchiveFolder
+} from './archive.service'
+import type { ArchiveConfig } from '../domain/note-type'
 import type { ExpressionContext } from '../utils/expressions'
 
 const ctx: ExpressionContext = {
@@ -130,5 +138,83 @@ describe('planMove', () => {
             kind: 'file',
             destPath: 'Archive/Write docs.md'
         })
+    })
+})
+
+describe('archiveNote: the Starter Kit archive tag (OSK ≥ 1.50, Archive Tag Rule)', () => {
+    /** A vault with one note; records frontmatter writes and moves, in order. */
+    function vault(tags: unknown): {
+        app: App
+        file: TFile
+        fm: Record<string, unknown>
+        events: string[]
+    } {
+        const fm: Record<string, unknown> = { tags }
+        const events: string[] = []
+        const file = Object.assign(new TFile(), {
+            path: 'Tasks/Do it.md',
+            name: 'Do it.md',
+            basename: 'Do it',
+            parent: null
+        })
+        const app: App = Object.assign(new App(), {
+            fileManager: {
+                processFrontMatter: (_f: TFile, cb: (x: Record<string, unknown>) => void) => {
+                    events.push('frontmatter')
+                    cb(fm)
+                    return Promise.resolve()
+                },
+                renameFile: (_f: TFile, to: string) => {
+                    events.push(`move ${to}`)
+                    return Promise.resolve()
+                }
+            },
+            vault: {
+                getAbstractFileByPath: () => null,
+                getFolderByPath: () => ({}),
+                createFolder: () => Promise.resolve()
+            }
+        })
+        return { app, file, fm, events }
+    }
+    const archive = (extra: Partial<ArchiveConfig> = {}): ArchiveConfig => ({
+        archiveFolder: 'Archives/{{year}}',
+        triggerStatuses: ['80 - Done'],
+        doneDateProperties: [],
+        mirrored: true,
+        ...extra
+    })
+
+    test('adds the tag, then moves the note', async () => {
+        const v = vault(['type/task'])
+        const result = await archiveNote(v.app, v.file, archive({ tag: 'statut/archive' }), ctx)
+        expect(result).toEqual({ ok: true, destPath: 'Archives/2026/Do it.md' })
+        expect(v.events).toEqual(['frontmatter', 'move Archives/2026/Do it.md'])
+        expect(v.fm['tags']).toEqual(['type/task', 'statut/archive'])
+    })
+
+    test('a tag already there (any case, with #) is not added twice', async () => {
+        const v = vault(['type/task', '#Statut/Archive'])
+        await archiveNote(v.app, v.file, archive({ tag: 'statut/archive' }), ctx)
+        expect(v.fm['tags']).toEqual(['type/task', '#Statut/Archive'])
+    })
+
+    test('no tag: only the move, as before', async () => {
+        const v = vault(['type/task'])
+        await archiveNote(v.app, v.file, archive(), ctx)
+        expect(v.events).toEqual(['move Archives/2026/Do it.md'])
+        expect(v.fm['tags']).toEqual(['type/task'])
+    })
+
+    test('no destination folder: neither tagged nor moved', async () => {
+        const v = vault(['type/task'])
+        const result = await archiveNote(
+            v.app,
+            v.file,
+            archive({ archiveFolder: ' ', tag: 'statut/archive' }),
+            ctx
+        )
+        expect(result).toEqual({ ok: false, reason: 'no-folder' })
+        expect(v.events).toEqual([])
     })
 })

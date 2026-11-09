@@ -851,7 +851,8 @@ Set this up in each type's **Archiving** section:
 
 With the Obsidian Starter Kit (1.19 or later), a type that declares its archive there shows it
 read-only ("Mirrored from the Obsidian Starter Kit"): folder, archiving statuses, done dates, and
-a per-type delay that replaces the global grace period.
+a per-type delay that replaces the global grace period. With the Starter Kit 1.50 or later, an
+archive tag set there is added to the note when the planner archives it.
 
 To archive manually, **right-click a card → Archive** (only shown when an archive folder is
 set). If the note still has active children or blockers you get a non-blocking heads-up: the

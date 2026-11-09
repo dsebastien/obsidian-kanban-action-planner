@@ -2,6 +2,8 @@ import type { App, TFile } from 'obsidian'
 import type { ArchiveConfig } from '../domain/note-type'
 import { resolvePlaceholders, type ExpressionContext } from '../utils/expressions'
 import { log } from '../../utils/log'
+import { normalizeTag, tagMatches } from '../domain/automation'
+import { appendToListProperty } from './frontmatter.service'
 
 /**
  * Archiving: move a card's note into a configurable, placeholder-driven folder.
@@ -61,6 +63,18 @@ export async function archiveNote(
     archive: ArchiveConfig,
     ctx: ExpressionContext = liveExpressionContext()
 ): Promise<ArchiveResult> {
+    // The Starter Kit's archive tag (≥ 1.50, mirrored): added right before the
+    // move, like the Starter Kit's own archive rule (add-tag, then move), so
+    // Bases that hide archived notes by tag hide this one at once. Nothing to
+    // tag when there is no destination.
+    const tag = normalizeTag(archive.tag ?? '')
+    if (tag && resolveArchiveFolder(archive.archiveFolder, ctx) !== null) {
+        try {
+            await appendToListProperty(app, file, 'tags', tag, (item) => tagMatches(item, tag))
+        } catch (error: unknown) {
+            log(`Archive tag "${tag}" not added to "${file.path}"; moving anyway.`, 'error', error)
+        }
+    }
     return moveNoteToFolder(app, file, archive.archiveFolder, ctx)
 }
 

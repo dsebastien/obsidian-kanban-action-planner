@@ -59,7 +59,7 @@ interface SkApiLike {
     recognizeNoteType?: (file: unknown) => Promise<unknown>
     /** Starter Kit ≥ 1.13: the type's status property + done states. */
     getNoteTypeStatus?: (ref: string) => unknown
-    /** Starter Kit ≥ 1.19: the type's archive (folder template, delay, archiving statuses). */
+    /** Starter Kit ≥ 1.19: the type's archive (folder template, delay, archiving statuses; ≥ 1.50: tag). */
     getNoteTypeArchive?: (ref: string) => unknown
     /**
      * Starter Kit with note type relationships: the type's relationship rules
@@ -220,6 +220,8 @@ export interface SkArchive {
     folder: string
     afterDays: number
     statuses: string[]
+    /** Starter Kit ≥ 1.50: the tag an archived note gets (Archive Tag Rule); absent = none. */
+    tag?: string
 }
 
 export function getNoteTypeArchive(app: App, id: string): SkArchive | null {
@@ -235,7 +237,12 @@ export function getNoteTypeArchive(app: App, id: string): SkArchive | null {
         if (!folder || statuses.length === 0) return null
         const afterDays =
             typeof raw.afterDays === 'number' && raw.afterDays >= 0 ? Math.floor(raw.afterDays) : 0
-        return { folder, afterDays, statuses }
+        // Stored without `#` and trimmed by the Starter Kit; a tag with white
+        // space inside is not a tag (the Starter Kit refuses it too).
+        const tag = typeof raw.tag === 'string' ? raw.tag.trim().replace(/^#+/, '') : ''
+        return tag && !/\s/.test(tag)
+            ? { folder, afterDays, statuses, tag }
+            : { folder, afterDays, statuses }
     } catch {
         return null
     }

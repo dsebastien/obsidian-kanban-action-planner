@@ -8,6 +8,7 @@ import {
     enumPropertyDefs,
     findProperty,
     findStatusProperty,
+    getNoteTypeArchive,
     getNoteTypeRelationships,
     isStaleGuessedStatus,
     legacyGuessedStatusProperty,
@@ -248,6 +249,35 @@ describe('onStarterKitNoteTypesChanged', () => {
         expect(calls).toBe(0)
         events.trigger('obsidian-starter-kit:note-types-changed')
         expect(calls).toBe(1)
+    })
+})
+
+describe('getNoteTypeArchive: the archive tag (Starter Kit ≥ 1.50)', () => {
+    const appWith = (data: unknown): App =>
+        Object.assign(new App(), {
+            plugins: {
+                plugins: {
+                    'obsidian-starter-kit': {
+                        api: {
+                            listNoteTypes: (): unknown[] => [],
+                            getNoteTypeArchive: () => ({ success: true, data })
+                        }
+                    }
+                }
+            }
+        })
+    const base = { folder: 'Archives', afterDays: 0, statuses: ['Done'] }
+
+    it('reads the tag, trimmed and without #', () => {
+        expect(getNoteTypeArchive(appWith({ ...base, tag: ' #statut/archive ' }), 't')?.tag).toBe(
+            'statut/archive'
+        )
+    })
+
+    it('no tag, an empty one, one with a space or a non-text one: no tag key (as before)', () => {
+        for (const tag of [undefined, '', '  ', 'two words', 42]) {
+            expect(getNoteTypeArchive(appWith({ ...base, tag }), 't')).toEqual(base)
+        }
     })
 })
 
