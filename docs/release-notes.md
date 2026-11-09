@@ -1,5 +1,15 @@
 # Release Notes
 
+## 2.12.0 (2026-11-09)
+
+### Features
+
+- **plugin:** add the Starter Kit's archive tag when archiving a note
+
+### Bug Fixes
+
+- **plugin:** tag an archived note only when its move goes ahead
+
 ## 2.11.0 (2026-11-04)
 
 ### The board writes only what your note types declare
