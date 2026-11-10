@@ -692,6 +692,24 @@ export async function mirrorStarterKitTypes(
     }
 }
 
+/**
+ * Re-mirror every stored Starter Kit note type the Starter Kit still knows,
+ * whether or not a board shows it. The stored copy (columns, status roles,
+ * done states) is what the settings, the ideal week and the planner read when
+ * no board has resolved the type, so a value removed in the Starter Kit (e.g.
+ * `99 - Idea`) must leave it without waiting for a board of that type to
+ * open. Writes only the types that changed; local types and types the
+ * Starter Kit does not know are left alone.
+ */
+export async function resyncStarterKitTypes(
+    app: App,
+    plugin: KanbanActionPlannerPlugin
+): Promise<void> {
+    if (!isStarterKitAvailable(app)) return
+    const ids = plugin.settings.noteTypes.filter((n) => n.source === 'starter-kit').map((n) => n.id)
+    await mirrorStarterKitTypes(app, plugin, ids)
+}
+
 export interface ResolvedNoteType {
     noteType: NoteType
     /** Explicit status values from the source of truth, or null to use observed. */

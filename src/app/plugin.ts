@@ -51,6 +51,7 @@ import {
 } from './services/tracking-commands.service'
 import { isPaused } from './domain/pomodoro'
 import { onStarterKitNoteTypesChanged } from './services/starter-kit.service'
+import { resyncStarterKitTypes } from './services/note-type.service'
 import { produce } from 'immer'
 import { OrderNormalizerQueue } from './services/order-normalizer.service'
 import type { PendingWrite } from './domain/pending-write'
@@ -158,6 +159,9 @@ export class KanbanActionPlannerPlugin extends Plugin {
      * changed). Each view re-mirrors the live definitions on its rebuild.
      */
     refreshNoteTypes(): void {
+        // Boards re-mirror what they show; every other stored type is re-mirrored
+        // here so no stale status survives without a board (see resync).
+        void resyncStarterKitTypes(this.app, this)
         for (const view of this.openKanbanViews) view.onSettingsChanged('full')
     }
 
@@ -192,6 +196,10 @@ export class KanbanActionPlannerPlugin extends Plugin {
         this.registerEvent(
             onStarterKitNoteTypesChanged(this.app.workspace, () => this.refreshNoteTypes())
         )
+
+        // The Starter Kit may have changed while this plugin was off or no
+        // board was open: bring the stored copies up to date once it is ready.
+        this.app.workspace.onLayoutReady(() => void resyncStarterKitTypes(this.app, this))
 
         // Add a settings screen for the plugin
         this.addSettingTab(new KanbanActionPlannerSettingTab(this.app, this))

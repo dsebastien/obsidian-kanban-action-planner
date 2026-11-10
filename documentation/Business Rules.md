@@ -1327,9 +1327,12 @@ Markdown)`, `Export ideal week (JSON)`, `Export ideal week (Markdown)`); the for
     `obsidian-starter-kit:note-types-changed` (triggered by the Starter Kit after any note type
     mutation; custom name, subscribed through the generic `Events.on`) and asks every open board
     to re-resolve (`refreshNoteTypes` → `onSettingsChanged('full')`), debounced 300 ms plus the
-    view's own 250 ms rebuild debounce, so a burst of mutations costs one rebuild. There is no
-    mirrored-type cache to clear: `resolveAndRebuild` re-reads the Starter Kit and re-mirrors
-    (writing only on change) on every rebuild.
+    view's own 250 ms rebuild debounce, so a burst of mutations costs one rebuild. The stored
+    mirror is also re-synced with no board involved: `resyncStarterKitTypes` re-mirrors every
+    stored `starter-kit` type the Starter Kit still knows, on each change event and once at
+    layout ready, so a status removed in the Starter Kit (e.g. `99 - Idea`) leaves the stored
+    columns and status roles even when no board of that type is open. `resolveAndRebuild` still
+    re-reads the Starter Kit and re-mirrors (writing only on change) on every rebuild.
 66. **Background manual-order normalizer.** A column needs repair when a card has no order or two
     adjacent orders are closer than `MIN_ORDER_GAP` (ties included; `columnNeedsNormalization`).
     `planColumnNormalization` keeps every order that clears the previous kept one, gives the rest

@@ -5,13 +5,18 @@ import {
     createDefaultNoteType,
     DEFAULT_NOTE_TYPE_ID,
     mirrorNoteType,
-    resolveNaming
+    resolveNaming,
+    resyncStarterKitTypes
 } from './note-type.service'
 import { roleLinkRules } from '../domain/relationship-rules'
 import type { SkNoteType } from './starter-kit.service'
 import { defaultNamingConfig } from '../domain/card-title'
 import { noteTypeSchema } from '../domain/note-type'
 import { autoAssignColor } from './colors.service'
+import type { App } from 'obsidian'
+import type { NoteType } from '../domain/note-type'
+import type { KanbanActionPlannerPlugin } from '../plugin'
+import { createDefaultSettings } from '../types/plugin-settings.intf'
 
 describe('createDefaultNoteType', () => {
     it('produces a fully-populated, schema-valid noteType', () => {
@@ -252,5 +257,60 @@ describe('mirrorNoteType (Starter Kit relationships)', () => {
         )
         expect(out.relationshipsMirrored).toBe(true)
         expect(out.relationships.find((r) => r.heuristic)?.heuristic).toEqual(heuristic)
+    })
+})
+
+describe('resyncStarterKitTypes (no board open)', () => {
+    const idea = '99 - Idea'
+    const fakeApp = (values: string[]): App =>
+        ({
+            plugins: {
+                plugins: {
+                    'obsidian-starter-kit': {
+                        api: {
+                            listNoteTypes: () => [{ id: 'goals', name: 'Goals' }],
+                            getNoteTypeStatus: () => ({
+                                success: true,
+                                data: {
+                                    property: 'status',
+                                    explicit: true,
+                                    values: values.map((value) => ({ value, done: false }))
+                                }
+                            })
+                        }
+                    }
+                }
+            }
+        }) as unknown as App
+
+    const staleGoals = (): NoteType => {
+        const base = createDefaultNoteType('goals', 'Goals', 'starter-kit')
+        return {
+            ...base,
+            columns: columnsFromValues([idea, '20 - Planned'], base, true),
+            statusRoles: { [idea]: 'backlog', '20 - Planned': 'scheduled' }
+        }
+    }
+
+    it('drops a status the Starter Kit type no longer has, without any board', async () => {
+        const plugin = {
+            settings: { ...createDefaultSettings(), noteTypes: [staleGoals()] },
+            saveSettings: async () => {}
+        } as unknown as KanbanActionPlannerPlugin
+        await resyncStarterKitTypes(fakeApp(['20 - Planned']), plugin)
+        const goals = plugin.settings.noteTypes.find((n) => n.id === 'goals')
+        expect(goals?.columns.map((c) => c.statusValue)).toEqual(['20 - Planned'])
+        expect(Object.keys(goals?.statusRoles ?? {})).not.toContain(idea)
+    })
+
+    it('leaves local note types and types the Starter Kit does not know alone', async () => {
+        const local = createDefaultNoteType('local-x', 'X', 'local')
+        const unknown = { ...staleGoals(), id: 'gone', name: 'Gone' }
+        const plugin = {
+            settings: { ...createDefaultSettings(), noteTypes: [local, unknown] },
+            saveSettings: async () => {}
+        } as unknown as KanbanActionPlannerPlugin
+        await resyncStarterKitTypes(fakeApp(['20 - Planned']), plugin)
+        expect(plugin.settings.noteTypes).toEqual([local, unknown])
     })
 })
