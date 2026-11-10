@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.12.1](https://github.com/dsebastien/obsidian-kanban-action-planner/compare/2.12.0...2.12.1) (2026-11-10)
+
+### Removed statuses leave the board columns
+
+When you remove a status from a note type in the Starter Kit (for example `99 - Idea` from
+Goals), the plugin used to keep it as a column and a planning role in its own settings until a
+board of that type was opened. It now updates every note type it copies from the Starter Kit
+when the plugin loads and whenever the Starter Kit changes a note type, with no board needed.
+
 ## [2.12.0](https://github.com/dsebastien/obsidian-kanban-action-planner/compare/2.11.0...2.12.0) (2026-11-09)
 
 ### Features
@@ -866,6 +875,7 @@ Claude-Session: https://claude.ai/code/session_01LM4hi11kohPVqgZNLpjRgh
 
 * **plugin:** match Starter Kit's {{quarter}} placeholder format (Q2, not 2) ([4fde618](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/4fde6185c5956e3f6fd2ca3a9b03e70cf5e16840))
 * **plugin:** persist discovered statuses so Show empty columns works ([cf91b81](https://github.com/dsebastien/obsidian-kanban-action-planner/commit/cf91b81a1b0786e35c73f4885882e2dc33564c62))
+
 
 
 
