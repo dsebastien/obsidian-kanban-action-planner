@@ -13,6 +13,7 @@ import { configurableStatusValues } from '../domain/status'
 import { formatDays, formatMinutes as minutesLabel, parseTimeBlock } from '../domain/time-blocks'
 import { parseAvailableHours } from '../domain/week-targets'
 import type { NoteType } from '../domain/note-type'
+import { manualAllowedValues } from '../services/enum.service'
 import {
     findStatusProperty,
     getNoteTypeStatus,
@@ -1196,10 +1197,11 @@ export class KanbanActionPlannerSettingTab extends PluginSettingTab {
      * what the board shows: the Starter Kit's EXPLICIT status declaration first
      * (its 1.13+ Status section, which the old heuristic never consulted, so an
      * explicitly-configured type yielded nothing), then the historical property
-     * heuristic, then the type's own stored columns (what was last mirrored —
-     * also the answer when the Starter Kit is absent), and finally the global
-     * default statuses, so a freshly-created local type with no columns yet is
-     * still configurable.
+     * heuristic, then the values listed under Enums for the type's status
+     * property (issue #237: the only place a local type can declare its own
+     * workflow), then the type's own stored columns (what was last mirrored),
+     * and finally the global default statuses, so a freshly-created local type
+     * with no columns yet is still configurable.
      */
     private statusValuesFor(id: string, source: NoteType['source']): string[] {
         const sk =
@@ -1207,13 +1209,17 @@ export class KanbanActionPlannerSettingTab extends PluginSettingTab {
                 ? listNoteTypes(this.app).find((type) => type.id === id)
                 : undefined
         const explicit = sk ? getNoteTypeStatus(this.app, id) : null
+        const stored = findNoteType(this.plugin, id)
+        const statusProperty =
+            stored?.statusProperty.trim() || this.plugin.settings.defaultStatusProperty
         return configurableStatusValues({
             starterKitExplicit: explicit?.explicit ? explicit.values.map((v) => v.value) : [],
             starterKitDetected: sk
                 ? (findStatusProperty(sk, this.plugin.settings.defaultStatusProperty)
                       ?.allowedValues ?? [])
                 : [],
-            storedColumns: findNoteType(this.plugin, id)?.columns.map((c) => c.statusValue) ?? [],
+            manualEnum: manualAllowedValues(stored, statusProperty) ?? [],
+            storedColumns: stored?.columns.map((c) => c.statusValue) ?? [],
             globalDefaults: this.plugin.settings.defaultStatuses
         })
     }
@@ -1225,7 +1231,7 @@ export class KanbanActionPlannerSettingTab extends PluginSettingTab {
             this.app,
             this.plugin,
             noteType,
-            type.statusValues,
+            () => this.statusValuesFor(noteType.id, noteType.source),
             this.propertiesForType(type.id),
             () => this.update()
         ).open()
@@ -1239,7 +1245,7 @@ export class KanbanActionPlannerSettingTab extends PluginSettingTab {
             this.app,
             this.plugin,
             noteType,
-            this.statusValuesFor(noteType.id, noteType.source),
+            () => this.statusValuesFor(noteType.id, noteType.source),
             this.propertiesForType(noteType.id),
             () => this.update(),
             'recognition'

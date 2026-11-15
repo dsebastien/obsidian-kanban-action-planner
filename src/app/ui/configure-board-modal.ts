@@ -118,7 +118,12 @@ const SECTIONS: ReadonlyArray<{ id: SectionId; label: string; icon: string }> = 
 export class ConfigureBoardModal extends Modal {
     private readonly plugin: KanbanActionPlannerPlugin
     private readonly noteTypeId: string
-    private readonly statusValues: string[]
+    /**
+     * Resolves the status values on every render rather than once: a value list
+     * typed under Enums in this same modal must show under Colors, Automations
+     * and Archiving without closing it first (issue #237).
+     */
+    private readonly resolveStatusValues: () => string[]
     private readonly availableProperties: string[]
     private readonly onChange: () => void
     private activeSection: SectionId = 'colors'
@@ -137,7 +142,7 @@ export class ConfigureBoardModal extends Modal {
         app: App,
         plugin: KanbanActionPlannerPlugin,
         noteType: NoteType,
-        statusValues: string[],
+        statusValues: () => string[],
         availableProperties: string[],
         onChange: () => void,
         initialSection?: SectionId
@@ -145,7 +150,7 @@ export class ConfigureBoardModal extends Modal {
         super(app)
         this.plugin = plugin
         this.noteTypeId = noteType.id
-        this.statusValues = statusValues
+        this.resolveStatusValues = statusValues
         this.availableProperties = availableProperties
         this.onChange = onChange
         if (initialSection) this.activeSection = initialSection
@@ -153,6 +158,10 @@ export class ConfigureBoardModal extends Modal {
 
     private noteType(): NoteType | undefined {
         return findNoteType(this.plugin, this.noteTypeId)
+    }
+
+    private get statusValues(): string[] {
+        return this.resolveStatusValues()
     }
 
     override onOpen(): void {
@@ -2076,8 +2085,9 @@ export class ConfigureBoardModal extends Modal {
             this.body.createDiv({
                 cls: 'kap-modal-empty',
                 text:
-                    'No status values are known for this note type yet. Define its columns' +
-                    ' (or the default statuses in the plugin settings) and they appear here.'
+                    'No status values are known for this note type yet. List the allowed values' +
+                    ' of its status property under Enums (or set the default column values in' +
+                    ' the plugin settings) and they appear here.'
             })
             return
         }

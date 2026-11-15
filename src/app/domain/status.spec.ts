@@ -154,6 +154,7 @@ describe('configurableStatusValues (issue #200)', () => {
     const all = {
         starterKitExplicit: ['10 - Todo', '80 - Done'],
         starterKitDetected: ['detected'],
+        manualEnum: ['01 Create Text', '08 Completed'],
         storedColumns: ['stored'],
         globalDefaults: ['global']
     }
@@ -166,9 +167,23 @@ describe('configurableStatusValues (issue #200)', () => {
         expect(configurableStatusValues({ ...all, starterKitExplicit: [] })).toEqual(['detected'])
     })
 
-    it('falls back to the stored columns when the Starter Kit says nothing', () => {
+    it("offers a local type's own workflow, listed under Enums, before the vault-wide defaults (issue #237)", () => {
         expect(
-            configurableStatusValues({ ...all, starterKitExplicit: [], starterKitDetected: [] })
+            configurableStatusValues({
+                manualEnum: ['01 Create Text', '08 Completed'],
+                globalDefaults: ['global']
+            })
+        ).toEqual(['01 Create Text', '08 Completed'])
+    })
+
+    it('falls back to the stored columns when neither the Starter Kit nor Enums say anything', () => {
+        expect(
+            configurableStatusValues({
+                ...all,
+                starterKitExplicit: [],
+                starterKitDetected: [],
+                manualEnum: []
+            })
         ).toEqual(['stored'])
     })
 

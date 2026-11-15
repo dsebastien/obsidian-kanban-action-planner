@@ -1965,6 +1965,12 @@ properties are detected for you and listed as a hint. Entries here **override** 
 are the only source for **local** note types. Leave a property out to fall back to the Starter
 Kit (or to a free-text value when neither knows it).
 
+For a **local** note type, the values you list here for its **status property** (the Column
+property, `status` by default) are also the statuses offered under **Colors**, **WIP limits**,
+**Done state**, **Automations** and **Archiving**. That is how a local type gets its own
+workflow there; without such a list, those sections offer the vault-wide **Default column
+values**. A Starter Kit type keeps the statuses the Kit declares.
+
 ## Card content
 
 Cards show **the properties you've added to the view**, the same **Properties** selection you

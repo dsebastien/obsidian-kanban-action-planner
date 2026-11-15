@@ -1233,8 +1233,13 @@ Markdown)`, `Export ideal week (JSON)`, `Export ideal week (Markdown)`); the for
     per-status editor in the note-type config (colors, WIP limits, automation triggers, done
     values) draws its values from `configurableStatusValues` (`domain/status.ts`), first
     non-empty wins: the Starter Kit's EXPLICIT status declaration (its 1.13+ Status section) →
-    its property heuristic (older kits) → the type's own stored columns (also the answer with no
-    Starter Kit) → the global default statuses. Never from the Starter Kit heuristic alone: a
+    its property heuristic (older kits) → the allowed values listed under **Enums** for the
+    type's status property (issue #237) → the type's own stored columns → the global default
+    statuses. The Enums rung is how a **local** note type declares its own workflow: with no
+    Starter Kit and no mirrored columns, every local type was otherwise offered the same
+    vault-wide defaults. It ranks below the Starter Kit because a Starter Kit type's columns
+    come from the Kit. The config modal resolves the list on every render, so values typed
+    under Enums show in the other sections without reopening it. Never from the Starter Kit heuristic alone: a
     type whose status values live only in the Kit's Status section resolved to an empty list,
     so the colors panel was blank for every type except one being created that instant (which
     got the global defaults passed in by hand). A freshly created local type has no columns yet

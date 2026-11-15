@@ -114,20 +114,26 @@ export function resolveColumnId(
  *      The historical property heuristic never consulted it, so an explicitly
  *      configured type yielded nothing and every list came up empty.
  *   2. The Starter Kit property heuristic (older kits).
- *   3. The type's own stored columns — what was last mirrored, and the answer
- *      when the Starter Kit is absent.
- *   4. The global default statuses, so a freshly created local type with no
+ *   3. The allowed values the user listed for the type's status property under
+ *      Enums (issue #237). A local type has no Starter Kit to describe its
+ *      workflow, so without this rung every local type was offered the same
+ *      vault-wide defaults, whatever its own statuses were. It ranks below the
+ *      Starter Kit because a Starter Kit type's columns come from the Kit.
+ *   4. The type's own stored columns — what was last mirrored.
+ *   5. The global default statuses, so a freshly created local type with no
  *      columns yet is configurable instead of showing an empty panel.
  */
 export function configurableStatusValues(sources: {
     starterKitExplicit?: ReadonlyArray<string>
     starterKitDetected?: ReadonlyArray<string>
+    manualEnum?: ReadonlyArray<string>
     storedColumns?: ReadonlyArray<string>
     globalDefaults?: ReadonlyArray<string>
 }): string[] {
     const chain = [
         sources.starterKitExplicit,
         sources.starterKitDetected,
+        sources.manualEnum,
         sources.storedColumns,
         sources.globalDefaults
     ]
