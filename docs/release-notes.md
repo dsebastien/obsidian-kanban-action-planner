@@ -1,5 +1,11 @@
 # Release Notes
 
+## 2.13.0 (2026-11-15)
+
+### Features
+
+- **plugin:** offer a note type's own statuses from its Enums in colors, WIP limits, done state, automations and archiving
+
 ## 2.12.1 (2026-11-10)
 
 ### Removed statuses leave the board columns
