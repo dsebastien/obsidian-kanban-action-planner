@@ -1351,8 +1351,9 @@ export class KanbanActionPlannerSettingTab extends PluginSettingTab {
             }
             if (noteType.laneGrouping.kind === 'property') names.add(noteType.laneGrouping.property)
             names.add(noteType.statusProperty)
-            names.add(noteType.orderProperty)
         }
+        // The order property is global (issue #234), never per type.
+        names.add(this.plugin.settings.defaultOrderProperty)
         names.add(this.plugin.settings.defaultBlockedByProperty)
         return Array.from(names)
             .filter((n) => n.length > 0)

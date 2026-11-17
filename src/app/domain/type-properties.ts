@@ -131,7 +131,10 @@ export function plannedPropertiesForType(
             { role: 'Status', name: noteType.statusProperty, expected: [] },
             {
                 role: 'Manual order',
-                name: pick(noteType.orderProperty, settings.defaultOrderProperty),
+                // The board writes the global order property (a board can
+                // override it in Configure view); the per-type field is
+                // deprecated and ignored (issue #234).
+                name: settings.defaultOrderProperty,
                 expected: NUMBER_TYPES
             }
         )

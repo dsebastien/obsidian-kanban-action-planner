@@ -126,6 +126,23 @@ describe('plannedPropertiesForType: only the features a type uses (issue #232)',
         expect(names(type)).toEqual(['Status=status', 'Manual order=manual_order'])
     })
 
+    it('the order property is the global one, never the deprecated per-type value (issue #234)', () => {
+        const type = createDefaultNoteType('t', 'T', 'local')
+        type.relationships = []
+        type.orderProperty = 'rank'
+        type.columns = [
+            {
+                id: 'c',
+                statusValue: 'Open',
+                label: 'Open',
+                sortKey: '0',
+                color: { kind: 'palette', token: 'blue' }
+            }
+        ]
+        expect(names(type)).toContain('Manual order=manual_order')
+        expect(names(type)).not.toContain('Manual order=rank')
+    })
+
     it('a calendar brings start, due, milestones and progress; an own date property alone brings that date', () => {
         const projects = createDefaultNoteType('p', 'Projects', 'starter-kit')
         projects.relationships = []

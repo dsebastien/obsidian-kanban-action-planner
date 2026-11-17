@@ -25,9 +25,12 @@ column rule.
 
 - **Note type** — the reusable note-type configuration unit. Identifies how a note type is
   recognized (`typeRecognition.mappings`: tag/folder/regex) and carries everything needed to
-  render and operate a board for that type: status/order property names, derived `columns`,
+  render and operate a board for that type: status property name, derived `columns`,
   swimlane grouping, colors, archiving, relationships, calendar config. (Card field content is
   not part of the note type — it comes from the Bases view's property selection, see #50.)
+  The stored `orderProperty` and `calendar.tabSort` are deprecated and never read (issue
+  #234): the manual order property is the view's, else the global one, because one order runs
+  through a column of mixed types. They stay stored so older versions still parse the settings.
   `source` is `starter-kit` (mirrored, read-only origin) or `local`. `overrides` is a partial
   local override layer applied on top of a mirrored snapshot.
 - **ColumnDef** — a board column derived from a status value: stable `id`, raw `statusValue`,

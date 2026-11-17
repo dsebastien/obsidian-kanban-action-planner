@@ -354,6 +354,11 @@ export const calendarConfigSchema = z.object({
     deferDateProperty: z.string().default(''),
     dateFormat: z.string(),
     defaultRange: z.enum(['week', 'month', 'quarter', 'year']),
+    /**
+     * Deprecated, never read (issue #234); the scheduling panel follows the
+     * board's card sort. Kept stored and required for older versions, like
+     * `orderProperty`.
+     */
     tabSort: z.string()
 })
 export type CalendarConfig = z.infer<typeof calendarConfigSchema>
@@ -377,6 +382,14 @@ export const noteTypeSchema = z.object({
         )
     }),
     statusProperty: z.string(),
+    /**
+     * Deprecated, ignored (issue #234): the board uses the view's Manual order
+     * property, else the global `defaultOrderProperty`. One order runs through
+     * a column of mixed note types, so a per-type property could not work.
+     * Still stored and still required, so that settings saved by this version
+     * keep parsing in older versions (a settings file that fails validation
+     * falls back to the defaults and loses every note type).
+     */
     orderProperty: z.string(),
     columns: z.array(columnDefSchema),
     laneGrouping: laneGroupingSchema,
