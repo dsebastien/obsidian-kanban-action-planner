@@ -21,7 +21,10 @@ straight back into your notes.
   note, sized to its content up to a scrollable height cap. The alias overrides mode, height, and
   filter for that one embed (`|mode=wbs height=400 filter=status:active`) without touching the
   saved view. Add `columns=` and `lanes=` to narrow an embed to some columns or swimlanes. Embeds
-  work in Canvas cards too.
+  work in Canvas cards too. In a filter, `this` means the note the embed is in, so `parent:this`
+  in a project note shows that project's tasks and keeps working after you rename the note. It
+  works with every relationship and link property (`child:this`, `project:this`), and new cards
+  created from the embed get linked to the note.
 - **Status to columns.** You define the columns explicitly (per view, from the Starter Kit, or in
   plugin settings). They're never guessed from your data, so a typo can't create a stray column.
   Each card is placed by its status property. Notes with no status, or an unknown one, collect in
@@ -129,7 +132,10 @@ straight back into your notes.
 - **Big boards stay fast.** Long columns only build the cards you can see, and covers load as
   you scroll.
 - **Phones and tablets.** Long-press to drag a card. On a phone, the board shows one column at a
-  time.
+  time, and the toolbar moves controls into menus to leave room for the filter box: the
+  date-window chips, then the icon buttons, go into a **More** (**⋯**) menu, and the mode buttons
+  shrink to the active one, with a **▾** menu of every mode. Narrow embeds and split panes get the
+  same toolbar, since it follows the width of the view, not the window.
 - **Colors and per-type card display.** Give each status a color (palette or custom, theme-aware),
   and choose which fields show on cards, per note type.
 - **Quick capture.** Every column has a **+** in its header and an **Add card** button under its
