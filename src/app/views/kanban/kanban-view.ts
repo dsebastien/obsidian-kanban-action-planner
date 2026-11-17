@@ -7051,7 +7051,9 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
                 onToggleSelectionMode: () => this.selection?.toggleMode(),
                 onToggleCompactMode: () => this.toggleCompactMode(),
                 onOpenContextMenu: (anchorEl) => this.openContextMenu(anchorEl),
-                onOpenPropertyMenu: (anchorEl) => this.openPropertyMenu(anchorEl)
+                onOpenPropertyMenu: (anchorEl) => this.openPropertyMenu(anchorEl),
+                collapsedWindows: () => this.filterBar?.collapsedWindowChips() ?? null,
+                onWindowToggle: (value) => this.toggleDateWindow(value)
             }
         )
     }

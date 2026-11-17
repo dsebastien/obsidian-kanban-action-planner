@@ -1,4 +1,5 @@
 import { setIcon } from 'obsidian'
+import type { DateWindowChip, DateWindowState } from './toolbar-overflow'
 
 export interface FilterBarCallbacks {
     /** Fired on every keystroke with the raw query (caller debounces). */
@@ -54,6 +55,8 @@ export class FilterBar {
     private readonly contextEl: HTMLElement
     private readonly windowsEl: HTMLElement
     private windowsKey = ''
+    private windowChips: ReadonlyArray<DateWindowChip> = []
+    private activeWindow: string | null = null
     private readonly callbacks: FilterBarCallbacks
     private helpBox: HTMLElement | null = null
     private readonly onDocPointerDown: (event: MouseEvent) => void
@@ -65,9 +68,14 @@ export class FilterBar {
         const icon = this.el.createSpan({ cls: 'kap-filter-icon' })
         setIcon(icon, 'search')
 
+        // The chips and the input share one clipping field (issue #236): when
+        // the box is narrow they shrink inside it, and the match count, clear
+        // and help buttons after it keep their place inside the box.
+        const fieldEl = this.el.createDiv({ cls: 'kap-filter-field' })
+
         // Zoom chip (issue #74): derived from the query's `parent:` term, so it
         // only renders when the view reports one via setZoomChip().
-        this.zoomEl = this.el.createSpan({ cls: 'kap-filter-zoom kap-hidden' })
+        this.zoomEl = fieldEl.createSpan({ cls: 'kap-filter-zoom kap-hidden' })
         this.zoomLabelEl = this.zoomEl.createEl('button', {
             cls: 'kap-filter-zoom-label',
             attr: { 'type': 'button', 'aria-label': 'Open the focused parent note' }
@@ -85,9 +93,9 @@ export class FilterBar {
         // Context chips (GTD contexts): a container holding one dismissible chip
         // per selected context value. Pure derived state — rebuilt each render
         // from the query's managed `<prop>:` term via setContextChips().
-        this.contextEl = this.el.createSpan({ cls: 'kap-filter-contexts' })
+        this.contextEl = fieldEl.createSpan({ cls: 'kap-filter-contexts' })
 
-        this.inputEl = this.el.createEl('input', {
+        this.inputEl = fieldEl.createEl('input', {
             cls: 'kap-filter-input',
             attr: {
                 'type': 'text',
@@ -161,6 +169,8 @@ export class FilterBar {
         const key = JSON.stringify([chips, active])
         if (key === this.windowsKey) return
         this.windowsKey = key
+        this.windowChips = chips
+        this.activeWindow = active
         this.windowsEl.empty()
         for (const chip of chips) {
             const on = chip.value === active
@@ -171,6 +181,15 @@ export class FilterBar {
             })
             button.addEventListener('click', () => this.callbacks.onWindowToggle(chip.value))
         }
+    }
+
+    /**
+     * The date-window chips when the narrow toolbar hid them (issue #236), for
+     * the overflow menu; null when they are visible or there are none.
+     */
+    collapsedWindowChips(): DateWindowState | null {
+        if (this.windowChips.length === 0 || this.windowsEl.isShown()) return null
+        return { chips: this.windowChips, active: this.activeWindow }
     }
 
     /** Sync the input value from persisted state without firing callbacks. */

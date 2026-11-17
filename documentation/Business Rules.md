@@ -244,6 +244,12 @@ When a new business rule is mentioned:
     `SIDE_EDGE_TOUCH_PX`, timeline handle gate `BAR_HANDLES_MIN_PX_MOBILE`). Mobile posture:
     no ideal-week print (command hidden); file import relies on the OS picker, paste always
     works. Remaining mobile work is tracked in `documentation/plans/mobile-first.md`.
+    12b. **Narrow toolbar (issue #236).** The toolbar adapts to the view's own width (container
+    query on `.kap-toolbar`, never a viewport media query). The filter box keeps priority: the
+    date-window chips, then the icon buttons and the inactive modes, collapse into the **More**
+    menu and the active mode's menu before the filter box is squeezed; the count, clear and help
+    buttons always stay inside the box. Every collapsed control stays reachable from a menu, and
+    a hidden control that is on shows on the More button.
 13. **Documentation is a first-class, per-milestone deliverable.** Every user-visible change
     updates end-user docs in `docs/` and technical docs in `documentation/` (Architecture,
     Domain Model, Configuration, Business Rules) — not as a follow-up.

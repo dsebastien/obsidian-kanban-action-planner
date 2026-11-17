@@ -242,8 +242,11 @@
             transform var(--kap-transition) var(--kap-ease);
     }
 
+    /* flex-none: Obsidian's unlayered button padding shrinks the flex content
+       box, which squeezed the icon to half its width (as in issue #63). */
     .kap-root .kap-gear svg,
     .kap-root .kap-nav-btn svg {
+        @apply flex-none;
         transition: transform var(--kap-transition) var(--kap-ease);
     }
 
@@ -320,9 +323,13 @@
     }
 
     /* Top toolbar: mode switch (left) · filter (grows) · nav + gear (right).
-       Wraps on very narrow widths so the filter input drops to its own line. */
+       Wraps on very narrow widths so the filter input drops to its own line.
+       The toolbar is a size container (issue #236): the width of the view
+       (an embed, a split, a phone), not the window, decides which controls
+       collapse into the mode menu and the "More" menu. */
     .kap-root .kap-toolbar {
         @apply flex items-center gap-2 flex-none px-3 py-2 flex-wrap;
+        container: kap-toolbar / inline-size;
         border-bottom: 1px solid var(--background-modifier-border);
     }
 
@@ -335,9 +342,46 @@
         @apply inline-flex items-center gap-1;
     }
 
-    /* Filter bar (issue #34): grows to fill the middle of the toolbar. */
+    /* The active mode's chevron and the "More" button only show when the
+       toolbar is narrow. The display toggles of the toolbar buttons are
+       unlayered (end of file): Obsidian's unlayered `button` display rule
+       beats any layered one. */
+    .kap-root .kap-mode-btn-chevron {
+        @apply hidden items-center ml-1 -mr-1;
+    }
+
+    .kap-root .kap-mode-btn-chevron svg {
+        width: 0.95em;
+        height: 0.95em;
+    }
+
+    /* Narrow toolbar (issue #236). Two steps (measured with all seven
+       modes): below 72rem the date-window chips would wrap to a row of their
+       own, so they go to the "More" menu. Below 50rem the inactive modes and
+       the icon buttons go too (button half at the end of the file), and the
+       filter box gets the rest of the row. Between the steps the filter box
+       can still wrap to a full-width row of its own. Doubled class: the
+       chips' own display rule comes later in the file. */
+    @container kap-toolbar (max-width: 72rem) {
+        .kap-root .kap-filter-windows.kap-filter-windows {
+            @apply hidden;
+        }
+    }
+
+    /* Second step: only the active mode stays (its chevron opens the mode
+       menu). */
+    @container kap-toolbar (max-width: 50rem) {
+        .kap-root .kap-mode-switch .kap-mode-btn-chevron {
+            @apply inline-flex;
+        }
+    }
+
+    /* Filter bar (issue #34): grows to fill the middle of the toolbar. Its
+       16rem basis wraps it to a row of its own before it gets narrower than
+       that, and its automatic minimum width (the icon, the field's minimum,
+       the count and the two buttons) keeps those inside the box (issue #236). */
     .kap-root .kap-filter {
-        @apply relative flex items-center gap-1 flex-1 min-w-[9rem] h-7 px-2;
+        @apply relative flex items-center gap-1 flex-[1_1_16rem] h-7 px-2;
         background: var(--background-modifier-hover);
         border: 1px solid var(--background-modifier-border);
         border-radius: var(--radius-s, 6px);
@@ -354,6 +398,16 @@
         color: var(--text-faint);
     }
 
+    /* The chips and the input share one clipping field: a zero width with a
+       minimum gives the box a definite minimum, and chips shrink before they
+       overflow it. */
+    .kap-root .kap-filter-field {
+        @apply flex items-center gap-1 flex-1 w-0 min-w-[6rem] h-full;
+        /* clip, not hidden: a hidden overflow can still scroll, which cut the
+           start of the chips. */
+        overflow: clip;
+    }
+
     .kap-root .kap-filter-icon svg {
         width: 1em;
         height: 1em;
@@ -361,7 +415,7 @@
 
     /* Zoom chip (issue #74): derived from the query's `parent:` term. */
     .kap-root .kap-filter-zoom {
-        @apply inline-flex flex-none items-center gap-0.5 max-w-[40%] h-5 pl-1.5 pr-0.5 rounded-full text-[0.78em];
+        @apply inline-flex flex-[0_1_auto] min-w-[3rem] items-center gap-0.5 max-w-[40%] h-5 pl-1.5 pr-0.5 rounded-full text-[0.78em];
         background: color-mix(in srgb, var(--interactive-accent) 18%, transparent);
         color: var(--text-normal);
     }
@@ -401,7 +455,8 @@
        Mirrors the zoom-chip layout/chrome (issue #74) so both filter chips
        read as one family; the switcher's active state reuses .kap-nav-btn-active. */
     .kap-root .kap-filter-contexts {
-        @apply inline-flex min-w-0 flex-none items-center gap-1;
+        @apply inline-flex min-w-0 flex-[0_1_auto] items-center gap-1;
+        overflow: clip;
     }
 
     .kap-root .kap-filter-contexts:empty {
@@ -418,7 +473,7 @@
     }
 
     .kap-root .kap-filter-context {
-        @apply inline-flex flex-none items-center gap-0.5 max-w-[40%] h-5 pl-1.5 pr-0.5 rounded-full text-[0.78em];
+        @apply inline-flex flex-[0_1_auto] min-w-[3rem] items-center gap-0.5 max-w-[40%] h-5 pl-1.5 pr-0.5 rounded-full text-[0.78em];
         background: color-mix(in srgb, var(--interactive-accent) 18%, transparent);
         color: var(--text-normal);
     }
@@ -453,7 +508,7 @@
        height/min-height makes it taller than the container, so it overlapped
        (and hid most of) the container's focus-accent border. */
     .kap-root .kap-filter-input {
-        @apply flex-1 min-w-0 h-full max-h-full border-0 bg-transparent p-0 text-[0.9em];
+        @apply flex-[1_1_4rem] min-w-[3rem] h-full max-h-full border-0 bg-transparent p-0 text-[0.9em];
         min-height: 0;
         color: var(--text-normal);
         box-shadow: none;
@@ -582,8 +637,9 @@
     /* Syntax cheat-sheet popover, anchored under the filter's right edge. */
     .kap-root .kap-filter-helpbox {
         @apply absolute right-0 top-full z-30 mt-1 flex flex-col gap-1 p-3 text-[0.8em];
-        min-width: 19rem;
-        max-width: 26rem;
+        /* 100cqi: the toolbar's width, so the box stays inside a narrow embed. */
+        min-width: min(19rem, 100cqi - 1.5rem);
+        max-width: min(26rem, 100cqi - 1.5rem);
         background: var(--background-primary);
         border: 1px solid var(--background-modifier-border);
         border-radius: var(--radius-m, 8px);
@@ -4919,6 +4975,51 @@
 .kap-board-host.kap-drop-forbidden,
 .kap-board-host.kap-drop-forbidden * {
     @apply cursor-not-allowed;
+}
+
+/* Narrow toolbar (issue #236): the button half of the container queries in
+   the toolbar section. Unlayered, because Obsidian's unlayered `button`
+   display rule beats any layered one. */
+.kap-root .kap-toolbar .kap-toolbar-overflow {
+    @apply hidden;
+}
+
+@container kap-toolbar (max-width: 72rem) {
+    .kap-root .kap-toolbar:has(.kap-filter-windows:not(:empty)) .kap-toolbar-overflow {
+        @apply inline-flex;
+    }
+
+    /* A hidden control that is on (a date window) shows on the "More" button. */
+    .kap-root .kap-toolbar:has(.kap-filter-windows .kap-mode-btn-active) .kap-toolbar-overflow {
+        color: var(--text-on-accent);
+        background: var(--interactive-accent);
+        border-color: var(--interactive-accent);
+    }
+}
+
+@container kap-toolbar (max-width: 50rem) {
+    .kap-root .kap-mode-switch .kap-mode-btn:not(.kap-mode-btn-active),
+    .kap-root .kap-toolbar .kap-toolbar-collapsible {
+        @apply hidden;
+    }
+
+    .kap-root .kap-toolbar .kap-toolbar-overflow {
+        @apply inline-flex;
+    }
+
+    /* Select mode, compact cards, a context or property filter. */
+    .kap-root .kap-toolbar:has(.kap-toolbar-collapsible.kap-nav-btn-active) .kap-toolbar-overflow {
+        color: var(--text-on-accent);
+        background: var(--interactive-accent);
+        border-color: var(--interactive-accent);
+    }
+}
+
+/* The zoom chip's label is a button: Obsidian's unlayered flex display
+   centered its text, so a shrunk chip cut the start of the title. As a block
+   it ellipsizes at the end. */
+.kap-root .kap-filter-zoom .kap-filter-zoom-label {
+    @apply block min-w-0 text-left;
 }
 
 /* Active states of the toolbar, panel, range and triage buttons. */

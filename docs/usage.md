@@ -95,6 +95,22 @@ re-renders. The view saved in the `.base` file (and shown everywhere else it is 
 touched by an embed. Card edits are real, though. Dragging a card to another column, scheduling
 it, and so on write to the note's frontmatter as usual.
 
+**Narrow embeds keep the filter box usable.** The toolbar adapts to the width of the view
+itself, not the width of the window, so a narrow embed, a split pane and a phone all get the
+same treatment. When the toolbar runs out of room, controls move into menus instead of
+squeezing the filter box:
+
+- The **date-window chips** go first, into the **More** (**⋯**) menu at the right end of the
+  toolbar.
+- On a narrower view, the **icon buttons** (select, compact cards, contexts, properties,
+  configure) go there too, and only the **active mode** stays. Its **▾** opens a menu with
+  every mode.
+- The match count, the clear button and the help button always stay inside the filter box.
+  On a very narrow view, the filter box gets a row of its own.
+
+In the **More** menu, a check mark shows what is on: the active date window, select mode,
+compact cards. The **More** button turns to the accent color when a control hidden in it is on.
+
 **Embedding in a Canvas.** The same embed link works inside an
 [Obsidian Canvas](https://help.obsidian.md/plugins/canvas) card, with all the alias overrides
 above. Two things differ from a note embed:
@@ -414,7 +430,8 @@ you see can actually be started now.
 **Date-window chips**
 
 One-click chips next to the filter box answer "what's coming up?": **Today**, **Next 7 days**
-and **Next 30 days** by default. A chip keeps the cards **due or scheduled** in that window. It
+and **Next 30 days** by default (on a narrow view they move into the toolbar's **More** menu,
+see [narrow embeds](#embed-a-board-in-a-note)). A chip keeps the cards **due or scheduled** in that window. It
 adds a `when:` term to the query (`when:next7d`), so it combines with whatever you typed, shows
 in the box, and is saved with the view. Click the active chip again to turn it off; only one
 window is active at a time. You can also type `when:` yourself. It takes the same keywords as
@@ -1788,6 +1805,8 @@ The plugin runs in the Obsidian mobile apps. What changes there:
 - **One column at a time on a phone.** Every column takes the full width and the board snaps from
   column to column as you swipe. A row of chips above the board names every column with its card
   count; tap one to jump to it. Collapsed columns stay narrow bars. Tablets keep the full board.
+- **A compact toolbar.** On a phone the toolbar shows the active mode, the filter box and a
+  **More** menu for the other controls, as in a [narrow embed](#embed-a-board-in-a-note).
 - **Bigger touch targets.** The column and lane buttons, the mode switch, and the resize handles in
   the ideal week and the timeline are sized for a finger. The resize handles are always faintly
   visible, since there is no hover on a touch screen. A timeline bar needs a little more width

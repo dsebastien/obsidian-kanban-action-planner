@@ -312,7 +312,19 @@ no `data-card-key` and are skipped), timeline `.kap-tl-row` + `.kap-tl-undated-c
 mode switch** (left; persists `calendarMode` via `this.config.set`) and right-side actions — the
 **up/down swimlane nav** (shown only with >1 lane; `scrollLane(±1)` jumps the `.kap-lanes`
 container) and the configure **gear**. The toolbar is re-rendered from `rebuild()` (once
-`this.config` exists). Active-state button highlights use layered `!important` because Obsidian's
+`this.config` exists). **Narrow toolbar (issue #236):** `.kap-toolbar` is a named size container
+(`container: kap-toolbar / inline-size`), so the view's own width (embed, split, phone) decides,
+never the viewport. ≤72rem: the date-window chips hide and a **More** (`.kap-toolbar-overflow`)
+button shows (only when there are chips, via `:has`). ≤50rem: the inactive mode buttons and every
+`.kap-toolbar-collapsible` icon button (lane nav, select, compact, contexts, properties, gear) hide;
+the active mode shows a chevron and opens a mode menu. Breakpoints are sized from measured widths
+(7 modes) so what stays fits one row beside a 16rem filter box. The CSS alone decides what hides;
+the menus read it back at click time (`isShown()`), and the pure entry builders live in
+`ui/toolbar-overflow.ts`. A collapsed picker opens its menu anchored to the More button. The button
+display toggles are unlayered (Obsidian's unlayered `button` display beats any layered rule). The
+filter box (`flex: 1 1 16rem`, automatic min width) wraps to its own row rather than shrink below
+its basis; its chips and input sit in a `.kap-filter-field` (`width: 0`, min 6rem,
+`overflow: clip`), so the count, clear and help buttons never leave the box. Active-state button highlights use layered `!important` because Obsidian's
 unlayered `<button>` styles outrank any layered rule. **Collapse** is two-axis: lanes collapse
 vertically (per-lane id) and **columns** collapse horizontally to a labelled vertical bar (per
 status id, applied across every lane) — both tracked as in-memory `Set`s on the view and threaded
