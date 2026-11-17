@@ -85,6 +85,26 @@ rendered in the board's own configured order, whatever order you listed them in.
   exactly as you'd type it in the filter box (the match count shows in the toolbar as usual).
   One caveat: a wikilink alias can't contain `|`, so write `OR` instead of `|` in embed filters.
 
+**Refer to the note that holds the embed with `this`.** In an embed, `this` as a filter value
+means the note the embed is in. A project note can show its own tasks without naming itself:
+
+```
+![[Actions (Base).base#Kanban: Tasks|mode=board filter=parent:this]]
+```
+
+When you rename the note, the board keeps working: `this` follows the new name. It works with
+every relationship (`parent:this`, `child:this`, `ancestor:this`, …) and with any link
+property (`project:this`). It matches a link to the note as a wikilink, a path, or the file
+name, and only the whole name: `parent:this` in "Website" never matches a parent called
+"Website Redesign". New cards created from that embed are linked to the note, as with a
+written name.
+
+- To look for a note that is really called "this", quote it: `parent:"this"`.
+- Outside an embed in a note (a full Base tab, a canvas card, a hover preview) there is no
+  note to refer to, so `this` matches nothing.
+- Dataview users may know `[[]]` for the same thing. It can't work here: the `]]` would end
+  the embed link.
+
 Every part is optional and uses the `key=value` form. Anything unrecognized is ignored, so a
 plain alias like `|My tasks` still works as a normal alias.
 

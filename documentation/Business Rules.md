@@ -276,6 +276,13 @@ When a new business rule is mentioned:
     persists per-view in `this.config.filterQuery`; it ANDs with the blocked filter and keeps
     existing column/lane visibility rules. Parsing is best-effort (never throws). This subsumes
     and replaces the old per-view `calendarFilter` option.
+    16a. **Host note: `this` (issue #239).** An UNQUOTED `this` as a qualifier value names the
+    note that holds the embed (the markdown view containing the embed wrapper), read live so a
+    rename is followed. It matches a link to that note (wikilink with alias or heading, vault
+    path with or without `.md`, basename), whole value only, with `:` and `:=` alike. Quoted
+    (`"this"`) it is the literal word; a bare `this` stays a word search. With no host (full
+    view, canvas, hover preview) it matches nothing. A `parent:this` zoom term resolves to the
+    host's name for the chip and for quick capture's parent link.
 17. **WIP limits (issue #16).** Soft per-status work-in-progress limits live on the note-type
     note type (`wipLimits`: status value → positive integer), edited in Configure board → **WIP
     limits**. A column with a limit shows `count / limit` in its header and turns the count red

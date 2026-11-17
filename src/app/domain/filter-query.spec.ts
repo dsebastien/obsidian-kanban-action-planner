@@ -771,3 +771,80 @@ describe('exact terms on sort-prefixed values', () => {
         expect(match('necessity:=could,should', rec)).toBe(true)
     })
 })
+
+describe('host note: `this` (issue #239)', () => {
+    const HOST_CTX: FilterContext = {
+        ...CTX,
+        hostNote: { basename: 'AI Tooling (Project)', path: 'Projects/AI Tooling (Project).md' }
+    }
+    const child = record({
+        rels: { parent: ['ai tooling (project)'], sibling: [], child: [], blocked_by: [] },
+        ancestors: ['ai tooling (project)'],
+        props: new Map([['project', ['[[ai tooling (project)|ai tooling]]']]])
+    })
+    const stranger = record({
+        rels: { parent: ['big ai tooling (project) 2'], sibling: [], child: [], blocked_by: [] },
+        props: new Map([['project', ['[[other]]']]])
+    })
+    const hostMatch = (input: string, rec: CardSearchRecord, ctx = HOST_CTX): boolean =>
+        matchesFilterQuery(rec, parseFilterQuery(input), ctx)
+
+    it('matches a relationship to the host note', () => {
+        expect(hostMatch('parent:this', child)).toBe(true)
+        expect(hostMatch('ancestor:this', child)).toBe(true)
+        expect(hostMatch('parent:=this', child)).toBe(true)
+    })
+
+    it('matches the whole name only, never a longer name that contains it', () => {
+        expect(hostMatch('parent:this', stranger)).toBe(false)
+    })
+
+    it('matches a wikilink property, with an alias or a heading', () => {
+        expect(hostMatch('project:this', child)).toBe(true)
+        expect(hostMatch('project:=this', child)).toBe(true)
+        const heading = record({
+            props: new Map([['project', ['[[ai tooling (project)#goals]]']]])
+        })
+        expect(hostMatch('project:this', heading)).toBe(true)
+    })
+
+    it('matches a path, with or without the extension', () => {
+        for (const value of ['projects/ai tooling (project)', 'projects/ai tooling (project).md']) {
+            const rec = record({ props: new Map([['project', [value]]]) })
+            expect(hostMatch('project:this', rec)).toBe(true)
+        }
+    })
+
+    it('negates and ORs like any value', () => {
+        expect(hostMatch('-parent:this', child)).toBe(false)
+        expect(hostMatch('-parent:this', stranger)).toBe(true)
+        expect(hostMatch('parent:this,other', stranger)).toBe(false)
+    })
+
+    it('a quoted "this" is the word, not the host note', () => {
+        const literal = record({
+            rels: { parent: ['this'], sibling: [], child: [], blocked_by: [] }
+        })
+        expect(hostMatch('parent:"this"', literal)).toBe(true)
+        expect(hostMatch('parent:"this"', child)).toBe(false)
+        expect(hostMatch('parent:this', literal)).toBe(false)
+    })
+
+    it('matches nothing without a host note', () => {
+        expect(hostMatch('parent:this', child, CTX)).toBe(false)
+    })
+
+    it('a bare `this` stays a word search', () => {
+        expect(hostMatch('this', record({ haystack: 'do this first' }))).toBe(true)
+    })
+
+    it('getZoomTerm flags a host term and keeps a quoted one literal', () => {
+        expect(getZoomTerm('parent:this')).toEqual({ field: 'parent', title: 'this', host: true })
+        expect(getZoomTerm('ancestor:=This')).toEqual({
+            field: 'ancestor',
+            title: 'This',
+            host: true
+        })
+        expect(getZoomTerm('parent:"this"')).toEqual({ field: 'parent', title: 'this' })
+    })
+})

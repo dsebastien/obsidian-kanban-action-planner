@@ -30,6 +30,11 @@ import { splitStatusValue } from './status'
  *   (issue #145): the one-click date-window chips write it.
  * - `is:` matches availability states (issue #113): `available`, `deferred`,
  *   `blocked`, `done`.
+ * - An unquoted `this` as a qualifier value (`parent:this`) is the HOST note: the
+ *   note that embeds the view (issue #239). It matches a link value pointing to
+ *   that note (wikilink, path or basename), whole value only, so a board embed
+ *   survives a rename of its note. Quoted (`parent:"this"`) it stays the word.
+ *   With no host (a full view, a hover preview), it matches nothing.
  * - `estimate:`, `progress:`, and `order:` compare numbers against the CONFIGURED
  *   properties (issue #169), resolved into the record at build time; `estimate:`
  *   values are unit-aware (`4h`, `30m`, `2d`; plain = days).
@@ -79,6 +84,48 @@ export interface FilterContext {
      * values (`estimate:>4h` → 240 minutes → days). Absent = 480 (8h).
      */
     minutesPerDay?: number
+    /**
+     * The note that embeds the view, for the `this` value (issue #239); null
+     * or absent when there is none (a full view), so `this` matches nothing.
+     */
+    hostNote?: HostNote | null
+}
+
+/** The note an embedded view sits in (issue #239), as the vault names it now. */
+export interface HostNote {
+    /** File name without the extension (`AI Tooling (Project)`). */
+    basename: string
+    /** Vault path with the extension (`Projects/AI Tooling (Project).md`). */
+    path: string
+}
+
+/**
+ * The parsed stand-in for an unquoted `this` value (issue #239). It holds a
+ * NUL character, so no typed or quoted value can ever equal it.
+ */
+export const HOST_NOTE_VALUE = '\u0000this'
+
+/** Whether a raw (unquoted, untrimmed) qualifier value is the host-note token. */
+export function isHostNoteToken(raw: string): boolean {
+    return raw.trim().toLowerCase() === 'this'
+}
+
+/**
+ * Whether a lowercased link value points to the host note: a wikilink
+ * (`[[Note]]`, `[[Note|alias]]`, `[[Note#Heading]]`), a vault path with or
+ * without `.md`, or the basename. Whole value only: `this` must never match a
+ * longer name that merely contains the host's name.
+ */
+export function isHostNoteLink(value: string, host: HostNote | null | undefined): boolean {
+    if (!host) return false
+    let target = value.trim()
+    if (target.startsWith('[[') && target.endsWith(']]')) target = target.slice(2, -2)
+    target = (target.split('|')[0] ?? '').split('#')[0] ?? ''
+    target = target.trim().toLowerCase()
+    if (target.endsWith('.md')) target = target.slice(0, -3)
+    const path = host.path.toLowerCase()
+    const pathNoExt = path.endsWith('.md') ? path.slice(0, -3) : path
+    return target.length > 0 && (target === host.basename.toLowerCase() || target === pathNoExt)
 }
 
 /** Per-card searchable data, all text lowercased. */
@@ -189,7 +236,10 @@ function splitValues(raw: string): string[] {
         buf += ch
     }
     parts.push(buf)
-    return parts.map((s) => unquote(s.trim()).toLowerCase()).filter((s) => s.length > 0)
+    // An unquoted `this` is the host note (issue #239); quoted, it is the word.
+    return parts
+        .map((s) => (isHostNoteToken(s) ? HOST_NOTE_VALUE : unquote(s.trim()).toLowerCase()))
+        .filter((s) => s.length > 0)
 }
 
 /**
@@ -490,9 +540,14 @@ export const RESERVED_QUALIFIER_NAMES: ReadonlySet<string> = new Set<string>([
 function matchQualifier(rec: CardSearchRecord, clause: FilterClause, ctx: FilterContext): boolean {
     const name = clause.name ?? ''
     // Substring by default; whole-value (still case-insensitive — both sides
-    // are lowercased) for the `:=` exact operator.
+    // are lowercased) for the `:=` exact operator. The host-note value
+    // (`this`, issue #239) matches a link to that note, whatever the operator.
     const hits = (haystack: string, v: string): boolean =>
-        clause.exact ? haystack === v : haystack.includes(v)
+        v === HOST_NOTE_VALUE
+            ? isHostNoteLink(haystack, ctx.hostNote)
+            : clause.exact
+              ? haystack === v
+              : haystack.includes(v)
     if (name === 'due') {
         return clause.values.some((v) => matchDueValue(rec.due, clause.op, v, ctx))
     }
@@ -577,7 +632,9 @@ function matchQualifier(rec: CardSearchRecord, clause: FilterClause, ctx: Filter
     const exactHit = (pv: string, v: string): boolean =>
         pv === v || splitStatusValue(pv).label === v
     return clause.values.some((v) =>
-        propValues.some((pv) => (clause.exact ? exactHit(pv, v) : hits(pv, v)))
+        propValues.some((pv) =>
+            clause.exact && v !== HOST_NOTE_VALUE ? exactHit(pv, v) : hits(pv, v)
+        )
     )
 }
 
@@ -617,6 +674,11 @@ export interface ZoomTerm {
     field: ZoomField
     /** Focused note title, original casing, unquoted. */
     title: string
+    /**
+     * The term names the host note (`parent:this`, issue #239): `title` is
+     * then the literal `this`, and the view puts the host's name in its place.
+     */
+    host?: true
 }
 
 /** A non-negated `parent:` / `ancestor:` (`:=` included) token — the zoom term. */
@@ -656,10 +718,11 @@ export function getZoomTerm(query: string): ZoomTerm | null {
         if (!isZoomToken(token)) continue
         const colon = token.indexOf(':')
         const raw = token.slice(colon + 1)
-        const title = unquote(raw.startsWith('=') ? raw.slice(1) : raw).trim()
+        const value = raw.startsWith('=') ? raw.slice(1) : raw
+        const title = unquote(value).trim()
         if (title.length === 0) continue
         const field = token.slice(0, colon).toLowerCase() === 'ancestor' ? 'ancestor' : 'parent'
-        return { field, title }
+        return isHostNoteToken(value) ? { field, title, host: true } : { field, title }
     }
     return null
 }

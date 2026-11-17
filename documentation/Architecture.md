@@ -77,6 +77,13 @@ The core is a custom Obsidian **Bases view** (Obsidian ≥ 1.12.0 API):
   so a note-type edit (colors, swimlanes, relationships, archiving) refreshes every open board
   immediately. Card **fields** come from the Bases view's property selection (#50), not the note
   type, so they update through the normal Bases view update when you change the view's properties.
+- **Host note (issue #239).** `detectEmbed` also records the `MarkdownView` whose container holds the
+  embed wrapper (`findHostView`, walking `iterateAllLeaves`; null in a canvas or hover preview).
+  `hostNote()` reads its `file` at filter time, so a rename is followed; the view's vault `rename`
+  handler also rebuilds when the renamed file is the host. `filterContext().hostNote` feeds the pure
+  matcher: the parser turns an unquoted `this` value into `HOST_NOTE_VALUE` (NUL-prefixed, so no
+  typed value can equal it) and `isHostNoteLink` compares link values whole. `zoomTerm()` swaps a
+  host zoom term's title for the host basename (chip, quick capture parent).
 
 ## Layering (target)
 

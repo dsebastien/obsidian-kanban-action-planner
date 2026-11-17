@@ -3,6 +3,7 @@ import {
     debounce,
     getAllTags,
     getFrontMatterInfo,
+    MarkdownView,
     Menu,
     Notice,
     parseYaml,
@@ -228,7 +229,13 @@ import {
     windowLabel,
     setZoomTerm
 } from '../../domain/filter-query'
-import type { CardSearchRecord, FilterContext, FilterQuery } from '../../domain/filter-query'
+import type {
+    CardSearchRecord,
+    FilterContext,
+    FilterQuery,
+    HostNote,
+    ZoomTerm
+} from '../../domain/filter-query'
 import { resolvePendingWrite } from '../../domain/pending-write'
 import type { PendingValue, PendingWrite } from '../../domain/pending-write'
 import { parseEmbedParams } from '../../domain/embed-params'
@@ -738,6 +745,10 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
     // Re-applies alias overrides when the embed line is edited in the note
     // (Obsidian reuses the wrapper and only rewrites its `alt` attribute).
     private embedAltObserver: MutationObserver | null = null
+    // The markdown view whose note holds the embed (issue #239): `this` in a
+    // filter names that note. The view, not its file, is kept, and the file is
+    // read when the filter runs, so a rename of the note is seen at once.
+    private hostView: MarkdownView | null = null
     // The single config read/write funnel. In embeds, EVERY set() stays in an
     // in-memory overlay (panel collapse, compact toggle, triage scope, column
     // reorder, …) so interactions still work without touching the .base file.
@@ -1175,7 +1186,13 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         // renamed/deleted too, so the blocked card re-resolves (issue #13).
         this.registerEvent(
             this.app.vault.on('rename', (file, oldPath) => {
-                if (this.affectsBoard(file.path) || this.affectsBoard(oldPath)) {
+                // A rename of the note that embeds the view changes what
+                // `this` names in its filter (issue #239).
+                if (
+                    this.affectsBoard(file.path) ||
+                    this.affectsBoard(oldPath) ||
+                    (this.hostView !== null && file === this.hostView.file)
+                ) {
                     this.debouncedRebuild()
                 }
             })
@@ -1746,6 +1763,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         if (!wrapper) return
         rootEl.addClass('kap-embedded')
         this.detectCanvasHost(rootEl)
+        this.hostView = this.findHostView(wrapper)
         this.applyEmbedParams(parseEmbedParams(wrapper.getAttribute('alt') ?? ''))
         // Editing the embed line in the note reuses the SAME wrapper and view
         // instance — Obsidian only rewrites the `alt` attribute in place — so
@@ -1759,6 +1777,38 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             attributes: true,
             attributeFilter: ['alt']
         })
+    }
+
+    /**
+     * The markdown view that holds the embed (issue #239), or null when the
+     * embed sits elsewhere (a canvas, a hover preview): `this` in a filter
+     * then matches nothing.
+     */
+    private findHostView(wrapper: Element): MarkdownView | null {
+        let host: MarkdownView | null = null
+        this.app.workspace.iterateAllLeaves((leaf) => {
+            if (host === null && leaf.view instanceof MarkdownView) {
+                if (leaf.view.containerEl.contains(wrapper)) host = leaf.view
+            }
+        })
+        return host
+    }
+
+    /** The note that embeds this view, as the vault names it now (issue #239). */
+    private hostNote(): HostNote | null {
+        const file = this.hostView?.file
+        return file ? { basename: file.basename, path: file.path } : null
+    }
+
+    /**
+     * The zoom term of the query, with `parent:this` (issue #239) resolved to
+     * the host note's name; null when the term names the host and there is none.
+     */
+    private zoomTerm(): ZoomTerm | null {
+        const term = getZoomTerm(this.filterQuery)
+        if (!term?.host) return term
+        const host = this.hostNote()
+        return host ? { field: term.field, title: host.basename } : null
     }
 
     /**
@@ -1875,7 +1925,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         // Zoom chip (issue #74): derived from the query's `parent:`/`ancestor:`
         // term — no separate zoom state. The empty message hints that the Base's
         // own filters may exclude the children (e.g. tasks on a projects-only view).
-        const zoom = getZoomTerm(this.filterQuery)
+        const zoom = this.zoomTerm()
         this.filterBar?.setZoomChip(zoom?.title ?? null)
         // Context chips (GTD contexts): pure derived state from the managed
         // `<prop>:` term — no separate context state. Original casing comes from
@@ -4337,7 +4387,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         // card is then linked to it, or the modal says why it can not be.
         // The dialog opens at once; it only waits when the parent's type can be
         // recognized by the Starter Kit alone.
-        const term = getZoomTerm(this.filterQuery)
+        const term = this.zoomTerm()
         if (term === null) {
             open({ kind: 'none' })
             return
@@ -7450,6 +7500,8 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
             // Unit-suffixed `estimate:` values convert through the global
             // minutes-per-day setting (issue #169).
             minutesPerDay: this.plugin.settings.minutesPerDay,
+            // `this` in a filter names the note that embeds the view (issue #239).
+            hostNote: this.hostNote(),
             periods: {
                 week: periodRange('week', today, firstDay),
                 month: periodRange('month', today, firstDay),
