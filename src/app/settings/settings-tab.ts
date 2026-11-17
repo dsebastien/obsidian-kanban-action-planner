@@ -810,7 +810,16 @@ export class KanbanActionPlannerSettingTab extends PluginSettingTab {
                         'retentionKeepLinked',
                         'Keep notes that other notes link to',
                         'A due note is kept while another note links to it, so no link is left broken. The review lists these notes with the reason.'
-                    )
+                    ),
+                    {
+                        name: 'Ignore links from these folders',
+                        desc: 'One folder per line. Links from the notes in these folders do not keep a note. Use it for notes that link to everything, such as daily notes that list the notes of the day, or indexes.',
+                        control: {
+                            type: 'textarea',
+                            key: 'retentionIgnoreLinksFrom',
+                            placeholder: 'Journal/Daily notes\nIndexes'
+                        }
+                    }
                 ]
             },
             {
@@ -930,6 +939,8 @@ export class KanbanActionPlannerSettingTab extends PluginSettingTab {
                 return String(settings.firstDayOfWeek)
             case 'defaultStatuses':
                 return settings.defaultStatuses.join('\n')
+            case 'retentionIgnoreLinksFrom':
+                return settings.retentionIgnoreLinksFrom.join('\n')
             case 'dateWindowChips':
                 return settings.dateWindowChips.join(', ')
         }
@@ -1127,6 +1138,19 @@ export class KanbanActionPlannerSettingTab extends PluginSettingTab {
                         draft.defaultStatuses = statuses
                     },
                     scope: 'full'
+                }
+            }
+            case 'retentionIgnoreLinksFrom': {
+                const folders = expectString(key, value)
+                    .split('\n')
+                    .map((s) => s.trim())
+                    .filter((s) => s.length > 0)
+                return {
+                    apply: (draft) => {
+                        draft.retentionIgnoreLinksFrom = folders
+                    },
+                    // Read at sweep time only
+                    scope: 'chrome'
                 }
             }
             default:

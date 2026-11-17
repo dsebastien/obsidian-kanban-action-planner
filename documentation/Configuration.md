@@ -89,6 +89,7 @@ Defined in `src/app/types/plugin-settings.intf.ts`, seeded from `src/app/constan
 | `retentionDateProperty`        | `date_completed` | Completion date when the type lists no done-date properties             |
 | `retentionConfirm`             | `true`           | Review dialog before any retention delete                               |
 | `retentionKeepLinked`          | `true`           | Keep a due note that other notes link to                                |
+| `retentionIgnoreLinksFrom`     | `[]`             | Folders whose notes do not count as linking notes                       |
 
 `schemaVersion` tracks the settings shape for migrations. On load, stored data is
 shallow-merged onto the defaults and validated with Zod; invalid data falls back to defaults

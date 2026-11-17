@@ -322,6 +322,8 @@ the rules; these are the settings.
   confirm. Off: they're deleted without a question, but only once two checks in a row found
   them due, and never more than 10 at a time (above that, you get the list).
 - **Keep notes that other notes link to**: on by default.
+- **Ignore links from these folders**: one folder per line. Links from the notes in these
+  folders don't keep a note. For daily notes, indexes and other notes that link to everything.
 
 **Configure board → Archiving → Retention:**
 

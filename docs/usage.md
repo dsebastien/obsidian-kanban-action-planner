@@ -950,6 +950,10 @@ What keeps a note that is due:
 - **Keep notes that other notes link to** (on by default). A note with a backlink from another
   note stays, so no link breaks. Turn it off to delete those too; the list then shows how many
   notes link to each. Only links from notes count: a card on a canvas doesn't protect a note.
+  If some of your notes link to everything (a daily note that lists the notes created that day,
+  an index, a project page with a table of its tasks), every note looks linked and nothing is
+  ever deleted. List those folders under **Ignore links from these folders**, one per line:
+  links from the notes inside them no longer keep a note.
 - A **folder note** stays when its folder holds other files (`Trip/Trip.md`, or `Trip.md` next
   to a `Trip` folder), and so does a note with a **running time-tracking session**.
 - A value that isn't a whole number (`a week`, `-1`, `1.5`) never counts as a period.

@@ -160,6 +160,27 @@ describe('backlinkCounts', () => {
     })
 })
 
+describe('backlinkCounts with ignored folders', () => {
+    const app = {
+        metadataCache: {
+            resolvedLinks: {
+                'Journal/2026-11-17.md': { 'Tasks/a.md': 1, 'Tasks/b.md': 1 },
+                'Journals/other.md': { 'Tasks/b.md': 1 },
+                'Projects/P.md': { 'Tasks/a.md': 1 }
+            }
+        }
+    }
+    test('a source under an ignored folder does not count', () => {
+        const counts = backlinkCounts(app, [' /Journal/ '])
+        expect(counts.get('Tasks/a.md')).toBe(1)
+        // `Journals/` is another folder: a prefix must end at a folder boundary.
+        expect(counts.get('Tasks/b.md')).toBe(1)
+    })
+    test('blank entries ignore nothing', () => {
+        expect(backlinkCounts(app, ['', '  ']).get('Tasks/a.md')).toBe(2)
+    })
+})
+
 describe('scanRetention', () => {
     test('only done notes that ask for a period and are old enough are due', async () => {
         const { plugin } = setup({
@@ -212,6 +233,20 @@ describe('scanRetention', () => {
             today
         )
         expect(due.due).toMatchObject([{ backlinks: 1 }])
+    })
+
+    test('a link from an ignored folder does not keep a note', async () => {
+        const notes = {
+            'Tasks/listed.md': { ...OLD, retention_days: 7 },
+            'Journal/2026-11-01.md': {}
+        }
+        const links = { 'Journal/2026-11-01.md': ['Tasks/listed.md'] }
+        const scan = await scanRetention(
+            setup(notes, { links, settings: { retentionIgnoreLinksFrom: ['Journal'] } }).plugin,
+            today
+        )
+        expect(scan.due).toMatchObject([{ backlinks: 0 }])
+        expect(scan.kept).toEqual([])
     })
 
     test('a folder note with other files beside it is kept', async () => {

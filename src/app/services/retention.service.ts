@@ -14,7 +14,7 @@ import {
 } from '../domain/retention'
 import type { RetentionGuard } from '../domain/retention'
 import { RETENTION_SWEEP_INTERVAL_MS, RETENTION_UNATTENDED_LIMIT } from '../constants'
-import { isNamesake } from './archive.service'
+import { isNamesake, normalizeFolderPath } from './archive.service'
 import { readFrontmatterKey, updateFrontmatter, writeFrontmatterKey } from './frontmatter.service'
 import { DEFAULT_NOTE_TYPE_ID, findNoteType, recognizeNoteTypeFor } from './note-type.service'
 import { isStarterKitAvailable } from './starter-kit.service'
@@ -103,7 +103,7 @@ function sweepContext(plugin: KanbanActionPlannerPlugin, today: Date): SweepCont
             .map((type) => resolveDoneConfig(type))
             .filter((done): done is ResolvedDoneConfig => done !== null),
         backlinks: () => {
-            counts ??= backlinkCounts(plugin.app)
+            counts ??= backlinkCounts(plugin.app, plugin.settings.retentionIgnoreLinksFrom)
             return counts
         }
     }
@@ -122,12 +122,22 @@ export function retentionPaused(plugin: KanbanActionPlannerPlugin): boolean {
     )
 }
 
-/** How many OTHER notes link to each note (resolved links only). */
-export function backlinkCounts(app: {
-    metadataCache: Pick<App['metadataCache'], 'resolvedLinks'>
-}): Map<string, number> {
+/**
+ * How many OTHER notes link to each note (resolved links only). A source
+ * under one of the `ignoredFolders` does not count: notes that list
+ * everything (daily notes, indexes) would otherwise protect every note.
+ */
+export function backlinkCounts(
+    app: { metadataCache: Pick<App['metadataCache'], 'resolvedLinks'> },
+    ignoredFolders: ReadonlyArray<string> = []
+): Map<string, number> {
+    const prefixes = ignoredFolders
+        .map((folder) => normalizeFolderPath(folder))
+        .filter((folder) => folder.length > 0)
+        .map((folder) => `${folder}/`)
     const counts = new Map<string, number>()
     for (const [source, targets] of Object.entries(app.metadataCache.resolvedLinks)) {
+        if (prefixes.some((prefix) => source.startsWith(prefix))) continue
         for (const target of Object.keys(targets)) {
             if (target === source) continue
             counts.set(target, (counts.get(target) ?? 0) + 1)

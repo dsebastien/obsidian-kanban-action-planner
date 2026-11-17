@@ -1738,7 +1738,9 @@ Markdown)`, `Export ideal week (JSON)`, `Export ideal week (Markdown)`); the for
     **Guards (`retentionGuard`):** an expired note is kept when a time-tracking session runs on
     it, when it is a folder note with content (`isNamesake` in a folder holding other files, or a
     folder of its name beside it), and, with `retentionKeepLinked` (default on), when another
-    note links to it (`resolvedLinks`: links from notes only, a canvas card does not count).
+    note links to it (`resolvedLinks`: links from notes only, a canvas card does not count;
+    sources under a `retentionIgnoreLinksFrom` folder do not count either, matched on a folder
+    boundary, so notes that list everything, like daily notes, do not protect every note).
     **Stamp, never guess:** a done note with a period and no completion date gets today stamped:
     in the property a rule of the type writes for its status (`ruleStampProperty`), else in the
     only listed property; several listed and no rule = no stamp. The write re-evaluates the note

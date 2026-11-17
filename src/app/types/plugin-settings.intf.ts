@@ -295,6 +295,11 @@ export const pluginSettingsSchema = z.object({
     /** Keep a due note that other notes link to. */
     retentionKeepLinked: z.boolean().default(true),
     /**
+     * Folders whose notes do not count as "other notes that link to it":
+     * daily notes, indexes and other notes that list everything.
+     */
+    retentionIgnoreLinksFrom: z.array(z.string()).default([]),
+    /**
      * Tidy manual order in the background (unset, tied or too-close
      * `manual_order` values, repaired a few notes at a time when a board loads
      * and after a drop). `.default()` so older `data.json` still parses.
@@ -406,6 +411,7 @@ export function createDefaultSettings(): PluginSettings {
         retentionDateProperty: DEFAULT_RETENTION_DATE_PROPERTY,
         retentionConfirm: true,
         retentionKeepLinked: true,
+        retentionIgnoreLinksFrom: [],
         autoNormalizeOrder: true,
         defaultStatuses: [],
         noteTypes: []
