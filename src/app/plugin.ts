@@ -61,6 +61,7 @@ import {
     linkedTimeConfigForType
 } from './services/linked-time.service'
 import type { TrackedTimeReport } from './domain/tracked-time-decision'
+import { RetentionSweeper, registerRetentionSweeps } from './services/retention.service'
 import {
     LowerTimeWatch,
     recomputeTrackedTimeWithDecisions
@@ -111,6 +112,9 @@ export class KanbanActionPlannerPlugin extends Plugin {
     readonly api: KanbanActionPlannerApi = {
         computeTrackedTime: (path) => computeTrackedTime(this, path)
     }
+
+    /** Deletes done notes past their retention period (issue #241). */
+    private readonly retention = new RetentionSweeper(this)
 
     private linkedIndex: LinkedNotesIndex | null = null
 
@@ -205,6 +209,10 @@ export class KanbanActionPlannerPlugin extends Plugin {
         this.addSettingTab(new KanbanActionPlannerSettingTab(this.app, this))
 
         this.registerLinkedNotesEvents()
+
+        // Retention (issue #241): a first sweep once the vault is ready, then
+        // one per hour. Each sweep returns at once while the setting is off.
+        registerRetentionSweeps(this, this.retention)
 
         // Tracker clock (issue #172): the status-bar readout and the pomodoro
         // completion check, once a second. Elapsed time always derives from
@@ -429,6 +437,11 @@ export class KanbanActionPlannerPlugin extends Plugin {
             callback: () => {
                 for (const view of this.openKanbanViews) void view.runArchiveSweep()
             }
+        })
+        this.addCommand({
+            id: 'delete-notes-past-retention',
+            name: 'Delete done notes past their retention period',
+            callback: () => void this.retention.runManual()
         })
         this.addCommand({
             id: 'normalize-card-order',

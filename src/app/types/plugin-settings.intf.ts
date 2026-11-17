@@ -2,6 +2,8 @@ import { z } from 'zod'
 import { noteTypeSchema } from '../domain/note-type'
 import {
     DEFAULT_ARCHIVE_GRACE_DAYS,
+    DEFAULT_RETENTION_DATE_PROPERTY,
+    DEFAULT_RETENTION_PROPERTY,
     DEFAULT_BLOCKED_BY_PROPERTY,
     DEFAULT_CONTEXTS_PROPERTY,
     DEFAULT_DATE_FORMAT,
@@ -279,6 +281,20 @@ export const pluginSettingsSchema = z.object({
      */
     archiveGraceDays: z.number().int().min(0).default(DEFAULT_ARCHIVE_GRACE_DAYS),
     /**
+     * Retention (issue #241): delete done notes once their completion date is
+     * older than their retention period. Off by default; every field has a
+     * `.default()` so older `data.json` still parses.
+     */
+    retentionEnabled: z.boolean().default(false),
+    /** Property holding the days a note is kept after it is done. */
+    retentionProperty: z.string().default(DEFAULT_RETENTION_PROPERTY),
+    /** Completion date property for types that list no done-date properties. */
+    retentionDateProperty: z.string().default(DEFAULT_RETENTION_DATE_PROPERTY),
+    /** Show the due notes and wait for a confirmation before deleting. */
+    retentionConfirm: z.boolean().default(true),
+    /** Keep a due note that other notes link to. */
+    retentionKeepLinked: z.boolean().default(true),
+    /**
      * Tidy manual order in the background (unset, tied or too-close
      * `manual_order` values, repaired a few notes at a time when a board loads
      * and after a drop). `.default()` so older `data.json` still parses.
@@ -385,6 +401,11 @@ export function createDefaultSettings(): PluginSettings {
         triageCelebrateOnComplete: true,
         showReviewBadge: true,
         archiveGraceDays: DEFAULT_ARCHIVE_GRACE_DAYS,
+        retentionEnabled: false,
+        retentionProperty: DEFAULT_RETENTION_PROPERTY,
+        retentionDateProperty: DEFAULT_RETENTION_DATE_PROPERTY,
+        retentionConfirm: true,
+        retentionKeepLinked: true,
         autoNormalizeOrder: true,
         defaultStatuses: [],
         noteTypes: []

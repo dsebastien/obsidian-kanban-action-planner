@@ -99,23 +99,19 @@ export function isoDate(date: Date): string {
 }
 
 /**
- * Which done-date property to stamp for a note in `status` when none is set:
- * the one the type's own automations would write on that transition (a
- * `status-entered` rule listing the status, or a `done-entered` rule when the
- * status is a done value, whose `set-property` targets a listed property) —
- * so an Abandoned note gets `date_abandoned`, not `date_completed` — else the
- * first listed property.
+ * The done-date property the type's own automations would write for a note in
+ * `status` (a `status-entered` rule listing the status, or a `done-entered`
+ * rule when the status is a done value, whose `set-property` targets a listed
+ * property), or null when no rule names one.
  */
-export function stampProperty(
+export function ruleStampProperty(
     archive: ArchiveConfig,
     status: string | null,
     rules: ReadonlyArray<AutomationRule>,
     done: ResolvedDoneConfig | null
 ): string | null {
-    const properties = doneDateProperties(archive)
-    const first = properties[0]
-    if (first === undefined) return null
-    const listed = new Map(properties.map((p) => [p.toLowerCase(), p]))
+    const listed = new Map(doneDateProperties(archive).map((p) => [p.toLowerCase(), p]))
+    if (listed.size === 0) return null
     for (const rule of rules) {
         if (!rule.enabled || status === null) continue
         const trigger = rule.trigger
@@ -129,5 +125,22 @@ export function stampProperty(
             if (hit !== undefined) return hit
         }
     }
-    return first
+    return null
+}
+
+/**
+ * Which done-date property to stamp for a note in `status` when none is set:
+ * the one the type's own automations would write on that transition
+ * ({@link ruleStampProperty}) — so an Abandoned note gets `date_abandoned`,
+ * not `date_completed` — else the first listed property.
+ */
+export function stampProperty(
+    archive: ArchiveConfig,
+    status: string | null,
+    rules: ReadonlyArray<AutomationRule>,
+    done: ResolvedDoneConfig | null
+): string | null {
+    const first = doneDateProperties(archive)[0]
+    if (first === undefined) return null
+    return ruleStampProperty(archive, status, rules, done) ?? first
 }

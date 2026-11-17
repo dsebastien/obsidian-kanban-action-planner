@@ -5,7 +5,11 @@ import type { Draft } from 'immer'
 import { RESERVED_QUALIFIER_NAMES, windowLabel } from '../domain/filter-query'
 import { VIEW_MODES, VIEW_MODE_LABELS, modeEnabled } from '../domain/embed-params'
 import type { ViewMode } from '../domain/embed-params'
-import { DEFAULT_CONTEXTS_PROPERTY } from '../constants'
+import {
+    DEFAULT_CONTEXTS_PROPERTY,
+    DEFAULT_RETENTION_DATE_PROPERTY,
+    DEFAULT_RETENTION_PROPERTY
+} from '../constants'
 import type KanbanActionPlannerPlugin from '../../main'
 import { DEFAULT_SETTINGS } from '../types/plugin-settings.intf'
 import type { PluginSettings, SettingsRefreshScope } from '../types/plugin-settings.intf'
@@ -424,6 +428,24 @@ const ARCHIVE_GRACE: NumberSetting = {
     scope: 'chrome'
 }
 
+const RETENTION_TEXT_SETTINGS: TextSetting[] = [
+    {
+        key: 'retentionProperty',
+        name: 'Retention property',
+        desc: 'Property holding the number of days a note is kept after it is done. A note without a value takes the default of its note type (Configure → Archiving → Retention). 0 keeps the note.',
+        fallback: DEFAULT_RETENTION_PROPERTY,
+        // Read at sweep time only
+        scope: 'chrome'
+    },
+    {
+        key: 'retentionDateProperty',
+        name: 'Completion date property',
+        desc: 'The date the retention period counts from, for note types that list no done-date properties (Configure → Archiving). A done note without a completion date gets today’s date there, which starts its retention period.',
+        fallback: DEFAULT_RETENTION_DATE_PROPERTY,
+        scope: 'chrome'
+    }
+]
+
 const NUMBER_SETTINGS: NumberSetting[] = [
     MINUTES_PER_DAY,
     ...SESSION_GUARD_SETTINGS,
@@ -443,7 +465,8 @@ const TEXT_SETTINGS: TextSetting[] = [
     DATE_FORMAT_SETTING,
     ...POMODORO_TEXT_SETTINGS,
     ...IDEAL_WEEK_TEXT_SETTINGS,
-    ...REVIEW_TEXT_SETTINGS
+    ...REVIEW_TEXT_SETTINGS,
+    ...RETENTION_TEXT_SETTINGS
 ]
 
 /**
@@ -461,7 +484,11 @@ const TOGGLE_SCOPES = {
     // Badges are derived at rebuild time
     showReviewBadge: 'full',
     // Read live by the normalizer; the next board refresh picks it up
-    autoNormalizeOrder: 'chrome'
+    autoNormalizeOrder: 'chrome',
+    // Read at sweep time only
+    retentionEnabled: 'chrome',
+    retentionConfirm: 'chrome',
+    retentionKeepLinked: 'chrome'
 } as const satisfies Partial<Record<keyof PluginSettings, SettingsRefreshScope>>
 
 type ToggleKey = keyof typeof TOGGLE_SCOPES
@@ -762,6 +789,28 @@ export class KanbanActionPlannerSettingTab extends PluginSettingTab {
                             placeholder: '10 Todo\n20 In progress\n30 Done'
                         }
                     }
+                ]
+            },
+            {
+                type: 'group',
+                heading: 'Retention',
+                items: [
+                    this.toggleItem(
+                        'retentionEnabled',
+                        'Delete done notes after their retention period',
+                        'Off by default. When on, a done note is deleted once its completion date is older than its retention period and the note was not changed in that time. The period is the number of days in its retention property, or the default of its note type. A note with no period, or with 0, is never deleted. Notes are checked in the whole vault once the app has loaded and every hour, and with the "Delete done notes past their retention period" command. Deleted notes go where the deleted files setting of the app sends them.'
+                    ),
+                    ...RETENTION_TEXT_SETTINGS.map((setting) => this.textItem(setting)),
+                    this.toggleItem(
+                        'retentionConfirm',
+                        'Ask before deleting',
+                        'Show the notes that are due and delete only after a confirmation. When off, a due note is deleted without a question once two checks in a row found it due, at most 10 notes at a time, and a notice says how many.'
+                    ),
+                    this.toggleItem(
+                        'retentionKeepLinked',
+                        'Keep notes that other notes link to',
+                        'A due note is kept while another note links to it, so no link is left broken. The review lists these notes with the reason.'
+                    )
                 ]
             },
             {

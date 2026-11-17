@@ -1713,3 +1713,53 @@ Markdown)`, `Export ideal week (JSON)`, `Export ideal week (Markdown)`); the for
     through `parseFrontmatterDate`, which takes the LITERAL `YYYY-MM-DD` part of an ISO value and
     never converts an offset to local time (`lifecycle.parseDay` delegates to it), so
     `2026-09-08T23:30-05:00` is the 8th everywhere.
+
+83. **Retention deletes done notes, and only those that ask for it (issue #241).** Off unless
+    `retentionEnabled`. A note is deleted only when ALL hold: its retention period is above 0
+    (the whole number in its `retentionProperty`, default `retention_days`; a note without a
+    value takes its type's `retention.defaultDays`; `0` on the note keeps it whatever the type
+    says); its type resolves a done definition (`resolveDoneConfig`) and the note is in it NOW
+    (a reopened note drops out); its completion date is at least that many calendar days old;
+    and the file was not modified during that time (`file.stat.mtime`: any edit, a new status
+    included, restarts the period, so a note completed again with a stale date is safe). Pure
+    decision in `domain/retention.ts` (`retentionDecision` → `none` / `no-done-state` /
+    `invalid` / `stamp` / `wait` / `expired`); a value that is not a whole number ≥ 0 is never
+    a period.
+    **Completion date, read strictly:** the LATEST date among the type's
+    `archive.doneDateProperties`, else the global `retentionDateProperty` (default
+    `date_completed`) (`resolveCompletionDate`; the archive grace period keeps "first present
+    wins"). Only a real calendar date written `YYYY-MM-DD` counts (`parseCompletionDate`: never
+    the lenient `parseFrontmatterDate`); one unreadable value among them makes the note wait.
+    **A type default reaches only notes recognized as that type.** An unrecognized note resolves
+    to the Default type for its done state only: `defaultDays` is then 0, and Configure shows no
+    default field for the Default type (it stands for every other note of the vault).
+    **Paused without the Starter Kit:** while a stored type has `source: 'starter-kit'` and the
+    Starter Kit API is unavailable, no sweep runs (`retentionPaused`); types would resolve wrongly.
+    **Guards (`retentionGuard`):** an expired note is kept when a time-tracking session runs on
+    it, when it is a folder note with content (`isNamesake` in a folder holding other files, or a
+    folder of its name beside it), and, with `retentionKeepLinked` (default on), when another
+    note links to it (`resolvedLinks`: links from notes only, a canvas card does not count).
+    **Stamp, never guess:** a done note with a period and no completion date gets today stamped:
+    in the property a rule of the type writes for its status (`ruleStampProperty`), else in the
+    only listed property; several listed and no rule = no stamp. The write re-evaluates the note
+    and fills the property only while it is empty on disk (`updateFrontmatter`); the write guard
+    of rule 81 applies (an undeclared property on a Starter Kit type is not written).
+    **Vault-wide, not board-bound:** `services/retention.service.ts` reads the metadata cache of
+    every markdown file (`scanRetention`) and resolves the type only of notes that can be due
+    (own value, or done per a non-Default type that has a default), so archived notes are
+    covered. Sweeps run on the first `resolved` of the metadata cache once the layout is ready
+    (no timer stands in for it), then hourly, and from the "Delete done notes past their
+    retention period" command; they run one at a time and stop on unload.
+    **Confirmation:** with `retentionConfirm` (default on) an automatic sweep only shows a notice
+    (once per set of due notes) and the review dialog (`ui/retention-review-modal.ts`: a checkbox
+    per due note, the kept notes with their reason) deletes on confirm; the command always shows
+    the dialog. **Unattended (`unattendedPlan`):** with the confirmation off, an automatic sweep
+    deletes a note only when the previous automatic sweep of the session already found it due
+    (the first sweep after a start may see a vault that sync has not updated), stamps under the
+    same second-sighting rule, and above `RETENTION_UNATTENDED_LIMIT` (10) notes it announces
+    instead of deleting. **Every delete re-checks:** `deleteExpiredNotes` evaluates the note
+    again right before `fileManager.trashFile` (Obsidian's "Deleted files" setting decides where
+    it goes), so a note reopened, edited, linked or removed since the scan is skipped. The
+    per-type default is plugin-owned (editable on Starter Kit types, untouched by the mirror)
+    and saved when its field is left, not per keystroke. No automation trigger fires on a
+    retention delete.

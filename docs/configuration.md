@@ -304,6 +304,39 @@ first present done-date property) is that many days old:
 - Types without done-date properties ignore the grace period and archive right away.
 - Notes that another board or an external tool archived in the meantime are skipped.
 
+### Retention
+
+Retention deletes a done note once its completion date is older than its retention period. It
+is off by default. The [user guide](usage.md#retention-delete-done-notes-after-a-while) explains
+the rules; these are the settings.
+
+**Settings → Retention:**
+
+- **Delete done notes after their retention period**: the main switch. Off by default.
+- **Retention property**: the property that holds a note's period in days (`retention_days` by
+  default). No value means "use the default of the note type". `0` keeps the note.
+- **Completion date property**: the date the period counts from, for note types without
+  done-date properties (`date_completed` by default). A done note without a completion date gets
+  today's date there.
+- **Ask before deleting**: on by default. Due notes are listed and deleted only after you
+  confirm. Off: they're deleted without a question, but only once two checks in a row found
+  them due, and never more than 10 at a time (above that, you get the list).
+- **Keep notes that other notes link to**: on by default.
+
+**Configure board → Archiving → Retention:**
+
+- **Default retention (days)**: the period for notes of this type that set no number of their
+  own. Blank keeps them. You can set it on Starter Kit types too. The **Default** type has no
+  such field: it covers every note that no type recognizes.
+
+A type needs a **Done state** for retention to work: without one, the planner can't tell that a
+note is done, and it deletes nothing of that type.
+
+Notes are checked in the whole vault once Obsidian has finished loading, every hour after that,
+and with the **Delete done notes past their retention period** command. A note that was edited
+during its period waits for a full period after the edit. Deleted notes follow Obsidian's
+**Deleted files** setting.
+
 ## Date properties
 
 Three dates drive every mode: the **scheduled** date (when work is planned to start), the

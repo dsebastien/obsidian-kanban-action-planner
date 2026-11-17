@@ -151,6 +151,17 @@ export const archiveConfigSchema = z
 export type ArchiveConfig = z.infer<typeof archiveConfigSchema>
 
 /**
+ * Per-type retention (issue #241): `defaultDays` is how long a done note of
+ * this type is kept when the note itself carries no retention value; 0 keeps
+ * such notes. Plugin-owned: editable for Starter Kit–mirrored types too,
+ * untouched by the SK mirror.
+ */
+export const retentionConfigSchema = z.object({
+    defaultDays: z.number().int().min(0).default(0)
+})
+export type NoteTypeRetentionConfig = z.infer<typeof retentionConfigSchema>
+
+/**
  * Per-type estimate override: which frontmatter property holds the time
  * estimate and in which unit. Absent = the global `defaultEstimateProperty`
  * in days. Plugin-owned (like colors/relationships) — editable for Starter
@@ -374,6 +385,11 @@ export const noteTypeSchema = z.object({
         overrides: z.record(z.string(), colorSpecSchema)
     }),
     archive: archiveConfigSchema,
+    /**
+     * Retention default (issue #241); absent (older stored types, no
+     * backfill) = notes without their own retention value are kept.
+     */
+    retention: nullToAbsent(retentionConfigSchema),
     relationships: z.array(relationshipRuleSchema),
     /**
      * True when the Starter Kit declares this type's relationships

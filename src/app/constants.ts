@@ -102,6 +102,18 @@ export const DEFAULT_DUE_SOON_THRESHOLD_DAYS = 7
 /** Archive grace period (days); 0 = archive on the trigger transition itself. */
 export const DEFAULT_ARCHIVE_GRACE_DAYS = 0
 
+/** Property holding the days a note is kept after it is done (issue #241). */
+export const DEFAULT_RETENTION_PROPERTY = 'retention_days'
+/** Completion date the retention period counts from, when a type lists none. */
+export const DEFAULT_RETENTION_DATE_PROPERTY = 'date_completed'
+/** How often the retention sweep runs while Obsidian is open. */
+export const RETENTION_SWEEP_INTERVAL_MS = 60 * 60 * 1000
+/**
+ * Most notes an unattended sweep deletes on its own; above it, the sweep only
+ * announces, so a settings change cannot empty a folder without a question.
+ */
+export const RETENTION_UNATTENDED_LIMIT = 10
+
 /**
  * Multi-value GTD contexts list property (e.g. `@work`, `@home`). A single
  * GLOBAL setting, intentionally not per-type — GTD contexts are cross-cutting.

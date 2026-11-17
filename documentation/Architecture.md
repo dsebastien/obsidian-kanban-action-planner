@@ -86,7 +86,8 @@ views/kanban/      Bases view + options panel + extracted controllers/builders v
                    owns calendar state + rendering + drag; card-menu.ts builds the card context
                    menu; more to follow)
 ui/                vanilla-DOM renderers: board, calendar, view toolbar, gear, folder suggest, modal (no UI deps)
-services/          side-effectful adapters: frontmatter R/W, Starter Kit API, note types, colors, archive
+services/          side-effectful adapters: frontmatter R/W, Starter Kit API, note types, colors, archive,
+                   retention (the one vault-wide sweep: not tied to a view, started from plugin.ts)
 domain/            pure, unit-tested logic: status, ordering, relationships, filtering, calendar, board model
 settings/ + types/ plugin settings (Zod schema + defaults) and the settings tab
 utils/             logging, date formatting, placeholder expressions, small DOM helpers

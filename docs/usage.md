@@ -901,6 +901,76 @@ Tip: pair it with an automation that stamps the done date on the transition (**e
 state → set `date_completed` to `{{date}}`**) so the clock starts from the exact day you
 finished, whatever write path you used.
 
+## Retention: delete done notes after a while
+
+Some notes are worth nothing once they're done: "Pay the electricity bill", "Book the car
+service". Archiving still keeps them forever. **Retention** deletes them instead, a set number
+of days after they were completed. It's **off by default**, and nothing is ever deleted
+without a number of days that you set yourself.
+
+Turn it on under **Settings → Retention → Delete done notes after their retention period**.
+Then say which notes may go, and when:
+
+- **On a note**: add the `retention_days` property (the name is a setting) with a whole number.
+  `7` deletes the note 7 days after its completion date. `0` keeps the note forever.
+- **On a note type**: **Configure board → Archiving → Retention → Default retention (days)**
+  gives every note of that type a period, for the notes that set no number of their own. A note
+  with its own number always wins, so `0` on a note keeps it even when its type has a default.
+  The **Default** type takes no default period: it stands for every note that no type
+  recognizes, which is the rest of your vault.
+
+A note is deleted only when all of these hold:
+
+- Its retention period is above 0.
+- Its note type has a **done state** (**Configure board → Done state**), and the note is in it
+  right now. A reopened note is never deleted.
+- Its **completion date** is at least that many days old. The date comes from the type's
+  **Done-date properties** (the ones the archive grace period uses), else from the **Completion
+  date property** in the settings (`date_completed` by default). When a note has several of
+  these dates, the **latest** one counts. Only a date written `YYYY-MM-DD` counts (a time may
+  follow); with any other value the note waits.
+- The note **wasn't changed** during that time. Any edit restarts the period. So a note you
+  reopened, worked on, and completed again gets its full period, even if it still carries the
+  date of its first completion.
+
+A done note with no completion date gets one **stamped with today**, which starts its period.
+So a note you marked done in the editor is still found, just counted from the day the planner
+first saw it. When a type lists several done-date properties, the planner stamps only if one of
+the type's automation rules says which one fits; otherwise the note waits.
+
+The check covers the **whole vault**, not only the notes on an open board, so a note that was
+archived first is still found. It runs once Obsidian has finished loading, then every hour, and
+on demand with the **Delete done notes past their retention period** command.
+
+What keeps a note that is due:
+
+- **Ask before deleting** (on by default). You get a notice that notes are due. Select it, or
+  run the command, to see the list. Every note has a checkbox, its completion date, and its
+  period. Nothing goes until you confirm.
+- **Keep notes that other notes link to** (on by default). A note with a backlink from another
+  note stays, so no link breaks. Turn it off to delete those too; the list then shows how many
+  notes link to each. Only links from notes count: a card on a canvas doesn't protect a note.
+- A **folder note** stays when its folder holds other files (`Trip/Trip.md`, or `Trip.md` next
+  to a `Trip` folder), and so does a note with a **running time-tracking session**.
+- A value that isn't a whole number (`a week`, `-1`, `1.5`) never counts as a period.
+
+The review lists the notes that are due, and under **Kept** the ones a guard holds back or whose
+period can't be read, each with its reason. Notes that are simply not old enough aren't listed.
+
+With **Ask before deleting** off, due notes are deleted on their own, with three limits. A note
+goes only when two checks in a row found it due, so nothing is deleted in the first minutes
+after Obsidian starts, before your sync has caught up. No more than 10 notes go at once: above
+that, you get the notice and the list instead. And each note is checked again right before it
+is deleted.
+
+If some of your note types come from the Obsidian Starter Kit and it isn't loaded (on a device
+without it, for example), retention does nothing until it's back. Without it, the planner
+can't tell which type a note has.
+
+Deleted notes go where Obsidian's **Files and links → Deleted files** setting sends them: the
+system trash, the vault's `.trash` folder, or nowhere if you chose to delete permanently. Pick
+one of the first two if you want to be able to get a note back.
+
 ## Automation rules
 
 Let the board do the bookkeeping: per note type, **Configure board → Automations** runs

@@ -89,6 +89,14 @@ column rule.
   defer status-triggered archiving to a board-load sweep (`domain/archive-grace.ts`:
   `graceDecision` → `none` / `immediate` / `aged` / `stamp` / `wait`; rule 11); a type's own `graceDays` (mirrored from the Starter Kit's per-type delay) overrides the global value. When the Starter Kit (≥ 1.19) declares the type's archive, the whole block is a read-only mirror of it (`mirrored: true`, `reconcileArchive`). A namesake
   folder note moves with its folder (`planMove` in `services/archive.service.ts`).
+- **Retention (issue #241)** — per type `retention.defaultDays` (plugin-owned; absent = keep), per
+  note the `retention_days` property (name = `retentionProperty`). A done note is deleted once
+  its completion date (type's `doneDateProperties`, else `retentionDateProperty`) is that many
+  days old and the file was not modified since. `domain/retention.ts`: `parseRetentionDays`,
+  `parseCompletionDate` (strict), `resolveCompletionDate` (latest wins), `retentionDecision`,
+  `retentionGuard`;
+  `services/retention.service.ts`: `scanRetention` (vault-wide, read-only) → `RetentionScan`
+  (`due` / `kept` / `stamp`), `deleteExpiredNotes`, `unattendedPlan`, `RetentionSweeper` (rule 83).
 - **CalendarConfig** — scheduled/due date property names, momentjs `dateFormat`, default
   range, and tab sort key. Calendar mode (per-view `calendarMode` toggle) is driven by pure
   helpers: `domain/calendar.ts` (`CalendarRange`, month/week grid building with a configurable

@@ -479,6 +479,26 @@ export async function setArchiveConfig(
     )
 }
 
+/**
+ * Set (or clear, with `undefined`) a note type's retention default (issue
+ * #241). Plugin-owned config: valid for Starter Kit–mirrored types too.
+ */
+export async function setRetentionConfig(
+    plugin: KanbanActionPlannerPlugin,
+    noteTypeId: string,
+    retention: NoteType['retention']
+): Promise<void> {
+    const noteType = requireNoteType(plugin, noteTypeId)
+    if (!noteType) return
+    await upsertNoteType(
+        plugin,
+        produce(noteType, (draft) => {
+            if (retention) draft.retention = retention
+            else delete draft.retention
+        })
+    )
+}
+
 /** Replace a note type's automation rules. Plugin-owned (SK-mirror safe). */
 export async function setAutomations(
     plugin: KanbanActionPlannerPlugin,

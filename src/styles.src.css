@@ -2049,6 +2049,29 @@
         padding: var(--size-4-2, 0.5rem) 0;
     }
 
+    /* Retention review (issue #241): the due notes with a checkbox each. */
+    .kap-retention-list {
+        @apply mb-3 flex flex-col gap-2 overflow-y-auto;
+        max-height: 50vh;
+    }
+
+    .kap-retention-row {
+        @apply flex cursor-pointer items-start gap-2;
+    }
+
+    .kap-retention-text {
+        @apply min-w-0 flex-1;
+    }
+
+    .kap-retention-name {
+        @apply break-words;
+    }
+
+    .kap-retention-facts {
+        @apply text-[0.85em];
+        color: var(--text-muted);
+    }
+
     /* Automations tab: one bordered block per rule, actions indented. */
     .kap-automation-rule {
         @apply mb-3 rounded p-2;

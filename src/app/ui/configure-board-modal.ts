@@ -50,6 +50,7 @@ import {
     clearColorOverride,
     findNoteType,
     setArchiveConfig,
+    setRetentionConfig,
     setAutoAssign,
     setAutomations,
     setColorOverride,
@@ -1439,6 +1440,62 @@ export class ConfigureBoardModal extends Modal {
         this.renderArchiveControls(noteType.archive, this.statusValues, (patch, rerender) => {
             void this.patchArchive(patch, rerender)
         })
+        this.renderRetention(noteType)
+    }
+
+    /**
+     * The type's retention default (issue #241), below the archive controls.
+     * Plugin-owned: editable for Starter Kit types too, whose archive is a
+     * read-only mirror.
+     */
+    private renderRetention(noteType: NoteType): void {
+        const settings = this.plugin.settings
+        new Setting(this.body).setName('Retention').setHeading()
+        if (noteType.id === DEFAULT_NOTE_TYPE_ID) {
+            // "Default" is every note that no type recognizes: a default
+            // period here would reach the whole rest of the vault.
+            this.body.createEl('p', {
+                cls: 'kap-modal-subtitle',
+                text: `The default type covers every note that no note type recognizes, so it takes no default retention. A note still sets its own period in "${settings.retentionProperty}".`
+            })
+            return
+        }
+        const dateProperties = noteType.archive.doneDateProperties.filter((p) => p.trim() !== '')
+        const clock =
+            dateProperties.length > 0 ? dateProperties.join(' / ') : settings.retentionDateProperty
+        new Setting(this.body)
+            .setName('Default retention (days)')
+            .setDesc(
+                `A done note of this type is deleted this many days after its completion date (${clock}), unless the note sets its own number in "${settings.retentionProperty}" (0 on a note keeps it). Leave blank to keep notes that set no number. ` +
+                    (settings.retentionEnabled
+                        ? ''
+                        : 'Retention is off: turn it on in the plugin settings (Retention). ') +
+                    (noteType.done?.enabled
+                        ? ''
+                        : 'This type has no done state yet (Done state): without one, no note of it is ever deleted.')
+            )
+            .addText((input) => {
+                input.inputEl.type = 'number'
+                input.inputEl.min = '0'
+                input.inputEl.addClass('kap-wip-input')
+                const current = noteType.retention?.defaultDays ?? 0
+                input.setPlaceholder('Keep').setValue(current > 0 ? String(current) : '')
+                // Saved when the field is left, not per keystroke: "3" must
+                // never be stored on the way to "365".
+                input.inputEl.addEventListener('change', () => {
+                    const n = Number.parseInt(input.getValue(), 10)
+                    void this.patchRetention(Number.isFinite(n) && n > 0 ? n : 0)
+                })
+            })
+    }
+
+    private async patchRetention(defaultDays: number): Promise<void> {
+        await setRetentionConfig(
+            this.plugin,
+            this.noteTypeId,
+            defaultDays > 0 ? { defaultDays } : undefined
+        )
+        this.onChange()
     }
 
     /** The folder + auto-archive-status controls, parameterized over a patch fn. */

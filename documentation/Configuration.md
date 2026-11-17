@@ -84,6 +84,11 @@ Defined in `src/app/types/plugin-settings.intf.ts`, seeded from `src/app/constan
 | `defaultProgressProperty`      | `progress`       | Completion percentage 0–100 (WBS progress bars + rollups)               |
 | `defaultDateFormat`            | `YYYY-MM-DD`     | momentjs format for dates written to notes                              |
 | `firstDayOfWeek`               | `1` (Monday)     | Day calendar weeks start on (0 = Sunday … 6 = Saturday)                 |
+| `retentionEnabled`             | `false`          | Delete done notes past their retention period (rule 83)                 |
+| `retentionProperty`            | `retention_days` | Per-note retention period in days (0 = keep)                            |
+| `retentionDateProperty`        | `date_completed` | Completion date when the type lists no done-date properties             |
+| `retentionConfirm`             | `true`           | Review dialog before any retention delete                               |
+| `retentionKeepLinked`          | `true`           | Keep a due note that other notes link to                                |
 
 `schemaVersion` tracks the settings shape for migrations. On load, stored data is
 shallow-merged onto the defaults and validated with Zod; invalid data falls back to defaults
