@@ -40,8 +40,12 @@ jobs:
             # GHSA-vfj7-8cjw-p6xm (braces <=3.0.3): no patched release exists. Only reached via
             # commitizen > find-node-modules > findup-sync > micromatch at commit time, with
             # patterns from this repo, never untrusted input. Drop the ignore once braces ships a fix.
+            # GHSA-fc5q-39xc-vjpf (picomatch <=4.0.7, ReDoS on repeated extglobs): no patched release
+            # exists (4.0.7 is the latest). Reached only through build and lint tools (tailwind cli,
+            # typescript-eslint, commitizen) with glob patterns from this repo; the plugin bundle does
+            # not contain picomatch. Drop the ignore once picomatch ships a fix.
             - name: Audit dependencies
-              run: bun audit --audit-level=high --ignore GHSA-vfj7-8cjw-p6xm
+              run: bun audit --audit-level=high --ignore GHSA-vfj7-8cjw-p6xm --ignore GHSA-fc5q-39xc-vjpf
 
             - name: Type check
               run: bun run tsc
