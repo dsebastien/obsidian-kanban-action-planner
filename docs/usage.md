@@ -100,8 +100,11 @@ name, and only the whole name: `parent:this` in "Website" never matches a parent
 written name.
 
 - To look for a note that is really called "this", quote it: `parent:"this"`.
-- Outside an embed in a note (a full Base tab, a canvas card, a hover preview) there is no
-  note to refer to, so `this` matches nothing.
+- `this` follows the note wherever it shows: in its own tab, embedded in another note
+  (`![[My project]]`: `this` is still "My project"), in a hover preview of a link to it, and
+  on a Canvas card of the note.
+- In a full Base tab or a Canvas text card there is no note to refer to, so `this` matches
+  nothing.
 - Dataview users may know `[[]]` for the same thing. It can't work here: the `]]` would end
   the embed link.
 

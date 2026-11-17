@@ -1,4 +1,5 @@
 import { Menu, Platform, Plugin, TFile, View } from 'obsidian'
+import type { Events } from 'obsidian'
 import {
     SETTINGS_SCHEMA_VERSION,
     createDefaultSettings,
@@ -54,6 +55,7 @@ import { onStarterKitNoteTypesChanged } from './services/starter-kit.service'
 import { resyncStarterKitTypes } from './services/note-type.service'
 import { produce } from 'immer'
 import { OrderNormalizerQueue } from './services/order-normalizer.service'
+import { HoverHostTracker } from './services/embed-host.service'
 import type { PendingWrite } from './domain/pending-write'
 import {
     LinkedNotesIndex,
@@ -107,6 +109,10 @@ export class KanbanActionPlannerPlugin extends Plugin {
 
     /** The one background queue repairing manual order for every open view. */
     readonly orderNormalizer = new OrderNormalizerQueue()
+    /** The note behind each hover popover, for `this` in embed filters (issue #239). */
+    readonly hoverHosts = new HoverHostTracker((linkpath, sourcePath) =>
+        this.app.metadataCache.getFirstLinkpathDest(linkpath, sourcePath)
+    )
 
     /** Public API for vault scripts (see {@link KanbanActionPlannerApi}). */
     readonly api: KanbanActionPlannerApi = {
@@ -193,6 +199,14 @@ export class KanbanActionPlannerPlugin extends Plugin {
             display: 'Kanban Action Planner',
             defaultMod: true
         })
+        // A board embedded in a hover preview names its note with `this`
+        // (issue #239): popovers keep no public link to their note, so record
+        // the note behind each hover.
+        // `hover-link` is not in Workspace's typed overloads: go through Events.
+        const workspaceEvents: Events = this.app.workspace
+        this.registerEvent(
+            workspaceEvents.on('hover-link', (data: unknown) => this.hoverHosts.record(data))
+        )
 
         // Live Starter Kit sync: KAP mirrors OSK note types (statuses, done
         // states, …) at rebuild time and keeps no cache of them, so a registry

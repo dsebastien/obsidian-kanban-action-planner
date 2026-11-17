@@ -3,7 +3,6 @@ import {
     debounce,
     getAllTags,
     getFrontMatterInfo,
-    MarkdownView,
     Menu,
     Notice,
     parseYaml,
@@ -239,6 +238,7 @@ import type {
 import { resolvePendingWrite } from '../../domain/pending-write'
 import type { PendingValue, PendingWrite } from '../../domain/pending-write'
 import { parseEmbedParams } from '../../domain/embed-params'
+import { findEmbedHost } from '../../services/embed-host.service'
 import { VIEW_MODE_LABELS, modeEnabled } from '../../domain/embed-params'
 import type { EmbedParams } from '../../domain/embed-params'
 import { CalendarDnd } from '../../ui/calendar/calendar-dnd'
@@ -745,10 +745,9 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
     // Re-applies alias overrides when the embed line is edited in the note
     // (Obsidian reuses the wrapper and only rewrites its `alt` attribute).
     private embedAltObserver: MutationObserver | null = null
-    // The markdown view whose note holds the embed (issue #239): `this` in a
-    // filter names that note. The view, not its file, is kept, and the file is
-    // read when the filter runs, so a rename of the note is seen at once.
-    private hostView: MarkdownView | null = null
+    // The note that holds the embed (issue #239): `this` in a filter names it.
+    // Obsidian renames a TFile in place, so a rename is seen at once.
+    private hostFile: TFile | null = null
     // The single config read/write funnel. In embeds, EVERY set() stays in an
     // in-memory overlay (panel collapse, compact toggle, triage scope, column
     // reorder, …) so interactions still work without touching the .base file.
@@ -1191,7 +1190,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
                 if (
                     this.affectsBoard(file.path) ||
                     this.affectsBoard(oldPath) ||
-                    (this.hostView !== null && file === this.hostView.file)
+                    (this.hostFile !== null && file === this.hostFile)
                 ) {
                     this.debouncedRebuild()
                 }
@@ -1763,7 +1762,7 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         if (!wrapper) return
         rootEl.addClass('kap-embedded')
         this.detectCanvasHost(rootEl)
-        this.hostView = this.findHostView(wrapper)
+        this.hostFile = findEmbedHost(this.app, wrapper, this.plugin.hoverHosts)
         this.applyEmbedParams(parseEmbedParams(wrapper.getAttribute('alt') ?? ''))
         // Editing the embed line in the note reuses the SAME wrapper and view
         // instance — Obsidian only rewrites the `alt` attribute in place — so
@@ -1779,24 +1778,9 @@ export class KanbanActionPlannerView extends BasesView implements HoverParent {
         })
     }
 
-    /**
-     * The markdown view that holds the embed (issue #239), or null when the
-     * embed sits elsewhere (a canvas, a hover preview): `this` in a filter
-     * then matches nothing.
-     */
-    private findHostView(wrapper: Element): MarkdownView | null {
-        let host: MarkdownView | null = null
-        this.app.workspace.iterateAllLeaves((leaf) => {
-            if (host === null && leaf.view instanceof MarkdownView) {
-                if (leaf.view.containerEl.contains(wrapper)) host = leaf.view
-            }
-        })
-        return host
-    }
-
     /** The note that embeds this view, as the vault names it now (issue #239). */
     private hostNote(): HostNote | null {
-        const file = this.hostView?.file
+        const file = this.hostFile
         return file ? { basename: file.basename, path: file.path } : null
     }
 

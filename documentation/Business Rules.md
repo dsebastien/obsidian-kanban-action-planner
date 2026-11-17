@@ -282,7 +282,9 @@ When a new business rule is mentioned:
     path with or without `.md`, basename), whole value only, with `:` and `:=` alike. Quoted
     (`"this"`) it is the literal word; a bare `this` stays a word search. With no host (full
     view, canvas, hover preview) it matches nothing. A `parent:this` zoom term resolves to the
-    host's name for the chip and for quick capture's parent link.
+    host's name for the chip and for quick capture's parent link. The host is the note the board
+    shows in: its tab, the inner note of a transclusion, the hovered link's note in a hover
+    preview, the note of a Canvas file card (`services/embed-host.service.ts`).
 17. **WIP limits (issue #16).** Soft per-status work-in-progress limits live on the note-type
     note type (`wipLimits`: status value → positive integer), edited in Configure board → **WIP
     limits**. A column with a limit shows `count / limit` in its header and turns the count red

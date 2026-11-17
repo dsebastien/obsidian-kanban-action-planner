@@ -206,6 +206,7 @@ void bunMock.module('obsidian', () => ({
     Scope: class Scope {},
     MarkdownRenderer: { render: async () => {} },
     normalizePath: (path: string): string => path,
+    getLinkpath: (link: string): string => link.split('#')[0] ?? link,
     parseYaml: (_yaml: string): unknown => null,
     getFrontMatterInfo: (_content: string) => ({
         exists: false,

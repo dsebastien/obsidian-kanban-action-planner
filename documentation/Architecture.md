@@ -77,10 +77,15 @@ The core is a custom Obsidian **Bases view** (Obsidian ≥ 1.12.0 API):
   so a note-type edit (colors, swimlanes, relationships, archiving) refreshes every open board
   immediately. Card **fields** come from the Bases view's property selection (#50), not the note
   type, so they update through the normal Bases view update when you change the view's properties.
-- **Host note (issue #239).** `detectEmbed` also records the `MarkdownView` whose container holds the
-  embed wrapper (`findHostView`, walking `iterateAllLeaves`; null in a canvas or hover preview).
-  `hostNote()` reads its `file` at filter time, so a rename is followed; the view's vault `rename`
-  handler also rebuilds when the renamed file is the host. `filterContext().hostNote` feeds the pure
+- **Host note (issue #239).** `detectEmbed` resolves the note that holds the embed with
+  `findEmbedHost` (`services/embed-host.service.ts`): the inner note of a surrounding
+  `.internal-embed.markdown-embed` (its `src`, resolved against the note around it, recursively),
+  else the hovered note when inside a `.hover-popover` (the plugin's `HoverHostTracker` records
+  each workspace `hover-link` event: link text + source path → TFile, keyed by the HoverParent
+  whose `hoverPopover.hoverEl` contains the board), else the `MarkdownView` leaf containing the
+  wrapper, else a Canvas file card (internal `canvas.nodes`, read defensively). The TFile is kept;
+  Obsidian renames it in place, so `hostNote()` sees a rename at once, and the vault `rename`
+  handler rebuilds when the renamed file is the host. `filterContext().hostNote` feeds the pure
   matcher: the parser turns an unquoted `this` value into `HOST_NOTE_VALUE` (NUL-prefixed, so no
   typed value can equal it) and `isHostNoteLink` compares link values whole. `zoomTerm()` swaps a
   host zoom term's title for the host basename (chip, quick capture parent).
