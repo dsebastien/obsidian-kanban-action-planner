@@ -50,6 +50,7 @@ import {
     registerTrackingCommands,
     removeTrackingCommand
 } from './services/tracking-commands.service'
+import { registerPomodoroPathFollow } from './services/pomodoro-paths.service'
 import { isPaused } from './domain/pomodoro'
 import { onStarterKitNoteTypesChanged } from './services/starter-kit.service'
 import { resyncStarterKitTypes } from './services/note-type.service'
@@ -621,6 +622,8 @@ export class KanbanActionPlannerPlugin extends Plugin {
         })
         // The per-note "Start time tracking: <note>" commands.
         registerTrackingCommands(this)
+        // Pomodoro records in daily notes follow renamed and moved notes (#231).
+        registerPomodoroPathFollow(this)
         // Pomodoro mode (issue #172): global like the session. A work
         // pomodoro from the palette runs on the tracked note when a session
         // is open, else on nothing; a card's own menu starts one on that card.

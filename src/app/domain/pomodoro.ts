@@ -278,3 +278,48 @@ function noteName(path: string): string {
     const name = path.split('/').pop() ?? path
     return name.replace(/\.md$/, '')
 }
+
+/** One rename or move seen in the vault: the old path and the new one. */
+export interface PathRename {
+    from: string
+    to: string
+}
+
+/**
+ * `path` after `renames`, applied in order: the note itself, or a note inside
+ * a renamed folder. Unchanged when no rename concerns it.
+ */
+export function followRenames(path: string, renames: ReadonlyArray<PathRename>): string {
+    let current = path
+    for (const { from, to } of renames) {
+        if (current === from) current = to
+        else if (current.startsWith(`${from}/`)) current = to + current.slice(from.length)
+    }
+    return current
+}
+
+/**
+ * Pomodoro records (a daily note's `pomodoros` list, TaskNotes' shape, from
+ * this plugin or TaskNotes) with each `taskPath` moved along `renames`
+ * (issue #231): Obsidian updates links on a rename but not plain paths.
+ * Records without a text `taskPath`, and every other field and item, stay as
+ * they are. Null when nothing changes (or `records` is not a list), so the
+ * caller writes only the notes that need it.
+ */
+export function renamePomodoroTaskPaths(
+    records: unknown,
+    renames: ReadonlyArray<PathRename>
+): unknown[] | null {
+    if (!Array.isArray(records) || renames.length === 0) return null
+    let changed = false
+    const next = records.map((item: unknown) => {
+        if (typeof item !== 'object' || item === null || Array.isArray(item)) return item
+        const taskPath = (item as { taskPath?: unknown }).taskPath
+        if (typeof taskPath !== 'string' || taskPath === '') return item
+        const moved = followRenames(taskPath, renames)
+        if (moved === taskPath) return item
+        changed = true
+        return { ...(item as Record<string, unknown>), taskPath: moved }
+    })
+    return changed ? next : null
+}

@@ -111,7 +111,8 @@ function addCommandFor(plugin: KanbanActionPlannerPlugin, command: TrackingComma
 
 /**
  * A renamed or moved note (archiving included): its tracking command, its
- * place in the recent list and a session running on it all follow. The
+ * place in the recent list, and a session or a pomodoro running on it all
+ * follow. The
  * command is registered again under the same id so its name shows the new
  * note name while a bound hotkey stays bound.
  */
@@ -124,7 +125,11 @@ async function followRename(
     const recent = renameRecentPaths(plugin.settings.recentTrackedPaths, oldPath, newPath)
     const session = plugin.settings.activeTimeSession
     const sessionPath = session ? renamedPath(session.path, oldPath, newPath) : null
-    if (!commands && !recent && sessionPath === null) return
+    // The running pomodoro names its note too (issue #231): its record must
+    // get the new path, and it must stay tied to the session on that note.
+    const pomodoro = plugin.settings.activePomodoro
+    const pomodoroPath = pomodoro?.path ? renamedPath(pomodoro.path, oldPath, newPath) : null
+    if (!commands && !recent && sessionPath === null && pomodoroPath === null) return
     const before = new Map(plugin.settings.trackingCommands.map((c) => [c.id, c.path]))
     const moved = (commands ?? []).filter((c) => before.get(c.id) !== c.path)
     plugin.settings = produce(plugin.settings, (draft) => {
@@ -132,6 +137,7 @@ async function followRename(
         if (recent) draft.recentTrackedPaths = recent
         if (draft.activeTimeSession && sessionPath !== null)
             draft.activeTimeSession.path = sessionPath
+        if (draft.activePomodoro && pomodoroPath !== null) draft.activePomodoro.path = pomodoroPath
     })
     for (const command of moved) {
         plugin.removeCommand(command.id)

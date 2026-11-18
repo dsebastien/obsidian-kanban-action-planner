@@ -1,6 +1,8 @@
 import { describe, expect, test } from 'bun:test'
 import {
     breakTypeAfter,
+    followRenames,
+    renamePomodoroTaskPaths,
     buildPomodoroRecord,
     elapsedMs,
     formatCountdown,
@@ -238,5 +240,59 @@ describe('pomodoroViewModel (issue #199)', () => {
         expect(model.ariaLabel).toBe(
             'Short break, paused: 4:00 remaining. 0 of 4 done in this cycle.'
         )
+    })
+})
+
+describe('pomodoro records follow renames (issue #231)', () => {
+    const rec = (taskPath: unknown, id = 'pomo_1'): Record<string, unknown> => ({
+        id,
+        taskPath,
+        startTime: '2026-11-18T09:00:00.000+01:00',
+        endTime: '2026-11-18T09:25:00.000+01:00',
+        plannedDuration: 25,
+        type: 'work',
+        completed: true
+    })
+
+    test('followRenames: the note, a note in a renamed folder, chained renames, others untouched', () => {
+        expect(followRenames('Tasks/A.md', [{ from: 'Tasks/A.md', to: 'Tasks/A (Task).md' }])).toBe(
+            'Tasks/A (Task).md'
+        )
+        expect(followRenames('Projects/P/T.md', [{ from: 'Projects/P', to: 'Archive/P' }])).toBe(
+            'Archive/P/T.md'
+        )
+        expect(
+            followRenames('a.md', [
+                { from: 'a.md', to: 'b.md' },
+                { from: 'b.md', to: 'Done/b.md' }
+            ])
+        ).toBe('Done/b.md')
+        expect(followRenames('Projects/PX.md', [{ from: 'Projects/P', to: 'Archive/P' }])).toBe(
+            'Projects/PX.md'
+        )
+    })
+
+    test('rewrites only the taskPath of matching records, keeping every other field', () => {
+        const records = [rec('Tasks/A.md'), rec('Tasks/B.md', 'pomo_2')]
+        const next = renamePomodoroTaskPaths(records, [{ from: 'Tasks/A.md', to: 'Tasks/A2.md' }])
+        expect(next).toEqual([{ ...rec('Tasks/A2.md') }, rec('Tasks/B.md', 'pomo_2')])
+        expect(records[0]?.['taskPath']).toBe('Tasks/A.md')
+    })
+
+    test('null when nothing changes, so nothing is written', () => {
+        const renames = [{ from: 'Tasks/A.md', to: 'Tasks/A2.md' }]
+        expect(renamePomodoroTaskPaths([rec('Tasks/B.md')], renames)).toBeNull()
+        expect(renamePomodoroTaskPaths([rec('')], renames)).toBeNull()
+        expect(renamePomodoroTaskPaths(undefined, renames)).toBeNull()
+        expect(renamePomodoroTaskPaths('x', renames)).toBeNull()
+        expect(renamePomodoroTaskPaths([rec('Tasks/A.md')], [])).toBeNull()
+    })
+
+    test('odd items (null, text, a record without a text taskPath) pass through', () => {
+        const next = renamePomodoroTaskPaths(
+            [null, 'x', rec(42), rec('Tasks/A.md')],
+            [{ from: 'Tasks/A.md', to: 'Tasks/A2.md' }]
+        )
+        expect(next).toEqual([null, 'x', rec(42), rec('Tasks/A2.md')])
     })
 })

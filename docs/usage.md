@@ -1666,6 +1666,9 @@ records), straight from the cards, on **any note type**:
   break** command or the status-bar menu: a short break (5 min), or a long one (15 min) after
   every 4th completed work pomodoro. A break stops any running session. **Stop pomodoro** ends
   one early (recorded as not completed). Durations and the cadence are settings.
+  A record names its note by path (`taskPath`), so when you rename or move a note (archiving
+  included), the planner updates that path in every pomodoro record that names it, including
+  the records TaskNotes wrote. A pomodoro running on the note follows the rename too.
 
     ![Start time tracking and Start pomodoro in the card menu]({{ '/images/card-menu-pomodoro.png' | relative_url }})
 

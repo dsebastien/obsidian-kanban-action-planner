@@ -1078,6 +1078,14 @@ When a new business rule is mentioned:
     one-second clock; elapsed time always derives from the persisted epoch start), an early
     stop is recorded with `completed: false` and resets the long-break cadence. The plugin
     never stamps status dates from tracking — the OSK status mirror owns stamping.
+    **Pomodoro paths follow renames (issue #231):** `taskPath` is a plain path, which Obsidian
+    does not rewrite. A running pomodoro's `activePomodoro.path` follows a rename like the
+    running session (`followRename`). Records already written: vault renames are batched
+    (`POMODORO_RENAME_DEBOUNCE_MS`, a folder move fires one event per note), then every note whose
+    `pomodorosProperty` list names an old path (metadata cache, any folder) gets those
+    `taskPath`s moved in one serialized frontmatter write per note, decided from disk; records
+    TaskNotes wrote are the same ledger and follow too. Other fields and items are never touched.
+    A batch still pending when the plugin unloads is dropped.
 
 48. **Ideal Week mode edits `time_blocks` through the domain, never by hand (issue #172,
     phase B).** The mode is date-less (an ideal week, revisited rarely): no week navigation,
