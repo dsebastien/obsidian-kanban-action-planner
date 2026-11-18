@@ -108,8 +108,10 @@ export type LaneGrouping = z.infer<typeof laneGroupingSchema>
  * the type's archive, this block is a read-only mirror of it (`domain/
  * status-mirror.ts` `reconcileArchive`, re-synced on every board load) and
  * `graceDays` is the Starter Kit's per-type delay, which overrides the global
- * `archiveGraceDays` for that type, and `tag` its archive tag (≥ 1.50: added
- * to the note's `tags` right before the move). Absent on plugin-owned configs.
+ * `archiveGraceDays` for that type, `tag` its archive tag (≥ 1.50: added to
+ * the note's `tags` right before the move) and `dateProperty` its archive date
+ * property (≥ 1.54: set to the archive day right after the tag, before the
+ * move). Absent on plugin-owned configs.
  */
 export const archiveConfigSchema = z
     .object({
@@ -119,6 +121,7 @@ export const archiveConfigSchema = z
         doneDateProperties: z.array(z.string()).optional(),
         graceDays: z.number().int().min(0).optional(),
         tag: z.string().optional(),
+        dateProperty: z.string().optional(),
         mirrored: z.boolean().optional()
     })
     .transform(
@@ -129,6 +132,7 @@ export const archiveConfigSchema = z
             doneDateProperties,
             graceDays,
             tag,
+            dateProperty,
             mirrored
         }) => {
             const list =
@@ -144,6 +148,8 @@ export const archiveConfigSchema = z
                 ...(graceDays !== undefined ? { graceDays } : {}),
                 // Only the Starter Kit's archive carries a tag (owner decision).
                 ...(tag && mirrored ? { tag } : {}),
+                // Same for the archive date property (Starter Kit ≥ 1.54).
+                ...(dateProperty && mirrored ? { dateProperty } : {}),
                 ...(mirrored ? { mirrored: true } : {})
             }
         }

@@ -291,4 +291,86 @@ describe('archiveNote: the Starter Kit archive tag (OSK ≥ 1.50, Archive Tag Ru
         expect(result).toEqual({ ok: true, destPath: 'Archives/2026/Do it.md' })
         expect(v.events).toEqual(['frontmatter'])
     })
+
+    describe('the Starter Kit archive date (OSK ≥ 1.54, Archive Date Rule)', () => {
+        const dated = archive({ dateProperty: 'date_archived' })
+
+        test('writes the archive day, then moves the note', async () => {
+            const v = vault(['type/task'])
+            const result = await archiveNote(v.app, v.file, dated, ctx)
+            expect(result).toEqual({ ok: true, destPath: 'Archives/2026/Do it.md' })
+            expect(v.events).toEqual(['frontmatter', 'move Archives/2026/Do it.md'])
+            expect(v.fm['date_archived']).toBe('2026-06-26')
+        })
+
+        test('the date and the folder come from the same instant (no midnight split)', async () => {
+            const v = vault(['type/task'])
+            const late: ExpressionContext = {
+                now: new Date(2026, 11, 31, 23, 59, 59),
+                uuid: () => 'u'
+            }
+            await archiveNote(v.app, v.file, archive({ dateProperty: 'date_archived' }), late)
+            expect(v.fm['date_archived']).toBe('2026-12-31')
+            expect(v.events).toEqual(['frontmatter', 'move Archives/2026/Do it.md'])
+        })
+
+        test('an earlier date is replaced when the note moves', async () => {
+            const v = vault(undefined, { fm: { tags: ['type/task'], date_archived: '2025-01-02' } })
+            await archiveNote(v.app, v.file, dated, ctx)
+            expect(v.fm['date_archived']).toBe('2026-06-26')
+        })
+
+        test('an existing key under another casing is reused', async () => {
+            const v = vault(undefined, { fm: { tags: ['type/task'], Date_Archived: null } })
+            await archiveNote(v.app, v.file, dated, ctx)
+            expect(v.fm['Date_Archived']).toBe('2026-06-26')
+            expect(v.fm).not.toHaveProperty('date_archived')
+        })
+
+        test('tag and date in one write, tag first', async () => {
+            const v = vault(['type/task'])
+            await archiveNote(
+                v.app,
+                v.file,
+                archive({ tag: 'statut/archive', dateProperty: 'date_archived' }),
+                ctx
+            )
+            expect(v.events).toEqual(['frontmatter', 'move Archives/2026/Do it.md'])
+            expect(v.fm['tags']).toEqual(['type/task', 'statut/archive'])
+            expect(v.fm['date_archived']).toBe('2026-06-26')
+        })
+
+        test('a date property on a config the planner owns is ignored', async () => {
+            const v = vault(['type/task'])
+            await archiveNote(
+                v.app,
+                v.file,
+                archive({ dateProperty: 'date_archived', mirrored: false }),
+                ctx
+            )
+            expect(v.events).toEqual(['move Archives/2026/Do it.md'])
+            expect(v.fm).not.toHaveProperty('date_archived')
+        })
+
+        test('a refused move (collision): no date written', async () => {
+            const v = vault(['type/task'], { exists: (p) => p === 'Archives/2026/Do it.md' })
+            await archiveNote(v.app, v.file, dated, ctx)
+            expect(v.events).toEqual([])
+            expect(v.fm).not.toHaveProperty('date_archived')
+        })
+
+        test('a note already in its archive folder keeps its date; a missing one is written', async () => {
+            const kept = vault(undefined, {
+                path: 'Archives/2026/Do it.md',
+                fm: { tags: ['type/task'], date_archived: '2026-01-05' }
+            })
+            await archiveNote(kept.app, kept.file, dated, ctx)
+            expect(kept.fm['date_archived']).toBe('2026-01-05')
+
+            const missing = vault(['type/task'], { path: 'Archives/2026/Do it.md' })
+            await archiveNote(missing.app, missing.file, dated, ctx)
+            expect(missing.fm['date_archived']).toBe('2026-06-26')
+            expect(missing.events).toEqual(['frontmatter'])
+        })
+    })
 })

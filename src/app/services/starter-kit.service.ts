@@ -222,6 +222,11 @@ export interface SkArchive {
     statuses: string[]
     /** Starter Kit ≥ 1.50: the tag an archived note gets (Archive Tag Rule); absent = none. */
     tag?: string
+    /**
+     * Starter Kit ≥ 1.54: the date property set to the archive day right
+     * before the move (Archive Date Rule); absent = none.
+     */
+    dateProperty?: string
 }
 
 export function getNoteTypeArchive(app: App, id: string): SkArchive | null {
@@ -242,9 +247,15 @@ export function getNoteTypeArchive(app: App, id: string): SkArchive | null {
         // off. A tag with white space inside is not a tag (the Starter Kit
         // refuses to store one).
         const tag = typeof raw.tag === 'string' ? raw.tag.replace(/^[#\s]+/, '').trimEnd() : ''
-        return tag && !/\s/.test(tag)
-            ? { folder, afterDays, statuses, tag }
-            : { folder, afterDays, statuses }
+        // As the Starter Kit's `normalizeArchiveDateProperty`: trimmed, blank = none.
+        const dateProperty = typeof raw.dateProperty === 'string' ? raw.dateProperty.trim() : ''
+        return {
+            folder,
+            afterDays,
+            statuses,
+            ...(tag && !/\s/.test(tag) ? { tag } : {}),
+            ...(dateProperty ? { dateProperty } : {})
+        }
     } catch {
         return null
     }

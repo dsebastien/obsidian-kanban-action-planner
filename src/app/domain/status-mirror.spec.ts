@@ -232,6 +232,33 @@ describe('archive mirror (Starter Kit ≥ 1.19)', () => {
         expect(mirroredArchiveConfig(skArchive, explicit)).not.toHaveProperty('tag')
     })
 
+    test('mirrors the archive date property (Starter Kit ≥ 1.54); none = no key', () => {
+        expect(
+            mirroredArchiveConfig({ ...skArchive, dateProperty: 'date_archived' }, explicit)
+                ?.dateProperty
+        ).toBe('date_archived')
+        expect(mirroredArchiveConfig(skArchive, explicit)).not.toHaveProperty('dateProperty')
+    })
+
+    test('stored config: the date property survives a round trip on a mirror only', () => {
+        const mirrored = mirroredArchiveConfig(
+            { ...skArchive, tag: 'statut/archive', dateProperty: 'date_archived' },
+            explicit
+        )
+        if (!mirrored) throw new Error('setup')
+        expect(
+            JSON.stringify(archiveConfigSchema.parse(JSON.parse(JSON.stringify(mirrored))))
+        ).toBe(JSON.stringify(mirrored))
+        const own = {
+            archiveFolder: 'Local',
+            triggerStatuses: ['x'],
+            dateProperty: 'date_archived'
+        }
+        expect(archiveConfigSchema.parse(own)).not.toHaveProperty('dateProperty')
+        const after = reconcileArchive(mirrored, skArchive, explicit)
+        expect(after).not.toHaveProperty('dateProperty')
+    })
+
     test('when the Starter Kit drops the tag, the mirror drops it too (re-sync)', () => {
         const before = reconcileArchive(
             { archiveFolder: '', triggerStatuses: [], doneDateProperties: [] },

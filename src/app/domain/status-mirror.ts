@@ -150,8 +150,8 @@ export function activeStatusValues(noteType: {
  * its folder template, its archiving statuses as the trigger statuses, the
  * date each of those statuses stamps as the done-date properties (status
  * order, first present wins as before), its per-type delay as `graceDays`,
- * and its archive tag (≥ 1.50) as `tag`. `null` when the Starter Kit declares
- * none.
+ * its archive tag (≥ 1.50) as `tag`, and its archive date property (≥ 1.54)
+ * as `dateProperty`. `null` when the Starter Kit declares none.
  *
  * Mirrored, not copied: the Starter Kit is the one place the archive is
  * declared (its Archive section generates its own `osk-archive:*` rules),
@@ -175,6 +175,7 @@ export function mirroredArchiveConfig(
         doneDateProperties: stamps,
         graceDays: archive.afterDays,
         ...(archive.tag ? { tag: archive.tag } : {}),
+        ...(archive.dateProperty ? { dateProperty: archive.dateProperty } : {}),
         mirrored: true
     }
 }

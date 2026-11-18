@@ -772,7 +772,15 @@ When a new business rule is mentioned:
     ahead (`moveNoteToFolder`'s `beforeMove`): no destination folder or a refused move
     (collision) leaves the note untagged, so its card stays visible; a note already in the
     destination gets the tag (nothing moves); a failed tag write is logged and the note still
-    moves. A file appearing at the destination during the tag write, or a failed folder creation
+    moves. **Archive date (Starter Kit ≥ 1.54, Archive Date Rule, issue #240):** when the
+    Starter Kit's archive names a `dateProperty`, the mirror carries it (`archive.dateProperty`,
+    trimmed; mirrored configs only) and `archiveNote` writes the archive day (`YYYY-MM-DD`, from
+    the same `ExpressionContext.now` as the folder placeholders, so the stamp and the folder never
+    differ across midnight) in the SAME frontmatter write as the tag, after it, before the move,
+    with the tag's guards (no folder or a collision: nothing written; a failed write is logged and
+    the note still moves). A moving note gets the day whatever the property held (a note archived
+    again gets the new date, as in the Starter Kit); a note already in the destination
+    (`beforeMove(false)`) keeps a date it has, only a missing one is written. A file appearing at the destination during the tag write, or a failed folder creation
     or rename, leaves the note tagged and in place, reported (`reason: 'error'`, a Notice). Tag
     normalization as the Starter Kit's `normalizeArchiveTag`. Only mirrored configs
     carry a tag: types the planner owns have none, even by a hand edit (decision 2026-11-09);

@@ -279,6 +279,18 @@ describe('getNoteTypeArchive: the archive tag (Starter Kit ≥ 1.50)', () => {
             expect(getNoteTypeArchive(appWith({ ...base, tag }), 't')).toEqual(base)
         }
     })
+
+    it('reads the archive date property (Starter Kit ≥ 1.54), trimmed', () => {
+        expect(
+            getNoteTypeArchive(appWith({ ...base, dateProperty: ' date_archived ' }), 't')
+        ).toEqual({ ...base, dateProperty: 'date_archived' })
+    })
+
+    it('no date property, a blank one or a non-text one: no key', () => {
+        for (const dateProperty of [undefined, null, '', '  ', 42]) {
+            expect(getNoteTypeArchive(appWith({ ...base, dateProperty }), 't')).toEqual(base)
+        }
+    })
 })
 
 describe('getNoteTypeRelationships (feature-detected by method presence)', () => {

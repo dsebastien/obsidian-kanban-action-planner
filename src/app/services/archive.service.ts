@@ -3,7 +3,13 @@ import type { ArchiveConfig } from '../domain/note-type'
 import { resolvePlaceholders, type ExpressionContext } from '../utils/expressions'
 import { log } from '../../utils/log'
 import { normalizeTag, tagMatches } from '../domain/automation'
-import { appendToListProperty } from './frontmatter.service'
+import {
+    findKeyCaseInsensitive,
+    readFrontmatterKey,
+    updateFrontmatter,
+    withoutBlankItems,
+    writeFrontmatterKey
+} from './frontmatter.service'
 
 /**
  * Archiving: move a card's note into a configurable, placeholder-driven folder.
@@ -63,28 +69,74 @@ export async function archiveNote(
     archive: ArchiveConfig,
     ctx: ExpressionContext = liveExpressionContext()
 ): Promise<ArchiveResult> {
-    // The Starter Kit's archive tag (≥ 1.50, mirrored configs only): added
-    // right before the move, like the Starter Kit's own archive rule (add-tag,
+    // The Starter Kit's archive tag (≥ 1.50) and archive date property
+    // (≥ 1.54), mirrored configs only: written right before the move, in one
+    // frontmatter write, in the Starter Kit's own order (add-tag, set the date,
     // then move), so Bases that hide archived notes by tag hide this one at
-    // once. Only when the move will happen (or the note is already there): a
-    // refused move (no folder, collision) leaves the note untagged and visible.
-    const tag = archive.mirrored ? normalizeTag(archive.tag ?? '') : ''
-    const beforeMove = tag
-        ? async (): Promise<void> => {
-              try {
-                  await appendToListProperty(app, file, 'tags', tag, (item) =>
-                      tagMatches(item, tag)
-                  )
-              } catch (error: unknown) {
-                  log(
-                      `Archive tag "${tag}" not added to "${file.path}"; moving anyway.`,
-                      'error',
-                      error
-                  )
+    // once and the archive day is on the note. Only when the move will happen
+    // (or the note is already there): a refused move (no folder, collision)
+    // leaves the note untouched and visible. The date comes from the same
+    // instant as the folder placeholders, so they cannot differ across
+    // midnight.
+    const stamps: ArchiveStamps = {
+        tag: archive.mirrored ? normalizeTag(archive.tag ?? '') : '',
+        dateProperty: archive.mirrored ? (archive.dateProperty ?? '').trim() : '',
+        date: resolvePlaceholders('{{date}}', ctx)
+    }
+    const beforeMove =
+        stamps.tag || stamps.dateProperty
+            ? async (moving: boolean): Promise<void> => {
+                  try {
+                      await updateFrontmatter(app, file, (fm) => {
+                          applyArchiveStamps(fm, stamps, moving)
+                      })
+                  } catch (error: unknown) {
+                      log(
+                          `Archive tag or date not written to "${file.path}"; moving anyway.`,
+                          'error',
+                          error
+                      )
+                  }
               }
-          }
-        : undefined
+            : undefined
     return moveNoteToFolder(app, file, archive.archiveFolder, ctx, beforeMove)
+}
+
+/** What {@link archiveNote} writes on a note right before it moves it. */
+export interface ArchiveStamps {
+    /** Normalized tag to add to `tags`; `''` = none. */
+    tag: string
+    /** Date property to set to `date`; `''` = none. */
+    dateProperty: string
+    /** The archive day, `YYYY-MM-DD`. */
+    date: string
+}
+
+/**
+ * Apply the archive stamps to a frontmatter object: the tag first (deduped
+ * case-insensitively, kept as a list), then the date. A note about to move
+ * gets the archive day whatever the property held (the Starter Kit's Archive
+ * Date Rule: a note archived again gets the new date). A note already in its
+ * archive folder (`moving` false) keeps a date it has: nothing archived it
+ * today, so only a missing date is written.
+ */
+export function applyArchiveStamps(
+    fm: Record<string, unknown>,
+    stamps: ArchiveStamps,
+    moving: boolean
+): void {
+    if (stamps.tag) {
+        const key = findKeyCaseInsensitive(fm, 'tags') ?? 'tags'
+        const raw = fm[key]
+        const list = withoutBlankItems(Array.isArray(raw) ? raw : [raw])
+        if (!list.some((item) => tagMatches(item, stamps.tag))) list.push(stamps.tag)
+        fm[key] = list
+    }
+    if (stamps.dateProperty) {
+        const current = readFrontmatterKey(fm, stamps.dateProperty)
+        const empty = current === undefined || current === null || current === ''
+        if (moving || empty) writeFrontmatterKey(fm, stamps.dateProperty, stamps.date)
+    }
 }
 
 /**
@@ -100,10 +152,11 @@ export async function moveNoteToFolder(
     ctx: ExpressionContext = liveExpressionContext(),
     /**
      * Runs once the move is known to go ahead (or the note is already there),
-     * before it. Must not throw: it runs outside the error handling of the
-     * move (`archiveNote`'s hook catches and logs its own errors).
+     * before it; `moving` is false when the note is already in place. Must
+     * not throw: it runs outside the error handling of the move
+     * (`archiveNote`'s hook catches and logs its own errors).
      */
-    beforeMove?: () => Promise<void>
+    beforeMove?: (moving: boolean) => Promise<void>
 ): Promise<ArchiveResult> {
     const folder = resolveArchiveFolder(folderTemplate, ctx)
     if (folder === null) {
@@ -134,7 +187,7 @@ export async function moveNoteToFolder(
         log(`Move refused for "${file.path}": ${message}`, 'warn')
         return { ok: false, reason: 'collision', message }
     }
-    if (beforeMove) await beforeMove()
+    if (beforeMove) await beforeMove(plan.kind !== 'noop')
     if (plan.kind === 'noop') return { ok: true, destPath: file.path }
 
     try {

@@ -276,6 +276,10 @@ declaration read-only instead: its folder, its archiving statuses, the dates the
 the done-date properties), and its per-type delay, which replaces the global grace period below
 for that type. When the Starter Kit (1.50+) also names an archive tag, the planner adds that tag
 to the note right before it moves it, so Bases that hide archived notes by tag hide it at once.
+When the Starter Kit (1.54+) names an archive date property, the planner writes the day of the
+move into it (after the tag, before the move), replacing an earlier value, so the note says when
+it went to the archive. The day is the one the archive folder's `{{year}}` and `{{month}}` use. A
+note that is already in its archive folder keeps the date it has.
 Edit it there; boards re-sync on every load. Both plugins may keep archiving the
 same type: neither one ever moves a note that's already under the archive folder.
 
